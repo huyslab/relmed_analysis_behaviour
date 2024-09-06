@@ -6,14 +6,14 @@ function plot_prior_expectations!(
     norm::Symbol = :ρ,
 	ylab::String = "Q value",
 	ylims::Union{Tuple{Float64, Float64}, Nothing} = nothing,
-	group::Union{Symbol, Nothing} = :group,
+	group::Symbol = :group,
 	legend::Bool = true,
     legend_title::String = "",
     legend_rows::Int64 = 1,
 	colors = Makie.wong_colors(),
 	backgroundcolor::Symbol = :white,
 	plw = 0.2
-	)
+)
 
 	p_data = copy(data)
 
@@ -107,7 +107,7 @@ end
 function plot_prior_accuracy!(
     f::GridLayout,
     data::Union{DataFrame, SubDataFrame};
-    group::Union{Symbol, Missing} = missing,
+    group::Symbol = :group,
     pid_col::Symbol = :PID,
     acc_col::Symbol = :isOptimal,
     colors = Makie.wong_colors(),
@@ -330,9 +330,7 @@ function plot_posteriors(draws::AbstractVector,
 	scale_col::Union{Symbol, Nothing} = nothing,
 	mean_col::Union{Symbol, Nothing} = nothing,
 	model_labels::AbstractVector = repeat([nothing], length(draws))
-)	
-
-	
+)
 
 	draws_dfs = [
 		DataFrame(Array(chains), names(chains, :parameters)) for chains in draws
@@ -349,4 +347,132 @@ function plot_posteriors(draws::AbstractVector,
 		model_labels = model_labels
 	)	
 
+end
+
+# Plot unit line
+unit_line!(ax; color = :grey, linestyle = :dash, linewidth = 2) = ablines!(
+	0., 
+	1.,
+	color = color,
+	linestyle = linestyle,
+	linewidth = linewidth
+	)
+
+# Plot calibration for optimization methods
+function optimization_calibration(
+	prior_sample::DataFrame,
+	optimize_func::Function;
+	estimate::String = "MLE",
+    model::Function = RL_ss,
+    set_size::Union{Vector{Int64}, Nothing} = nothing,
+    parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
+    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
+    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 1., :a => 0.5),
+    initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
+	ms::Float64 = 4.
+)
+	# Initial value for Q values
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+
+	MLEs = optimize_func(
+		prior_sample;
+		initV = aao,
+		estimate = estimate,
+        model = model,
+        set_size = set_size,
+        parameters = parameters,
+        transformed = transformed,
+        sigmas = sigmas,
+        initial_params = initial_params,
+        include_true = true
+	)
+
+    other_pars = setdiff(parameters, [:a, :ρ])
+	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))
+
+	# Plot a
+	ax_a = Axis(
+		f[1,1],
+		xlabel = "True a",
+		ylabel = "$estimate a",
+		aspect = 1.
+	)
+
+	scatter!(
+		ax_a,
+		MLEs.true_a,
+		MLEs.MLE_a,
+		markersize = ms
+	)
+
+	unit_line!(ax_a)
+
+	# Plot ρ
+	ax_ρ = Axis(
+		f[1,2],
+		xlabel = "True ρ",
+		ylabel = "$estimate ρ",
+		aspect = 1.
+	)
+
+	scatter!(
+		ax_ρ,
+		MLEs.true_ρ,
+		MLEs.MLE_ρ,
+		markersize = ms
+	)
+
+	unit_line!(ax_ρ)
+
+	# Plot bivariate
+	ax_aρ = Axis(
+		f[1,3],
+		xlabel = "$estimate a",
+		ylabel = "$estimate ρ",
+		aspect = 1.
+	)
+
+	scatter!(
+		ax_aρ,
+		MLEs.MLE_a,
+		MLEs.MLE_ρ,
+		markersize = ms
+	)
+
+	# Plot ground truth
+	ax_taρ = Axis(
+		f[1,4],
+		xlabel = "True a",
+		ylabel = "True ρ",
+		aspect = 1.
+	)
+
+	scatter!(
+		ax_taρ,
+		MLEs.true_a,
+		MLEs.true_ρ,
+		markersize = ms
+	)
+
+    if length(other_pars) > 0
+        for (i, p) in enumerate(other_pars)
+            ax = Axis(
+                f[2, i],
+                xlabel = "True $p",
+                ylabel = "$estimate $p",
+                aspect = 1.
+            )
+
+            scatter!(
+                ax,
+                MLEs[!, Symbol("true_$p")],
+                MLEs[!, Symbol("MLE_$p")],
+                markersize = ms
+            )
+
+            unit_line!(ax)
+        end
+    end
+
+	f
 end
