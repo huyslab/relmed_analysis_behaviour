@@ -755,7 +755,8 @@ function optimization_calibration(
 	prior_sample::DataFrame,
 	optimize_func::Function;
 	estimate::String = "MLE",
-	ms::Float64 = 4.
+	ms::Float64 = 4.,
+	kwargs...
 )
 	# Initial value for Q values
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
@@ -764,7 +765,8 @@ function optimization_calibration(
 		prior_sample;
 		initV = aao,
 		estimate = estimate,
-		include_true = true
+		include_true = true,
+		kwargs...
 	)
 
 	f = Figure(size = (700, 200))

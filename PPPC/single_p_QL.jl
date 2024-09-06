@@ -65,7 +65,9 @@ begin
 			valence = task.valence,
 			outcomes = task.outcomes,
 			initV = fill(aao, 1, 2),
-			random_seed = 0
+			random_seed = 0,
+			prior_ρ = truncated(Normal(0., 2.), lower = 0.),
+			prior_a = Normal()
 		)
 	
 	
@@ -77,12 +79,6 @@ begin
 	end
 
 	describe(prior_sample)
-end
-
-# ╔═╡ b09277d9-5184-42bf-9e1a-ad242308904b
-let
-	EV_cols = ["Q_optimal", "Q_suboptimal"]
-	[c => Symbol("EV_$(('A':'Z')[i])") for (i, c) in enumerate(EV_cols)]
 end
 
 # ╔═╡ 069177a1-d078-4d3c-bfa3-1bef04065d89
@@ -218,7 +214,9 @@ let
 	f = optimization_calibration(
 		prior_sample,
 		optimize_multiple_single_p_QL,
-		estimate = "MLE"
+		estimate = "MLE",
+		prior_ρ = missing,
+		prior_a = missing
 	)
 
 	save("results/single_p_QL_MLE_calibration.png", f, pt_per_unit = 1)
@@ -231,7 +229,9 @@ let
 	f = optimization_calibration(
 		prior_sample,
 		optimize_multiple_single_p_QL;
-		estimate = "MAP"
+		estimate = "MAP",
+		prior_ρ = truncated(Normal(0., 2.), lower = 0.),
+		prior_a = Normal()
 	)
 
 	save("results/single_p_QL_PMLE_calibration.png", f, pt_per_unit = 1)
@@ -291,13 +291,15 @@ penlaties_fits = let
 		fit1 = optimize_multiple_single_p_QL(
 			data1;
 			initV = aao,
-			σ_ρ = σ_ρ
+			prior_ρ = truncated(Normal(0., σ_ρ), lower = 0.),
+			prior_a = Normal(0., σ_a)
 		)
 	
 		fit2 = optimize_multiple_single_p_QL(
 			data2;
 			initV = aao,
-			σ_ρ = σ_a
+			prior_ρ = truncated(Normal(0., σ_ρ), lower = 0.),
+			prior_a = Normal(0., σ_a)
 		)
 	
 		maps = join_split_fits(
@@ -330,14 +332,6 @@ penlaties_fits = let
 	]
 	
 	fits = DataFrame(fits)
-
-end
-
-# ╔═╡ a0c99fd5-38fa-4117-be5d-c3eb7fd0ce5f
-best_penalties = let 
-	penlaties_fits.sum_r_sq = penlaties_fits.cor_a .^ 2 + penlaties_fits.cor_ρ .^2
-
-	max_fit = filter(x -> x.sum_r_sq == maximum(penlaties_fits.sum_r_sq), penlaties_fits)
 
 end
 
@@ -397,14 +391,162 @@ let
 	
 end
 
-# ╔═╡ 15bfde49-7b68-40fe-bebe-7a8b5c27e27e
-typeof(single_p_QL)
+# ╔═╡ 8ebaeb8e-e760-4f9e-a6bc-e3ecf44e6665
+best_penalties = let
+       penlaties_fits.avg_r_sq = 
+		   (penlaties_fits.cor_a .^ 2 + penlaties_fits.cor_ρ .^2) / 2
+
+       max_fit = 
+		   filter(x -> x.avg_r_sq == maximum(penlaties_fits.avg_r_sq), 
+			   penlaties_fits)
+end
+
+# ╔═╡ c6558729-ed5b-440b-8e59-e69071b26f09
+aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+
+# ╔═╡ 1119fe13-0288-40d8-838c-3f846466d62f
+prepare_for_fit(PLT_data)
+
+# ╔═╡ 06bc903a-12e4-4813-ac47-5d7e097acc7b
+function random_sequence(;
+	optimal::Vector{Float64},
+	suboptimal::Vector{Float64},
+	n_confusing::Int64,
+	n_trials::Int64 = 13
+)
+	common = shuffle(
+		vcat(
+			fill(true, n_trials - n_confusing),
+			fill(false, n_confusing)
+		)
+	)
+
+	opt_seq = ifelse.(
+		common, 
+		shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))), 
+		shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials)))
+	)
+
+	subopt_seq = ifelse.(
+		common, 
+		shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials))),
+		shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))),
+	)
+
+	return hcat(subopt_seq, opt_seq)
+end
+
+# ╔═╡ d9ba8c39-d282-4888-9b3f-d6dc62026a18
+function create_random_task(;
+	n_blocks::Int64,
+	n_trials::Int64,
+)
+
+	# Create task sequence
+	block = repeat(1:n_blocks, inner = n_trials)
+	seq = shuffle(Xoshiro(1), vcat(fill(1., 10), fill(0.01, 3)))
+	outcomes = vcat([random_sequence(
+		optimal = mgnt[2], 
+		suboptimal = mgnt[1], 
+		n_confusing = 3) for mgnt in Iterators.take(
+			Iterators.cycle(
+				[
+					([0.01], [0.5, 1.]),
+					([0.01, 0.5], [1.]),
+					([-0.5, -1.], [-0.01]),
+					([-1.], [-0.01, -0.5])
+				]
+			), n_blocks)]...)
+	valence = [sign(outcomes[i, 1]) for i in 1:n_trials:(size(outcomes,1) - n_trials + 1)]
+	trial = repeat(1:n_trials, n_blocks)
+
+	df = DataFrame(
+		block = block,
+		trial = trial,
+		valence = valence[block],
+		feedback_optimal = outcomes[:, 2],
+		feedback_suboptimal = outcomes[:, 1]
+	)
+
+	return (
+		block = block,
+		outcomes = outcomes,
+		valence = valence,
+		task = df
+	)
+end
+
+# ╔═╡ 148711e8-b72e-4360-838b-57609010acf0
+function bootstrap_optimize_single_p_QL(
+	PLT_data::AbstractDataFrame;
+	n_bootstraps::Int64 = 20,
+	initV::Float64 = aao,
+	prior_ρ::Distribution = truncated(Normal(0., 2.), lower = 0.),
+	prior_a::Distribution = Normal(),
+	estimate::String = "MAP",
+	real_data::Bool = true
+) 
+
+	# Prepare data for fit
+	if real_data
+		forfit, pids = prepare_for_fit(PLT_data)
+	else
+		forfit = copy(PLT_data)
+	end
+
+	# Fit
+	fit = optimize_multiple_single_p_QL(
+		forfit;
+		initV = initV,
+		estimate = estimate,
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
+	)
+
+	# Add condition and prolific_pid
+	if real_data
+		fit = innerjoin(fit, pids, on = :PID)
+	else
+		fit = innerjoin(fit, unique(PLT_data[!, [:PID, :prolific_pid]]), on = :PID)
+	end
+
+	# Sample participants and add bootstrap id
+	bootstraps = vcat([insertcols(
+		fit[sample(Xoshiro(i), 1:nrow(fit), nrow(fit), replace=true), :],
+		:bootstrap_idx => i
+	) for i in 1:n_bootstraps]...)
+
+	return bootstraps
+
+end
+
+# ╔═╡ 33fc2f8e-87d0-4e9e-9f99-8769600f3d25
+let
+	# f = plot_q_learning_ppc_accuracy(
+	# 	PLT_data,
+	# 	simulate_multiple_from_posterior_single_p_QL(
+	describe(
+			bootstrap_optimize_single_p_QL(
+				PLT_data,
+				initV = aao,
+				estimate = "MLE"
+			)
+		)
+	# )
+
+	# save("results/single_p_QL_PMLE_bootstrap_PPC.png", f, 
+	# 	pt_per_unit = 1)
+	# f
+end
 
 # ╔═╡ de41a8c1-fc09-4c33-b371-4d835a0a46ce
 function fit_split(
 	PLT_data::DataFrame,
 	filter1::Function,
-	filter2::Function
+	filter2::Function,
+	prior_ρ::Union{Distribution, Missing} = truncated(Normal(0., 2.), lower = 0.),
+	prior_a::Union{Distribution, Missing} = Normal()
+
 )
 	forfit1, pids1 = 
 		prepare_for_fit(filter(filter1, PLT_data))
@@ -418,15 +560,15 @@ function fit_split(
 	maps1 = optimize_multiple_single_p_QL(
 		forfit1;
 		initV = aao,
-		σ_ρ = 1.,
-		σ_a = 0.5
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
 	)
 
 	maps2 = optimize_multiple_single_p_QL(
 		forfit2;
 		initV = aao,
-		σ_ρ = 1.,
-		σ_a = 0.5
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
 	)
 
 	# Join
@@ -1073,16 +1215,16 @@ let
 	f
 end
 
-# ╔═╡ a59e36b3-15b3-494c-a076-b3eade2cc315
-function plot_q_learning_ppc_accuracy(
+# ╔═╡ 756cfa2f-bb56-4eda-ab1a-db509082ae3f
+function plot_q_learning_ppc_accuracy!(
+	f,
 	data::DataFrame,
 	ppc::DataFrame;
 	title::String = ""
 )
 
-	f_acc = Figure()
 
-	ax = Axis(f_acc[1,1],
+	ax = Axis(f,
         xlabel = "Trial #",
         ylabel = "Prop. optimal choice",
         xautolimitmargin = (0., 0.),
@@ -1094,7 +1236,7 @@ function plot_q_learning_ppc_accuracy(
 		group = :bootstrap_idx,
 		error_band = false,
 		linewidth = 2.,
-		colors = fill(:grey, length(unique(ppc.bootstrap_idx)))
+		colors = fill((Makie.wong_colors()[2], 0.5), length(unique(ppc.bootstrap_idx)))
 	)
 
 	# Plot data
@@ -1102,22 +1244,42 @@ function plot_q_learning_ppc_accuracy(
 		error_band = false
 	)
 
-	f_acc
+end
+
+# ╔═╡ a59e36b3-15b3-494c-a076-b3eade2cc315
+function plot_q_learning_ppc_accuracy(
+	data::DataFrame,
+	ppc::DataFrame;
+	title::String = ""
+)
+
+	f = Figure()
+
+	plot_q_learning_ppc_accuracy!(
+		f[1,1],
+		data,
+		ppc;
+		title = title
+	)
+
+	return f
 
 end
 
 
 # ╔═╡ 594b27ed-4bde-4dae-b4ef-9abc67bf699c
-# Simulate multiple participants from (bootstrapped) posterior
 function simulate_multiple_from_posterior_single_p_QL(
-	bootstraps::DataFrame
+	bootstraps::DataFrame;
+	task::Union{NamedTuple, Missing} = missing
 )
 	# Get task structures
-	conds = unique(bootstraps.condition)
-
-	conds = Dict(
-		c => task_vars_for_condition(c) for c in conds
-	)
+	if ismissing(task)
+		conds = unique(bootstraps.condition)
+	
+		conds = Dict(
+			c => task_vars_for_condition(c) for c in conds
+		)
+	end
 
 	# Simulate for each bootstrap, each participant
 	sim_data = []
@@ -1126,7 +1288,7 @@ function simulate_multiple_from_posterior_single_p_QL(
 	Threads.@threads for i in 1:nrow(bootstraps)
 		tsim = simulate_from_posterior_single_p_QL(
 			bootstraps[i, :], 
-			conds[bootstraps[i, :condition]],
+			ismissing(task) ? conds[bootstraps[i, :condition]] : task,
 			i
 		)
 
@@ -1142,38 +1304,264 @@ function simulate_multiple_from_posterior_single_p_QL(
 end
 
 
-# ╔═╡ 33fc2f8e-87d0-4e9e-9f99-8769600f3d25
-let
-	f = plot_q_learning_ppc_accuracy(
-		PLT_data,
-		simulate_multiple_from_posterior_single_p_QL(
-			bootstrap_optimize_single_p_QL(
-				PLT_data
-			)
-		)
-	)
-
-	save("results/single_p_QL_PMLE_bootstrap_PPC.png", f, 
-		pt_per_unit = 1)
-	f
-end
-
 # ╔═╡ db3cd8d3-5e46-48c6-b85d-f4d302fff690
 f = plot_q_learning_ppc_accuracy(
 		PLT_data,
 		simulate_multiple_from_posterior_single_p_QL(
 			bootstrap_optimize_single_p_QL(
-				PLT_data;
-				estimate = "MLE"
+				filter(x -> x.valence == 1, PLT_data);
+				initV = aao,
+				prior_ρ = truncated(Normal(0., 5.), lower = 0.),
+				prior_a = Normal(0., 2.)
 			)
 		)
 	)
+
+# ╔═╡ 15bfde49-7b68-40fe-bebe-7a8b5c27e27e
+function plot_ppc_prior_generating_match!(
+	f::GridPosition;
+	generating_dist_ρ::Distribution,
+	generating_dist_a::Distribution,
+	estimation_prior_ρ::Distribution,
+	estimation_prior_a::Distribution,
+	title::String = "",
+	n_bootstraps::Int64 = 30,
+	condition::String = "00",
+	n_participants::Int64 = 100
+)	
+	# Get task structure
+	task = create_random_task(n_blocks = 48, n_trials = 13)
+
+	# Draw participants from generating distribution
+	participants = DataFrame(
+		a = rand(generating_dist_a, n_participants), 
+		ρ = rand(generating_dist_ρ, n_participants), 
+		prolific_pid = 1:n_participants,
+		PID = 1:n_participants,
+		bootstrap_idx = 1:n_participants,
+		condition = fill(condition, n_participants)
+	)
+
+	# Simulate data #WHERE DOES THIS GET TASK??????
+	data = simulate_multiple_from_posterior_single_p_QL(
+		participants;
+		task = task
+	) 
+
+	# Join with participant parameters
+	data = leftjoin(data, participants[!, Not(:bootstrap_idx)], on = :prolific_pid)
+
+	# Prepare for bootstrap fit
+	insertcols!(data, 
+		:session => 1,
+		:choice => data.isOptimal
+	)
+
+
+	# Bootstrap fit
+	bootstraps = bootstrap_optimize_single_p_QL(
+		data;
+		initV = aao,
+		prior_ρ = estimation_prior_ρ,
+		prior_a = estimation_prior_a,
+		real_data = false
+	)
+
+	# Get participant fits
+	estimates = sort(unique(bootstraps[!, [:prolific_pid, :ρ, :a]]), :prolific_pid)
+	@assert nrow(estimates) == n_participants
+
+		# Plot distributions
+	ax_prior = Axis(
+		f[1,1],
+		xlabel = "ρ",
+		ylabel = "a",
+		aspect = 1
+	)
+
+	# Plot estimation
+	scatter!(
+		ax_prior,
+		rand(estimation_prior_ρ, 10000),
+		rand(estimation_prior_a, 10000),
+		markersize = 3,
+		alpha = 0.3,
+		color = Makie.wong_colors()[2]
+	)
+
+	# Plot generating
+	scatter!(
+		ax_prior,
+		rand(generating_dist_ρ, 10000),
+		rand(generating_dist_a, 10000),
+		markersize = 3,
+		alpha = 0.3,
+		color = Makie.wong_colors()[1]
+	)
+
+	# Plot participants
+	ax_ps_ρ = Axis(
+		f[1,2],
+		xlabel = "true",
+		ylabel = "estimated",
+		aspect = 1,
+		title = "ρ"
+	)
+
+	scatter!(
+		ax_ps_ρ,
+		participants.ρ,
+		estimates.ρ,
+		markersize = 5,
+		color = :black
+	)
+
+	ablines!(
+		ax_ps_ρ,
+		0.,
+		1.,
+		linestyle = :dash,
+		color = :grey
+	)
+
+	ax_ps_a = Axis(
+		f[1,3],
+		xlabel = "true",
+		ylabel = "estimated",
+		aspect = 1,
+		title = "a"
+	)
+
+	scatter!(
+		ax_ps_a,
+		participants.a,
+		estimates.a,
+		markersize = 5,
+		color = :black
+	)
+
+	ablines!(
+		ax_ps_a,
+		0.,
+		1.,
+		linestyle = :dash,
+		color = :grey
+	)
+
+
+	# Plot PPC
+	plot_q_learning_ppc_accuracy!(
+		f[2,:],
+		data,
+		simulate_multiple_from_posterior_single_p_QL(
+			bootstraps;
+			task = task
+		),
+		title = title
+	)
+
+	return f
+end
+
+# ╔═╡ c45d00d0-6860-4cbc-a38f-c54d129f3b79
+let
+
+	f = Figure(size = (700, 700))
+
+	plot_ppc_prior_generating_match!(
+		f[1,1],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 2.), lower = 0),
+		estimation_prior_a = Normal(),
+		title = "ρ Prior less informative"
+	)
+
+	plot_ppc_prior_generating_match!(
+		f[1,2],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 5.), lower = 0),
+		estimation_prior_a = Normal(),
+		title = "ρ Prior less informative"
+	)
+
+	plot_ppc_prior_generating_match!(
+		f[2,1],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 10.), lower = 0),
+		estimation_prior_a = Normal(),
+		title = "ρ Prior less informative"
+	)
+
+	f
+
+
+end
+
+# ╔═╡ f4cce5eb-649f-4de6-892e-51c634622333
+let
+	f = Figure(size = (700, 700))
+	
+	plot_ppc_prior_generating_match!(
+		f[1,1],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 2.), lower = 0),
+		estimation_prior_a = Normal(0., 0.5)
+	)
+
+	plot_ppc_prior_generating_match!(
+		f[1,2],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 2.), lower = 0),
+		estimation_prior_a = Normal(0., 2.)
+	)
+
+	plot_ppc_prior_generating_match!(
+		f[2,1],
+		generating_dist_ρ = truncated(Normal(1., 0.3), lower = 0),
+		generating_dist_a = Normal(0., 0.1),
+		estimation_prior_ρ = truncated(Normal(0., 2.), lower = 0),
+		estimation_prior_a = Normal(0., 8.)
+	)
+
+	Legend(
+		f[0,:],
+		[PolyElement(color = c) for c in Makie.wong_colors()[1:2]],
+		["Data", "Model"],
+		orientation = :horizontal,
+		framevisible = false,
+		fontsize = 14
+	)
+
+	rowgap!(f.layout, 1, 5)
+	
+	f
+end
+
+# ╔═╡ c338d320-1c68-416f-8d44-dae4ca24afef
+let
+	f = Figure(size = (500, 500))
+	
+	plot_ppc_prior_generating_match!(
+		f[1,1],
+		generating_dist_ρ = truncated(Normal(1., 2.5), lower = 0),
+		generating_dist_a = truncated(Normal(), lower = 0.),
+		estimation_prior_ρ = truncated(Normal(0., 10.), lower = 0),
+		estimation_prior_a = Normal(0., 3.)
+	)
+
+	f
+
+end
 
 # ╔═╡ Cell order:
 # ╠═fb94ad20-57e0-11ef-2dae-b16d3d00e329
 # ╠═261d0d08-10b9-4111-9fc8-bb84e6b4cef5
 # ╠═fa79c576-d4c9-4c42-b5df-66d886e8abe4
-# ╠═b09277d9-5184-42bf-9e1a-ad242308904b
 # ╠═069177a1-d078-4d3c-bfa3-1bef04065d89
 # ╟─f5113e3e-3bcf-4a92-9e76-d5eed8088320
 # ╠═9477b295-ada5-46cf-b2e3-2c1303873081
@@ -1194,16 +1582,25 @@ f = plot_q_learning_ppc_accuracy(
 # ╠═3a8f569d-0d8e-4020-9023-a123cad9d5de
 # ╠═10565355-90ae-419c-9b92-8ff18fcd48b3
 # ╠═a53db393-c9e7-4db3-a11d-3b244823d951
-# ╠═a0c99fd5-38fa-4117-be5d-c3eb7fd0ce5f
 # ╠═a88ffe29-f0f4-4eb7-8fc3-a7fcc08560d0
+# ╠═8ebaeb8e-e760-4f9e-a6bc-e3ecf44e6665
 # ╠═80ae54ff-b9d2-4c30-8f62-4b7cac65201b
 # ╠═60866598-8564-4dd7-987c-fb74d3f3fc64
 # ╠═3b40c738-77cf-413f-9821-c641ebd0a13d
+# ╠═c6558729-ed5b-440b-8e59-e69071b26f09
 # ╠═33fc2f8e-87d0-4e9e-9f99-8769600f3d25
 # ╠═db3cd8d3-5e46-48c6-b85d-f4d302fff690
+# ╠═1119fe13-0288-40d8-838c-3f846466d62f
+# ╠═c45d00d0-6860-4cbc-a38f-c54d129f3b79
+# ╠═f4cce5eb-649f-4de6-892e-51c634622333
+# ╠═06bc903a-12e4-4813-ac47-5d7e097acc7b
+# ╠═d9ba8c39-d282-4888-9b3f-d6dc62026a18
+# ╠═c338d320-1c68-416f-8d44-dae4ca24afef
+# ╠═148711e8-b72e-4360-838b-57609010acf0
 # ╠═15bfde49-7b68-40fe-bebe-7a8b5c27e27e
 # ╠═de41a8c1-fc09-4c33-b371-4d835a0a46ce
 # ╠═2239dd1c-1975-46b4-b270-573efd454c04
 # ╠═fa9f86cd-f9b1-43bb-a394-c105ba0a36fa
 # ╠═a59e36b3-15b3-494c-a076-b3eade2cc315
+# ╠═756cfa2f-bb56-4eda-ab1a-db509082ae3f
 # ╠═594b27ed-4bde-4dae-b4ef-9abc67bf699c

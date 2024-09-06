@@ -13,7 +13,7 @@ Performs Q-learning for a single participant in a reinforcement learning task, w
 - `block::Vector{Int64}`: A vector indicating the block number for each trial.
 - `valence::AbstractVector`: A vector of valence values associated with each block, modulating the Q-value updates.
 - `choice`: A binary vector representing the participant's choices (e.g., `true` for choosing stimulus A). Not typed to allow for both empirical and simulated data.
-- `outcomes::Matrix{Float64}`: A matrix of outcomes for the options, where the first column corresponds to the first option and the second column to the optimal option.
+- `outcomes::Matrix{Float64}`: A matrix of outcomes for the options, where the first column corresponds to the suboptimal option and the second column to the optimal option.
 - `initV::Matrix{Float64}`: Initial Q-values for the options, used as a starting point for learning.
 - `σ_ρ::Float64=1.0`: Standard deviation for the prior distribution of the reward sensitivity parameter `ρ`.
 - `σ_a::Float64=0.5`: Standard deviation for the prior distribution of the learning rate parameter `a`.
@@ -86,7 +86,7 @@ Performs a variant of Q-learning for a single participant in a reinforcement lea
 - `block::Vector{Int64}`: A vector indicating the block number for each trial.
 - `valence::AbstractVector`: A vector of valence values associated with each block, modulating the Q-value updates.
 - `choice`: A binary vector representing the participant's choices (e.g., `true` for choosing stimulus A). Not typed to allow for both empirical and simulated data.
-- `outcomes::Matrix{Float64}`: A matrix of outcomes for the options, where the first column corresponds to the first option and the second column to the optimal option.
+- `outcomes::Matrix{Float64}`: A matrix of outcomes for the options, where the first column corresponds to the suboptimal option and the second column to the optimal option.
 - `initV::Matrix{Float64}`: Initial Q-values for the options, used as a starting point for learning.
 - `σ_ρ::Float64=1.0`: Standard deviation for the prior distribution of the reward sensitivity parameter `ρ`.
 - `σ_a::Float64=0.5`: Standard deviation for the prior distribution of the learning rate parameter `a`.
