@@ -2,10 +2,18 @@
 
 Code in this repository runs simulations and analyses behavioural data from RELMED.
 
-The code runs on a Docker container. To lauch the docker container run the following command in the Mac terminal:
+The code runs on a Docker container. To lauch the docker container, first you need to create a local version of the file env.list (which won't be tracked by git). This file contains settings that are specific to your machine, as well as passwords:
+
+1. `JULIA_NUM_THREADS=11`: Number of cores available on your machine. Make sure that Docker desktop is set to allow you to use this number of cores.
+2. `REDCap_url=https://redcap.slms.ucl.ac.uk/api/`: Url of REDCap database to download pilot1 data.
+3. `REDCap_token=YOURTOKEN`: Your URL token for REDCap.
+
+(If you don't want to download data from REDCap, you don't need the latter two. The data is saved on osf in preprocessed format which you can download.)
+
+Then run the following command in the Mac terminal:
 
 ```
-docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.01
+docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.1ma
 ```
 
 Copy the URL for Jupyter in the resulting ouptut, navigate to it in your browser. Launch a Pluto.jl instance from Jupyter to view the Pluto notebooks in the repository.

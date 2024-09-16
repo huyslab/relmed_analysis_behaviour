@@ -33,8 +33,8 @@ function scatter_regression_line!(
 	df::DataFrame,
 	x_col::Symbol,
 	y_col::Symbol,
-	xlabel::String,
-	ylabel::String;
+	xlabel::Union{String, Makie.RichText},
+	ylabel::Union{String, Makie.RichText};
 	transform_x::Function = x -> x,
 	transform_y::Function = x -> x,
 	color = Makie.wong_colors()[1],
@@ -84,8 +84,8 @@ function scatter_regression_line!(
 	df::DataFrame,
 	x_col::Symbol,
 	y_col::Symbol,
-	xlabel::String,
-	ylabel::String;
+	xlabel::Union{String, Makie.RichText},
+	ylabel::Union{String, Makie.RichText};
 	transform_x::Function = x -> x,
 	transform_y::Function = x -> x,
 	color = Makie.wong_colors()[1],
@@ -160,16 +160,16 @@ end
 function reliability_scatter!(
 	f::GridLayout,
 	fits::DataFrame,
-	label1::String,
-	label2::String
+	label1::Union{String, Makie.RichText},
+	label2::Union{String, Makie.RichText}
 )
 	ax_a = scatter_regression_line!(
 		f[1,1],
 		fits,
 		:a_1,
 		:a_2,
-		"$label1 a",
-		"$label2 a"
+		rich(label1, "a"),
+		rich(label2, "a")
 	)
 
 	ax_ρ = scatter_regression_line!(
@@ -177,8 +177,8 @@ function reliability_scatter!(
 		fits,
 		:ρ_1,
 		:ρ_2,
-		"$label1 ρ",
-		"$label2 ρ"
+		rich(label1, "ρ"),
+		rich(label2, "ρ")
 	)
 
 	return ax_a, ax_ρ
@@ -341,6 +341,9 @@ function plot_group_accuracy!(
     group_levels = ismissing(levels) ? unique(sum_data.group) : levels
     for (i,g) in enumerate(group_levels)
         gdat = filter(:group => (x -> x==g), sum_data)
+
+		dropmissing!(gdat)
+
 		g_p_dat = filter(:group => (x -> x == g), p_data)
 
         # Plot line
@@ -474,6 +477,8 @@ function plot_sim_group_q_values!(
 		end
 
 	end
+
+	return ax
 end
 
 function plot_sim_q_value_acc!(
@@ -489,9 +494,9 @@ function plot_sim_q_value_acc!(
     # Calcualte accuracy
     sim_dat.isOptimal = sim_dat.choice .== 1
 	
-	plot_sim_group_q_values!(f[1 + legend ,1], sim_dat; 
+	ax_q = plot_sim_group_q_values!(f[1 + legend ,1], sim_dat; 
 		legend = legend, colors = colors, backgroundcolor = backgroundcolor, plw = plw)
-	plot_group_accuracy!(f[1 + legend,2], sim_dat;
+	ax_acc = plot_group_accuracy!(f[1 + legend,2], sim_dat;
         group = :group, pid_col = :PID,
 		colors = colors, backgroundcolor = backgroundcolor, error_band = acc_error_band)
 
@@ -522,7 +527,7 @@ function plot_sim_q_value_acc!(
 		rowgap!(f.layout, 10)	
 	end
 
-	return f
+	return ax_q, ax_acc
 end
 
 # This function makes density plots for posteriors, plus true value if needed
@@ -750,7 +755,8 @@ function optimization_calibration(
 	prior_sample::DataFrame,
 	optimize_func::Function;
 	estimate::String = "MLE",
-	ms::Float64 = 4.
+	ms::Float64 = 4.,
+	kwargs...
 )
 	# Initial value for Q values
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
@@ -759,7 +765,8 @@ function optimization_calibration(
 		prior_sample;
 		initV = aao,
 		estimate = estimate,
-		include_true = true
+		include_true = true,
+		kwargs...
 	)
 
 	f = Figure(size = (700, 200))
@@ -829,4 +836,116 @@ function optimization_calibration(
 	)
 
 	f
+end
+
+# Plot rainclouds of bootstrap correlation by category
+# Variable determines x axis placement
+# Level_id determines color and dodge
+function plot_cor_dist(
+	f::GridPosition, 
+	cat_cors::DataFrame, 
+	col::Symbol;
+	ylabel::String = "",
+	title::String = "",
+	colors = Makie.wong_colors(),
+	xticks = unique(cat_cors.variable),
+	ylimits = [nothing, nothing]
+)
+
+	ax = Axis(
+		f,
+		xticks = (1:length(xticks), xticks),
+		ylabel = ylabel,
+		title = title,
+		limits = (nothing, nothing, ylimits[1], ylimits[2])
+	)
+
+	rainclouds!(
+		ax,
+		cat_cors.variable,
+		cat_cors[!, col],
+		dodge = cat_cors.level_id,
+		color = colors[cat_cors.level_id],
+		plot_boxplots = false
+	)
+
+	return ax
+
+end
+
+"""
+    plot_prior_predictive_by_valence(prior_sample::DataFrame, EV_cols::Vector{Symbol})
+
+Generates a figure with three subplots showing the prior predictive simulations of Q-value accuracy across all blocks, reward blocks, and punishment blocks, grouped by valence.
+
+# Arguments
+- `prior_sample::DataFrame`: A DataFrame containing samples from the prior predictive distribution. This DataFrame should include columns representing expected values (EVs) for different choices or conditions.
+- `EV_cols::Vector{Symbol}`: A vector of symbols indicating the columns in `prior_sample` that contain the expected values (EVs) for different options or conditions. These columns will be renamed for plotting.
+
+# Returns
+- `f`: A `Figure` object containing the generated plots.
+
+# Details
+- The function renames the specified EV columns in the `prior_sample` DataFrame to a standard format (`EV_A`, `EV_B`, etc.) to facilitate plotting.
+- The data is then grouped into three categories for plotting: all blocks, reward blocks (positive valence), and punishment blocks (negative valence).
+- The function creates a `Figure` object with three subplots, each representing one of the categories:
+  1. The first subplot shows the Q-value accuracy across all blocks.
+  2. The second subplot focuses on blocks with positive valence (reward blocks).
+  3. The third subplot focuses on blocks with negative valence (punishment blocks).
+- The `plot_sim_q_value_acc!` function is used for plotting the Q-value accuracy, with a prediction interval (PI) error band displayed.
+"""
+function plot_prior_predictive_by_valence(
+	prior_sample::DataFrame,
+	EV_cols::Vector{Symbol}
+)
+
+	# Rename columns for plot_sim_q_value_acc!
+	df = rename(prior_sample, 
+		[c => Symbol("EV_$(('A':'Z')[i])") for (i, c) in enumerate(EV_cols)]...
+	)
+
+	df[!, :group] .= 1
+	
+	f = Figure(size = (700, 1000))
+
+	g_all = f[1,1] = GridLayout()
+	
+	ax_q, ax_acc = plot_sim_q_value_acc!(
+		g_all,
+		df;
+		plw = 1,
+		legend = false,
+		acc_error_band = "PI"
+	)
+
+	Label(g_all[0,:], "All blocks", fontsize = 18, font = :bold)
+
+	g_reward = f[2,1] = GridLayout()
+	
+	ax_qr, ax_accr = plot_sim_q_value_acc!(
+		g_reward,
+		filter(x -> x.valence > 0, df);
+		plw = 1,
+		legend = false,
+		acc_error_band = "PI"
+	)
+
+	Label(g_reward[0,:], "Reward blocks", fontsize = 18, font = :bold)
+
+	g_punishment = f[3,1] = GridLayout()
+	
+	ax_qp, ax_accp = plot_sim_q_value_acc!(
+		g_punishment,
+		filter(x -> x.valence < 0, df);
+		plw = 1,
+		legend = false,
+		acc_error_band = "PI"
+	)
+
+	Label(g_punishment[0,:], "Punishment blocks", fontsize = 18, font = :bold)
+
+	linkyaxes!(ax_q, ax_qr, ax_qp)
+	linkyaxes!(ax_acc, ax_accr, ax_accp)
+
+	return f
 end

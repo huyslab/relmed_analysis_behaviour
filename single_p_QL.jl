@@ -1,110 +1,26 @@
 # This file contains a Q learning model for single participant data, 
 # and methods for sampling, fitting, and computing quanitities based on it.
 
-# Turing model
-@model function single_p_QL(;
-	N::Int64, # Total number of trials
-	n_blocks::Int64, # Number of blocks
-	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
-	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
-	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
-	initV::Matrix{Float64}, # Initial Q values,
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
-)
-
-	# Priors on parameters
-	ρ ~ truncated(Normal(0., σ_ρ), lower = 0.)
-	a ~ Normal(0., σ_a)
-
-	# Compute learning rate
-	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
-
-	# Initialize Q values
-	Qs = repeat(initV .* ρ, length(block)) .* valence[block]
-
-	# Loop over trials, updating Q values and incrementing log-density
-	for i in 1:N
-		
-		# Define choice distribution
-		choice[i] ~ BernoulliLogit(Qs[i, 2] - Qs[i, 1])
-
-		choice_idx::Int64 = choice[i] + 1
-
-		# Prediction error
-		PE = outcomes[i, choice_idx] * ρ - Qs[i, choice_idx]
-
-		# Update Q value
-		if (i != N) && (block[i] == block[i+1])
-			Qs[i + 1, choice_idx] = Qs[i, choice_idx] + α * PE
-			Qs[i + 1, 3 - choice_idx] = Qs[i, 3 - choice_idx]
-		end
-	end
-
-	return Qs
-
-end
-
-
 # Simulate data from model prior
 function simulate_single_p_QL(
 	n::Int64; # How many datasets to simulate
 	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
 	outcomes::Matrix{Float64}, # Outcomes for options, first column optimal
 	initV::Matrix{Float64}, # Initial Q values
 	random_seed::Union{Int64, Nothing} = nothing,
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
+	prior_ρ::Distribution,
+	prior_a::Distribution
 )
-
-	# Total trial number
-	N = length(block)
-
-	# Trials per block
-    n_trials = div(length(block), maximum(block))
-
-	# Prepare model for simulation
-	prior_model = single_p_QL(
-		N = N,
-		n_blocks = maximum(block),
+	return sim_data = simulate_single_p_PILT(
+		n;
+		model = single_p_QL,
 		block = block,
-		valence = valence,
-		choice = fill(missing, length(block)),
 		outcomes = outcomes,
 		initV = initV,
-		σ_ρ = σ_ρ,
-		σ_a = σ_a
+		random_seed = random_seed,
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
 	)
-
-	# Draw parameters and simulate choice
-	prior_sample = sample(
-		isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
-		prior_model,
-		Prior(),
-		n
-	)
-
-	# Arrange choice for return
-	sim_data = DataFrame(
-		PID = repeat(1:n, inner = N),
-		ρ = repeat(prior_sample[:, :ρ, 1], inner = N),
-		α = repeat(prior_sample[:, :a, 1], inner = N) .|> a2α,
-		block = repeat(block, n),
-		valence = repeat(valence, inner = n_trials, outer = n),
-		trial = repeat(1:n_trials, n * maximum(block)),
-		choice = prior_sample[:, [Symbol("choice[$i]") for i in 1:N], 1] |>
-			Array |> transpose |> vec
-	)
-
-	# Compute Q values
-	Qs = generated_quantities(prior_model, prior_sample) |> vec
-
-	sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...) 
-	sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...) 
-
-	return sim_data
 			
 end
 
@@ -114,22 +30,21 @@ function posterior_sample_single_p_QL(
 	initV::Float64,
 	random_seed::Union{Int64, Nothing} = nothing,
 	iter_sampling = 1000,
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
+	prior_ρ::Distribution = truncated(Normal(0., 2.), lower = 0.),
+	prior_a::Distribution = Normal(0., 1)
 )
 	model = single_p_QL(;
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal,
 			data.feedback_optimal,
 		),
 		initV = fill(initV, 1, 2),
-		σ_ρ = σ_ρ,
-		σ_a = σ_a
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
 	)
 
 	fit = sample(
@@ -143,34 +58,59 @@ function posterior_sample_single_p_QL(
 	return fit
 end
 
+function multistart_mode_estimator(
+	model::Turing.Model;
+	estimator::Union{MLE, MAP},
+	n_starts::Int64 = 5
+)
+	# Store for results
+	best_lp = -Inf
+	best_result = nothing
+
+	for _ in 1:n_starts
+
+		# Optimize
+		fit = Turing.Optimisation.estimate_mode(
+			model,
+			estimator
+		)
+
+		if fit.lp > best_lp
+			best_lp = fit.lp
+			best_result = fit
+		end
+	end
+
+	return best_result
+
+end
+
 # Find MLE / MAP for DataFrame with data for single participant
 function optimize_single_p_QL(
 	data::AbstractDataFrame;
 	initV::Float64,
 	estimate::String = "MAP",
-	initial_params::Union{AbstractVector,Nothing}=nothing,
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
+	prior_ρ::Union{Distribution, Missing},
+	prior_a::Union{Distribution, Missing}
 )
 	model = single_p_QL(;
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal,
 			data.feedback_optimal,
 		),
 		initV = fill(initV, 1, 2),
-		σ_ρ = σ_ρ,
-		σ_a = σ_a
+		prior_ρ = prior_ρ, # For MLE this is used for initial values
+		prior_a = prior_a
 	)
 
 	if estimate == "MLE"
-		fit = maximum_likelihood(model; initial_params = initial_params)
+		fit = multistart_mode_estimator(model; estimator = MLE())
 	elseif estimate == "MAP"
-		fit = maximum_a_posteriori(model; initial_params = initial_params)
+		fit = multistart_mode_estimator(model; estimator = MAP())
 	end
 
 	return fit
@@ -181,12 +121,16 @@ function optimize_multiple_single_p_QL(
 	data::DataFrame;
 	initV::Float64,
 	estimate::String = "MAP",
-	initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
 	include_true::Bool = false, # Whether to return true value if this is simulation
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
+	prior_ρ::Union{Distribution, Missing},
+	prior_a::Union{Distribution, Missing}
 )
+
+	@assert (estimate == "MLE") || (!ismissing(prior_ρ) && !ismissing(prior_a)) "Must supply priors"
+
 	ests = []
+	lk = ReentrantLock()
+
 	Threads.@threads for p in unique(data.PID)
 
 		# Select data
@@ -197,9 +141,8 @@ function optimize_multiple_single_p_QL(
 			gdf; 
 			initV = initV,
 			estimate = estimate,
-			initial_params = initial_params,
-			σ_ρ = σ_ρ,
-			σ_a = σ_a
+			prior_ρ = prior_ρ,
+			prior_a = prior_a
 		)
 
 		# Return
@@ -219,22 +162,88 @@ function optimize_multiple_single_p_QL(
 			)
 		end
 
-		push!(
-			ests,
-			est
-		)
+		lock(lk) do
+			push!(ests, est)
+		end
 	end
 
-	dests = try
-		DataFrame(ests)
-	catch e
-		println(ests)
-		throw(e)
-	end
+	ests = DataFrame(ests)
 
-	return dests
+	@assert sort(unique(ests.PID)) == sort(unique(data.PID))
+
+	return sort(ests, :PID)
 end
 
+"""
+bootstrap_optimize_single_p_QL(
+    PLT_data::AbstractDataFrame;
+    n_bootstraps::Int64 = 20,
+    initV::Float64 = aao,
+    prior_ρ::Distribution = truncated(Normal(0., 2.), lower = 0.),
+    prior_a::Distribution = Normal()
+) -> AbstractDataFrame
+
+Bootstrap participant parameters from a Q-Learning model.
+
+# Arguments
+- `PLT_data::AbstractDataFrame`: The input data containing participant-level trial information. Must be a DataFrame or similar structure.
+- `n_bootstraps::Int64`: The number of bootstrap samples to generate. Defaults to 20.
+- `initV::Float64`: Initial value for the optimization procedure, with a default value `aao`.
+- `prior_ρ::Distribution`: The prior distribution for the parameter `ρ`, defaulting to a truncated normal distribution `Normal(0., 2.)` with a lower bound of 0.
+- `prior_a::Distribution`: The prior distribution for the parameter `a`, defaulting to a standard normal distribution `Normal()`.
+
+# Returns
+- `bootstraps::AbstractDataFrame`: A DataFrame containing the results of the optimization, with additional bootstrap indices for each sample.
+
+# Description
+The function first prepares the input `PLT_data` for fitting by transforming it as necessary. It then performs an optimization using the `optimize_multiple_single_p_QL` function, leveraging Maximum A Posteriori (MAP) estimation with the specified priors. After fitting, the results are joined with additional participant identifiers (`pids`) using an `innerjoin` on the `PID` column, adding extra information such as condition and prolific_pid.
+
+The function then generates bootstrap samples by sampling the rows of the joined data with replacement, appending a `bootstrap_idx` column to indicate the bootstrap iteration. 
+
+The returned DataFrame contains all bootstrap samples concatenated together, allowing for further analysis of the variability in the fit results.
+"""
+function bootstrap_optimize_single_p_QL(
+	PLT_data::AbstractDataFrame;
+	n_bootstraps::Int64 = 20,
+	initV::Float64 = aao,
+	prior_ρ::Distribution = truncated(Normal(0., 5.), lower = 0.),
+	prior_a::Distribution = Normal(),
+	estimate::String = "MAP",
+	real_data::Bool = true
+) 
+
+	# Prepare data for fit
+	if real_data
+		forfit, pids = prepare_for_fit(PLT_data)
+	else
+		forfit = copy(PLT_data)
+	end
+
+	# Fit
+	fit = optimize_multiple_single_p_QL(
+		forfit;
+		initV = initV,
+		estimate = estimate,
+		prior_ρ = prior_ρ,
+		prior_a = prior_a
+	)
+
+	# Add condition and prolific_pid
+	if real_data
+		fit = innerjoin(fit, pids, on = :PID)
+	else
+		fit = innerjoin(fit, unique(PLT_data[!, [:PID, :prolific_pid]]), on = :PID)
+	end
+
+	# Sample participants and add bootstrap id
+	bootstraps = vcat([insertcols(
+		fit[sample(Xoshiro(i), 1:nrow(fit), nrow(fit), replace=true), :],
+		:bootstrap_idx => i
+	) for i in 1:n_bootstraps]...)
+
+	return bootstraps
+
+end
 
 # Sample from posterior for multiple datasets drawn for prior and summarise for simulation-based calibration
 function SBC_single_p_QL(
@@ -242,8 +251,8 @@ function SBC_single_p_QL(
 	initV::Float64,
 	random_seed::Union{Int64, Nothing} = nothing,
 	iter_sampling = 500,
-	σ_ρ::Float64 = 2.,
-	σ_a::Float64 = 1.
+	prior_ρ::Distribution,
+	prior_a::Distribution
 )
 
 	sums = []
@@ -255,8 +264,8 @@ function SBC_single_p_QL(
 			initV = initV,
 			random_seed = random_seed,
 			iter_sampling = iter_sampling,
-			σ_ρ = σ_ρ,
-			σ_a = σ_a
+			prior_ρ = prior_ρ,
+			prior_a = prior_a
 		)
 
 		push!(
@@ -273,10 +282,47 @@ function SBC_single_p_QL(
 	return sums
 end
 
+# Simulate choice from posterior 
+function simulate_from_posterior_single_p_QL(
+	bootstrap::DataFrameRow, # DataFrameRow containinng parameters and condition
+	task, # Task structure for condition,
+	random_seed::Int64
+) 
+
+	# Initial value for Q values
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+
+	block = task.block
+	outcomes = task.outcomes
+
+	post_model = single_p_QL(
+		N = length(block),
+		n_blocks = maximum(block),
+		block = block,
+		choice = fill(missing, length(block)),
+		outcomes = outcomes,
+		initV = fill(aao, 1, 2),
+		prior_ρ = Normal(-.99), # Prior doesn't matter in posterior simulation
+		prior_a = Normal(-.99)
+	)
+	
+	chn = Chains([bootstrap.a bootstrap.ρ], [:a, :ρ])
+
+	choice = predict(Xoshiro(random_seed), post_model, chn)[1, :, 1] |> Array |> vec
+	
+	ppc = insertcols(task.task, 
+		:isOptimal => choice,
+		:bootstrap_idx => fill(bootstrap.bootstrap_idx, length(choice)),
+		:prolific_pid => fill(bootstrap.prolific_pid, length(choice))
+	)
+	
+
+end
+
 # Prepare pilot data for fititng with model
 function prepare_for_fit(data)
 
-	forfit = select(data, [:prolific_pid, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :chosenOutcome, :isOptimal])
+	forfit = select(data, [:prolific_pid, :condition, :session, :block, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
 
 	rename!(forfit, :isOptimal => :choice)
 
@@ -295,13 +341,11 @@ function prepare_for_fit(data)
 		ifelse.(forfit.optimalRight .== 0, forfit.outcomeRight, forfit.outcomeLeft)
 
 	# PID as number
-	pids = DataFrame(
-		prolific_pid = unique(forfit.prolific_pid)
-	)
+	pids = unique(forfit[!, [:prolific_pid, :condition]])
 
 	pids.PID = 1:nrow(pids)
 
-	forfit = innerjoin(forfit, pids, on = :prolific_pid)
+	forfit = innerjoin(forfit, pids[!, [:prolific_pid, :PID]], on = :prolific_pid)
 
 	# Block as Int64
 	forfit.block = convert(Vector{Int64}, forfit.block)

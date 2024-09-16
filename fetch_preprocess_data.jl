@@ -90,7 +90,7 @@ function REDCap_data_to_df(jspsych_data, records)
 	return jspsych_data
 end
 
-remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"yaniv|tore", x.prolific_pid), data)
+remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"yaniv|tore|demo", x.prolific_pid), data)
 
 # Filter PLT data
 function prepare_PLT_data(data::DataFrame)
@@ -201,4 +201,55 @@ function count_consecutive_ones(v)
 	end
 
 	return result
+end
+
+"""
+    task_vars_for_condition(condition::String)
+
+Fetches and processes the task structure for a given experimental condition, preparing key variables for use in reinforcement learning models.
+
+# Arguments
+- `condition::String`: The specific condition for which the task structure is to be retrieved. This string is used to load the appropriate CSV file corresponding to the condition.
+
+# Returns
+- A named tuple with the following components:
+  - `task`: A `DataFrame` containing the full task structure loaded from a CSV file, with processed block numbers and feedback columns.
+  - `block`: A vector of block numbers adjusted to account for session numbers, useful for tracking the progression of blocks across multiple sessions.
+  - `valence`: A vector containing the unique valence values for each block, indicating the nature of feedback (e.g., positive or negative) associated with each block.
+  - `outcomes`: A matrix where the first column contains feedback for the suboptimal option and the second column contains feedback for the optimal option. This arrangement is designed to facilitate learning model implementations where the optimal outcome is consistently in the second column.
+
+# Details
+- The task structure is loaded from a CSV file named `"PLT_task_structure_$condition.csv"` located in the `data` directory, where `$condition` is replaced by the value of the `condition` argument.
+- Block numbers are renumbered to reflect their session, allowing for consistent tracking across multiple sessions.
+- Feedback values are reorganized based on the optimal choice (either option A or B), with the optimal feedback placed in one column and the suboptimal feedback in the other.
+- This function is useful for preparing task-related variables for reinforcement learning models that require specific input formats.
+"""
+function task_vars_for_condition(condition::String)
+	# Load sequence from file
+	task = DataFrame(CSV.File("data/PLT_task_structure_$condition.csv"))
+
+	# Renumber block
+	task.block = task.block .+ (task.session .- 1) * maximum(task.block)
+
+	# Arrange feedback by optimal / suboptimal
+	task.feedback_optimal = 
+		ifelse.(task.optimal_A .== 1, task.feedback_A, task.feedback_B)
+
+	task.feedback_suboptimal = 
+		ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
+
+
+	# Arrange outcomes such as second column is optimal
+	outcomes = hcat(
+		task.feedback_suboptimal,
+		task.feedback_optimal,
+	)
+
+	return (
+		task = task,
+		block = task.block,
+		valence = unique(task[!, [:block, :valence]]).valence,
+		outcomes = outcomes
+	)
+
 end
