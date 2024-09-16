@@ -33,7 +33,6 @@ Performs Q-learning for a single participant in a reinforcement learning task, w
 	N::Int64, # Total number of trials
 	n_blocks::Int64, # Number of blocks
 	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
 	initV::Matrix{Float64}, # Initial Q values,
@@ -48,8 +47,8 @@ Performs Q-learning for a single participant in a reinforcement learning task, w
 	# Compute learning rate
 	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
 
-	# Initialize Q values
-	Qs = repeat(initV .* ρ, length(block)) .* valence[block]
+	# Initialize Q values, with sign depending on block valence
+	Qs = repeat(initV .* ρ, length(block)) .* sign.(outcomes[:, 1])
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in 1:N

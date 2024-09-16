@@ -62,7 +62,6 @@ begin
 		prior_sample = simulate_single_p_QL(
 			200;
 			block = task.block,
-			valence = task.valence,
 			outcomes = task.outcomes,
 			initV = fill(aao, 1, 2),
 			random_seed = 0,
@@ -81,19 +80,16 @@ begin
 	describe(prior_sample)
 end
 
-# ╔═╡ 069177a1-d078-4d3c-bfa3-1bef04065d89
+# ╔═╡ 3c87dee2-1c27-4209-9769-1933494d2850
 let
-
 	f = plot_prior_predictive_by_valence(
 		prior_sample,
 		[:Q_optimal, :Q_suboptimal]
 	)
-
+	
 	save("results/single_p_QL_prior_predictive.png", f, pt_per_unit = 1)
-
+	
 	f
-
-
 end
 
 # ╔═╡ f5113e3e-3bcf-4a92-9e76-d5eed8088320
@@ -148,6 +144,8 @@ begin
 end
 
 # ╔═╡ 2afaba84-49b6-4770-a3bb-6e8e4c8be4ba
+# ╠═╡ disabled = true
+#=╠═╡
 sbc = let
 	draws_sum_file = "saved_models/sbc_single_p_QL.jld2"
 	if isfile(draws_sum_file)
@@ -164,8 +162,11 @@ sbc = let
 
 	sbc
 end
+  ╠═╡ =#
 
 # ╔═╡ 50d88c5c-4a3f-4ded-81cf-600eddb3bbf9
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f_SBC = plot_SBC(sbc, show_n = [1], params = ["a", "ρ"])
 
@@ -203,6 +204,7 @@ let
 	f_SBC
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 47b4f578-98ee-4ae0-8359-f4e8de5a63f1
 md"""
@@ -215,8 +217,8 @@ let
 		prior_sample,
 		optimize_multiple_single_p_QL,
 		estimate = "MLE",
-		prior_ρ = missing,
-		prior_a = missing
+		prior_ρ = truncated(Normal(8., 10.), lower = 0.),
+		prior_a = Normal()
 	)
 
 	save("results/single_p_QL_MLE_calibration.png", f, pt_per_unit = 1)
@@ -230,13 +232,27 @@ let
 		prior_sample,
 		optimize_multiple_single_p_QL;
 		estimate = "MAP",
-		prior_ρ = truncated(Normal(0., 2.), lower = 0.),
+		prior_ρ = truncated(Normal(8., 10.), lower = 0.),
 		prior_a = Normal()
 	)
 
 	save("results/single_p_QL_PMLE_calibration.png", f, pt_per_unit = 1)
 
 	f
+end
+
+# ╔═╡ a4ddab91-f27c-42ba-83b4-67efd72747cc
+begin
+	model = single_p_QL(
+		N = 130,
+		n_blocks = 10,
+		block = repeat(1:10, inner = 13),
+		choice = rand(Bernoulli(), 130),
+		outcomes = rand(Normal(), 130, 2),
+		initV = fill(0., 1, 2),
+		prior_ρ = Normal(),
+		prior_a = Normal()
+	)
 end
 
 # ╔═╡ a3c8a90e-d820-4542-9043-e06a0ec9eaee
@@ -256,6 +272,8 @@ begin
 end
 
 # ╔═╡ 525522d1-5ced-46f2-8c9b-3299d3cb244d
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	find_excess = x -> (x.consecutiveOptimal <= 5) | 
 		((x.consecutiveOptimal == 6) && (x.trial == 13))
@@ -266,8 +284,11 @@ begin
 
 	shortened_PLT = filter(find_excess, PLT_data)
 end
+  ╠═╡ =#
 
 # ╔═╡ a53db393-c9e7-4db3-a11d-3b244823d951
+# ╠═╡ disabled = true
+#=╠═╡
 # Different priors
 penlaties_fits = let
 	sess1_forfit, sess1_pids = 
@@ -334,8 +355,11 @@ penlaties_fits = let
 	fits = DataFrame(fits)
 
 end
+  ╠═╡ =#
 
 # ╔═╡ a88ffe29-f0f4-4eb7-8fc3-a7fcc08560d0
+# ╠═╡ disabled = true
+#=╠═╡
 let
 
 	f = Figure()
@@ -390,8 +414,11 @@ let
 
 	
 end
+  ╠═╡ =#
 
 # ╔═╡ 8ebaeb8e-e760-4f9e-a6bc-e3ecf44e6665
+# ╠═╡ disabled = true
+#=╠═╡
 best_penalties = let
        penlaties_fits.avg_r_sq = 
 		   (penlaties_fits.cor_a .^ 2 + penlaties_fits.cor_ρ .^2) / 2
@@ -400,11 +427,12 @@ best_penalties = let
 		   filter(x -> x.avg_r_sq == maximum(penlaties_fits.avg_r_sq), 
 			   penlaties_fits)
 end
+  ╠═╡ =#
 
 # ╔═╡ c6558729-ed5b-440b-8e59-e69071b26f09
 aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 
-# ╔═╡ 1119fe13-0288-40d8-838c-3f846466d62f
+# ╔═╡ 6351e72f-4c2b-4fee-b9dd-337c745e8e52
 prepare_for_fit(PLT_data)
 
 # ╔═╡ 06bc903a-12e4-4813-ac47-5d7e097acc7b
@@ -521,6 +549,8 @@ function bootstrap_optimize_single_p_QL(
 end
 
 # ╔═╡ 33fc2f8e-87d0-4e9e-9f99-8769600f3d25
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	# f = plot_q_learning_ppc_accuracy(
 	# 	PLT_data,
@@ -538,13 +568,27 @@ let
 	# 	pt_per_unit = 1)
 	# f
 end
+  ╠═╡ =#
+
+# ╔═╡ db3cd8d3-5e46-48c6-b85d-f4d302fff690
+# f = plot_q_learning_ppc_accuracy(
+# 		PLT_data,
+# 		simulate_multiple_from_posterior_single_p_QL(
+			bootstrap_optimize_single_p_QL(
+				PLT_data;
+				initV = aao,
+				prior_ρ = truncated(Normal(2., 5.), lower = 0.),
+				prior_a = Normal(0., 2.)
+			) |> describe
+	# 	)
+	# )
 
 # ╔═╡ de41a8c1-fc09-4c33-b371-4d835a0a46ce
 function fit_split(
 	PLT_data::DataFrame,
 	filter1::Function,
 	filter2::Function,
-	prior_ρ::Union{Distribution, Missing} = truncated(Normal(0., 2.), lower = 0.),
+	prior_ρ::Union{Distribution, Missing} = truncated(Normal(4., 10.), lower = 0.),
 	prior_a::Union{Distribution, Missing} = Normal()
 
 )
@@ -614,6 +658,8 @@ let
 end
 
 # ╔═╡ 48343b75-a0cd-4806-9867-b861b118491d
+# ╠═╡ disabled = true
+#=╠═╡
 # Overall split-half
 let
 
@@ -636,8 +682,11 @@ let
 	f
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 8a567ab1-db8a-47df-ac2b-59714f230ae6
+# ╠═╡ disabled = true
+#=╠═╡
 # Overall split-half session 2
 let
 
@@ -660,6 +709,7 @@ let
 	f
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 2239dd1c-1975-46b4-b270-573efd454c04
 function reliability_by_condition(
@@ -813,6 +863,8 @@ let
 end
 
 # ╔═╡ fff23ca1-35bc-4ff1-aea6-d9bb5ce86b1f
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_condition(
 		PLT_data,
@@ -829,8 +881,11 @@ let
 	f
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 8c9a0662-25af-4280-ad48-270458edb018
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_condition(
 		PLT_data,
@@ -847,8 +902,11 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 479726b5-605b-494e-8ff2-4d569d0c0ddd
+# ╠═╡ disabled = true
+#=╠═╡
 let 
 	f = reliability_by_condition(
 		shortened_PLT,
@@ -865,8 +923,11 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 3a8f569d-0d8e-4020-9023-a123cad9d5de
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_condition(
 		shortened_PLT,
@@ -884,8 +945,11 @@ let
 	f
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 10565355-90ae-419c-9b92-8ff18fcd48b3
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_condition(
 		shortened_PLT,
@@ -902,6 +966,7 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ fa9f86cd-f9b1-43bb-a394-c105ba0a36fa
 function reliability_by_valence(
@@ -1180,6 +1245,8 @@ function reliability_by_valence(
 end
 
 # ╔═╡ 80ae54ff-b9d2-4c30-8f62-4b7cac65201b
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_valence(
 		PLT_data
@@ -1190,8 +1257,11 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 60866598-8564-4dd7-987c-fb74d3f3fc64
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_valence(
 		shortened_PLT
@@ -1202,8 +1272,11 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 3b40c738-77cf-413f-9821-c641ebd0a13d
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = reliability_by_valence(
 		filter(x -> !x.valence_grouped, PLT_data)
@@ -1214,6 +1287,7 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 756cfa2f-bb56-4eda-ab1a-db509082ae3f
 function plot_q_learning_ppc_accuracy!(
@@ -1304,18 +1378,169 @@ function simulate_multiple_from_posterior_single_p_QL(
 end
 
 
-# ╔═╡ db3cd8d3-5e46-48c6-b85d-f4d302fff690
-f = plot_q_learning_ppc_accuracy(
-		PLT_data,
-		simulate_multiple_from_posterior_single_p_QL(
-			bootstrap_optimize_single_p_QL(
-				filter(x -> x.valence == 1, PLT_data);
-				initV = aao,
-				prior_ρ = truncated(Normal(0., 5.), lower = 0.),
-				prior_a = Normal(0., 2.)
-			)
-		)
+# ╔═╡ abc3312d-0ce8-4a32-810e-a8477735ed35
+function plot_ppc_prior_generating_match_pilot!(
+	f::GridPosition;
+	generating_dist_ρ::Distribution,
+	generating_dist_a::Distribution,
+	estimation_prior_ρ::Distribution,
+	estimation_prior_a::Distribution,
+	title::String = "",
+	n_bootstraps::Int64 = 30,
+	condition::String = "110",
+	n_participants::Int64 = 100
+)	
+
+	# Draw participants from generating distribution
+	participants = DataFrame(
+		a = rand(generating_dist_a, n_participants), 
+		ρ = rand(generating_dist_ρ, n_participants), 
+		prolific_pid = 1:n_participants,
+		PID = 1:n_participants,
+		bootstrap_idx = 1:n_participants,
+		condition = fill(condition, n_participants)
 	)
+
+	# Simulate data
+	data = simulate_multiple_from_posterior_single_p_QL(
+		participants
+	) 
+
+	# Join with participant parameters
+	data = leftjoin(data, participants[!, Not(:bootstrap_idx)], on = :prolific_pid)
+
+	# Prepare for bootstrap fit
+	insertcols!(data, 
+		:choice => data.isOptimal
+	)
+
+	rename!(data,
+		:optimal_right => :optimalRight,
+		:feedback_left => :outcomeLeft,
+		:feedback_right => :outcomeRight,
+	)
+
+	# Bootstrap fit
+	bootstraps = bootstrap_optimize_single_p_QL(
+		data;
+		initV = aao,
+		prior_ρ = estimation_prior_ρ,
+		prior_a = estimation_prior_a
+	)
+
+	# Join with participant parameters
+	# bootstraps = leftjoin(bootstraps, participants[!, [:prolific_pid, :condition]], on = :prolific_pid)
+
+	# Get participant fits
+	estimates = sort(unique(bootstraps[!, [:prolific_pid, :ρ, :a]]), :prolific_pid)
+	@assert nrow(estimates) == n_participants
+
+		# Plot distributions
+	ax_prior = Axis(
+		f[1,1],
+		xlabel = "ρ",
+		ylabel = "a",
+		aspect = 1
+	)
+
+	# Plot estimation
+	scatter!(
+		ax_prior,
+		rand(estimation_prior_ρ, 10000),
+		rand(estimation_prior_a, 10000),
+		markersize = 3,
+		alpha = 0.3,
+		color = Makie.wong_colors()[2]
+	)
+
+	# Plot generating
+	scatter!(
+		ax_prior,
+		rand(generating_dist_ρ, 10000),
+		rand(generating_dist_a, 10000),
+		markersize = 3,
+		alpha = 0.3,
+		color = Makie.wong_colors()[1]
+	)
+
+	# Plot participants
+	ax_ps_ρ = Axis(
+		f[1,2],
+		xlabel = "true",
+		ylabel = "estimated",
+		aspect = 1,
+		title = "ρ"
+	)
+
+	scatter!(
+		ax_ps_ρ,
+		participants.ρ,
+		estimates.ρ,
+		markersize = 5,
+		color = :black
+	)
+
+	ablines!(
+		ax_ps_ρ,
+		0.,
+		1.,
+		linestyle = :dash,
+		color = :grey
+	)
+
+	ax_ps_a = Axis(
+		f[1,3],
+		xlabel = "true",
+		ylabel = "estimated",
+		aspect = 1,
+		title = "a"
+	)
+
+	scatter!(
+		ax_ps_a,
+		participants.a,
+		estimates.a,
+		markersize = 5,
+		color = :black
+	)
+
+	ablines!(
+		ax_ps_a,
+		0.,
+		1.,
+		linestyle = :dash,
+		color = :grey
+	)
+
+
+	# Plot PPC
+	plot_q_learning_ppc_accuracy!(
+		f[2,:],
+		data,
+		simulate_multiple_from_posterior_single_p_QL(
+			bootstraps
+		),
+		title = title
+	)
+
+	return f
+end
+
+# ╔═╡ 7ba2eabb-b1e8-4462-a2e1-69b5e91998fd
+let
+	f = Figure(size = (500, 500))
+	
+	plot_ppc_prior_generating_match_pilot!(
+		f[1,1],
+		generating_dist_ρ = truncated(Normal(8., 2.5), lower = 0),
+		generating_dist_a = Normal(-2., 1.),
+		estimation_prior_ρ = truncated(Normal(0., 20.), lower = 0),
+		estimation_prior_a = Normal(0., 3.)
+	)
+
+	f
+
+end
 
 # ╔═╡ 15bfde49-7b68-40fe-bebe-7a8b5c27e27e
 function plot_ppc_prior_generating_match!(
@@ -1464,6 +1689,8 @@ function plot_ppc_prior_generating_match!(
 end
 
 # ╔═╡ c45d00d0-6860-4cbc-a38f-c54d129f3b79
+# ╠═╡ disabled = true
+#=╠═╡
 let
 
 	f = Figure(size = (700, 700))
@@ -1499,8 +1726,11 @@ let
 
 
 end
+  ╠═╡ =#
 
 # ╔═╡ f4cce5eb-649f-4de6-892e-51c634622333
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = Figure(size = (700, 700))
 	
@@ -1541,6 +1771,7 @@ let
 	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ c338d320-1c68-416f-8d44-dae4ca24afef
 let
@@ -1548,9 +1779,9 @@ let
 	
 	plot_ppc_prior_generating_match!(
 		f[1,1],
-		generating_dist_ρ = truncated(Normal(1., 2.5), lower = 0),
-		generating_dist_a = truncated(Normal(), lower = 0.),
-		estimation_prior_ρ = truncated(Normal(0., 10.), lower = 0),
+		generating_dist_ρ = truncated(Normal(8., 2.5), lower = 0),
+		generating_dist_a = Normal(-2., 1.),
+		estimation_prior_ρ = truncated(Normal(0., 20.), lower = 0),
 		estimation_prior_a = Normal(0., 3.)
 	)
 
@@ -1562,7 +1793,7 @@ end
 # ╠═fb94ad20-57e0-11ef-2dae-b16d3d00e329
 # ╠═261d0d08-10b9-4111-9fc8-bb84e6b4cef5
 # ╠═fa79c576-d4c9-4c42-b5df-66d886e8abe4
-# ╠═069177a1-d078-4d3c-bfa3-1bef04065d89
+# ╠═3c87dee2-1c27-4209-9769-1933494d2850
 # ╟─f5113e3e-3bcf-4a92-9e76-d5eed8088320
 # ╠═9477b295-ada5-46cf-b2e3-2c1303873081
 # ╠═2afaba84-49b6-4770-a3bb-6e8e4c8be4ba
@@ -1570,6 +1801,7 @@ end
 # ╟─47b4f578-98ee-4ae0-8359-f4e8de5a63f1
 # ╠═1d982252-c9ac-4925-9cd5-976456d32bc4
 # ╠═2eb2dd61-abae-4328-9787-7a841d321836
+# ╠═a4ddab91-f27c-42ba-83b4-67efd72747cc
 # ╠═a3c8a90e-d820-4542-9043-e06a0ec9eaee
 # ╠═c2e51103-b6ee-43a3-87e5-a9a2b28ed8e4
 # ╠═48343b75-a0cd-4806-9867-b861b118491d
@@ -1590,17 +1822,19 @@ end
 # ╠═c6558729-ed5b-440b-8e59-e69071b26f09
 # ╠═33fc2f8e-87d0-4e9e-9f99-8769600f3d25
 # ╠═db3cd8d3-5e46-48c6-b85d-f4d302fff690
-# ╠═1119fe13-0288-40d8-838c-3f846466d62f
+# ╠═6351e72f-4c2b-4fee-b9dd-337c745e8e52
 # ╠═c45d00d0-6860-4cbc-a38f-c54d129f3b79
 # ╠═f4cce5eb-649f-4de6-892e-51c634622333
 # ╠═06bc903a-12e4-4813-ac47-5d7e097acc7b
 # ╠═d9ba8c39-d282-4888-9b3f-d6dc62026a18
 # ╠═c338d320-1c68-416f-8d44-dae4ca24afef
-# ╠═148711e8-b72e-4360-838b-57609010acf0
+# ╠═7ba2eabb-b1e8-4462-a2e1-69b5e91998fd
+# ╟─148711e8-b72e-4360-838b-57609010acf0
+# ╠═abc3312d-0ce8-4a32-810e-a8477735ed35
 # ╠═15bfde49-7b68-40fe-bebe-7a8b5c27e27e
-# ╠═de41a8c1-fc09-4c33-b371-4d835a0a46ce
-# ╠═2239dd1c-1975-46b4-b270-573efd454c04
-# ╠═fa9f86cd-f9b1-43bb-a394-c105ba0a36fa
+# ╟─de41a8c1-fc09-4c33-b371-4d835a0a46ce
+# ╟─2239dd1c-1975-46b4-b270-573efd454c04
+# ╟─fa9f86cd-f9b1-43bb-a394-c105ba0a36fa
 # ╠═a59e36b3-15b3-494c-a076-b3eade2cc315
-# ╠═756cfa2f-bb56-4eda-ab1a-db509082ae3f
+# ╟─756cfa2f-bb56-4eda-ab1a-db509082ae3f
 # ╠═594b27ed-4bde-4dae-b4ef-9abc67bf699c

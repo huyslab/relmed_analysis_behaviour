@@ -97,7 +97,6 @@ begin
 			prior_sample = simulate_single_p_QL(
 				repeats;
 				block = task.block,
-				valence = task.valence,
 				outcomes = task.outcomes,
 				initV = fill(aao, 1, 2),
 				random_seed = 0,
@@ -137,7 +136,6 @@ function plot_turing_ll(
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal, 
@@ -189,7 +187,6 @@ function single_p_QL_ll(;
 	N::Int64, # Total number of trials
 	n_blocks::Int64, # Number of blocks
 	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
 	initV::Matrix{Float64}, # Initial Q values
@@ -201,7 +198,7 @@ function single_p_QL_ll(;
 	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
 
 	# Initialize Q values
-	Qs = repeat(initV .* ρ, length(block)) .* valence[block]
+	Qs = repeat(initV .* ρ, length(block)) .* sign.(outcomes[:, 1])
 
 	ll = 0.
 
@@ -240,7 +237,6 @@ function plot_handcrafted_ll(
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal, 
@@ -309,13 +305,11 @@ end
 							([-1.], [-0.01, -0.5])
 						]
 					), n_blocks)]...)
-			valence = [sign(outcomes[i, 1]) for i in 1:n_trials:(size(outcomes,1) - n_trials + 1)]
 			trial = repeat(1:n_trials, n_blocks)
 			
 			prior_sample = simulate_single_p_QL(
 				1;
 				block = block,
-				valence = valence,
 				outcomes = outcomes,
 				initV = fill(aao, 1, 2),
 				random_seed = 0,
@@ -374,9 +368,6 @@ function simulate_plot_ll!(
 
 	return ax
 end
-
-# ╔═╡ c19c8595-ccbe-4719-b9a7-e881672fc18a
-simulate_participant_random_task(ρ = 6., a = 0.5, n_blocks = 2)
 
 # ╔═╡ d0cbfe44-5f88-4833-9313-bad04f51342b
 let
@@ -577,7 +568,6 @@ end
 # ╠═a11a50ae-5aff-49aa-94e7-7f9fd688efb4
 # ╠═186b86f8-4eba-4b45-9ca4-8d2a1d8e90cb
 # ╠═ad670167-f0e1-4f63-8fe6-6debf8fec2b4
-# ╠═c19c8595-ccbe-4719-b9a7-e881672fc18a
 # ╠═d0cbfe44-5f88-4833-9313-bad04f51342b
 # ╠═032842c4-507b-4a58-b860-5a085b93ac47
 # ╠═2d44b2a8-218b-49dd-ac6d-f4ac45e2c216

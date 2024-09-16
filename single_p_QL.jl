@@ -5,7 +5,6 @@
 function simulate_single_p_QL(
 	n::Int64; # How many datasets to simulate
 	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
 	outcomes::Matrix{Float64}, # Outcomes for options, first column optimal
 	initV::Matrix{Float64}, # Initial Q values
 	random_seed::Union{Int64, Nothing} = nothing,
@@ -16,7 +15,6 @@ function simulate_single_p_QL(
 		n;
 		model = single_p_QL,
 		block = block,
-		valence = valence,
 		outcomes = outcomes,
 		initV = initV,
 		random_seed = random_seed,
@@ -39,7 +37,6 @@ function posterior_sample_single_p_QL(
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal,
@@ -61,12 +58,38 @@ function posterior_sample_single_p_QL(
 	return fit
 end
 
+function multistart_mode_estimator(
+	model::Turing.Model;
+	estimator::Union{MLE, MAP},
+	n_starts::Int64 = 5
+)
+	# Store for results
+	best_lp = -Inf
+	best_result = nothing
+
+	for _ in 1:n_starts
+
+		# Optimize
+		fit = Turing.Optimisation.estimate_mode(
+			model,
+			estimator
+		)
+
+		if fit.lp > best_lp
+			best_lp = fit.lp
+			best_result = fit
+		end
+	end
+
+	return best_result
+
+end
+
 # Find MLE / MAP for DataFrame with data for single participant
 function optimize_single_p_QL(
 	data::AbstractDataFrame;
 	initV::Float64,
 	estimate::String = "MAP",
-	initial_params::Union{AbstractVector,Nothing}=nothing,
 	prior_ρ::Union{Distribution, Missing},
 	prior_a::Union{Distribution, Missing}
 )
@@ -74,21 +97,20 @@ function optimize_single_p_QL(
 		N = nrow(data),
 		n_blocks = maximum(data.block),
 		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal,
 			data.feedback_optimal,
 		),
 		initV = fill(initV, 1, 2),
-		prior_ρ = estimate == "MAP" ? prior_ρ : Normal(), ## For MLE, prior is meaningless
-		prior_a = estimate == "MAP" ? prior_a : Normal()
+		prior_ρ = prior_ρ, # For MLE this is used for initial values
+		prior_a = prior_a
 	)
 
 	if estimate == "MLE"
-		fit = maximum_likelihood(model; initial_params = initial_params)
+		fit = multistart_mode_estimator(model; estimator = MLE())
 	elseif estimate == "MAP"
-		fit = maximum_a_posteriori(model; initial_params = initial_params)
+		fit = multistart_mode_estimator(model; estimator = MAP())
 	end
 
 	return fit
@@ -101,8 +123,7 @@ function optimize_multiple_single_p_QL(
 	estimate::String = "MAP",
 	include_true::Bool = false, # Whether to return true value if this is simulation
 	prior_ρ::Union{Distribution, Missing},
-	prior_a::Union{Distribution, Missing},
-	initial_params::Union{AbstractVector,Nothing}=[ismissing(prior_ρ) ? 0. : mean(prior_ρ), ismissing(prior_a) ? 0. : mean(prior_a)],
+	prior_a::Union{Distribution, Missing}
 )
 
 	@assert (estimate == "MLE") || (!ismissing(prior_ρ) && !ismissing(prior_a)) "Must supply priors"
@@ -120,7 +141,6 @@ function optimize_multiple_single_p_QL(
 			gdf; 
 			initV = initV,
 			estimate = estimate,
-			initial_params = initial_params,
 			prior_ρ = prior_ρ,
 			prior_a = prior_a
 		)
@@ -186,7 +206,7 @@ function bootstrap_optimize_single_p_QL(
 	PLT_data::AbstractDataFrame;
 	n_bootstraps::Int64 = 20,
 	initV::Float64 = aao,
-	prior_ρ::Distribution = truncated(Normal(0., 2.), lower = 0.),
+	prior_ρ::Distribution = truncated(Normal(0., 5.), lower = 0.),
 	prior_a::Distribution = Normal(),
 	estimate::String = "MAP",
 	real_data::Bool = true
@@ -209,7 +229,11 @@ function bootstrap_optimize_single_p_QL(
 	)
 
 	# Add condition and prolific_pid
-	fit = innerjoin(fit, pids, on = :PID)
+	if real_data
+		fit = innerjoin(fit, pids, on = :PID)
+	else
+		fit = innerjoin(fit, unique(PLT_data[!, [:PID, :prolific_pid]]), on = :PID)
+	end
 
 	# Sample participants and add bootstrap id
 	bootstraps = vcat([insertcols(
@@ -269,14 +293,12 @@ function simulate_from_posterior_single_p_QL(
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 
 	block = task.block
-	valence = task.valence
 	outcomes = task.outcomes
 
 	post_model = single_p_QL(
 		N = length(block),
 		n_blocks = maximum(block),
 		block = block,
-		valence = valence,
 		choice = fill(missing, length(block)),
 		outcomes = outcomes,
 		initV = fill(aao, 1, 2),
@@ -300,7 +322,7 @@ end
 # Prepare pilot data for fititng with model
 function prepare_for_fit(data)
 
-	forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
+	forfit = select(data, [:prolific_pid, :condition, :session, :block, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
 
 	rename!(forfit, :isOptimal => :choice)
 

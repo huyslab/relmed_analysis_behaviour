@@ -5,7 +5,6 @@ function simulate_single_p_PILT(
 	n::Int64; # How many datasets to simulate
 	model::Function,
 	block::Vector{Int64}, # Block number
-	valence::AbstractVector, # Valence of each block
 	outcomes::Matrix{Float64}, # Outcomes for options, first column optimal
 	initV::Matrix{Float64}, # Initial Q values
 	random_seed::Union{Int64, Nothing} = nothing,
@@ -24,7 +23,6 @@ function simulate_single_p_PILT(
 		N = N,
 		n_blocks = maximum(block),
 		block = block,
-		valence = valence,
 		choice = fill(missing, length(block)),
 		outcomes = outcomes,
 		initV = initV,
@@ -44,9 +42,10 @@ function simulate_single_p_PILT(
 	sim_data = DataFrame(
 		PID = repeat(1:n, inner = N),
 		ρ = repeat(prior_sample[:, :ρ, 1], inner = N),
+		a = repeat(prior_sample[:, :a, 1], inner = N),
 		α = repeat(prior_sample[:, :a, 1], inner = N) .|> a2α,
 		block = repeat(block, n),
-		valence = repeat(valence, inner = n_trials, outer = n),
+		valence = repeat(sign.(outcomes[:,1]), outer = n),
 		trial = repeat(1:n_trials, n * maximum(block)),
 		choice = prior_sample[:, [Symbol("choice[$i]") for i in 1:N], 1] |>
 			Array |> transpose |> vec
