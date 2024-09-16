@@ -366,9 +366,12 @@ function optimization_calibration(
     model::Function = RL_ss,
     set_size::Union{Vector{Int64}, Nothing} = nothing,
     parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
+	initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 1., :a => 0.5),
-    initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
+	priors::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict(
+		:ρ => truncated(Normal(0., 2.), lower = 0.),
+		:a => Normal(0., 1.)
+	),
 	ms::Float64 = 4.
 )
 	# Initial value for Q values
@@ -380,12 +383,12 @@ function optimization_calibration(
 		estimate = estimate,
         model = model,
         set_size = set_size,
+        include_true = true,
         parameters = parameters,
-        transformed = transformed,
-        sigmas = sigmas,
         initial_params = initial_params,
-        include_true = true
-	)
+		transformed = transformed,
+		priors = priors
+	)[1]
 
     other_pars = setdiff(parameters, [:a, :ρ])
 	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))

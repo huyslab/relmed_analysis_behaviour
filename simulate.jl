@@ -12,7 +12,6 @@ function task_vars_for_condition(condition::String, split_by_confusion_time::Boo
     task.feedback_suboptimal = 
         ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
 
-
     # Arrange outcomes such as second column is optimal
     outcomes = hcat(
         task.feedback_suboptimal,
@@ -59,8 +58,10 @@ function simulate_from_prior(
     set_size::Union{Vector{Int64}, Nothing} = nothing, # Set size for each block, required for WM models
     parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 2., :a => 0.5),
-    fixed_params::Dict = Dict(:ρ => nothing, :α => nothing),
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5)
+    ),
     random_seed::Union{Int64, Nothing} = nothing
 )
 
@@ -79,8 +80,7 @@ function simulate_from_prior(
         initV = initV,
         set_size = set_size,
         parameters = parameters,
-        sigmas = sigmas,
-        fixed_params = fixed_params
+        priors = priors
     )
 
     # Draw parameters and simulate choice
@@ -107,16 +107,12 @@ function simulate_from_prior(
     )
 
     for p in parameters
-        if haskey(fixed_params, p)
-            sim_data[!, p] = fill(fixed_params[p], n * N)
+        v = repeat(prior_sample[:, p, 1], inner = N)
+        if haskey(transformed, p)
+            v = v .|> a2α # assume all transformations are to [0, 1]
+            sim_data[!, transformed[p]] = v
         else
-            v = repeat(prior_sample[:, p, 1], inner = N)
-            if haskey(transformed, p)
-                v = v .|> a2α # assume all transformations are to [0, 1]
-                sim_data[!, transformed[p]] = v
-            else
-                sim_data[!, p] = v
-            end
+            sim_data[!, p] = v
         end
     end
 
@@ -138,87 +134,87 @@ function simulate_from_prior(
     return sim_data
 end
 
-function simulate_from_hierarchical_prior(
-    n::Int64; # How many participants are therefore
-    model::Function,
-    block::Vector{Vector{Int64}}, # Block number
-    valence::Vector{Vector{Float64}}, # Valence of each block
-    outcomes::Vector{Matrix{Float64}}, # Outcomes for options, first column optimal
-    initV::Matrix{Float64}, # Initial Q (and W) values
-    set_size::Union{Vector{Vector{Int64}}, Nothing} = nothing, # Set size for each block, required for WM models
-    parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 2., :a => 0.5),
-    random_seed::Union{Int64, Nothing} = nothing
-)
+# function simulate_from_hierarchical_prior(
+#     n::Int64; # How many participants are therefore
+#     model::Function,
+#     block::Vector{Vector{Int64}}, # Block number
+#     valence::Vector{Vector{Float64}}, # Valence of each block
+#     outcomes::Vector{Matrix{Float64}}, # Outcomes for options, first column optimal
+#     initV::Matrix{Float64}, # Initial Q (and W) values
+#     set_size::Union{Vector{Vector{Int64}}, Nothing} = nothing, # Set size for each block, required for WM models
+#     parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
+#     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
+#     sigmas::Dict{Symbol, Float64} = Dict(:ρ => 2., :a => 0.5),
+#     random_seed::Union{Int64, Nothing} = nothing
+# )
 
-    # Check lengths
-    @assert length(block) == length(valence) "Number of participants not consistent"
-    @assert length(block) == length(outcomes) "Number of participants not consistent"
-    @assert all([length(b) for b in block] .== [size(o, 1) for o in outcomes]) "Number of trials not consistent"
-    @assert all([maximum(block[s]) == length(valence[s]) for s in eachindex(block)]) "Number of blocks not consistent"
+#     # Check lengths
+#     @assert length(block) == length(valence) "Number of participants not consistent"
+#     @assert length(block) == length(outcomes) "Number of participants not consistent"
+#     @assert all([length(b) for b in block] .== [size(o, 1) for o in outcomes]) "Number of trials not consistent"
+#     @assert all([maximum(block[s]) == length(valence[s]) for s in eachindex(block)]) "Number of blocks not consistent"
 
-    # Trials per block
-    n_trials = div(length(block[1]), maximum(block[1]))
-    # if length(block[1]) % maximum(block[1]) != 0
-    #     n_trials += 1
-    # end
+#     # Trials per block
+#     n_trials = div(length(block[1]), maximum(block[1]))
+#     # if length(block[1]) % maximum(block[1]) != 0
+#     #     n_trials += 1
+#     # end
 
-    prior_model = model(
-        block = block,
-        valence = valence,
-        choice = [fill(missing, length(block[s])) for s in eachindex(block)],
-        outcomes = outcomes,
-        initV = initV,
-        set_size = set_size,
-        parameters = parameters,
-        sigmas = sigmas
-    )
+#     prior_model = model(
+#         block = block,
+#         valence = valence,
+#         choice = [fill(missing, length(block[s])) for s in eachindex(block)],
+#         outcomes = outcomes,
+#         initV = initV,
+#         set_size = set_size,
+#         parameters = parameters,
+#         sigmas = sigmas
+#     )
 
-    # Draw parameters and simulate choice
-    prior_sample = sample(
-        isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
-        prior_model,
-        Prior(),
-        1
-    )
+#     # Draw parameters and simulate choice
+#     prior_sample = sample(
+#         isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
+#         prior_model,
+#         Prior(),
+#         1
+#     )
 
-    cm = [countmap(block[s]) for s in eachindex(block)]
-    @assert allequal(cm) "Number of trials per block not consistent"
+#     cm = [countmap(block[s]) for s in eachindex(block)]
+#     @assert allequal(cm) "Number of trials per block not consistent"
 
-    # Arrange choice for return
-    sim_data = DataFrame(
-        PID = repeat(1:n, inner = length(block[1])),
-        block = vcat(block...),
-        valence = vcat([vcat([fill(valence[s][i], cm[s][i]) for i in eachindex(valence[s])]...) for s in 1:n]...),
-        trial = vcat([repeat(1:n_trials, maximum(block[s])) for s in 1:n]...),
-        choice = vec(Array(prior_sample[:, [Symbol("choice[$s][$i]") for s in 1:n for i in eachindex(block[s])], 1]))
-    )
+#     # Arrange choice for return
+#     sim_data = DataFrame(
+#         PID = repeat(1:n, inner = length(block[1])),
+#         block = vcat(block...),
+#         valence = vcat([vcat([fill(valence[s][i], cm[s][i]) for i in eachindex(valence[s])]...) for s in 1:n]...),
+#         trial = vcat([repeat(1:n_trials, maximum(block[s])) for s in 1:n]...),
+#         choice = vec(Array(prior_sample[:, [Symbol("choice[$s][$i]") for s in 1:n for i in eachindex(block[s])], 1]))
+#     )
 
-    for p in parameters
-        v = vcat([repeat(Array(prior_sample[:, [Symbol("$p[$s]")], 1]), inner = sum(length(b))) for s in 1:n for b in eachindex(block[s])]...)
-        if haskey(transformed, p)
-            v = v .|> a2α # assume all transformations are to [0, 1]
-            sim_data[!, transformed[p]] = v
-        else
-            sim_data[!, p] = v
-        end
-    end
+#     for p in parameters
+#         v = vcat([repeat(Array(prior_sample[:, [Symbol("$p[$s]")], 1]), inner = sum(length(b))) for s in 1:n for b in eachindex(block[s])]...)
+#         if haskey(transformed, p)
+#             v = v .|> a2α # assume all transformations are to [0, 1]
+#             sim_data[!, transformed[p]] = v
+#         else
+#             sim_data[!, p] = v
+#         end
+#     end
 
-    # Compute Q values
-    gq = generated_quantities(prior_model, prior_sample)[1, 1]
-    Qs = vcat([gq.Qs[i] for i in eachindex(gq.Qs)]...)
+#     # Compute Q values
+#     gq = generated_quantities(prior_model, prior_sample)[1, 1]
+#     Qs = vcat([gq.Qs[i] for i in eachindex(gq.Qs)]...)
 
-    sim_data.Q_optimal, sim_data.Q_suboptimal = Qs[:, 2], Qs[:, 1]
+#     sim_data.Q_optimal, sim_data.Q_suboptimal = Qs[:, 2], Qs[:, 1]
 
-    if !isnothing(set_size)
-        Ws = vcat([gq.Ws[i] for i in eachindex(gq.Ws)]...)
-        sim_data.W_optimal, sim_data.W_suboptimal = Ws[:, 2], Ws[:, 1]
-    end
+#     if !isnothing(set_size)
+#         Ws = vcat([gq.Ws[i] for i in eachindex(gq.Ws)]...)
+#         sim_data.W_optimal, sim_data.W_suboptimal = Ws[:, 2], Ws[:, 1]
+#     end
 
-    return sim_data
+#     return sim_data
 
-end
+# end
 
 # Prepare pilot data for fititng with model
 function prepare_for_fit(data)
@@ -297,9 +293,13 @@ function optimize_single_p_QL(
 	estimate::String = "MAP",
     model::Function = RL_ss,
     set_size::Union{Vector{Int64}, Nothing} = nothing,
-	initial_params::Union{AbstractVector,Nothing} = nothing,
+	initial_params::Union{AbstractVector, Nothing} = nothing,
 	parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 1., :a => 0.5)
+    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters,
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5)
+    )
 )
 	res = model(;
 		block = data.block,
@@ -312,7 +312,7 @@ function optimize_single_p_QL(
 		initV = fill(initV, 1, 2),
         set_size = set_size,
 		parameters = parameters,
-        sigmas = sigmas
+        priors = priors
     )
 
 	if estimate == "MLE"
@@ -321,7 +321,46 @@ function optimize_single_p_QL(
 		fit = maximum_a_posteriori(res; initial_params = initial_params)
 	end
 
-	return fit
+    loglik = loglikelihood(fit)
+    bic = -2 * loglik + length(parameters) * log(nrow(data))
+    
+    # get predictions from the model for choices by setting a Dirac prior on the parameters
+    priors_fitted = Dict{Symbol, Distribution}()
+    for p in parameters
+        v = fit.values[p]
+        if haskey(transformed, p)
+            v = v .|> a2α # assume all transformations are to [0, 1]
+            priors_fitted = merge!(priors_fitted, Dict(transformed[p] => Dirac(v)))
+        else
+            priors_fitted = merge!(priors_fitted, Dict(p => Dirac(v)))
+        end
+    end
+    
+    gq_mod = model(
+        block = data.block,
+		valence = unique(data[!, [:block, :valence]]).valence,
+		choice = fill(missing, length(data.block)),
+		outcomes = hcat(
+			data.feedback_suboptimal,
+			data.feedback_optimal,
+		),
+		initV = fill(initV, 1, 2),
+        set_size = set_size,
+		parameters = keys(priors_fitted) |> collect,
+        priors = priors_fitted
+    )
+
+    # Draw parameters and simulate choice
+    gq_samp = sample(
+        Random.default_rng(),
+        gq_mod,
+        Prior(),
+        1
+    )
+    gq = generated_quantities(gq_mod, gq_samp)
+    choices = gq[1].choice
+
+	return fit, bic, choices
 end
 
 # Find MLE / MAP multiple times
@@ -331,13 +370,17 @@ function optimize_multiple_single_p_QL(
 	estimate::String = "MAP",
     model::Function = RL_ss,
     set_size::Union{Vector{Int64}, Nothing} = nothing,
-	initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
 	include_true::Bool = true, # Whether to return true value if this is simulation
 	parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
+    initial_params::Union{AbstractVector, Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 1., :a => 0.5)
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5)
+    )
 )
 	ests = []
+    choice_df = Dict{Int64, DataFrame}()
 	lk = ReentrantLock()
 
 	Threads.@threads for p in unique(data.PID)
@@ -346,7 +389,7 @@ function optimize_multiple_single_p_QL(
 		gdf = filter(x -> x.PID == p, data)
 
 		# Optimize
-		est = optimize_single_p_QL(
+		est, bic, choices = optimize_single_p_QL(
 			gdf;
 			initV = initV,
 			estimate = estimate,
@@ -354,7 +397,8 @@ function optimize_multiple_single_p_QL(
 			initial_params = initial_params,
             set_size = set_size,
             parameters = parameters,
-            sigmas = sigmas
+            transformed = transformed,
+            priors = priors
 		)
 
 		# Return
@@ -368,15 +412,27 @@ function optimize_multiple_single_p_QL(
             for p in parameters
                 est_dct[p] = est.values[p]
             end
+        est_dct[:BIC] = bic
         end
 
 		lock(lk) do
             est = NamedTuple{Tuple(keys(est_dct))}(values(est_dct))
 			push!(ests, est)
+            choice_df[p] = DataFrame(
+                PID = gdf.PID,
+                block = gdf.block,
+                valence = gdf.valence,
+                trial = gdf.trial,
+                true_choice = gdf.choice,
+                predicted_choice = choices
+            )
 		end
 	end
 
-	return DataFrame(ests)
+    # make choice_df into a single DataFrame
+    choice_df = vcat(values(choice_df)...)
+
+	return DataFrame(ests), choice_df
 end
 
 # function bootstrap_optimize_single_p_QL(
