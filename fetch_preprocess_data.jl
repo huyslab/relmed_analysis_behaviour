@@ -243,8 +243,10 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	test_data = test_data[:, Not(map(col -> all(ismissing, col),
 		eachcol(test_data)))]
 
+	select!(test_data, Not(:stimulus))
+
 	# Compute chosen stimulus
-	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null"]) "Unexected responses in PILT test data"
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", nothing]) "Unexected responses in PILT test data"
 	
 	test_data.chosen_stimulus = ifelse.(
 		test_data.response .== "ArrowRight",
