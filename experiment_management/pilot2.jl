@@ -49,6 +49,8 @@ jspsych_data = let
 	jspsych_json, records = get_REDCap_data("pilot2"; file_field = "file_data")
 	
 	jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+	remove_testing!(jspsych_data)
 end
 
 # ╔═╡ fd52ac3c-3d8c-4485-b479-673da579adf0
@@ -60,6 +62,7 @@ let
 
 	plot_group_accuracy!(
 		f[1,1],
+		group = :n_pairs,
 		PLT_data
 	)
 
@@ -152,14 +155,14 @@ function summarize_participation(data::DataFrame)
 	return participants
 end
 
-# ╔═╡ e35effd6-5c62-48aa-8932-872c7af50d7b
-summarize_participation(jspsych_data)
+# ╔═╡ 4eb3aaed-6028-49a2-9f13-4e915ee2701c
+p_sum = summarize_participation(jspsych_data)
 
 # ╔═╡ Cell order:
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
 # ╠═51c4f3d4-92e2-40d5-abfc-4438aa438644
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
-# ╠═e35effd6-5c62-48aa-8932-872c7af50d7b
+# ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
