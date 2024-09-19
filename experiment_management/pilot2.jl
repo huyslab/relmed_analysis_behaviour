@@ -12,9 +12,35 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions
+	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
+	include("sample_utils.jl")
+	include("plotting_utils.jl")
 	nothing
+end
+
+# ╔═╡ 51c4f3d4-92e2-40d5-abfc-4438aa438644
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	set_theme!(th)
 end
 
 # ╔═╡ 6eba46dc-855c-47ca-8fa9-8405b9566809
@@ -23,6 +49,22 @@ jspsych_data = let
 	jspsych_json, records = get_REDCap_data("pilot2"; file_field = "file_data")
 	
 	jspsych_data = REDCap_data_to_df(jspsych_json, records)
+end
+
+# ╔═╡ fd52ac3c-3d8c-4485-b479-673da579adf0
+# Plot PLT accuracy curve
+let
+	PLT_data = prepare_PLT_data(jspsych_data)
+
+	f = Figure()
+
+	plot_group_accuracy!(
+		f[1,1],
+		PLT_data
+	)
+
+	f
+
 end
 
 # ╔═╡ f47e6aba-00ea-460d-8310-5b24ed7fe336
@@ -115,7 +157,9 @@ summarize_participation(jspsych_data)
 
 # ╔═╡ Cell order:
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
+# ╠═51c4f3d4-92e2-40d5-abfc-4438aa438644
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
 # ╠═e35effd6-5c62-48aa-8932-872c7af50d7b
+# ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
