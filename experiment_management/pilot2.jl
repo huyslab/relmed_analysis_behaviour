@@ -60,11 +60,95 @@ let
 
 	f = Figure()
 
-	plot_group_accuracy!(
+	ax = plot_group_accuracy!(
 		f[1,1],
 		group = :n_pairs,
 		PLT_data
 	)
+
+	ax.xticks = [1, 10, 20, 30]
+
+	f
+
+end
+
+# ╔═╡ 29224147-d9b2-4108-b49a-d1dcdfdcc98b
+let
+	# Prepare PILT data
+	PILT_data = prepare_PLT_data(jspsych_data)
+
+	# Prepare test data
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	select!(test_data, Not(:stimulus))
+
+	# Compute EV from PILT
+	PILT_data.chosen_stim = replace.(PILT_data.chosenImg, "imgs/" => "")
+	
+	empirical_EVs = combine(
+		groupby(PILT_data, [:session, :prolific_pid, :chosen_stim]),
+		:chosenOutcome => mean => :EV
+	)
+
+	# Add empirical EVs to test data
+	test_data = leftjoin(
+		test_data,
+		rename(
+			empirical_EVs,
+			:chosen_stim => :stimulus_left,
+			:EV => :empirical_EV_left
+		),
+		on = [:session, :prolific_pid, :stimulus_left],
+		order = :left
+	)
+
+	test_data = leftjoin(
+		test_data,
+		rename(
+			empirical_EVs,
+			:chosen_stim => :stimulus_right,
+			:EV => :empirical_EV_right
+		),
+		on = [:session, :prolific_pid, :stimulus_right],
+		order = :left
+	)
+
+	# Compute empirical EV diff
+	test_data.empirical_EV_diff = test_data.empirical_EV_right .- 	
+		test_data.empirical_EV_left
+
+	# Keep only test trials where stimulus was observed in PILT
+	only_observed_test = filter(x -> !ismissing(x.empirical_EV_diff), test_data)
+
+
+	# Plot distribution of EV difference
+	f = Figure(size = (700, 350))
+
+	ax_emp = Axis(
+		f[1,1],
+		xlabel = "Diff. in empirical EV"
+	)
+
+	hist!(ax_emp, 
+		only_observed_test.empirical_EV_diff
+	)
+
+	ax_exp = Axis(
+		f[1,2],
+		xlabel = "Diff. in true EV"
+	)
+
+	hist!(ax_exp, only_observed_test.EV_diff)
+
+	ax_scatt = Axis(
+		f[1,3],
+		xlabel = "Diff. in true EV",
+		ylabel = "Diff. in empirical EV"
+	)
+
+	scatter!(ax_scatt, only_observed_test.EV_diff, only_observed_test.empirical_EV_diff)
+
+	ablines!(ax_scatt, 0., 1., color = :grey, linestyle=:dash)
 
 	f
 
@@ -164,5 +248,6 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
 # ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
+# ╠═29224147-d9b2-4108-b49a-d1dcdfdcc98b
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
