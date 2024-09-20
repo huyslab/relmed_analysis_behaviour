@@ -131,9 +131,36 @@ function prepare_PLT_data(data::DataFrame)
 
 end
 
+function load_pilot2_data()
+	datafile = "data/pilot2.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile)
+		jspsych_json, records = get_REDCap_data("pilot2"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Exctract three tasks
+	PLT_data = prepare_PLT_data(jspsych_data)
+
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	### Vigour task here
+	vigour_data = DataFrame()
+
+	return PLT_data, test_data, vigour_data, jspsych_data
+end
+
 # Load PLT data from file or REDCap
-function load_PLT_data()
-	datafile = "data/data.jld2"
+function load_pilot1_data()
+	datafile = "data/pilot1.jld2"
 	if !isfile(datafile)
 		jspsych_data, records = get_REDCap_data()
 		
