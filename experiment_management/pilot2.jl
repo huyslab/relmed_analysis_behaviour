@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays
 	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
@@ -44,19 +44,212 @@ begin
 end
 
 # ╔═╡ 6eba46dc-855c-47ca-8fa9-8405b9566809
-jspsych_data = let
-	
-	jspsych_json, records = get_REDCap_data("pilot2"; file_field = "file_data")
-	
-	jspsych_data = REDCap_data_to_df(jspsych_json, records)
+begin
+	PLT_data, test_data, vigour_data, jspsych_data = load_pilot2_data()
+end
 
-	remove_testing!(jspsych_data)
+# ╔═╡ d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
+only_observed_test = let
+
+	# Compute EV from PILT
+	PLT_data.chosen_stim = replace.(PLT_data.chosenImg, "imgs/" => "")
+	
+	empirical_EVs = combine(
+		groupby(PLT_data, [:session, :prolific_pid, :chosen_stim]),
+		:chosenOutcome => mean => :EV
+	)
+
+	# Add empirical EVs to test data
+	test_data = leftjoin(
+		test_data,
+		rename(
+			empirical_EVs,
+			:chosen_stim => :stimulus_left,
+			:EV => :empirical_EV_left
+		),
+		on = [:session, :prolific_pid, :stimulus_left],
+		order = :left
+	)
+
+	test_data = leftjoin(
+		test_data,
+		rename(
+			empirical_EVs,
+			:chosen_stim => :stimulus_right,
+			:EV => :empirical_EV_right
+		),
+		on = [:session, :prolific_pid, :stimulus_right],
+		order = :left
+	)
+
+	# Compute empirical EV diff
+	test_data.empirical_EV_diff = test_data.empirical_EV_right .- 	
+		test_data.empirical_EV_left
+
+	# Keep only test trials where stimulus was observed in PILT
+	only_observed_test = filter(x -> !ismissing(x.empirical_EV_diff), test_data)
+
+end
+
+# ╔═╡ 9869ebe3-0063-45e6-a59d-52f0607d927a
+let
+		# Plot distribution of EV difference
+	f = Figure(size = (700, 350))
+
+	ax_emp = Axis(
+		f[1,1],
+		xlabel = "Diff. in empirical EV"
+	)
+
+	hist!(ax_emp, 
+		only_observed_test.empirical_EV_diff
+	)
+
+	ax_exp = Axis(
+		f[1,2],
+		xlabel = "Diff. in true EV"
+	)
+
+	hist!(ax_exp, only_observed_test.EV_diff)
+
+	ax_scatt = Axis(
+		f[1,3],
+		xlabel = "Diff. in true EV",
+		ylabel = "Diff. in empirical EV"
+	)
+
+	scatter!(ax_scatt, only_observed_test.EV_diff, only_observed_test.empirical_EV_diff)
+
+	ablines!(ax_scatt, 0., 1., color = :grey, linestyle=:dash)
+
+	f
+
+end
+
+# ╔═╡ 237f096d-9046-49a3-a8c0-f733c89c93bc
+let
+	only_observed_test
+end
+
+# ╔═╡ 16fbf0db-1190-4fb2-a73e-8ef99f1c2999
+only_observed_test
+
+# ╔═╡ dba29af6-89c0-4cad-8b5c-b13f6c366982
+# Bin and plot choice
+function bin_EV_diff_plot(
+	f::GridPosition,
+	data::AbstractDataFrame;
+	group::Union{Nothing, Symbol} = nothing,
+	n_bins::Int64 = 5,
+	col::Symbol = :empirical_EV_diff, # EV diff column,
+	group_label_f::Function = string,
+	legend_title = ""
+)
+
+	# Copy data to avoid changing origianl DataFrame
+	tdata = copy(data)
+
+	# If no grouping is needed
+	if isnothing(group)
+		tdata[!, :group] .= 1
+	else
+		rename!(tdata, group => :group)
+	end
+
+	# Quantile bin breaks
+	EV_bins = quantile(tdata[!, col], 
+		range(0, 1, length=n_bins + 1))
+
+	# Bin EV_diff
+	tdata.EV_diff_cut = 	
+		cut(tdata[!, col], EV_bins, extend = true)
+
+	# Use mean of bin as label
+	transform!(
+		groupby(tdata, :EV_diff_cut),
+		col => mean => :EV_diff_bin
+	)
+
+	# Summarize by participant and bin
+	choice_EV_sum = combine(
+		groupby(tdata, [:prolific_pid, :group, :EV_diff_bin]),
+		:right_chosen => mean => :right_chosen
+	) |> dropmissing
+
+	# Summarize by bin
+	choice_EV_sum = combine(
+		groupby(choice_EV_sum, [:group, :EV_diff_bin]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Plot
+	ax_diff_choice = Axis(
+		f,
+		xlabel = "Diff. in EV (£)"
+	)
+
+	groups = unique(choice_EV_sum.group)
+
+	for g in groups
+
+		t_sum = filter(x -> x.group == g, choice_EV_sum)
+
+			scatter!(
+				ax_diff_choice,
+				t_sum.EV_diff_bin,
+				t_sum.right_chosen
+			)
+		
+			errorbars!(
+				ax_diff_choice,
+				t_sum.EV_diff_bin,
+				t_sum.right_chosen,
+				t_sum.se
+			)
+	end
+
+	if !isnothing(group)
+		Legend(
+			f,
+			[MarkerElement(marker = :circle, color = Makie.wong_colors()[c]) for c in eachindex(groups)],
+			group_label_f.(groups),
+			legend_title,
+			valign = :top,
+			halign = :left,
+			tellwidth = false,
+			framevisible = false,
+			nbanks = 2
+		)
+	end
+
+	return ax_diff_choice
+end
+
+# ╔═╡ 1a507b99-81a7-4a8f-8f55-b3b471956780
+let
+
+	f = Figure(size = (700, 300))
+	
+	bin_EV_diff_plot(f[1,1], only_observed_test)
+
+	bin_EV_diff_plot(f[1,2], only_observed_test; 
+		group = :same_block,
+		legend_title = "Same original block"
+	)
+
+	bin_EV_diff_plot(f[1,3], only_observed_test; 
+		group = :same_valence,
+		legend_title = "Same original valence"
+	)
+
+
+	f
 end
 
 # ╔═╡ fd52ac3c-3d8c-4485-b479-673da579adf0
 # Plot PLT accuracy curve
 let
-	PLT_data = prepare_PLT_data(jspsych_data)
 
 	f = Figure()
 
@@ -72,21 +265,39 @@ let
 
 end
 
-# ╔═╡ 29224147-d9b2-4108-b49a-d1dcdfdcc98b
+# ╔═╡ ddbc562f-48d5-40dd-969e-48cd3326d3ff
+# Plot PLT accuracy curve
 let
-	# Prepare PILT data
-	PILT_data = prepare_PLT_data(jspsych_data)
 
-	# Prepare test data
-	test_data = prepare_post_PILT_test_data(jspsych_data)
+	PLT_remmaped = copy(PLT_data)
 
-	select!(test_data, Not(:stimulus))
+	transform!(
+		groupby(PLT_remmaped, [:session, :prolific_pid, :exp_start_time, :block, :stimulus_pair]),
+		:trial => (x -> 1:length(x)) => :trial
+	)
+	
+	f = Figure()
+
+	ax = plot_group_accuracy!(
+		f[1,1],
+		group = :n_pairs,
+		PLT_remmaped
+	)
+
+	ax.xticks = [1, 10, 20, 30]
+
+	f
+
+end
+
+# ╔═╡ 3caeacb3-e3d2-4f7d-b907-d97fbf831302
+let
 
 	# Compute EV from PILT
-	PILT_data.chosen_stim = replace.(PILT_data.chosenImg, "imgs/" => "")
+	PLT_data.chosen_stim = replace.(PLT_data.chosenImg, "imgs/" => "")
 	
 	empirical_EVs = combine(
-		groupby(PILT_data, [:session, :prolific_pid, :chosen_stim]),
+		groupby(PLT_data, [:session, :prolific_pid, :chosen_stim]),
 		:chosenOutcome => mean => :EV
 	)
 
@@ -150,7 +361,58 @@ let
 
 	ablines!(ax_scatt, 0., 1., color = :grey, linestyle=:dash)
 
-	f
+	# Bin and plot choice
+	function bin_EV_diff_plot(
+		f::GridPosition,
+		data::AbstractDataFrame;
+		n_bins::Int64 = 5
+	)
+		tdata = copy(data)
+		
+		EV_bins = quantile(tdata.empirical_EV_diff, 
+			range(0, 1, length=n_bins + 1))
+		
+		tdata.empirical_EV_diff_bin = 	
+			cut(only_observed_test.empirical_EV_diff, EV_bins, extend = true)
+	
+		transform!(
+			groupby(tdata, :empirical_EV_diff_bin),
+			:empirical_EV_diff => mean => :EV_bin
+		)
+		
+		choice_EV_sum = combine(
+			groupby(tdata, [:prolific_pid, :EV_bin]),
+			:right_chosen => mean => :right_chosen
+		) |> dropmissing
+	
+		choice_EV_sum = combine(
+			groupby(choice_EV_sum, :EV_bin),
+			:right_chosen => mean => :right_chosen,
+			:right_chosen => sem => :se
+		)
+	
+		ax_diff_choice = Axis(
+			f[1,4],
+			xlabel = "Diff. in EV"
+		)
+	
+		scatter!(
+			ax_diff_choice,
+			choice_EV_sum.EV_bin,
+			choice_EV_sum.right_chosen
+		)
+	
+		errorbars!(
+			ax_diff_choice,
+			choice_EV_sum.EV_bin,
+			choice_EV_sum.right_chosen,
+			choice_EV_sum.se
+		)
+
+		return f
+	end
+
+	bin_EV_diff_plot(f[1,4], only_observed_test)
 
 end
 
@@ -231,6 +493,8 @@ function summarize_participation(data::DataFrame)
 		:n_warnings => maximum => :n_warnings
 	)
 
+	participants.total_bonus = participants.vigour_bonus .+ participants.PILT_bonus
+
 	debrief = extract_debrief_responses(data)
 
 	participants = leftjoin(participants, debrief, 
@@ -246,8 +510,15 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
 # ╠═51c4f3d4-92e2-40d5-abfc-4438aa438644
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
+# ╠═d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
+# ╠═9869ebe3-0063-45e6-a59d-52f0607d927a
+# ╠═1a507b99-81a7-4a8f-8f55-b3b471956780
+# ╠═237f096d-9046-49a3-a8c0-f733c89c93bc
+# ╠═16fbf0db-1190-4fb2-a73e-8ef99f1c2999
+# ╠═dba29af6-89c0-4cad-8b5c-b13f6c366982
 # ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
-# ╠═29224147-d9b2-4108-b49a-d1dcdfdcc98b
+# ╠═ddbc562f-48d5-40dd-969e-48cd3326d3ff
+# ╠═3caeacb3-e3d2-4f7d-b907-d97fbf831302
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
