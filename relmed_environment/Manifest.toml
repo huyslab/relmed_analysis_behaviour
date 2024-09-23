@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "d273536eff0a4f7dc0a784601de5d02f192913d8"
+project_hash = "5944ed272922bce6cf777ca184fb6fd3bdb0033c"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "6778bcc27496dae5723ff37ee30af451db8b35fe"
@@ -141,6 +141,12 @@ version = "0.2.6"
     Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
     ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
     Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[[deps.AlgebraOfGraphics]]
+deps = ["Accessors", "Colors", "Dates", "Dictionaries", "FileIO", "GLM", "GeoInterface", "GeometryBasics", "GridLayoutBase", "Isoband", "KernelDensity", "Loess", "Makie", "NaturalSort", "PlotUtils", "PolygonOps", "PooledArrays", "PrecompileTools", "RelocatableFolders", "StatsBase", "StructArrays", "Tables"]
+git-tree-sha1 = "0c777a5a0616e61e54f55698dddc08e80504beb3"
+uuid = "cbdf2221-f076-402e-a563-3d30da359d67"
+version = "0.8.8"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -408,6 +414,11 @@ git-tree-sha1 = "3e53a23c0bf96e8c0115777e351a04d5b0f52529"
 uuid = "3830e938-1dd0-5f3e-8b8e-b3ee43226782"
 version = "0.6000.600+0"
 
+[[deps.Chain]]
+git-tree-sha1 = "8c4920235f6c561e401dfe569beb8b924adad003"
+uuid = "8be319e6-bccf-4806-a6f7-6fae938471bc"
+version = "0.5.0"
+
 [[deps.ChainRules]]
 deps = ["Adapt", "ChainRulesCore", "Compat", "Distributed", "GPUArraysCore", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "SparseInverseSubset", "Statistics", "StructArrays", "SuiteSparse"]
 git-tree-sha1 = "227985d885b4dbce5e18a96f9326ea1e836e5a03"
@@ -433,6 +444,12 @@ weakdeps = ["InverseFunctions"]
 
     [deps.ChangesOfVariables.extensions]
     ChangesOfVariablesInverseFunctionsExt = "InverseFunctions"
+
+[[deps.Cleaner]]
+deps = ["Tables"]
+git-tree-sha1 = "f0ebda9a8284c10ec10df406f669edca4c69892f"
+uuid = "caabdcdb-0ab6-47cf-9f62-08858e44f38f"
+version = "0.5.0"
 
 [[deps.Clp_jll]]
 deps = ["Artifacts", "CoinUtils_jll", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "METIS_jll", "MUMPS_seq_jll", "OpenBLAS32_jll", "Osi_jll", "Pkg"]
@@ -671,6 +688,17 @@ deps = ["DataStructures", "SpecialFunctions", "Statistics", "StatsBase"]
 git-tree-sha1 = "88fd187ed6a84a6f1892ab883484f8ec765108ec"
 uuid = "6e83dbb3-75ca-525b-8ae2-3751f0dd50b4"
 version = "3.2.3"
+
+[[deps.Distances]]
+deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
+git-tree-sha1 = "66c4c81f259586e8f002eacebc177e1fb06363b0"
+uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+version = "0.10.11"
+weakdeps = ["ChainRulesCore", "SparseArrays"]
+
+    [deps.Distances.extensions]
+    DistancesChainRulesCoreExt = "ChainRulesCore"
+    DistancesSparseArraysExt = "SparseArrays"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -1544,6 +1572,12 @@ weakdeps = ["ChainRulesCore", "SparseArrays", "Statistics"]
     LinearMapsChainRulesCoreExt = "ChainRulesCore"
     LinearMapsSparseArraysExt = "SparseArrays"
     LinearMapsStatisticsExt = "Statistics"
+
+[[deps.Loess]]
+deps = ["Distances", "LinearAlgebra", "Statistics", "StatsAPI"]
+git-tree-sha1 = "f749e7351f120b3566e5923fefdf8e52ba5ec7f9"
+uuid = "4345ca2d-374a-55d4-8d30-97f9976e7612"
+version = "0.6.4"
 
 [[deps.LogDensityProblems]]
 deps = ["ArgCheck", "DocStringExtensions", "Random"]
@@ -2797,6 +2831,12 @@ version = "0.1.7"
 [[deps.Test]]
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[deps.Tidier]]
+deps = ["Chain", "Cleaner", "DataFrames", "MacroTools", "Reexport", "ShiftedArrays", "Statistics"]
+git-tree-sha1 = "251298c9b705805b26e1ed0ee5f150155aafa818"
+uuid = "f0413319-3358-4bb0-8e7c-0c83523a93bd"
+version = "0.7.7"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "ProgressMeter", "SIMD", "UUIDs"]
