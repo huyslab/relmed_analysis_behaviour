@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics
 	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
@@ -46,6 +46,68 @@ end
 # ╔═╡ 6eba46dc-855c-47ca-8fa9-8405b9566809
 begin
 	PLT_data, test_data, vigour_data, jspsych_data = load_pilot2_data()
+end
+
+# ╔═╡ 720ac162-2113-4078-85e5-289872cb42ac
+function compute_optimality(data::AbstractDataFrame)
+	
+	# Select columns and reduce to task strcuture, which is the same across participants
+	optimality = unique(data[!, [:session, :block, :stimulus_pair, :imageLeft, :imageRight, :optimalRight]])
+
+	# Which was the optimal stimulus?
+	optimality.optimal = replace.(ifelse.(
+		optimality.optimalRight .== 1, 
+		optimality.imageRight, 
+		optimality.imageLeft
+	), "imgs/" => "")
+
+	# Which was the suboptimal stimulus?
+	optimality.suboptimal = replace.(ifelse.(
+		optimality.optimalRight .== 0, 
+		optimality.imageRight, 
+		optimality.imageLeft
+	), "imgs/" => "")
+
+	# Remove double appearances (right left permutation)
+	optimality = unique(optimality[!, [:session, :block, :stimulus_pair, 
+		:optimal, :suboptimal]])
+
+	# Wide to long
+	optimality = DataFrame(
+		stimulus = vcat(optimality.optimal, optimality.suboptimal),
+		optimal = vcat(fill(true, nrow(optimality)), fill(false, nrow(optimality)))
+	)
+
+	return optimality
+end
+
+# ╔═╡ 8b212920-6363-4161-96ed-d2060e4822b9
+function stimulus_magnitude()
+
+	task = DataFrame(CSV.File("./results/pilot2.csv"))
+
+	outcomes = filter(x -> x.feedback_common, task)
+
+	outcomes = vcat(
+		rename(
+			outcomes[!, [:stimulus_right, :feedback_right]],
+			:stimulus_right => :stimulus,
+			:feedback_right => :feedback
+		),
+		rename(
+			outcomes[!, [:stimulus_left, :feedback_left]],
+			:stimulus_left => :stimulus,
+			:feedback_left => :feedback
+		)
+	)
+
+	outcomes = combine(
+		groupby(outcomes, :stimulus),
+		:feedback => (x -> mean(unique(x))) => :feedback
+	)
+
+	return outcomes
+
 end
 
 # ╔═╡ d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
@@ -89,6 +151,75 @@ only_observed_test = let
 	# Keep only test trials where stimulus was observed in PILT
 	only_observed_test = filter(x -> !ismissing(x.empirical_EV_diff), test_data)
 
+	# Coarse stimulus magnitude
+	magnitudes = stimulus_magnitude()
+
+	# Add to test data
+	only_observed_test = leftjoin(
+		only_observed_test,
+		rename(
+			magnitudes,
+			:stimulus => :stimulus_left,
+			:feedback => :magnitude_left
+		),
+		on = :stimulus_left,
+		order = :left
+	)
+
+	only_observed_test = leftjoin(
+		only_observed_test,
+		rename(
+			magnitudes,
+			:stimulus => :stimulus_right,
+			:feedback => :magnitude_right
+		),
+		on = :stimulus_right,
+		order = :left
+	)
+
+	# Compute optimality of each stimulus
+	optimality = compute_optimality(PLT_data)
+
+	# Add to test data
+	only_observed_test = leftjoin(
+		only_observed_test,
+		rename(
+			optimality,
+			:stimulus => :stimulus_left,
+			:optimal => :optimal_left
+		),
+		on = :stimulus_left,
+		order = :left
+	)
+
+	only_observed_test = leftjoin(
+		only_observed_test,
+		rename(
+			optimality,
+			:stimulus => :stimulus_right,
+			:optimal => :optimal_right
+		),
+		on = :stimulus_right,
+		order = :left
+	)
+
+	# Compute optimality categories
+	only_observed_test.optimcat = ifelse.(
+		only_observed_test.optimal_right .&& only_observed_test.optimal_left,
+		fill("both", nrow(only_observed_test)),
+		ifelse.(
+			only_observed_test.optimal_right,
+			fill("right", nrow(only_observed_test)),
+			ifelse.(
+				only_observed_test.optimal_left,
+				fill("left", nrow(only_observed_test)),
+				fill("none", nrow(only_observed_test))
+			)
+		)
+	)
+
+	only_observed_test
+
 end
 
 # ╔═╡ 9869ebe3-0063-45e6-a59d-52f0607d927a
@@ -126,23 +257,89 @@ let
 
 end
 
-# ╔═╡ c4a88006-2bb6-4a90-b638-324fbebf1b1f
-unique(only_observed_test.empirical_EV_left) |> describe
+# ╔═╡ 63acbf9a-33f8-47e5-a85b-95c8cd57b12b
+let
+	dat = dropmissing(only_observed_test[!, [:prolific_pid, :magnitude_left, :magnitude_right, :right_chosen]])
 
-# ╔═╡ dba29af6-89c0-4cad-8b5c-b13f6c366982
-# Bin and plot choice
-function bin_EV_plot(
-	f::GridPosition,
-	data::AbstractDataFrame;
+	dat.magnitude_low = minimum(hcat(dat.magnitude_right, dat.magnitude_left), dims = 2) |> vec
+
+	dat.magnitude_high = maximum(hcat(dat.magnitude_right, dat.magnitude_left), dims = 2) |> vec
+
+	dat.high_chosen = ifelse.(
+		dat.magnitude_right .== dat.magnitude_high,
+		dat.right_chosen,
+		.!dat.right_chosen
+	)
+	
+	dat_sum = combine(
+		groupby(dat, [:prolific_pid, :magnitude_low, :magnitude_high]),
+		:high_chosen => mean => :high_chosen,
+		:high_chosen => length => :n
+	)
+
+	dat_sum = combine(
+		groupby(dat_sum, [:magnitude_low, :magnitude_high]),
+		:high_chosen => mean => :high_chosen,
+		:high_chosen => sem => :se,
+		:n => median => :n
+	)
+
+	filter!(x -> !(x.magnitude_low == x.magnitude_high), dat_sum)
+
+	sort!(dat_sum, [:magnitude_low, :magnitude_high])
+
+	dat_sum.high_optimal = (x -> x in [-0.255, -0.01, 0.75, 1.]).(dat_sum.magnitude_high)
+
+	plt = data(dat_sum) * 
+		visual(ScatterLines) * 
+		mapping(:magnitude_low => nonnumeric, :high_chosen, 
+			markersize = :n, layout = :magnitude_high => nonnumeric, 
+			color = :high_optimal => nonnumeric)
+
+	err = data(dat_sum) * 
+		mapping(
+			:magnitude_low => nonnumeric, 
+			:high_chosen, 
+			:se, 
+			color = :high_optimal => nonnumeric,
+			layout = :magnitude_high => nonnumeric) * 
+		visual(Errorbars)
+	hline = mapping(0.5) * visual(HLines, color = :grey, linestyle = :dash)
+
+	spans = DataFrame(
+		low = (1:7) .- 0.5,
+		high = (1:7) .+ 0.5,
+		optimal = [false, false, true, true, false, false, true]
+	)
+
+	color = [:red, :blue]
+
+	vspans = data(spans) * mapping(:low, :high, color = :optimal => nonnumeric => AlgebraOfGraphics.scale(:secondary)) * visual(VSpan)
+
+
+	draw(vspans + plt + err + hline, 
+		scales(
+			secondary = (; palette = [(:red, 0.2), (:green, 0.2)]), 
+			Color = (; palette = [:red, :green])); 
+		legend = (; show = false), 
+		axis = (; xticklabelrotation=45.0, 
+			xlabel = "Low magnitude",
+			ylabel = "Prop. chosen high magnitude"
+		)
+	)
+end
+
+# ╔═╡ d57501e1-3574-4954-88e5-8cccd9a9584b
+describe(only_observed_test)
+
+# ╔═╡ eb8308f3-f442-467d-933d-5273de71d1f6
+function bin_sum_EV(
+	data::DataFrame;
 	group::Union{Nothing, Symbol} = nothing,
 	n_bins::Int64 = 5,
 	col::Symbol = :empirical_EV_diff, # x axis data column,
-	group_label_f::Function = string,
-	legend_title = "",
-	colors::AbstractVector = Makie.wong_colors(),
 	bin_group::Union{Nothing, Int64} = nothing
 )
-
 	# Copy data to avoid changing origianl DataFrame
 	tdata = copy(data)
 
@@ -197,6 +394,31 @@ function bin_EV_plot(
 		:right_chosen => sem => :se
 	)
 
+
+end
+
+# ╔═╡ dba29af6-89c0-4cad-8b5c-b13f6c366982
+# Bin and plot choice
+function bin_EV_plot(
+	f::GridPosition,
+	data::AbstractDataFrame;
+	group::Union{Nothing, Symbol} = nothing,
+	n_bins::Int64 = 5,
+	col::Symbol = :empirical_EV_diff, # x axis data column,
+	group_label_f::Function = string,
+	legend_title = "",
+	colors::AbstractVector = Makie.wong_colors(),
+	bin_group::Union{Nothing, Int64} = nothing
+)
+
+	choice_EV_sum = bin_sum_EV(
+		data,
+		group = group,
+		n_bins = n_bins,
+		col = col,
+		bin_group = bin_group
+	)
+	
 	# Plot
 	ax_diff_choice = Axis(
 		f,
@@ -249,8 +471,8 @@ let
 	bin_EV_plot(f[1,1], only_observed_test)
 
 	bin_EV_plot(f[1,2], only_observed_test; 
-		group = :same_block,
-		legend_title = "Same original block"
+		group = :block,
+		legend_title = "Block"
 	)
 
 	bin_EV_plot(f[1,3], only_observed_test; 
@@ -260,23 +482,6 @@ let
 
 
 	f
-end
-
-# ╔═╡ 03e6cf60-4947-4963-b750-6ac457ba9119
-let
-
-	f = Figure()
-
-	bin_EV_plot(
-		f[1,1], 
-		only_observed_test,
-		col = :empirical_EV_right,
-		group = :empirical_EV_left,
-		bin_group = 7
-	)
-
-	f
-
 end
 
 # ╔═╡ fd52ac3c-3d8c-4485-b479-673da579adf0
@@ -319,132 +524,6 @@ let
 	ax.xticks = [1, 10, 20, 30]
 
 	f
-
-end
-
-# ╔═╡ 3caeacb3-e3d2-4f7d-b907-d97fbf831302
-let
-
-	# Compute EV from PILT
-	PLT_data.chosen_stim = replace.(PLT_data.chosenImg, "imgs/" => "")
-	
-	empirical_EVs = combine(
-		groupby(PLT_data, [:session, :prolific_pid, :chosen_stim]),
-		:chosenOutcome => mean => :EV
-	)
-
-	# Add empirical EVs to test data
-	test_data = leftjoin(
-		test_data,
-		rename(
-			empirical_EVs,
-			:chosen_stim => :stimulus_left,
-			:EV => :empirical_EV_left
-		),
-		on = [:session, :prolific_pid, :stimulus_left],
-		order = :left
-	)
-
-	test_data = leftjoin(
-		test_data,
-		rename(
-			empirical_EVs,
-			:chosen_stim => :stimulus_right,
-			:EV => :empirical_EV_right
-		),
-		on = [:session, :prolific_pid, :stimulus_right],
-		order = :left
-	)
-
-	# Compute empirical EV diff
-	test_data.empirical_EV_diff = test_data.empirical_EV_right .- 	
-		test_data.empirical_EV_left
-
-	# Keep only test trials where stimulus was observed in PILT
-	only_observed_test = filter(x -> !ismissing(x.empirical_EV_diff), test_data)
-
-
-	# Plot distribution of EV difference
-	f = Figure(size = (700, 350))
-
-	ax_emp = Axis(
-		f[1,1],
-		xlabel = "Diff. in empirical EV"
-	)
-
-	hist!(ax_emp, 
-		only_observed_test.empirical_EV_diff
-	)
-
-	ax_exp = Axis(
-		f[1,2],
-		xlabel = "Diff. in true EV"
-	)
-
-	hist!(ax_exp, only_observed_test.EV_diff)
-
-	ax_scatt = Axis(
-		f[1,3],
-		xlabel = "Diff. in true EV",
-		ylabel = "Diff. in empirical EV"
-	)
-
-	scatter!(ax_scatt, only_observed_test.EV_diff, only_observed_test.empirical_EV_diff)
-
-	ablines!(ax_scatt, 0., 1., color = :grey, linestyle=:dash)
-
-	# Bin and plot choice
-	function bin_EV_diff_plot(
-		f::GridPosition,
-		data::AbstractDataFrame;
-		n_bins::Int64 = 5
-	)
-		tdata = copy(data)
-		
-		EV_bins = quantile(tdata.empirical_EV_diff, 
-			range(0, 1, length=n_bins + 1))
-		
-		tdata.empirical_EV_diff_bin = 	
-			cut(only_observed_test.empirical_EV_diff, EV_bins, extend = true)
-	
-		transform!(
-			groupby(tdata, :empirical_EV_diff_bin),
-			:empirical_EV_diff => mean => :EV_bin
-		)
-		
-		choice_EV_sum = combine(
-			groupby(tdata, [:prolific_pid, :EV_bin]),
-			:right_chosen => mean => :right_chosen
-		) |> dropmissing
-	
-		choice_EV_sum = combine(
-			groupby(choice_EV_sum, :EV_bin),
-			:right_chosen => mean => :right_chosen,
-			:right_chosen => sem => :se
-		)
-	
-		ax_diff_choice = Axis(
-			f[1,4],
-			xlabel = "Diff. in EV"
-		)
-	
-		scatter!(
-			ax_diff_choice,
-			choice_EV_sum.EV_bin,
-			choice_EV_sum.right_chosen
-		)
-	
-		errorbars!(
-			ax_diff_choice,
-			choice_EV_sum.EV_bin,
-			choice_EV_sum.right_chosen,
-			choice_EV_sum.se
-		)
-
-		return f
-	end
-
-	bin_EV_diff_plot(f[1,4], only_observed_test)
 
 end
 
@@ -542,15 +621,17 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
 # ╠═51c4f3d4-92e2-40d5-abfc-4438aa438644
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
+# ╠═720ac162-2113-4078-85e5-289872cb42ac
+# ╠═8b212920-6363-4161-96ed-d2060e4822b9
 # ╠═d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
 # ╠═9869ebe3-0063-45e6-a59d-52f0607d927a
 # ╠═1a507b99-81a7-4a8f-8f55-b3b471956780
-# ╠═c4a88006-2bb6-4a90-b638-324fbebf1b1f
-# ╠═03e6cf60-4947-4963-b750-6ac457ba9119
+# ╠═63acbf9a-33f8-47e5-a85b-95c8cd57b12b
+# ╠═d57501e1-3574-4954-88e5-8cccd9a9584b
+# ╠═eb8308f3-f442-467d-933d-5273de71d1f6
 # ╠═dba29af6-89c0-4cad-8b5c-b13f6c366982
 # ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
 # ╠═ddbc562f-48d5-40dd-969e-48cd3326d3ff
-# ╠═3caeacb3-e3d2-4f7d-b907-d97fbf831302
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
