@@ -85,9 +85,9 @@ a2α(a) = logistic(π/sqrt(3) * a)
 		if (i != N) && (block[i] == block[i+1])
             Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
-            # store Q values for output
-            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
 		end
+        # store Q values for output 
+        Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
 	return (choice = choice, Qs = Q)
@@ -174,9 +174,9 @@ end
             Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
             Qs[i + 1, alt_idx] -= α * δ
-            # store Q values for output
-            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
 		end
+        # store Q values for output 
+        Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
 	return (choice = choice, Qs = Q)
@@ -300,12 +300,12 @@ end
 			Qs[i + 1, choice_idx] += α * δ
             Ws[i + 1, :] = Ws[i, :] + φ_wm * (W0[i, :] .- Ws[i, :]) # decay or just store previous W
             Ws[i + 1, choice_idx] += outcomes[i, choice[i] + 1] * ρ
-            # store Q- and W- values for output
-            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
-            W[i + 1, :] = Ws[i + 1, pri-1:pri]
         elseif (i != N)
             ssz = set_size[block[i+1]]
         end
+        # store Q- and W- values for output
+        Q[i, :] = Qs[i, (pri-1):pri]
+        W[i, :] = Ws[i, (pri-1):pri]
     end
 
     return (choice = choice, Qs = Q, Ws = W)
@@ -441,11 +441,6 @@ end
             outc_no[choice_idx] += 1
             # 4. compute the running average for each option using the running sum and buffer count
             Ws[i + 1, choice_idx] = buffer_sums[choice_idx] / buffer_counts[choice_idx]
-
-            # store Q- and W- values for output
-            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
-            W[i + 1, :] = Ws[i + 1, pri-1:pri]
-
         elseif (i != N)
             ssz = set_size[block[i+1]]
             # Reset buffers at the start of a new block
@@ -456,6 +451,9 @@ end
             buffer_upd_idx = ones(Int, ssz)
             outc_no = ones(Int, ssz)
         end
+        # store Q- and W- values for output
+        Q[i, :] = Qs[i, (pri-1):pri]
+        W[i, :] = Ws[i, (pri-1):pri]
     end
 
     return (choice = choice, Qs = Q, Ws = W)

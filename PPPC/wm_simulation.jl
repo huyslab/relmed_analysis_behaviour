@@ -21,9 +21,6 @@ begin
 	include("$(pwd())/plotting_utils.jl")
 end
 
-# ╔═╡ 2c3e4f77-3ad4-42cd-be28-9a078fd1b449
-include("$(pwd())/turing_models.jl")
-
 # ╔═╡ 4eb03947-90d6-4281-9d63-372f76bb4900
 begin
 	# Set theme
@@ -163,6 +160,5 @@ end
 # ╠═f99c4eb3-f018-4d3f-995c-88765ad6633d
 # ╠═f743bbd4-44aa-437e-910a-6c4830f08ef4
 # ╠═e9a9cecb-c5c6-422d-b089-b1bb0c11e79f
-# ╠═2c3e4f77-3ad4-42cd-be28-9a078fd1b449
 # ╠═f1918ce1-9435-4757-b970-68e795a49557
 # ╠═acf1ba59-c202-4924-a58b-6ba3d6f7f338
