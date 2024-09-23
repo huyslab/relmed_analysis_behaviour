@@ -1,13 +1,20 @@
 ##------------------------------------------------------------------------------
 # RL models --------------------------------------------------------------------
 ## -----------------------------------------------------------------------------
+# Transform unconstrainted a to learning rate α
+a2α(a) = logistic(π/sqrt(3) * a)
+α2a(α) = logit(α) / (π/sqrt(3))
+
+@assert α2a(a2α(0.5)) ≈ 0.5
+
 @model function RL_ss(;
 	block::Vector{Int64}, # Block number
 	valence::AbstractVector, # Valence of each block
-	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
+	pair::AbstractVector, # Pair number within block
+    choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
-	initV::Matrix{Float64}, # Initial Q values,
-    set_size::Nothing = nothing, # here for compatibility with RLWM
+	initV::AbstractArray{Float64}, # Initial Q values,
+    set_size::Union{Nothing, Vector{Int64}} = nothing, # here for compatibility with RLWM
     parameters::Vector{Symbol} = [:ρ, :a], # untransformed parameters to estimate
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -55,7 +62,7 @@
 
 	# Initialize Q values
 	Qs = repeat(initV .* ρ, length(block)) .* valence[block]
-    Q0 = copy(Qs)
+    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
 
     N = length(block)
 
@@ -64,30 +71,122 @@
 
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
-        π = (1 - ε) * (Qs[i, 2] - Qs[i, 1]) + ε * 0.5
+        pri = 2 * pair[i]
+        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
 
 		# Choice
 		choice[i] ~ BernoulliLogit(π)
-		choice_idx::Int64 = choice[i] + 1
+		choice_idx::Int64 = choice[i] + pri - 1
 
 		# Prediction error
-		δ = outcomes[i, choice_idx] * ρ - Qs[i, choice_idx]
-        dcy = φ * (Q0[i, :] .- Qs[i, :])
+		δ = outcomes[i, choice[i] + 1] * ρ - Qs[i, choice_idx]
 
 		# Update Q value
 		if (i != N) && (block[i] == block[i+1])
-			Qs[i + 1, choice_idx] = Qs[i, choice_idx] + α * δ + dcy[choice_idx]
-			Qs[i + 1, 3 - choice_idx] = Qs[i, 3 - choice_idx] + dcy[3 - choice_idx]
+            Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
+			Qs[i + 1, choice_idx] += α * δ
+            # store Q values for output
+            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
 		end
 	end
 
-	return (choice = choice, Qs = Qs)
+	return (choice = choice, Qs = Q)
+
+end
+
+@model function RL_recip_ss(;
+	block::Vector{Int64}, # Block number
+	valence::AbstractVector, # Valence of each block
+	pair::AbstractVector, # Pair number within block
+    choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
+	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
+	initV::AbstractArray{Float64}, # Initial Q values,
+    set_size::Union{Nothing, Vector{Int64}} = nothing, # here for compatibility with RLWM
+    parameters::Vector{Symbol} = [:ρ, :a], # untransformed parameters to estimate
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5)
+    )
+)
+    ## Set priors and transform bounded parameters
+    # reward sensitivity or inverse temp?
+    # reward sensitivity or inverse temp?
+    if :ρ in parameters
+        ρ ~ priors[:ρ]
+        β = 1.
+    elseif :β in parameters
+        β ~ priors[:β]
+        ρ = 1.
+    end
+    
+    # learning rate
+    if :a in parameters
+        a ~ priors[:a]
+        α = a2α(a)
+    elseif :α in parameters
+        α ~ priors[:α]
+    end
+
+    # undirected noise or lapse rate
+    if :E in parameters
+        E ~ priors[:E]
+        ε = a2α(E)
+    elseif :ε in parameters
+        ε ~ priors[:ε]
+    else
+        ε = 0
+    end
+
+    # forgetting rate
+    if :F in parameters
+        F ~ priors[:F]
+        φ = a2α(F)
+    elseif :φ in parameters
+        φ ~ priors[:φ]
+    else
+        φ = 0
+    end
+
+	# Initialize Q values
+	Qs = repeat(initV .* ρ, length(block)) .* valence[block]
+    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
+
+    N = length(block)
+
+	# Loop over trials, updating Q values and incrementing log-density
+	for i in eachindex(block)
+
+        # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
+        # in Collins et al. terminology, these are directed and undirected noise
+        pri = 2 * pair[i]
+        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
+
+		# Choice
+		choice[i] ~ BernoulliLogit(π)
+		choice_idx::Int64 = choice[i] + pri - 1
+        alt_idx::Int64 = pri - choice[i]
+
+		# Prediction error
+		δ = outcomes[i, choice[i] + 1] * ρ - Qs[i, choice_idx]
+
+		# Update Q value
+		if (i != N) && (block[i] == block[i+1])
+            Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
+			Qs[i + 1, choice_idx] += α * δ
+            Qs[i + 1, alt_idx] -= α * δ
+            # store Q values for output
+            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
+		end
+	end
+
+	return (choice = choice, Qs = Q)
 
 end
 
 @model function RLWM_ss(;
     block::Vector{Int64}, # Block number
     valence::AbstractVector, # Valence of each block
+    pair::AbstractVector, # Pair number within block
     choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
     outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
     initV::Matrix{Float64}, # Initial Q values,
@@ -170,8 +269,8 @@ end
     Ws = repeat(initV .* ρ, length(block)) .* valence[block]
 
     # Initial values
-    Q0 = copy(Qs)
-    W0 = 0.5 # initial weight of WM vs RL (1 / n_actions)
+    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
+    W0, W = copy(Ws), copy(Ws[:, 1:2])
 
     # Initial set-size
     ssz = set_size[block[1]]
@@ -179,9 +278,10 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
+        pri = 2 * pair[i]
         # RL and WM policies (softmax with directed and undirected noise)
-        π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, 2] - Qs[i, 1])))) + ε * 0.5
-        π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, 2] - Ws[i, 1])))) + ε * 0.5
+        π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
+        π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
 
         # Weighted policy
         π = w[ssz] * π_wm + (1 - w[ssz]) * π_rl
@@ -189,29 +289,26 @@ end
 
 		# Choice
 		choice[i] ~ BernoulliLogit(logit_π)
-		choice_idx::Int64 = choice[i] + 1
+		choice_idx::Int64 = choice[i] + pri - 1
 
 		# Prediction error
-		δ = outcomes[i, choice_idx] * ρ - Qs[i, choice_idx]
-        # if @isdefined(pers) && δ < 0
-        #     α *= 1 - pers
-        # end
-
-        dcy_rl = φ_rl * (Q0[i, :] .- Qs[i, :])
-        dcy_wm = φ_wm * (W0 .- Ws[i, :])
+		δ = outcomes[i, choice[i] + 1] * ρ - Qs[i, choice_idx]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (block[i] == block[i+1])
-            Qs[i + 1, choice_idx] = Qs[i, choice_idx] + α * δ + dcy_rl[choice_idx]
-			Qs[i + 1, 3 - choice_idx] = Qs[i, 3 - choice_idx] + dcy_rl[3 - choice_idx]
-            Ws[i + 1, choice_idx] = outcomes[i, choice_idx] * ρ + dcy_wm[choice_idx]
-            Ws[i + 1, 3 - choice_idx] = dcy_wm[3 - choice_idx]
+            Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
+			Qs[i + 1, choice_idx] += α * δ
+            Ws[i + 1, :] = Ws[i, :] + φ_wm * (W0[i, :] .- Ws[i, :]) # decay or just store previous W
+            Ws[i + 1, choice_idx] += outcomes[i, choice[i] + 1] * ρ
+            # store Q- and W- values for output
+            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
+            W[i + 1, :] = Ws[i + 1, pri-1:pri]
         elseif (i != N)
             ssz = set_size[block[i+1]]
         end
     end
 
-    return (choice = choice, Qs = Qs, Ws = Ws)
+    return (choice = choice, Qs = Q, Ws = W)
 
 end
 
@@ -219,6 +316,7 @@ end
     block::Vector{Int64}, # Block number
     valence::AbstractVector, # Valence of each block
     choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
+    pair::AbstractVector, # Pair number within block
     outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
     initV::Matrix{Float64}, # Initial Q values,
     set_size::Vector{Int64}, # Set size for each block
@@ -286,9 +384,9 @@ end
     Ws = repeat(initV .* ρ, length(block)) .* valence[block]
 
     # Initial values
-    if @isdefined(φ_rl)
-        Q0 = copy(Qs)
-    end
+    # Initial values
+    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
+    W = copy(Ws[:, 1:2])
 
     # Initial set-size
     N = length(block)
@@ -296,17 +394,18 @@ end
 
     # Initialize circular buffers and running sums for outcomes
     buffer_size = floor(Int, convert(Float64, C))
-    buffers = [zeros(Float64, 2) for _ in 1:buffer_size]
-    buffer_sums = zeros(Float64, 2)
-    buffer_counts = zeros(Int, 2)
-    buffer_indicies = ones(Int, 2)
-    outc_no = ones(Int, 2)
+    buffers = [zeros(Float64, ssz) for _ in 1:buffer_size]
+    buffer_sums = zeros(Float64, ssz)
+    buffer_counts = zeros(Int, ssz)
+    buffer_indicies = ones(Int, ssz)
+    outc_no = ones(Int, ssz)
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
+        pri = 2 * pair[i]
         # RL and WM policies (softmax with directed and undirected noise)
-        π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, 2] - Qs[i, 1])))) + ε * 0.5
-        π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, 2] - Ws[i, 1])))) + ε * 0.5
+        π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
+        π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
 
         # Weighted policy
         π = w[ssz] * π_wm + (1 - w[ssz]) * π_rl
@@ -317,24 +416,24 @@ end
 
 		# Choice
 		choice[i] ~ BernoulliLogit(logit_π)
-		choice_idx::Int64 = choice[i] + 1
+		choice_idx::Int64 = choice[i] + pri - 1
 
 		# Prediction error
-		δ = outcomes[i, choice_idx] * ρ - Qs[i, choice_idx]
-        dcy_rl = φ_rl * (Q0[i, :] .- Qs[i, :])
-        
+		δ = outcomes[i, choice[i] + 1] * ρ - Qs[i, choice_idx]
+
         # Update Qs and Ws and decay Ws
         if (i != N) && (block[i] == block[i+1])
-            Qs[i + 1, choice_idx] = Qs[i, choice_idx] + α * δ + dcy_rl[choice_idx]
-			Qs[i + 1, 3 - choice_idx] = Qs[i, 3 - choice_idx] + dcy_rl[3 - choice_idx]
+            Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
+			Qs[i + 1, choice_idx] += α * δ
+            Ws[i + 1, :] = Ws[i, :] # store previous W
             
             ## Update circular buffer and running sum for the chosen option
             # 1. remove outcome C outcomes (for that choice) back from buffer
             buffer_upd_idx = buffer_indicies[choice_idx]
             buffer_sums[choice_idx] -= buffers[buffer_upd_idx][choice_idx]
             # 2. store the new outcome, and update the counts and sum of the chosen option
-            buffers[buffer_upd_idx][choice_idx] = outcomes[i, choice_idx] * ρ # store the new outcome
-            buffer_sums[choice_idx] += outcomes[i, choice_idx] * ρ # update the running sum of the chosen option
+            buffers[buffer_upd_idx][choice_idx] = outcomes[i, choice[i] + 1] * ρ # store the new outcome
+            buffer_sums[choice_idx] += outcomes[i, choice[i] + 1] * ρ # update the running sum of the chosen option
             buffer_counts[choice_idx] = min(buffer_counts[choice_idx] + 1, buffer_size)
             # 3. update the buffer index - mod1 gets remainder after division
             #    so e.g., on outcome 6 for that stimulus with C=4, mod1(7, 4) = 3, so we will be overwriting the 3rd element of the buffer
@@ -342,20 +441,24 @@ end
             outc_no[choice_idx] += 1
             # 4. compute the running average for each option using the running sum and buffer count
             Ws[i + 1, choice_idx] = buffer_sums[choice_idx] / buffer_counts[choice_idx]
-            Ws[i + 1, 3 - choice_idx] = Ws[i, 3 - choice_idx]
+
+            # store Q- and W- values for output
+            Q[i + 1, :] = Qs[i + 1, pri-1:pri]
+            W[i + 1, :] = Ws[i + 1, pri-1:pri]
 
         elseif (i != N)
-            # Reset buffers at the start of a new block
-            buffers = [zeros(Float64, 2) for _ in 1:buffer_size]
-            buffer_sums = zeros(Float64, 2)
-            buffer_counts = zeros(Int, 2)
-            buffer_upd_idx = ones(Int, 2)
-            outc_no = ones(Int, 2)
             ssz = set_size[block[i+1]]
+            # Reset buffers at the start of a new block
+            buffers = [zeros(Float64, ssz) for _ in 1:buffer_size]
+            buffer_sums = zeros(Float64, ssz)
+            buffer_counts = zeros(Int, ssz)
+            buffer_indicies = ones(Int, ssz)
+            buffer_upd_idx = ones(Int, ssz)
+            outc_no = ones(Int, ssz)
         end
     end
 
-    return (choice = choice, Qs = Qs, Ws = Ws)
+    return (choice = choice, Qs = Q, Ws = W)
 
 end
 

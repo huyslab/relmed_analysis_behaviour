@@ -13,7 +13,7 @@ begin
     Pkg.activate("$(pwd())/relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using CairoMakie, Random, DataFrames, Distributions, StatsBase,
+		using CairoMakie, Random, DataFrames, Distributions, StatsBase,
 		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf
 	using LogExpFunctions: logistic, logit
 
@@ -21,13 +21,7 @@ begin
 	#include("$(pwd())/fetch_preprocess_data.jl")
 	include("$(pwd())/simulate.jl")
 	include("$(pwd())/turing_models.jl")
-	include("$(pwd())/plotting.jl")
-end
-
-# ╔═╡ c300ec0c-cdd2-437c-bfac-94eaa531fc4a
-begin
-	include("$(pwd())/simulate.jl")
-	include("$(pwd())/turing_models.jl")
+	include("$(pwd())/plotting_utils.jl")
 end
 
 # ╔═╡ d49d6f84-5ff6-4100-90db-995ffdeb09ca
@@ -158,86 +152,16 @@ begin
 	describe(prior_samples)
 end
 
-# ╔═╡ 7a3b57c9-51ca-4ec1-b81f-bb45ed456b9d
+# ╔═╡ 3ea2b653-a8f7-4e6b-910d-c5e4d284be53
 let
-    f = Figure(size = (1000, 1000))
-	
-	plot_prior_expectations!(
-		GridLayout(f[1,1]),
-		prior_samples;
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
+	f = plot_prior_predictive_by_valence(
+		prior_samples,
+		[:Q_optimal, :Q_suboptimal];
+		fig_size = (1000, 1000),
 		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-	)
-
-	prior_samples[!, :optimal_choice] .= prior_samples.choice .== 1
-
-	plot_prior_accuracy!(
-		GridLayout(f[1,2]),
-		prior_samples;
-		group = :model,
-		pid_col = :PID,
-		acc_col = :choice,
 		legend = true,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-		error_band = "PI"
-	)
-
-	Label(f[0,:], "All blocks", fontsize = 18, font = :bold)
-
-	plot_prior_expectations!(
-		GridLayout(f[3,1]),
-		filter(x -> x.valence > 0, prior_samples);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_deep6]
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[3,2]),
-		filter(x -> x.valence > 0, prior_samples);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		colors = Makie.colorschemes[:seaborn_deep6],
-		error_band = "PI"
-	)
-
-	Label(f[2,:], "Reward blocks", fontsize = 18, font = :bold)
-
-	plot_prior_expectations!(
-		GridLayout(f[5,1]),
-		filter(x -> x.valence < 0, prior_samples);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_colorblind6]
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[5,2]),
-		filter(x -> x.valence < 0, prior_samples);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		colors = Makie.colorschemes[:seaborn_colorblind6],
-		error_band = "PI"
-	)
-
-	Label(f[4,:], "Punishment blocks", fontsize = 18, font = :bold)
-
-	# save("results/single_p_QL_prior_predictive.png", f, pt_per_unit = 1)
-
+		colors = Makie.colorschemes[:seaborn_pastel6]
+	)	
 	f
 end
 
@@ -247,6 +171,8 @@ md"
 "
 
 # ╔═╡ bfe4c9c1-72f0-4999-bbcb-76bdd4f579da
+# ╠═╡ disabled = true
+#=╠═╡
 # Sample datasets from prior
 begin
 	prior_rlwm_samples = let
@@ -349,139 +275,25 @@ begin
 
 	describe(prior_rlwm_samples)
 end
+  ╠═╡ =#
 
-# ╔═╡ 7d6b2cfc-500f-469b-a294-ae25b0ca4571
+# ╔═╡ 4b628e68-0625-4cff-bfc4-f146f9673d3c
+#=╠═╡
 let
-	f = Figure(size = (1400, 1400))
-
-    df = prior_rlwm_samples
-
-	plot_prior_expectations!(
-		GridLayout(f[1,1]),
-		df;
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
+	f = plot_prior_predictive_by_valence(
+		prior_rlwm_samples,
+		[:Q_optimal, :Q_suboptimal];
+		W_cols = [:W_optimal, :W_suboptimal],
+		ylab = ("Q-value", "W-value"),
+		fig_size = (1000, 1000),
 		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-	)
-	
-	plot_prior_expectations!(
-		GridLayout(f[1,2]),
-		df;
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		ylims = (-1., 5.),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-	)
-
-	df[!, :optimal_choice] .= df.choice .== 1
-
-	plot_prior_accuracy!(
-		GridLayout(f[1,3]),
-		df;
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
 		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-		error_band = "PI"
-	)
-
-	Label(f[0,:], "All blocks", fontsize = 30, font = :bold)
-	
-	plot_prior_expectations!(
-		GridLayout(f[3,1]),
-		filter(x -> x.valence > 0, df);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_deep6]
-	)
-
-	plot_prior_expectations!(
-		GridLayout(f[3,2]),
-		filter(x -> x.valence > 0, df);
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		ylims = (-1., 5.),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_deep6],
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[3,3]),
-		filter(x -> x.valence > 0, df);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_deep6],
-		error_band = "PI"
-	)
-
-	Label(f[2,:], "Reward blocks", fontsize = 30, font = :bold)
-
-	plot_prior_expectations!(
-		GridLayout(f[5,1]),
-		filter(x -> x.valence < 0, df);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_colorblind6]
-	)
-
-	plot_prior_expectations!(
-		GridLayout(f[5,2]),
-		filter(x -> x.valence < 0, df);
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		ylims = (-1., 5.),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_colorblind6],
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[5,3]),
-		filter(x -> x.valence < 0, df);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_colorblind6],
-		error_band = "PI"
-	)
-
-	Label(f[4,:], "Punishment blocks", fontsize = 30, font = :bold)
-
-	# save("results/single_p_QL_prior_predictive.png", f, pt_per_unit = 1)
-
+		legend_rows = 3, 
+		colors = Makie.colorschemes[:seaborn_pastel6]
+	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 91548dc3-0812-4070-9b32-5b5b3bb05eb9
 # Sample datasets from prior
@@ -547,138 +359,395 @@ begin
 	describe(prior_wpmst_samples)
 end
 
-# ╔═╡ 43ae709e-588c-4371-bfbd-65f333972867
+# ╔═╡ a9a8d13b-4960-4a53-aed5-c104260625b5
 let
-	f = Figure(size = (1400, 1400))
-
-    df = prior_wpmst_samples
-
-	plot_prior_expectations!(
-		GridLayout(f[1,1]),
-		df;
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
+	f = plot_prior_predictive_by_valence(
+		prior_wpmst_samples,
+		[:Q_optimal, :Q_suboptimal];
+		W_cols = [:W_optimal, :W_suboptimal],
+		ylab = ("Q-value", "W-value"),
+		fig_size = (1000, 1000),
 		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_pastel6],
+		legend = true,
+		colors = Makie.colorschemes[:seaborn_pastel6]
+	)	
+	f
+end
+
+# ╔═╡ 76116837-6fa8-4149-b0d4-8e663b53f4ba
+function simulate_participant(;
+	condition::String,
+    model::Function,
+    parameters::Vector{Symbol},
+    transformed::Dict{Symbol, Symbol},
+	priors::Dict,
+	aao::Float64 = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]),
+	initV::Matrix{Float64} = fill(aao, 1,2),
+	repeats::Int64 = 1
+)	
+	# Load sequence from file
+	task = task_vars_for_condition(condition)
+	
+	prior_sample = simulate_from_prior(
+		repeats;
+		model = model,
+		block = task.block,
+		valence = task.valence,
+		outcomes = task.outcomes,
+		initV = fill(aao, 1, 2),
+		set_size = fill(2, maximum(task.block)),
+		parameters = parameters,
+		transformed = transformed,
+		priors = priors,
+		random_seed = 0
+	)
+
+
+	prior_sample = leftjoin(prior_sample, 
+		task.task[!, [:block, :trial, :feedback_optimal, :feedback_suboptimal]],
+		on = [:block, :trial]
+	)
+
+	# Renumber blocks
+	if repeats > 1
+			prior_sample.block = prior_sample.block .+ 
+				(prior_sample.PID .- 1) .* maximum(prior_sample.block)
+	end
+
+	return prior_sample
+end
+
+# ╔═╡ 90035555-50c3-489a-a3ff-140752e1dea6
+function plot_turing_ll(
+	f::GridPosition;
+	data::DataFrame,
+	priors::Dict,
+	ρ_val::Float64 = 4.,
+	a_val::Float64 = 0.,
+	grid_W::AbstractVector = range(0.001, 10., length = 200),
+	grid_C::AbstractVector = range(1., 13., length = 200),
+	aao::Float64 = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]),
+	initV::Matrix{Float64} = fill(aao, 1,2)
+)
+	# Set up model
+	post_model = RLWM_pmst(;
+		block = data.block,
+		valence = unique(data[!, [:block, :valence]]).valence,
+		choice = data.choice,
+		outcomes = hcat(
+			data.feedback_suboptimal,
+			data.feedback_optimal,
+		),
+		initV = initV,
+        set_size = fill(2, maximum(data.block)),
+		parameters = [:ρ, :a, :W, :C],
+		priors = priors
+	)
+
+	# Set up axis
+	# ax = Axis(
+	# 	f,
+	# 	xlabel = "ρ",
+	# 	ylabel = "a"
+	# )
+	
+	# ρ = repeat(grid_ρ, inner = length(grid_a))
+	# a = repeat(grid_a, outer = length(grid_ρ))
+	W = repeat(grid_W, inner = length(grid_W))
+	C = repeat(grid_C, outer = length(grid_C))
+	
+	ll = [loglikelihood(
+			post_model, 
+			(ρ = ρ_val, a = a_val, W = W, C = C)) for W in grid_W for C in grid_C]
+	
+	# contour!(
+	# 	ax,
+	# 	ρ,
+	# 	a,
+	# 	ll,
+	# 	levels = 10
+	# )
+	
+
+	# # Plot MLE
+	# scatter!(
+	# 	ax,
+	# 	ρ[argmax(ll)],
+	# 	a[argmax(ll)],
+	# 	marker = :cross,
+	# 	markersize = 8,
+	# 	color = :blue
+	# )
+
+	# Set up axis
+	ax = Axis(
+		f,
+		xlabel = "W",
+		ylabel = "C"
+	)
+
+	# Plot loglikelihood
+	
+	contour!(
+		ax,
+		W,
+		C, 
+		ll,
+		levels = 10
+	)
+
+	# Plot MLE
+	scatter!(
+		ax,
+		W[argmax(ll)],
+		C[argmax(ll)],
+		marker = :cross,
+		markersize = 8,
+		color = :blue
+	)
+
+	return ax
+
+end
+
+# ╔═╡ 2a8dcad9-be29-4db7-9838-aceda47c65c7
+begin
+	f = Figure(size = (1000, 1000))
+	prior_sample = simulate_participant(;
+		condition = "00",
+	    model = RLWM_pmst,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w0),
+		priors = Dict(
+			:ρ => Dirac(4.),
+			:a => Dirac(0.),
+			:W => Dirac(0.),
+			:C => Dirac(5.)
+		)
 	)
 	
-	plot_prior_expectations!(
-		GridLayout(f[1,2]),
-		df;
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		#ylims = (-.5, .5),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_pastel6],
+	f = Figure(size = (700, 280))
+
+	ax1 = plot_turing_ll(
+		f[1,1];
+		data = prior_sample,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 1.), lower = 0.),
+			:a => Normal(),
+			:W => Normal(),
+			:C => truncated(Normal(3., 2.), lower = 1.)
+		)
 	)
 
-	df[!, :optimal_choice] .= df.choice .== 1
+	ax1.title = "Turing\n with prior 1"
 
-	plot_prior_accuracy!(
-		GridLayout(f[1,3]),
-		df;
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_pastel6],
-		error_band = "PI"
+	ax2 = plot_turing_ll(
+		f[1,2];
+		data = prior_sample,
+		priors = Dict(
+			:ρ => truncated(Normal(99., 2.), lower = 0.),
+			:a => Normal(-99., 3.),
+			:W => Normal(-99., 3.),
+			:C => truncated(Normal(10., 5.), lower = 1., upper = 13.)
+		)
 	)
 
-	Label(f[0,:], "All blocks", fontsize = 30, font = :bold)
-	
-	plot_prior_expectations!(
-		GridLayout(f[3,1]),
-		filter(x -> x.valence > 0, df);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_deep6]
-	)
-
-	plot_prior_expectations!(
-		GridLayout(f[3,2]),
-		filter(x -> x.valence > 0, df);
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		#ylims = (0., 1.),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_deep6],
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[3,3]),
-		filter(x -> x.valence > 0, df);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_deep6],
-		error_band = "PI"
-	)
-
-	Label(f[2,:], "Reward blocks", fontsize = 30, font = :bold)
-
-	plot_prior_expectations!(
-		GridLayout(f[5,1]),
-		filter(x -> x.valence < 0, df);
-		colA = :Q_optimal,
-		colB = :Q_suboptimal,
-		norm = :ρ,
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_colorblind6]
-	)
-
-	plot_prior_expectations!(
-		GridLayout(f[5,2]),
-		filter(x -> x.valence < 0, df);
-		colA = :W_optimal,
-		colB = :W_suboptimal,
-		ylab = "W-value",
-		norm = :ρ,
-		#ylims = (-1., 0.),
-		group = :model,
-		plw = 1,
-		legend = false,
-		colors = Makie.colorschemes[:seaborn_colorblind6],
-	)
-
-	plot_prior_accuracy!(
-		GridLayout(f[5,3]),
-		filter(x -> x.valence < 0, df);
-		group = :model,
-		pid_col = :PID,
-		acc_col = :optimal_choice,
-		legend = true,
-		legend_rows = 2,
-		colors = Makie.colorschemes[:seaborn_colorblind6],
-		error_band = "PI"
-	)
-
-	Label(f[4,:], "Punishment blocks", fontsize = 30, font = :bold)
-
-	# save("results/single_p_QL_prior_predictive.png", f, pt_per_unit = 1)
+	ax2.title = "Turing\n with prior 2"
 
 	f
 end
+
+# ╔═╡ 0191bfa9-c613-440a-a8c0-01f210d52763
+function plot_turing_ll_wm(
+	f::GridPosition;
+	data::DataFrame,
+	priors::Dict,
+	ρ_val::Float64 = 4.,
+	a_val::Float64 = 0.,
+	f_val::Float64 = 0.,
+	grid_W::AbstractVector = range(0.001, 10., length = 200),
+	grid_C::AbstractVector = range(1., 13., length = 200),
+	aao::Float64 = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]),
+	initV::Matrix{Float64} = fill(aao, 1,2)
+)
+	# Set up model
+	post_model = RLWM_pmst(;
+		block = data.block,
+		valence = unique(data[!, [:block, :valence]]).valence,
+		choice = data.choice,
+		outcomes = hcat(
+			data.feedback_suboptimal,
+			data.feedback_optimal,
+		),
+		initV = initV,
+        set_size = fill(2, maximum(data.block)),
+		parameters = [:ρ, :a, :W, :C],
+		priors = priors
+	)
+
+	# Set up axis
+	# ax = Axis(
+	# 	f,
+	# 	xlabel = "ρ",
+	# 	ylabel = "a"
+	# )
+	
+	# ρ = repeat(grid_ρ, inner = length(grid_a))
+	# a = repeat(grid_a, outer = length(grid_ρ))
+	W = repeat(grid_W, inner = length(grid_W))
+	C = repeat(grid_C, outer = length(grid_C))
+	
+	ll = [loglikelihood(
+			post_model, 
+			(ρ = ρ_val, a = a_val, F_wm = f_val, W = W, C = C)) for W in grid_W for C in grid_C]
+	
+	# contour!(
+	# 	ax,
+	# 	ρ,
+	# 	a,
+	# 	ll,
+	# 	levels = 10
+	# )
+	
+
+	# # Plot MLE
+	# scatter!(
+	# 	ax,
+	# 	ρ[argmax(ll)],
+	# 	a[argmax(ll)],
+	# 	marker = :cross,
+	# 	markersize = 8,
+	# 	color = :blue
+	# )
+
+	# Set up axis
+	ax = Axis(
+		f,
+		xlabel = "W",
+		ylabel = "C"
+	)
+
+	# Plot loglikelihood
+	
+	contour!(
+		ax,
+		W,
+		C, 
+		ll,
+		levels = 10
+	)
+
+	# Plot MLE
+	scatter!(
+		ax,
+		W[argmax(ll)],
+		C[argmax(ll)],
+		marker = :cross,
+		markersize = 8,
+		color = :blue
+	)
+
+	return ax
+
+end
+
+# ╔═╡ d6dd0e64-063b-449c-8535-c78e27bae9ba
+let
+	prior_sample = simulate_participant(;
+		condition = "00",
+	    model = RLWM_ss,
+		parameters = [:ρ, :a, :F_wm, :W, :C],
+		transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w0),
+		priors = Dict(
+			:ρ => Dirac(4.),
+			:a => Dirac(0.),
+			:F_wm => Dirac(0.),
+			:W => Dirac(0.),
+			:C => Dirac(5.)
+		)
+	)
+	
+	f = Figure(size = (700, 280))
+
+	ax1 = plot_turing_ll_wm(
+		f[1,1];
+		data = prior_sample,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 1.), lower = 0.),
+			:a => Normal(0., 0.5),
+			:F_wm => Normal(0., 0.5),
+			:W => Normal(0., 0.5),
+			:C => truncated(Normal(3., 2.), lower = 1.)
+		)
+	)
+
+	ax1.title = "Turing\n with prior 1"
+
+	ax2 = plot_turing_ll_wm(
+		f[1,2];
+		data = prior_sample,
+		priors = Dict(
+			:ρ => truncated(Normal(99., 2.), lower = 0.),
+			:a => Normal(-99., 3.),
+			:F_wm => Normal(-99., 3.),
+			:W => Normal(-99., 3.),
+			:C => truncated(Normal(10., 5.), lower = 1., upper = 13.)
+		)
+	)
+
+	ax2.title = "Turing\n with prior 2"
+
+	f
+end
+
+# ╔═╡ 18b17290-0ab6-43d4-b8ec-792cb694ce64
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+    data = simulate_participant(;
+		condition = "00",
+		model = RLWM_pmst,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w0),
+		priors = Dict(
+			:ρ => Dirac(4.),
+			:a => Dirac(0.),
+			:W => Dirac(0.),
+			:C => Dirac(5.)
+		)
+	)
+
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+
+	post_model = RLWM_pmst(;
+		block = data.block,
+		valence = unique(data[!, [:block, :valence]]).valence,
+		choice = data.choice,
+		outcomes = hcat(
+			data.feedback_suboptimal,
+			data.feedback_optimal,
+		),
+		initV =  fill(aao, 1,2),
+		set_size = fill(2, maximum(data.block)),
+		parameters = [:ρ, :a, :W, :C],
+		priors = Dict(
+			:ρ => truncated(Normal(0., 1.), lower = 0.),
+			:a => Normal(),
+			:W => Normal(),
+			:C => truncated(Normal(3., 2.), lower = 1.)
+		)
+	)
+
+	grid_ρ = range(0.001, 10., length = 200)
+	grid_a = range(-4, 4., length = 200)
+	grid_W = range(0.001, 10., length = 200)
+	grid_C = range(1., 13., length = 200)
+
+	[loglikelihood(
+			post_model, 
+			(ρ = ρ, a = a, W = W, C = C)) for ρ in grid_ρ for a in grid_a for W in grid_W for C in grid_C]
+end
+  ╠═╡ =#
 
 # ╔═╡ 24e81e3a-6d47-4e10-b480-1e4afb449612
 md"
@@ -818,6 +887,8 @@ end
   ╠═╡ =#
 
 # ╔═╡ 9c54629b-4aeb-4019-a369-00558270fc96
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f_rfl = optimization_calibration(
 		filter(x -> x.model == "α|ρ|ε|φ", prior_samples),
@@ -836,8 +907,11 @@ let
 
 	f_rfl
 end
+  ╠═╡ =#
 
 # ╔═╡ 1dfd03d0-a789-4dcc-885e-8546d73a0f0d
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	task = task_vars_for_condition("00")
 	set_sizes = fill(2, maximum(task.block))
@@ -862,8 +936,11 @@ let
 
 	f_rlwm
 end
+  ╠═╡ =#
 
 # ╔═╡ e0e8b4b4-cc86-4816-b3f6-389df99b437e
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	task = task_vars_for_condition("00")
 	set_sizes = fill(2, maximum(task.block))
@@ -887,6 +964,7 @@ let
 
 	f_pmst
 end
+  ╠═╡ =#
 
 # ╔═╡ 0aaab866-3870-46f3-bda9-e8f2ef37a62a
 md"
@@ -1367,14 +1445,19 @@ end
 # ╠═88f8505c-5fc2-11ef-2ac9-9bb7f4b5b591
 # ╠═cf2e2616-d29a-49cb-b9ee-6b6ea89c4ee6
 # ╟─533b6f26-adb1-438e-9cbc-5dcc2d19ec1a
-# ╠═c300ec0c-cdd2-437c-bfac-94eaa531fc4a
 # ╠═9bfdd2b3-7885-42b3-8839-c426dae394a4
-# ╠═7a3b57c9-51ca-4ec1-b81f-bb45ed456b9d
+# ╠═3ea2b653-a8f7-4e6b-910d-c5e4d284be53
 # ╟─bb8fc03d-f85a-451c-89c4-2303f0cb7fef
 # ╠═bfe4c9c1-72f0-4999-bbcb-76bdd4f579da
-# ╠═7d6b2cfc-500f-469b-a294-ae25b0ca4571
+# ╠═4b628e68-0625-4cff-bfc4-f146f9673d3c
 # ╠═91548dc3-0812-4070-9b32-5b5b3bb05eb9
-# ╠═43ae709e-588c-4371-bfbd-65f333972867
+# ╠═a9a8d13b-4960-4a53-aed5-c104260625b5
+# ╠═76116837-6fa8-4149-b0d4-8e663b53f4ba
+# ╠═90035555-50c3-489a-a3ff-140752e1dea6
+# ╠═2a8dcad9-be29-4db7-9838-aceda47c65c7
+# ╠═0191bfa9-c613-440a-a8c0-01f210d52763
+# ╠═d6dd0e64-063b-449c-8535-c78e27bae9ba
+# ╠═18b17290-0ab6-43d4-b8ec-792cb694ce64
 # ╟─24e81e3a-6d47-4e10-b480-1e4afb449612
 # ╠═10516a3d-4deb-46eb-b977-9726dc13d093
 # ╠═b3ec6080-2bd0-42c5-b265-d691efb8cbb2

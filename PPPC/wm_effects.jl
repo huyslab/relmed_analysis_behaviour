@@ -149,7 +149,6 @@ begin
 end
 
 # ╔═╡ 9017be6c-5292-4c47-99b6-0aa2873511bf
-#=╠═╡
 let
     f = Figure(size = (800, 1400))
 	
@@ -194,7 +193,6 @@ let
 	colsize!(f.layout, 1, Relative(1))
 	f
 end
-  ╠═╡ =#
 
 # ╔═╡ 49a0b75f-b70c-47bb-83ff-fbd82de9c03b
 # ╠═╡ disabled = true

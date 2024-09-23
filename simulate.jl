@@ -1,85 +1,195 @@
-function task_vars_for_condition(condition::String, split_by_confusion_time::Bool = false)
-    # Load sequence from file
-    task = DataFrame(CSV.File("data/PLT_task_structure_" * condition * ".csv"))
+# Simulating data and task structures for PILT tasks -------------------------------------------------------------------
+function task_vars_for_condition(condition::String)
+	# Load sequence from file
+	task = DataFrame(CSV.File("data/PLT_task_structure_$condition.csv"))
 
-    # Renumber block
-    task.block = task.block .+ (task.session .- 1) * maximum(task.block)
+	# Renumber block
+	task.block = task.block .+ (task.session .- 1) * maximum(task.block)
 
-    # Arrange feedback by optimal / suboptimal
-    task.feedback_optimal = 
-        ifelse.(task.optimal_A .== 1, task.feedback_A, task.feedback_B)
+	# Arrange feedback by optimal / suboptimal
+	task.feedback_optimal = 
+		ifelse.(task.optimal_A .== 1, task.feedback_A, task.feedback_B)
 
-    task.feedback_suboptimal = 
-        ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
+	task.feedback_suboptimal = 
+		ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
 
-    # Arrange outcomes such as second column is optimal
-    outcomes = hcat(
-        task.feedback_suboptimal,
-        task.feedback_optimal,
-    )
+    # currently assume one pair per block
+    task.pair .= 1
 
-    if split_by_confusion_time        
-        task.confusing_feedback = (task.optimal_A .== 1) .&& (task.feedback_A .< task.feedback_B) .|| (task.optimal_A .== 0) .&& (task.feedback_A .> task.feedback_B)
-        # group by block, and then code the confusion time as the first trial where the feedback is confusing
-        task[!, :confusion_time] .= missing
+	# Arrange outcomes such as second column is optimal
+	outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
 
-        # Group by block
-        grouped_task = groupby(task, :block)
-
-        # Iterate over each block
-        for block in grouped_task
-            # Find the first trial number with confusing feedback in the block
-            first_confusing_trial = findfirst(block.confusing_feedback)
-            if first_confusing_trial !== nothing
-                # Update the confusion_time column for the block
-                block.confusion_time .= block.trial[first_confusing_trial]
-            end
-        end
-        task[!, :early_confusion] = task.confusion_time .<= 5
-    end
-
-    return (
-        task = task,
-        block = task.block,
-        valence = unique(task[!, [:block, :valence]]).valence,
-        outcomes = outcomes
-    )
+	return (
+		task = task,
+		block = task.block,
+		valence = unique(task[!, [:block, :valence]]).valence,
+		outcomes = outcomes
+	)
 
 end
 
-# Simulate data from model prior
-function simulate_from_prior(
-    n::Int64; # How many participants worth of data to simulate
-    model::Function,
-    block::Vector{Int64}, # Block number
-    valence::AbstractVector, # Valence of each block
-    outcomes::Matrix{Float64}, # Outcomes for options, first column optimal
-    initV::Matrix{Float64}, # Initial Q (and W) values
-    set_size::Union{Vector{Int64}, Nothing} = nothing, # Set size for each block, required for WM models
-    parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    priors::Dict = Dict(
-        :ρ => truncated(Normal(0., 1.), lower = 0.),
-        :a => Normal(0., 0.5)
-    ),
-    random_seed::Union{Int64, Nothing} = nothing
+function random_sequence(;
+	optimal::Vector{Float64},
+	suboptimal::Vector{Float64},
+	n_confusing::Int64,
+	n_trials::Int64,
+    n_pairs::Int64 = 1
+)
+    seq = Vector{Matrix{Float64}}(undef, n_pairs)
+    for i in 1:n_pairs
+        common = shuffle(
+            vcat(
+                fill(true, n_trials - n_confusing),
+                fill(false, n_confusing)
+            )
+        )
+        opt_seq = ifelse.(
+            common, 
+            shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))), 
+            shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials)))
+        )
+        subopt_seq = ifelse.(
+            common, 
+            shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials))),
+            shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))),
+        )
+        seq[i] = hcat(subopt_seq, opt_seq, fill(i, n_trials))
+    end
+    seq = DataFrame(vcat(seq...)[shuffle(1:end), :], :auto)
+	return DataFrames.transform(groupby(seq, :x3), eachindex => :x4) |> Matrix
+end
+
+function random_outcomes_from_sequence(;
+    n_blocks::Int64,
+    set_sizes::Vector{Int64},
+    kwargs...
 )
 
-    # Trials per block
-    n_trials = div(length(block), maximum(block))
-    if length(block) % maximum(block) != 0
-        n_trials += 1
+return vcat(
+    [
+        random_sequence(;
+            optimal = mgnt[2], 
+            suboptimal = mgnt[1],
+            n_pairs = set_sizes[i] ÷ 2,
+            kwargs...
+        )
+        for (i, mgnt) in enumerate(
+            Iterators.take(
+                Iterators.cycle(
+                    [
+                        ([0.01], [0.5, 1.]),
+                        ([0.01, 0.5], [1.]),
+                        ([-0.5, -1.], [-0.01]),
+                        ([-1.], [-0.01, -0.5])
+                    ]
+                ), n_blocks
+            )
+        )
+    ]...
+)
+
+end
+
+function set_size_per_block(;
+    set_sizes::Union{Int64, Vector{Int64}},
+    n_blocks::Int64
+)
+    @assert all([s%2 == 0 for s in set_sizes]) "Set sizes must be even"
+    if length(set_sizes) == n_blocks
+        ssz = set_sizes
+    elseif set_sizes isa Int64
+        ssz = fill(set_sizes, n_blocks)
+    else
+        ssz = sort(
+            vcat(
+                set_sizes,
+                sample(
+                    set_sizes,
+                    aweights([i for i in reverse(1:length(set_sizes))]),
+                    n_blocks - length(set_sizes),
+                    replace = true
+                )
+            )
+        )
+    end
+    return ssz
+end
+
+function create_random_task(;
+    n_confusing::Int64,
+	n_trials::Int64,
+	n_blocks::Int64,
+    set_sizes::Union{Int64, Vector{Int64}} = 2
+)
+
+    set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
+	# Create task sequence
+	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * (set_sizes_blk[i] ÷ 2))]...)
+	outcomes = random_outcomes_from_sequence(
+        n_confusing = n_confusing,
+        n_trials = n_trials,
+        n_blocks = n_blocks,
+        set_sizes = set_sizes_blk
+    )
+	valence = sign.(outcomes[[findfirst(block .== i) for i in 1:n_blocks], 1])
+	trial = Int.(outcomes[:, 4])
+
+	df = DataFrame(
+		block = block,
+		trial = trial,
+        pair = Int.(outcomes[:, 3]),
+		valence = valence[block],
+		feedback_optimal = outcomes[:, 2],
+		feedback_suboptimal = outcomes[:, 1]
+	)
+
+	return (
+		task = df,
+		block = block,
+        set_sizes = set_sizes_blk,
+        valence = valence,
+		outcomes = outcomes[: , 1:2]
+	)
+end
+
+function simulate_from_prior(
+    N::Int64; # number of simulated participants or repeats (depending on priors)
+    model::Function,
+    priors::Dict,
+    transformed::Dict{Symbol, Symbol}, # Transformed parameters
+    initial::Float64, # initial Q-value
+    condition::Union{String, Nothing} = nothing,
+    structure::NamedTuple = (
+        n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2
+    ),
+    repeats::Bool = false,
+    gq::Bool = false,
+    random_seed::Union{Int64, Nothing} = nothing
+)	
+    # Load sequence from file or generate random task
+    if isnothing(condition)
+        task_strct = create_random_task(;
+            structure...
+        )
+        n_trials = structure.n_trials
+    else
+        task_strct = task_vars_for_condition(condition)
+        n_trials = div(length(block), maximum(block))
+        if length(block) % maximum(block) != 0
+            n_trials += 1
+        end
     end
 
-    # Prepare model for simulation
+    # define model
     prior_model = model(
-        block = block,
-        valence = valence,
-        choice = fill(missing, length(block)),
-        outcomes = outcomes,
-        initV = initV,
-        set_size = set_size,
-        parameters = parameters,
+        block = task_strct.block,
+        valence = task_strct.valence,
+        pair = task_strct.task.pair,
+        choice = fill(missing, length(task_strct.block)),
+        outcomes = task_strct.outcomes,
+        set_size = task_strct.set_sizes,
+        initV = fill(initial, 1, maximum(task_strct.set_sizes)),
+        parameters = collect(keys(priors)),
         priors = priors
     )
 
@@ -88,26 +198,23 @@ function simulate_from_prior(
         isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
         prior_model,
         Prior(),
-        n
+        N
     )
 
-    N = length(block)
-
-    # pivot the columns in the prior_sample that start with "choice" longer
-    # with another new column that is the trial number for each choice (i.e., from the column name)
-    # and then stack them all together
-    # choice_df = stack(prior_sample, [Symbol("choice[$i]") for i in 1:N], :trial_no, :choice)
+    nT = length(task_strct.block)
 
     # Arrange choice for return
     sim_data = DataFrame(
-        PID = repeat(1:n, inner = length(block)),
-        block = repeat(block, n),
-        valence = repeat(valence, inner = n_trials, outer = n),
-        trial = repeat(1:n_trials, n * maximum(block))
+        PID = repeat(1:N, inner = nT),
+        block = repeat(task_strct.block, N),
+        valence = repeat(task_strct.task.valence, N),
+        trial = repeat(task_strct.task.trial, N),
+        pair = repeat(task_strct.task.pair, N),
+        set_size = repeat(task_strct.set_sizes[task_strct.block], N),
     )
 
-    for p in parameters
-        v = repeat(prior_sample[:, p, 1], inner = N)
+    for p in collect(keys(priors))
+        v = repeat(prior_sample[:, p, 1], inner = nT)
         if haskey(transformed, p)
             v = v .|> a2α # assume all transformations are to [0, 1]
             sim_data[!, transformed[p]] = v
@@ -116,24 +223,38 @@ function simulate_from_prior(
         end
     end
 
-    # Compute Q values
-    gq = generated_quantities(prior_model, prior_sample)
-    Qs = [pt.Qs for pt in gq] |> vec
-    choices = [pt.choice for pt in gq] |> vec
-    sim_data.choice = vcat([ch for ch in choices]...)
+    sim_data = leftjoin(sim_data, 
+        task_strct.task[!, [:block, :trial, :pair, :feedback_optimal, :feedback_suboptimal]],
+        on = [:block, :trial, :pair]
+    )
 
-    sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
-    sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
-
-    if !isnothing(set_size)
-        Ws = [pt.Ws for pt in gq] |> vec
-        sim_data.W_optimal = vcat([ws[:, 2] for ws in Ws]...)
-        sim_data.W_suboptimal = vcat([ws[:, 1] for ws in Ws]...)
+    # Renumber blocks
+    if repeats && N > 1
+        sim_data.block = sim_data.block .+ 
+            (sim_data.PID .- 1) .* maximum(sim_data.block)
     end
 
+    if gq
+        # Compute Q values
+        gq = generated_quantities(prior_model, prior_sample)
+        Qs = [pt.Qs for pt in gq] |> vec
+        choices = [pt.choice for pt in gq] |> vec
+        sim_data.choice = vcat([ch for ch in choices]...)
+
+        sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
+        sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
+
+        if model == RLWM_ss || model == RLWM_pmst
+            Ws = [pt.Ws for pt in gq] |> vec
+            sim_data.W_optimal = vcat([ws[:, 2] for ws in Ws]...)
+            sim_data.W_suboptimal = vcat([ws[:, 1] for ws in Ws]...)
+        end
+    end
     return sim_data
 end
 
+
+# will require work.
 # function simulate_from_hierarchical_prior(
 #     n::Int64; # How many participants are therefore
 #     model::Function,
@@ -156,9 +277,9 @@ end
 
 #     # Trials per block
 #     n_trials = div(length(block[1]), maximum(block[1]))
-#     # if length(block[1]) % maximum(block[1]) != 0
-#     #     n_trials += 1
-#     # end
+#     if length(block[1]) % maximum(block[1]) != 0
+#         n_trials += 1
+#     end
 
 #     prior_model = model(
 #         block = block,
