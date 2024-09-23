@@ -126,24 +126,21 @@ let
 
 end
 
-# ╔═╡ 237f096d-9046-49a3-a8c0-f733c89c93bc
-let
-	only_observed_test
-end
-
-# ╔═╡ 16fbf0db-1190-4fb2-a73e-8ef99f1c2999
-only_observed_test
+# ╔═╡ c4a88006-2bb6-4a90-b638-324fbebf1b1f
+unique(only_observed_test.empirical_EV_left) |> describe
 
 # ╔═╡ dba29af6-89c0-4cad-8b5c-b13f6c366982
 # Bin and plot choice
-function bin_EV_diff_plot(
+function bin_EV_plot(
 	f::GridPosition,
 	data::AbstractDataFrame;
 	group::Union{Nothing, Symbol} = nothing,
 	n_bins::Int64 = 5,
-	col::Symbol = :empirical_EV_diff, # EV diff column,
+	col::Symbol = :empirical_EV_diff, # x axis data column,
 	group_label_f::Function = string,
-	legend_title = ""
+	legend_title = "",
+	colors::AbstractVector = Makie.wong_colors(),
+	bin_group::Union{Nothing, Int64} = nothing
 )
 
 	# Copy data to avoid changing origianl DataFrame
@@ -153,7 +150,24 @@ function bin_EV_diff_plot(
 	if isnothing(group)
 		tdata[!, :group] .= 1
 	else
-		rename!(tdata, group => :group)
+		if !isnothing(bin_group)
+			
+			# Quantile bin breaks
+			group_bins = quantile(tdata[!, col], 
+				range(0, 1, length=bin_group + 1))
+
+			# Bin group
+			tdata.EV_group_cut = 	
+				cut(tdata[!, group], group_bins, extend = true)
+		
+			# Use mean of bin as label
+			transform!(
+				groupby(tdata, :EV_group_cut),
+				group => mean => :group
+			)
+		else
+			rename!(tdata, group => :group)
+		end
 	end
 
 	# Quantile bin breaks
@@ -189,7 +203,7 @@ function bin_EV_diff_plot(
 		xlabel = "Diff. in EV (£)"
 	)
 
-	groups = unique(choice_EV_sum.group)
+	groups = sort(unique(choice_EV_sum.group))
 
 	for g in groups
 
@@ -198,7 +212,8 @@ function bin_EV_diff_plot(
 			scatter!(
 				ax_diff_choice,
 				t_sum.EV_diff_bin,
-				t_sum.right_chosen
+				t_sum.right_chosen,
+				colormap = :viridis
 			)
 		
 			errorbars!(
@@ -212,7 +227,7 @@ function bin_EV_diff_plot(
 	if !isnothing(group)
 		Legend(
 			f,
-			[MarkerElement(marker = :circle, color = Makie.wong_colors()[c]) for c in eachindex(groups)],
+			[MarkerElement(marker = :circle, color = colors[c]) for c in eachindex(groups)],
 			group_label_f.(groups),
 			legend_title,
 			valign = :top,
@@ -231,20 +246,37 @@ let
 
 	f = Figure(size = (700, 300))
 	
-	bin_EV_diff_plot(f[1,1], only_observed_test)
+	bin_EV_plot(f[1,1], only_observed_test)
 
-	bin_EV_diff_plot(f[1,2], only_observed_test; 
+	bin_EV_plot(f[1,2], only_observed_test; 
 		group = :same_block,
 		legend_title = "Same original block"
 	)
 
-	bin_EV_diff_plot(f[1,3], only_observed_test; 
+	bin_EV_plot(f[1,3], only_observed_test; 
 		group = :same_valence,
 		legend_title = "Same original valence"
 	)
 
 
 	f
+end
+
+# ╔═╡ 03e6cf60-4947-4963-b750-6ac457ba9119
+let
+
+	f = Figure()
+
+	bin_EV_plot(
+		f[1,1], 
+		only_observed_test,
+		col = :empirical_EV_right,
+		group = :empirical_EV_left,
+		bin_group = 7
+	)
+
+	f
+
 end
 
 # ╔═╡ fd52ac3c-3d8c-4485-b479-673da579adf0
@@ -513,8 +545,8 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
 # ╠═9869ebe3-0063-45e6-a59d-52f0607d927a
 # ╠═1a507b99-81a7-4a8f-8f55-b3b471956780
-# ╠═237f096d-9046-49a3-a8c0-f733c89c93bc
-# ╠═16fbf0db-1190-4fb2-a73e-8ef99f1c2999
+# ╠═c4a88006-2bb6-4a90-b638-324fbebf1b1f
+# ╠═03e6cf60-4947-4963-b750-6ac457ba9119
 # ╠═dba29af6-89c0-4cad-8b5c-b13f6c366982
 # ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═fd52ac3c-3d8c-4485-b479-673da579adf0
