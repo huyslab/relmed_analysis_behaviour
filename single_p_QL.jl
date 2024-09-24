@@ -94,8 +94,6 @@ function optimize_single_p_QL(
 	prior_a::Union{Distribution, Missing}
 )
 	model = single_p_QL(;
-		N = nrow(data),
-		n_blocks = maximum(data.block),
 		block = data.block,
 		choice = data.choice,
 		outcomes = hcat(
