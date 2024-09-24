@@ -79,8 +79,6 @@ end
 begin
 	# Compute Q values
 	Qs = single_p_QL(
-		N = nrow(data),
-		n_blocks = maximum(data.block),
 		block = data.block,
 		choice = data.choice,
 		outcomes = hcat(
@@ -93,16 +91,25 @@ begin
 	)()
 
 	# Add block and trial
-	Qs = DataFrame(
+	Qs_df = DataFrame(
 		block = data.block,
 		trial = data.trial,
+		choice = data.choice,
 		Q_suboptimal = Qs[:, 1],
-		Q_optimal = Qs[:, 2]
+		Q_optimal = Qs[:, 2],
+		PE = ifelse.(
+			data.choice .== 1,
+			data.feedback_optimal .* ρ_est .- Qs[:, 2],
+			data.feedback_suboptimal .* ρ_est .- Qs[:, 1]
+		),
+		rho = fill(ρ_est, nrow(data)),
+		a = fill(a_est, nrow(data)),
+		alpha = fill(a2α(a_est), nrow(data))
 	)
 end
 
 # ╔═╡ b49414a7-faff-447a-960c-213b04d03c6e
-CSV.write(output_file, Qs)
+CSV.write(output_file, Qs_df)
 
 # ╔═╡ Cell order:
 # ╠═fbe53102-74e9-11ef-2669-5fc149d6aee8
