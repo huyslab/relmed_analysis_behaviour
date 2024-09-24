@@ -257,6 +257,70 @@ let
 
 end
 
+# ╔═╡ 2ce13a6e-ec58-4c7c-bb08-88881cad8eaa
+let
+
+	f = Figure()
+
+	# Drop skipped trials
+	dat = dropmissing(
+		only_observed_test[!, 
+			[:prolific_pid, :magnitude_left, :magnitude_right, :right_chosen]])
+
+	# Plot by valence ----------------------
+
+	# Compute valence from magnitude
+	val = transform(
+		dat,
+		:magnitude_left => ByRow(sign) => :valence_left,
+		:magnitude_right => ByRow(sign) => :valence_right
+	)
+
+	# Average by participant and valence
+	val = combine(
+		groupby(val, [:prolific_pid, :valence_right, :valence_left]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	# Average by valence
+	val = combine(
+		groupby(val, [:valence_right, :valence_left]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Create one valence variable
+	val.type = 
+		join.(
+			eachrow(hcat(
+				ifelse.(
+					val.valence_left .> 0,
+					fill("P", nrow(val)),
+					fill("N", nrow(val))
+				),
+				ifelse.(
+					val.valence_right .> 0,
+					fill("P", nrow(val)),
+					fill("N", nrow(val))
+				)
+			))
+		)
+
+	# Plot bars
+	bar = data(val) * mapping(:type, :right_chosen) * visual(BarPlot)
+
+	# Plot error bars
+	err = data(val) * mapping(:type, :right_chosen, :se) * visual(Errorbars)
+
+	# Plot chance
+	hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
+
+	# Put together
+	draw!(f, bar + err + hline; axis = (; xlabel = "Valence", ylabel = "Prop. right chosen"))
+
+	f
+end
+
 # ╔═╡ 63acbf9a-33f8-47e5-a85b-95c8cd57b12b
 let
 	dat = dropmissing(only_observed_test[!, [:prolific_pid, :magnitude_left, :magnitude_right, :right_chosen]])
@@ -626,6 +690,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
 # ╠═9869ebe3-0063-45e6-a59d-52f0607d927a
 # ╠═1a507b99-81a7-4a8f-8f55-b3b471956780
+# ╠═2ce13a6e-ec58-4c7c-bb08-88881cad8eaa
 # ╠═63acbf9a-33f8-47e5-a85b-95c8cd57b12b
 # ╠═d57501e1-3574-4954-88e5-8cccd9a9584b
 # ╠═eb8308f3-f442-467d-933d-5273de71d1f6
