@@ -257,6 +257,9 @@ let
 
 end
 
+# ╔═╡ fa7e77e6-0008-4249-9672-e4f867aacd9c
+only_observed_test
+
 # ╔═╡ 2ce13a6e-ec58-4c7c-bb08-88881cad8eaa
 let
 
@@ -265,7 +268,7 @@ let
 	# Drop skipped trials
 	dat = dropmissing(
 		only_observed_test[!, 
-			[:prolific_pid, :magnitude_left, :magnitude_right, :right_chosen]])
+			[:prolific_pid, :magnitude_left, :magnitude_right, :optimal_left, :optimal_right, :right_chosen]])
 
 	# Plot by valence ----------------------
 
@@ -310,13 +313,59 @@ let
 	bar = data(val) * mapping(:type, :right_chosen) * visual(BarPlot)
 
 	# Plot error bars
-	err = data(val) * mapping(:type, :right_chosen, :se) * visual(Errorbars)
+	err = data(val) * mapping(:type, :right_chosen, :se => (x -> x*2)) * visual(Errorbars)
 
 	# Plot chance
 	hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
 
 	# Put together
-	draw!(f, bar + err + hline; axis = (; xlabel = "Valence", ylabel = "Prop. right chosen"))
+	draw!(f[1,1], bar + err + hline; axis = (; xlabel = "Valence", ylabel = "Prop. right chosen"))
+
+	# Plot by optimality
+	# Average by participant and valence
+	opt = combine(
+		groupby(dat, [:prolific_pid, :optimal_right, :optimal_left]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	# Average by valence
+	opt = combine(
+		groupby(opt, [:optimal_right, :optimal_left]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+		# Create one valence variable
+	opt.type = 
+		join.(
+			eachrow(hcat(
+				ifelse.(
+					opt.optimal_left,
+					fill("O", nrow(val)),
+					fill("S", nrow(val))
+				),
+				ifelse.(
+					opt.optimal_right,
+					fill("O", nrow(val)),
+					fill("S", nrow(val))
+				)
+			))
+		)
+
+	# Plot bars
+	let
+		bar = data(opt) * mapping(:type, :right_chosen) * visual(BarPlot)
+	
+		# Plot error bars
+		err = data(opt) * mapping(:type, :right_chosen, :se => (x -> x*2)) * visual(Errorbars)
+	
+		# Plot chance
+		hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
+	
+		# Put together
+		draw!(f[1,2], bar + err + hline; axis = (; xlabel = "Optimality", ylabel = "Prop. right chosen"))
+	end
+
 
 	f
 end
@@ -690,6 +739,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═d534b22e-8d22-48f5-a6ed-0aa73d5b9fc4
 # ╠═9869ebe3-0063-45e6-a59d-52f0607d927a
 # ╠═1a507b99-81a7-4a8f-8f55-b3b471956780
+# ╠═fa7e77e6-0008-4249-9672-e4f867aacd9c
 # ╠═2ce13a6e-ec58-4c7c-bb08-88881cad8eaa
 # ╠═63acbf9a-33f8-47e5-a85b-95c8cd57b12b
 # ╠═d57501e1-3574-4954-88e5-8cccd9a9584b
