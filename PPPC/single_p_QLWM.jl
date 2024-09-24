@@ -17,10 +17,14 @@ begin
 		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf
 	using LogExpFunctions: logistic, logit
 
-	include("$(pwd())/sample_utils.jl")
-	#include("$(pwd())/fetch_preprocess_data.jl")
 	include("$(pwd())/simulate.jl")
 	include("$(pwd())/turing_models.jl")
+	include("$(pwd())/plotting_utils.jl")
+end
+
+# ╔═╡ 15b93703-14d4-43b2-afca-bb06cade9d0a
+begin
+    include("$(pwd())/simulate.jl")
 	include("$(pwd())/plotting_utils.jl")
 end
 
@@ -61,26 +65,21 @@ md"""
 # Sample datasets from prior
 begin
 	prior_samples = let
-		# Load sequence from file
-		task = task_vars_for_condition("00")
 		n_ppt = 100
-	
 		# Initial value for Q values
 		aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	
 		prior_bsl = simulate_from_prior(
 			n_ppt;
 			model = RL_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			parameters = [:ρ, :a],
-			transformed = Dict(:a => :α),
 			priors = Dict(
-		        :ρ => truncated(Normal(0., 1.), lower = 0.),
-		        :a => Normal(0., 0.5)
-		    ),
+				:ρ => truncated(Normal(0., 1.), lower = 0.),
+				:a => Normal(0., 0.5)
+			),
+			initial = aao,
+			transformed = Dict(:a => :α),
+			condition = "00",
+			gq = true,
 			random_seed = 123
 		)
 		insertcols!(prior_bsl, :model => "α|ρ")
@@ -88,17 +87,15 @@ begin
 		prior_lapse = simulate_from_prior(
 			n_ppt;
 			model = RL_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			parameters = [:ρ, :a, :E],
-			transformed = Dict(:a => :α, :E => :ε),
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
 				:E => Normal(0., 0.5)
 		    ),
+			initial = aao,
+			transformed = Dict(:a => :α, :E => :ε),
+			condition = "00",
+			gq = true,
 			random_seed = 123
 		)
 		insertcols!(prior_lapse, :model => "α|ρ|ε")
@@ -106,17 +103,15 @@ begin
 		prior_forget = simulate_from_prior(
 			n_ppt;
 			model = RL_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			parameters = [:ρ, :a, :F],
-			transformed = Dict(:a => :α, :F => :φ),
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
 				:F => Normal(0., 0.5)
 		    ),
+			initial = aao,
+			transformed = Dict(:a => :α, :F => :φ),
+			condition = "00",
+			gq = true,
 			random_seed = 123
 		)
 		insertcols!(prior_forget, :model => "α|ρ|φ")
@@ -124,28 +119,21 @@ begin
 		prior_full = simulate_from_prior(
 			n_ppt;
 			model = RL_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			parameters = [:ρ, :a, :E, :F],
-			transformed = Dict(:a => :α, :E => :ε, :F => :φ),
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
 				:E => Normal(0., 0.5),
 				:F => Normal(0., 0.5)
 		    ),
+			initial = aao,
+			transformed = Dict(:a => :α, :E => :ε, :F => :φ),
+			condition = "00",
+			gq = true,
 			random_seed = 123
 		)
 		insertcols!(prior_full, :model => "α|ρ|ε|φ")
 
 		prior_samples = vcat(prior_bsl, prior_lapse, prior_forget, prior_full; cols=:union)
-	
-		leftjoin(prior_samples, 
-			task.task[!, [:block, :trial, :feedback_optimal, :feedback_suboptimal]],
-			on = [:block, :trial]
-		)
 	
 	end
 
@@ -171,28 +159,18 @@ md"
 "
 
 # ╔═╡ bfe4c9c1-72f0-4999-bbcb-76bdd4f579da
-# ╠═╡ disabled = true
-#=╠═╡
 # Sample datasets from prior
 begin
 	prior_rlwm_samples = let
-		# Load sequence from file
-		task = task_vars_for_condition("00")
 		n_ppt = 100
-	
 		# Initial value for Q values
 		aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	
 		prior_rlwm_sens = simulate_from_prior(
 			n_ppt;
 			model = RLWM_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			set_size = fill(2, maximum(task.block)),
-			parameters = [:ρ, :a, :F_wm, :W, :C],
-			transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w0),
+			condition = "00",
+			initial = aao,
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
@@ -200,7 +178,9 @@ begin
 		        :W => Normal(0., 0.5),
 		        :C => truncated(Normal(3., 2.), lower = 1.)
 		    ),
-			random_seed = 0
+			transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w0),
+			gq = true,
+			random_seed = 123
 		)
 		insertcols!(prior_rlwm_sens, :model => "α|ρ|φ|C|w0")
 
@@ -222,13 +202,8 @@ begin
 		prior_rlwm_lapse = simulate_from_prior(
 			n_ppt;
 			model = RLWM_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			set_size = fill(2, maximum(task.block)),
-			parameters = [:ρ, :a, :E, :F_wm, :W, :C],
-			transformed = Dict(:a => :α, :E => :ε, :F_wm => :φ_wm, :W => :w0),
+			condition = "00",
+			initial = aao,
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
@@ -237,20 +212,17 @@ begin
 		        :W => Normal(0., 0.5),
 		        :C => truncated(Normal(3., 2.), lower = 1.)
 		    ),
-			random_seed = 0
+			transformed = Dict(:a => :α, :E => :ε, :F_wm => :φ_wm, :W => :w0),
+			gq = true,
+			random_seed = 123
 		)
 		insertcols!(prior_rlwm_lapse, :model => "α|ρ|φ|C|w0|ε")
 
 		prior_rlwm_all = simulate_from_prior(
 			n_ppt;
 			model = RLWM_ss,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			set_size = fill(2, maximum(task.block)),
-			parameters = [:ρ, :a, :E, :F_rl, :F_wm, :W, :C],
-			transformed = Dict(:a => :α, :E => :ε, :F_rl => :φ_rl, :F_wm => :φ_wm, :W => :w0),
+			condition = "00",
+			initial = aao,
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
@@ -260,25 +232,20 @@ begin
 		        :W => Normal(0., 0.5),
 		        :C => truncated(Normal(3., 2.), lower = 1.)
 		    ),
-			random_seed = 0
+			transformed = Dict(:a => :α, :E => :ε, :F_rl => :φ_rl, :F_wm => :φ_wm, :W => :w0),
+			gq = true,
+			random_seed = 123
 		)
 		insertcols!(prior_rlwm_all, :model => "α|ρ|φ_rl|C|w0|ε|φ_wm")
 
 		prior_rlwm_samples = vcat(prior_rlwm_sens, prior_rlwm_lapse, prior_rlwm_all; cols=:union)
 	
-		leftjoin(prior_rlwm_samples, 
-			task.task[!, [:block, :trial, :feedback_optimal, :feedback_suboptimal]],
-			on = [:block, :trial]
-		)
-	
 	end
 
 	describe(prior_rlwm_samples)
 end
-  ╠═╡ =#
 
 # ╔═╡ 4b628e68-0625-4cff-bfc4-f146f9673d3c
-#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_rlwm_samples,
@@ -293,14 +260,11 @@ let
 	)	
 	f
 end
-  ╠═╡ =#
 
 # ╔═╡ 91548dc3-0812-4070-9b32-5b5b3bb05eb9
 # Sample datasets from prior
 begin
 	prior_wpmst_samples = let
-		# Load sequence from file
-		task = task_vars_for_condition("00")
 		n_ppt = 100
 	
 		# Initial value for Q values
@@ -309,33 +273,25 @@ begin
 		prior_pmst = simulate_from_prior(
 			n_ppt;
 			model = RLWM_pmst,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			set_size = fill(2, maximum(task.block)),
-			parameters = [:ρ, :a, :W, :C],
-			transformed = Dict(:a => :α, :W => :w0),
+			condition = "00",
+			initial = aao,
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
 		        :W => Normal(0., 0.5),
 		        :C => truncated(Normal(3., 2.), lower = 1.)
 		    ),
-			random_seed = 0
+			transformed = Dict(:a => :α, :W => :w0),
+			gq = true,
+			random_seed = 123
 		)
 		insertcols!(prior_pmst, :model => "α|ρ|C|w0")
 
 		prior_pmst_lapse = simulate_from_prior(
 			n_ppt;
 			model = RLWM_pmst,
-			block = task.block,
-			valence = task.valence,
-			outcomes = task.outcomes,
-			initV = fill(aao, 1, 2),
-			set_size = fill(2, maximum(task.block)),
-			parameters = [:ρ, :a, :E, :W, :C],
-			transformed = Dict(:a => :α, :E => :ε, :W => :w0),
+			condition = "00",
+			initial = aao,
 			priors = Dict(
 		        :ρ => truncated(Normal(0., 1.), lower = 0.),
 		        :a => Normal(0., 0.5),
@@ -343,16 +299,13 @@ begin
 		        :W => Normal(0., 0.5),
 		        :C => truncated(Normal(3., 2.), lower = 1.)
 		    ),
-			random_seed = 0
+			transformed = Dict(:a => :α, :E => :ε, :W => :w0),
+			gq = true,
+			random_seed = 123
 		)
 		insertcols!(prior_pmst_lapse, :model => "α|ρ|C|w0|ε")
 
 		prior_psmt_samples = vcat(prior_pmst, prior_pmst_lapse; cols=:union)
-	
-		leftjoin(prior_psmt_samples, 
-			task.task[!, [:block, :trial, :feedback_optimal, :feedback_suboptimal]],
-			on = [:block, :trial]
-		)
 	
 	end
 
@@ -375,6 +328,8 @@ let
 end
 
 # ╔═╡ 76116837-6fa8-4149-b0d4-8e663b53f4ba
+# ╠═╡ disabled = true
+#=╠═╡
 function simulate_participant(;
 	condition::String,
     model::Function,
@@ -416,8 +371,11 @@ function simulate_participant(;
 
 	return prior_sample
 end
+  ╠═╡ =#
 
 # ╔═╡ 90035555-50c3-489a-a3ff-140752e1dea6
+# ╠═╡ disabled = true
+#=╠═╡
 function plot_turing_ll(
 	f::GridPosition;
 	data::DataFrame,
@@ -509,8 +467,11 @@ function plot_turing_ll(
 	return ax
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 2a8dcad9-be29-4db7-9838-aceda47c65c7
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	f = Figure(size = (1000, 1000))
 	prior_sample = simulate_participant(;
@@ -556,8 +517,11 @@ begin
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 0191bfa9-c613-440a-a8c0-01f210d52763
+# ╠═╡ disabled = true
+#=╠═╡
 function plot_turing_ll_wm(
 	f::GridPosition;
 	data::DataFrame,
@@ -650,8 +614,11 @@ function plot_turing_ll_wm(
 	return ax
 
 end
+  ╠═╡ =#
 
 # ╔═╡ d6dd0e64-063b-449c-8535-c78e27bae9ba
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	prior_sample = simulate_participant(;
 		condition = "00",
@@ -699,6 +666,7 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 18b17290-0ab6-43d4-b8ec-792cb694ce64
 # ╠═╡ disabled = true
@@ -873,28 +841,26 @@ md"
 "
 
 # ╔═╡ 89358642-2a4b-4b42-b03d-a8c8f0e817e8
-# ╠═╡ disabled = true
-#=╠═╡
 let
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rl = optimization_calibration(
 		filter(x -> x.model == "α|ρ", prior_samples),
-		optimize_multiple_single_p_QL,
-		estimate = "MAP"
+		optimize_multiple,
+		estimate = "MAP",
+		initial = aao
 	)	
 
 	f_rl
 end
-  ╠═╡ =#
 
 # ╔═╡ 9c54629b-4aeb-4019-a369-00558270fc96
-# ╠═╡ disabled = true
-#=╠═╡
 let
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rfl = optimization_calibration(
 		filter(x -> x.model == "α|ρ|ε|φ", prior_samples),
-		optimize_multiple_single_p_QL,
+		optimize_multiple,
+		initial = aao,
 		estimate = "MAP",
-		parameters = [:ρ, :a, :E, :F],
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, 0.5],
 		transformed = Dict(:a => :α, :E => :ε, :F => :φ),
 		priors = Dict(
@@ -907,21 +873,16 @@ let
 
 	f_rfl
 end
-  ╠═╡ =#
 
 # ╔═╡ 1dfd03d0-a789-4dcc-885e-8546d73a0f0d
-# ╠═╡ disabled = true
-#=╠═╡
 let
-	task = task_vars_for_condition("00")
-	set_sizes = fill(2, maximum(task.block))
-	
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rlwm = optimization_calibration(
 		filter(x -> x.model == "α|ρ|φ|C|w0", prior_rlwm_samples),
-		optimize_multiple_single_p_QL,
+		optimize_multiple,
 		estimate = "MAP",
 		model = RLWM_ss,
-		set_size = set_sizes,
+		initial = aao,
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, mean(truncated(Normal(2., 2.), lower = 1.))],
 		parameters = [:ρ, :a, :F_wm, :W, :C],
 		transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w0),
@@ -936,21 +897,16 @@ let
 
 	f_rlwm
 end
-  ╠═╡ =#
 
 # ╔═╡ e0e8b4b4-cc86-4816-b3f6-389df99b437e
-# ╠═╡ disabled = true
-#=╠═╡
 let
-	task = task_vars_for_condition("00")
-	set_sizes = fill(2, maximum(task.block))
-	
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_pmst = optimization_calibration(
 		filter(x -> x.model == "α|ρ|C|w0", prior_wpmst_samples),
-		optimize_multiple_single_p_QL,
+		optimize_multiple,
 		estimate = "MAP",
 		model = RLWM_pmst,
-		set_size = set_sizes,
+		initial = aao,
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, mean(truncated(Normal(4., 2.), lower = 1.))],
 		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w0),
@@ -964,7 +920,6 @@ let
 
 	f_pmst
 end
-  ╠═╡ =#
 
 # ╔═╡ 0aaab866-3870-46f3-bda9-e8f2ef37a62a
 md"
@@ -1464,6 +1419,7 @@ end
 # ╠═50420f58-563c-4122-beff-5ca052abdc26
 # ╠═dbdcb4d8-b02e-49ef-a180-adf97d713f1e
 # ╟─7609f3bf-b0d1-4353-a074-c96f4a474c82
+# ╠═15b93703-14d4-43b2-afca-bb06cade9d0a
 # ╠═89358642-2a4b-4b42-b03d-a8c8f0e817e8
 # ╠═9c54629b-4aeb-4019-a369-00558270fc96
 # ╠═1dfd03d0-a789-4dcc-885e-8546d73a0f0d

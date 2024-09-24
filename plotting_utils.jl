@@ -1033,32 +1033,29 @@ end
 function optimization_calibration(
 	prior_sample::DataFrame,
 	optimize_func::Function;
+	initial::Float64, # initial Q-value
 	estimate::String = "MLE",
     model::Function = RL_ss,
-    set_size::Union{Vector{Int64}, Nothing} = nothing,
-    parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-	initial_params::Union{AbstractVector,Nothing}=[mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
+	initial_params::Union{AbstractVector,Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
 	priors::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict(
 		:ρ => truncated(Normal(0., 2.), lower = 0.),
 		:a => Normal(0., 1.)
 	),
+	parameters::Vector{Symbol} = collect(keys(priors)),
 	ms::Float64 = 4.
 )
-	# Initial value for Q values
-	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 
 	MLEs = optimize_func(
 		prior_sample;
-		initV = aao,
+		initV = initial,
+		model = model,
 		estimate = estimate,
-        model = model,
-        set_size = set_size,
         include_true = true,
-        parameters = parameters,
         initial_params = initial_params,
-		transformed = transformed,
-		priors = priors
+		priors = priors,
+		parameters = parameters,
+		transformed = transformed
 	)[1]
 
     other_pars = setdiff(parameters, [:a, :ρ])

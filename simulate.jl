@@ -155,10 +155,11 @@ end
 function simulate_from_prior(
     N::Int64; # number of simulated participants or repeats (depending on priors)
     model::Function,
+    initial::Float64, # initial Q-value
     priors::Dict,
     transformed::Dict{Symbol, Symbol}, # Transformed parameters
-    initial::Float64, # initial Q-value
     condition::Union{String, Nothing} = nothing,
+    fixed_struct::Union{NamedTuple, Nothing} = nothing,
     structure::NamedTuple = (
         n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2
     ),
@@ -167,17 +168,26 @@ function simulate_from_prior(
     random_seed::Union{Int64, Nothing} = nothing
 )	
     # Load sequence from file or generate random task
-    if isnothing(condition)
+    if !isnothing(condition)
+        task_strct = task_vars_for_condition(condition)
+        n_trials = div(length(task_strct.block), maximum(task_strct.block))
+        if length(task_strct.block) % maximum(task_strct.block) != 0
+            n_trials += 1
+        end
+        set_sizes = set_size_per_block(
+            set_sizes = structure.set_sizes,
+            n_blocks = maximum(task_strct.block)
+        )
+    elseif !isnothing(fixed_struct)
+        task_strct = fixed_struct
+        n_trials = maximum(task_strct.task.trial)
+        set_sizes = task_strct.set_sizes
+    else
         task_strct = create_random_task(;
             structure...
         )
         n_trials = structure.n_trials
-    else
-        task_strct = task_vars_for_condition(condition)
-        n_trials = div(length(block), maximum(block))
-        if length(block) % maximum(block) != 0
-            n_trials += 1
-        end
+        set_sizes = task_strct.set_sizes
     end
 
     # define model
@@ -187,8 +197,8 @@ function simulate_from_prior(
         pair = task_strct.task.pair,
         choice = fill(missing, length(task_strct.block)),
         outcomes = task_strct.outcomes,
-        set_size = task_strct.set_sizes,
-        initV = fill(initial, 1, maximum(task_strct.set_sizes)),
+        set_size = set_sizes,
+        initV = fill(initial, 1, maximum(set_sizes)),
         parameters = collect(keys(priors)),
         priors = priors
     )
@@ -210,7 +220,7 @@ function simulate_from_prior(
         valence = repeat(task_strct.task.valence, N),
         trial = repeat(task_strct.task.trial, N),
         pair = repeat(task_strct.task.pair, N),
-        set_size = repeat(task_strct.set_sizes[task_strct.block], N),
+        set_size = repeat(set_sizes[task_strct.block], N),
     )
 
     for p in collect(keys(priors))
@@ -372,67 +382,68 @@ function prepare_for_fit(data)
 end
 
 # # Sample from posterior conditioned on DataFrame with data for single participant
-function posterior_sample_single_p(
-	data::AbstractDataFrame;
-    model::Function,
-	initV::Float64,
-    set_size::Union{Vector{Int64}, Nothing} = nothing,
-    parameters::Vector{Symbol} = [:ρ, :a],
-    sigmas::Dict{Symbol, Float64} = Dict(:ρ => 2., :a => 0.5),
-	random_seed::Union{Int64, Nothing} = nothing,
-	iter_sampling = 1000
-)
-    posterior_model = model(;
-        block = data.block,
-        valence = unique(data[!, [:block, :valence]]).valence,
-        choice = data.choice,
-        outcomes = hcat(
-            data.feedback_suboptimal,
-            data.feedback_optimal,
-        ),
-        initV = fill(initV, 1, 2),
-        set_size = set_size,
-        parameters = parameters,
-        sigmas = sigmas
-    )
+# function posterior_sample_single_p(
+# 	data::AbstractDataFrame;
+#     model::Function,
+# 	initV::Float64,
+#     set_size::Union{Vector{Int64}, Nothing} = nothing,
+#     parameters::Vector{Symbol} = [:ρ, :a],
+#     sigmas::Dict{Symbol, Float64} = Dict(:ρ => 2., :a => 0.5),
+# 	random_seed::Union{Int64, Nothing} = nothing,
+# 	iter_sampling = 1000
+# )
+#     posterior_model = model(;
+#         block = data.block,
+#         valence = unique(data[!, [:block, :valence]]).valence,
+#         choice = data.choice,
+#         outcomes = hcat(
+#             data.feedback_suboptimal,
+#             data.feedback_optimal,
+#         ),
+#         set_size = set_sizes,
+#         initV = fill(initial, 1, maximum(set_sizes)),
+#         parameters = collect(keys(priors)),
+#         priors = priors
+#     )
 
-	fit = sample(
-		isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
-		posterior_model, 
-		NUTS(), 
-		MCMCThreads(), 
-		iter_sampling, 
-		4)
+# 	fit = sample(
+# 		isnothing(random_seed) ? Random.default_rng() : Xoshiro(random_seed),
+# 		posterior_model, 
+# 		NUTS(), 
+# 		MCMCThreads(), 
+# 		iter_sampling, 
+# 		4)
 
-	return fit
-end
+# 	return fit
+# end
 
 # Find MLE / MAP for DataFrame with data for single participant
-function optimize_single_p_QL(
+function optimize_ss(
 	data::AbstractDataFrame;
-	initV::Float64,
-	estimate::String = "MAP",
+    initV::Float64, # initial Q-value
     model::Function = RL_ss,
-    set_size::Union{Vector{Int64}, Nothing} = nothing,
-	initial_params::Union{AbstractVector, Nothing} = nothing,
-	parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters,
+	estimate::String = "MAP",
+    initial_params::Union{AbstractVector, Nothing} = nothing,
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
-    )
+    ),
+    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
+    parameters::Vector{Symbol} = collect(keys(priors))
 )
+    set_size_blk = filter(x -> x.trial == 1, data).set_size
 	res = model(;
 		block = data.block,
 		valence = unique(data[!, [:block, :valence]]).valence,
+        pair = data.pair,
 		choice = data.choice,
 		outcomes = hcat(
 			data.feedback_suboptimal,
 			data.feedback_optimal,
 		),
-		initV = fill(initV, 1, 2),
-        set_size = set_size,
-		parameters = parameters,
+		set_size = set_size_blk,
+        initV = fill(initV, 1, maximum(set_size_blk)),
+        parameters = parameters,
         priors = priors
     )
 
@@ -457,17 +468,18 @@ function optimize_single_p_QL(
         end
     end
     
-    gq_mod = model(
+    gq_mod = model(;
         block = data.block,
 		valence = unique(data[!, [:block, :valence]]).valence,
+        pair = data.pair,
 		choice = fill(missing, length(data.block)),
 		outcomes = hcat(
 			data.feedback_suboptimal,
 			data.feedback_optimal,
 		),
-		initV = fill(initV, 1, 2),
-        set_size = set_size,
-		parameters = keys(priors_fitted) |> collect,
+		set_size = set_size_blk,
+        initV = fill(initV, 1, maximum(set_size_blk)),
+        parameters = collect(keys(priors_fitted)),
         priors = priors_fitted
     )
 
@@ -485,20 +497,19 @@ function optimize_single_p_QL(
 end
 
 # Find MLE / MAP multiple times
-function optimize_multiple_single_p_QL(
-	data::DataFrame;
-	initV::Float64,
-	estimate::String = "MAP",
+function optimize_multiple(
+	data::AbstractDataFrame;
+    initV::Float64, # initial Q-value
     model::Function = RL_ss,
-    set_size::Union{Vector{Int64}, Nothing} = nothing,
+    estimate::String = "MAP",
 	include_true::Bool = true, # Whether to return true value if this is simulation
 	parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
     initial_params::Union{AbstractVector, Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
-    )
+    ),
+    transformed::Dict{Symbol, Symbol} = Dict(:a => :α) # Transformed parameters
 )
 	ests = []
     choice_df = Dict{Int64, DataFrame}()
@@ -510,16 +521,14 @@ function optimize_multiple_single_p_QL(
 		gdf = filter(x -> x.PID == p, data)
 
 		# Optimize
-		est, bic, choices = optimize_single_p_QL(
+		est, bic, choices = optimize_ss(
 			gdf;
 			initV = initV,
-			estimate = estimate,
             model = model,
+			estimate = estimate,
 			initial_params = initial_params,
-            set_size = set_size,
-            parameters = parameters,
-            transformed = transformed,
-            priors = priors
+            priors = priors,
+            transformed = transformed
 		)
 
 		# Return
