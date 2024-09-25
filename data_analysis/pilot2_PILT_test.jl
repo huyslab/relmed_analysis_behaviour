@@ -51,6 +51,24 @@ begin
 end
 
 # ╔═╡ 537aa0cb-3f3f-497b-b81e-5f271bfb247c
+"""
+    bin_sum_EV(data::DataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, bin_group::Union{Nothing, Int64} = nothing)
+
+Bins test data by expected value and summarizes choice behavior across participants.
+
+# Arguments
+- `data::DataFrame`: The input DataFrame containing test data.
+- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition).
+   If `nothing`, all data is treated as a single group.
+- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
+- `col::Symbol`: The column used for binning based on expected value differences. Defaults to `:empirical_EV_diff`.
+- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, 
+   if additional binning of the grouping variable is desired.
+
+# Returns
+- A summarized DataFrame that reports the mean choice behavior (`right_chosen`) by group and binned expected value, 
+  along with the standard error (`se`) for each bin.
+"""
 function bin_sum_EV(
 	data::DataFrame;
 	group::Union{Nothing, Symbol} = nothing,
@@ -111,12 +129,28 @@ function bin_sum_EV(
 		:right_chosen => mean => :right_chosen,
 		:right_chosen => sem => :se
 	)
-
-
 end
 
 # ╔═╡ a71b8ea1-ba68-43f8-9597-d1b32c3a9413
-# Bin and plot choice
+"""
+	bin_EV_plot(f::GridPosition, data::AbstractDataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, group_label_f::Function = string, legend_title = "", colors::AbstractVector = Makie.wong_colors(), bin_group::Union{Nothing, Int64} = nothing)
+
+Bins and plots summarized choice data based on expected value differences.
+
+# Arguments
+- `f::GridPosition`: The Makie grid position or figure to plot into.
+- `data::AbstractDataFrame`: The input DataFrame containing test data.
+- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition). If `nothing`, all data is treated as a single group.
+- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
+- `col::Symbol`: The column used for binning based on expected value differences (x-axis data). Defaults to `:empirical_EV_diff`.
+- `group_label_f::Function`: A function to apply to group labels for the legend. Defaults to `string`.
+- `legend_title::String`: Title for the legend. Defaults to an empty string.
+- `colors::AbstractVector`: A vector of colors to use for different groups. Defaults to `Makie.wong_colors()`.
+- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, if additional binning of the grouping variable is desired.
+
+# Returns
+- `Axis`: The plot axis displaying binned and summarized choice data with error bars.
+"""
 function bin_EV_plot(
 	f::GridPosition,
 	data::AbstractDataFrame;
@@ -182,6 +216,26 @@ function bin_EV_plot(
 end
 
 # ╔═╡ 572cf109-ca2c-4da2-950e-7a34a7c2eadd
+"""
+	compute_optimality(data::AbstractDataFrame)
+
+Computes which stimuli were optimal or suboptimal during the learning phase, based on test data.
+
+# Arguments
+- `data::AbstractDataFrame`: The input DataFrame containing columns that describe the session, block, stimulus pair, 
+  left and right stimulus images, and whether the right stimulus was the optimal choice.
+
+# Returns
+- `DataFrame`: A DataFrame with two columns: 
+  - `stimulus`: The stimulus identifier (without the "imgs/" prefix).
+  - `optimal`: A boolean indicating whether the stimulus was optimal (`true`) or suboptimal (`false`).
+
+# Process
+1. The function first selects relevant columns related to the task structure (session, block, stimulus pair, left and right images, and optimality).
+2. It determines the optimal and suboptimal stimuli by comparing the `optimalRight` indicator.
+3. Removes duplicate stimulus pairs (left/right order permutations).
+4. Converts the data from wide format (optimal and suboptimal columns) to long format (stimulus and optimal columns).
+"""
 function compute_optimality(data::AbstractDataFrame)
 	
 	# Select columns and reduce to task strcuture, which is the same across participants
@@ -215,6 +269,25 @@ function compute_optimality(data::AbstractDataFrame)
 end
 
 # ╔═╡ 0260582c-2712-4692-a355-7e37de5af471
+"""
+	extract_stimulus_magnitude()
+
+Extracts the magnitude (feedback value) of each stimulus based on the task structure file from the learning phase.
+
+# Arguments
+This function does not take any arguments but reads the task structure from a CSV file (`"./results/pilot2.csv"`).
+
+# Returns
+- `DataFrame`: A DataFrame with two columns:
+  - `stimulus`: The stimulus identifier.
+  - `feedback`: The average feedback or magnitude associated with the stimulus, calculated by averaging the unique feedback values across trials.
+
+# Process
+1. The function reads the task structure file (`pilot2.csv`).
+2. Filters out the trials where the feedback is common (`feedback_common` is `true`).
+3. Collects the feedback for each stimulus from both the left and right stimuli columns.
+4. Combines the feedback values and groups them by stimulus, computing the mean feedback for each unique stimulus.
+"""
 function extract_stimulus_magnitude()
 
 	task = DataFrame(CSV.File("./results/pilot2.csv"))
