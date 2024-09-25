@@ -309,6 +309,11 @@ let
 			))
 		)
 
+	val.type = CategoricalArray(val.type, 
+		levels = ["PP", "NN", "NP", "PN"]
+			)
+
+
 	# Plot bars
 	bar = data(val) * mapping(:type, :right_chosen) * visual(BarPlot)
 
@@ -352,6 +357,10 @@ let
 			))
 		)
 
+	opt.type = CategoricalArray(opt.type, 
+		levels = ["OO", "SS", "SO", "OS"]
+			)
+
 	# Plot bars
 	let
 		bar = data(opt) * mapping(:type, :right_chosen) * visual(BarPlot)
@@ -366,73 +375,119 @@ let
 		draw!(f[1,2], bar + err + hline; axis = (; xlabel = "Optimality", ylabel = "Prop. right chosen"))
 	end
 
-	# Plot by valence and optimality
-	# Average by participant, valence, and optimality
-	val_opt = combine(
-		groupby(dat, 
-			[:prolific_pid, 
-				:valence_right, :valence_left, 
-				:optimal_right, :optimal_left]),
-		:right_chosen => mean => :right_chosen
+	# Plot positive chosen by optimality ----------------
+	positive_chosen = filter(x -> x.valence_left != x.valence_right, dat)
+
+	# DV: whether positive was chosen
+	positive_chosen.positive_chosen = ifelse.(
+		positive_chosen.right_chosen .== 1,
+		positive_chosen.valence_right .> 0,
+		positive_chosen.valence_left .> 0
 	)
 
-	# Average by valence and optimality
-	val_opt = combine(
-		groupby(val_opt,
-			[:valence_right, :valence_left, :optimal_right, :optimal_left]),
-		:right_chosen => mean => :right_chosen,
-		:right_chosen => sem => :se
+	# Create one optimality variable
+	positive_chosen.type = 
+		ifelse.(
+			positive_chosen.optimal_right .&& positive_chosen.optimal_left,
+			fill("Both", nrow(positive_chosen)),
+			ifelse.(
+				(.!positive_chosen.optimal_right) .&& 
+					(.!positive_chosen.optimal_left),
+				fill("Neither", nrow(positive_chosen)),
+				ifelse.(
+					(positive_chosen.optimal_right .&& (positive_chosen.valence_right .> 0)) .||(positive_chosen.optimal_left .&& (positive_chosen.valence_left .> 0)),
+					fill("P", nrow(positive_chosen)),
+					fill("N", nrow(positive_chosen))
+				)
+			)
+		)
+
+	positive_chosen.type = CategoricalArray(positive_chosen.type, 
+		levels = ["Both", "Neither", "P", "N"]
+			)
+
+	# Average by participant and optimality
+	positive_chosen = combine(
+		groupby(positive_chosen, [:prolific_pid, :type]),
+		:positive_chosen => mean => :positive_chosen
 	)
 
-	# Create one variable
-	val_opt.val_type = 
-		join.(
-			eachrow(hcat(
-				ifelse.(
-					val_opt.valence_left .> 0,
-					fill("P", nrow(val_opt)),
-					fill("N", nrow(val_opt))
-				),
-				ifelse.(
-					val_opt.valence_right .> 0,
-					fill("P", nrow(val_opt)),
-					fill("N", nrow(val_opt))
-				)
-			))
-		)
+	# Average by optimality
+	positive_chosen = combine(
+		groupby(positive_chosen, [:type]),
+		:positive_chosen => mean => :positive_chosen,
+		:positive_chosen => sem => :se
+	)
 
-	val_opt.opt_type = 
-		join.(
-			eachrow(hcat(
-				ifelse.(
-					val_opt.optimal_left,
-					fill("O", nrow(val_opt)),
-					fill("S", nrow(val_opt))
-				),
-				ifelse.(
-					val_opt.optimal_right,
-					fill("O", nrow(val_opt)),
-					fill("S", nrow(val_opt))
-				)
-			))
-		)
-
-
-	val_opt.type = join.(eachrow(hcat(val_opt.opt_type, val_opt.val_type)), "\n")
-
+	# Plot bars
 	let
-		bar = data(val_opt) * mapping(:type, :right_chosen) * visual(BarPlot)
+		bar = data(positive_chosen) * mapping(:type, :positive_chosen) * visual(BarPlot)
 	
 		# Plot error bars
-		err = data(val_opt) * mapping(:type, :right_chosen, :se => (x -> x*2)) * visual(Errorbars)
+		err = data(positive_chosen) * mapping(:type, :positive_chosen, :se => (x -> x*2)) * visual(Errorbars)
 	
 		# Plot chance
 		hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
 	
 		# Put together
-		draw!(f[2,:], bar + err + hline; axis = (; xlabel = "Stimuli", ylabel = "Prop. right chosen"))
+		draw!(f[2,1], bar + err + hline; axis = (; xlabel = "Optimal", ylabel = "Prop. rewarding chosen"))
 	end
+
 	
+	# Plot optimal chosen by valence ----------------
+	optimal_chosen = filter(x -> x.optimal_right != x.optimal_left, dat)
+
+	# DV: whether positive was chosen
+	optimal_chosen.optimal_chosen = ifelse.(
+		optimal_chosen.right_chosen .== 1,
+		optimal_chosen.optimal_right,
+		optimal_chosen.optimal_left
+	)
+
+	# Create one optimality variable
+	optimal_chosen.type = 
+		ifelse.(
+			optimal_chosen.valence_right .> 0 .&& optimal_chosen.valence_left .> 0,
+			fill("Both", nrow(optimal_chosen)),
+			ifelse.(
+				(optimal_chosen.valence_right .< 0) .&& 
+					(optimal_chosen.valence_left .< 0),
+				fill("Neither", nrow(optimal_chosen)),
+				ifelse.(
+					(optimal_chosen.optimal_right .&& (optimal_chosen.valence_right .> 0)) .|| (optimal_chosen.optimal_left .&& (optimal_chosen.valence_left .> 0)),
+					fill("O", nrow(optimal_chosen)),
+					fill("S", nrow(optimal_chosen))
+				)
+			)
+		)
+
+	# Average by participant and valence
+	optimal_chosen = combine(
+		groupby(optimal_chosen, [:prolific_pid, :type]),
+		:optimal_chosen => mean => :optimal_chosen
+	)
+
+	# Average by valence
+	optimal_chosen = combine(
+		groupby(optimal_chosen, [:type]),
+		:optimal_chosen => mean => :optimal_chosen,
+		:optimal_chosen => sem => :se
+	)
+
+	# Plot bars
+	let
+		bar = data(optimal_chosen) * mapping(:type, :optimal_chosen) * visual(BarPlot)
+	
+		# Plot error bars
+		err = data(optimal_chosen) * mapping(:type, :optimal_chosen, :se => (x -> x*2)) * visual(Errorbars)
+	
+		# Plot chance
+		hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
+	
+		# Put together
+		draw!(f[2,2], bar + err + hline; axis = (; xlabel = "Rewarding", ylabel = "Prop. optimal chosen"))
+	end
+
 	f
 end
 
