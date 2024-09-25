@@ -12,17 +12,17 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics
+	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
+	include("sample_utils.jl")
+	include("plotting_utils.jl")
 	nothing
 end
 
 # ╔═╡ 6eba46dc-855c-47ca-8fa9-8405b9566809
-jspsych_data = let
-	
-	jspsych_json, records = get_REDCap_data("pilot2"; file_field = "file_data")
-	
-	jspsych_data = REDCap_data_to_df(jspsych_json, records)
+begin
+	PLT_data, test_data, vigour_data, jspsych_data = load_pilot2_data()
 end
 
 # ╔═╡ f47e6aba-00ea-460d-8310-5b24ed7fe336
@@ -102,6 +102,8 @@ function summarize_participation(data::DataFrame)
 		:n_warnings => maximum => :n_warnings
 	)
 
+	participants.total_bonus = participants.vigour_bonus .+ participants.PILT_bonus
+
 	debrief = extract_debrief_responses(data)
 
 	participants = leftjoin(participants, debrief, 
@@ -110,12 +112,12 @@ function summarize_participation(data::DataFrame)
 	return participants
 end
 
-# ╔═╡ e35effd6-5c62-48aa-8932-872c7af50d7b
-summarize_participation(jspsych_data)
+# ╔═╡ 4eb3aaed-6028-49a2-9f13-4e915ee2701c
+p_sum = summarize_participation(jspsych_data)
 
 # ╔═╡ Cell order:
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
-# ╠═e35effd6-5c62-48aa-8932-872c7af50d7b
+# ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
