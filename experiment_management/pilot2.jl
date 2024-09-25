@@ -273,7 +273,7 @@ let
 	# Plot by valence ----------------------
 
 	# Compute valence from magnitude
-	val = transform(
+	transform!(
 		dat,
 		:magnitude_left => ByRow(sign) => :valence_left,
 		:magnitude_right => ByRow(sign) => :valence_right
@@ -281,7 +281,7 @@ let
 
 	# Average by participant and valence
 	val = combine(
-		groupby(val, [:prolific_pid, :valence_right, :valence_left]),
+		groupby(dat, [:prolific_pid, :valence_right, :valence_left]),
 		:right_chosen => mean => :right_chosen
 	)
 
@@ -366,7 +366,73 @@ let
 		draw!(f[1,2], bar + err + hline; axis = (; xlabel = "Optimality", ylabel = "Prop. right chosen"))
 	end
 
+	# Plot by valence and optimality
+	# Average by participant, valence, and optimality
+	val_opt = combine(
+		groupby(dat, 
+			[:prolific_pid, 
+				:valence_right, :valence_left, 
+				:optimal_right, :optimal_left]),
+		:right_chosen => mean => :right_chosen
+	)
 
+	# Average by valence and optimality
+	val_opt = combine(
+		groupby(val_opt,
+			[:valence_right, :valence_left, :optimal_right, :optimal_left]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Create one variable
+	val_opt.val_type = 
+		join.(
+			eachrow(hcat(
+				ifelse.(
+					val_opt.valence_left .> 0,
+					fill("P", nrow(val_opt)),
+					fill("N", nrow(val_opt))
+				),
+				ifelse.(
+					val_opt.valence_right .> 0,
+					fill("P", nrow(val_opt)),
+					fill("N", nrow(val_opt))
+				)
+			))
+		)
+
+	val_opt.opt_type = 
+		join.(
+			eachrow(hcat(
+				ifelse.(
+					val_opt.optimal_left,
+					fill("O", nrow(val_opt)),
+					fill("S", nrow(val_opt))
+				),
+				ifelse.(
+					val_opt.optimal_right,
+					fill("O", nrow(val_opt)),
+					fill("S", nrow(val_opt))
+				)
+			))
+		)
+
+
+	val_opt.type = join.(eachrow(hcat(val_opt.opt_type, val_opt.val_type)), "\n")
+
+	let
+		bar = data(val_opt) * mapping(:type, :right_chosen) * visual(BarPlot)
+	
+		# Plot error bars
+		err = data(val_opt) * mapping(:type, :right_chosen, :se => (x -> x*2)) * visual(Errorbars)
+	
+		# Plot chance
+		hline = mapping([0.5]) * visual(HLines; color = :grey, linestyle = :dash)
+	
+		# Put together
+		draw!(f[2,:], bar + err + hline; axis = (; xlabel = "Stimuli", ylabel = "Prop. right chosen"))
+	end
+	
 	f
 end
 
