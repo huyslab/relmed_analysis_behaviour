@@ -176,23 +176,38 @@ end
 
 # ╔═╡ a71b8ea1-ba68-43f8-9597-d1b32c3a9413
 """
-	bin_EV_plot(f::GridPosition, data::AbstractDataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, group_label_f::Function = string, legend_title = "", colors::AbstractVector = Makie.wong_colors(), bin_group::Union{Nothing, Int64} = nothing)
+    bin_EV_plot(f::GridPosition, df::AbstractDataFrame;
+                group::Union{Nothing, Symbol} = nothing,
+                n_bins::Int64 = 5,
+                col::Symbol = :empirical_EV_diff,
+                group_label_f::Function = string,
+                legend_title::String = "",
+                title::String = "",
+                xlabel::String = "Diff. in EV (£)",
+                ylabel::String = "Prop. right chosen",
+                bin_group::Union{Nothing, Int64} = nothing)
 
-Bins and plots summarized choice data based on expected value differences.
+Bins and plots summarized choice data based on expected value (EV) differences, optionally grouping by a specified factor. This function computes summary statistics for choices binned by EV differences and produces a plot displaying the proportion of "right" choices across EV difference bins, with optional error bars.
 
 # Arguments
-- `f::GridPosition`: The Makie grid position or figure to plot into.
-- `data::AbstractDataFrame`: The input DataFrame containing test data.
-- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition). If `nothing`, all data is treated as a single group.
-- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
-- `col::Symbol`: The column used for binning based on expected value differences (x-axis data). Defaults to `:empirical_EV_diff`.
-- `group_label_f::Function`: A function to apply to group labels for the legend. Defaults to `string`.
-- `legend_title::String`: Title for the legend. Defaults to an empty string.
-- `colors::AbstractVector`: A vector of colors to use for different groups. Defaults to `Makie.wong_colors()`.
-- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, if additional binning of the grouping variable is desired.
+- `f::GridPosition`: The grid position for plotting (e.g., `f = layout(1,2)`).
+- `df::AbstractDataFrame`: The data containing choice and EV information.
+- `group::Union{Nothing, Symbol}`: The column in `df` to group by (optional). If `nothing`, no grouping is applied. Default is `nothing`.
+- `n_bins::Int64`: The number of bins to divide the EV difference data into. Default is `5`.
+- `col::Symbol`: The column in `df` to use for EV differences on the x-axis. Default is `:empirical_EV_diff`.
+- `group_label_f::Function`: A function to apply to the group labels. Default is `string`.
+- `legend_title::String`: The title for the legend (if grouping is applied). Default is an empty string.
+- `title::String`: The title for the plot. Default is an empty string.
+- `xlabel::String`: The label for the x-axis. Default is `"Diff. in EV (£)"`.
+- `ylabel::String`: The label for the y-axis. Default is `"Prop. right chosen"`.
+- `bin_group::Union{Nothing, Int64}`: Optionally specify another grouping variable for binning (e.g., trial number ranges). Default is `nothing`.
 
-# Returns
-- `Axis`: The plot axis displaying binned and summarized choice data with error bars.
+# Details
+This function:
+1. Computes summary statistics for the rightward choices binned by EV differences using the `bin_sum_EV` function.
+2. If `group` is provided, it colors the plot by the grouping variable.
+3. Produces a plot with error bars indicating the standard error of the proportion of "right" choices.
+4. If multiple groups are present, a legend is added to the plot.
 """
 function bin_EV_plot(
 	f::GridPosition,
@@ -205,7 +220,6 @@ function bin_EV_plot(
 	title::String = "",
 	xlabel::String = "Diff. in EV (£)",
 	ylabel::String = "Prop. right chosen",
-	colors::AbstractVector = Makie.wong_colors(),
 	bin_group::Union{Nothing, Int64} = nothing
 )
 
