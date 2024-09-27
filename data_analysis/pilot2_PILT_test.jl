@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, GLM
 	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
@@ -50,7 +50,68 @@ begin
 	nothing
 end
 
+# ╔═╡ 85e41c86-4a18-4175-ab1d-b26f49bdbac1
+begin
+	Base.@kwdef struct LogisticAnalysis{I}
+	    npoints::Int=200
+	    dropcollinear::Bool=false
+	    interval::I=AlgebraOfGraphics.automatic
+	    level::Float64=0.95
+	end
+
+	function add_intercept_column(x::AbstractVector{T}) where {T}
+	    mat = similar(x, float(T), (length(x), 2))
+	    fill!(view(mat, :, 1), 1)
+	    copyto!(view(mat, :, 2), x)
+	    return mat
+	end
+	
+	# TODO: add multidimensional version
+	function (l::LogisticAnalysis)(input::ProcessedLayer)
+	    output = map(input) do p, n
+	        x, y = p
+	        weights = get(n, :weights, similar(x, 0))
+	        default_interval = length(weights) > 0 ? nothing : :confidence
+	        interval = l.interval === AlgebraOfGraphics.automatic ? default_interval : l.interval
+	        # FIXME: handle collinear case gracefully
+	        lin_model = GLM.glm(add_intercept_column(x), y, Binomial(), LogitLink(); wts=weights, l.dropcollinear)
+	        x̂ = range(extrema(x)..., length=l.npoints)
+	        pred = GLM.predict(lin_model, add_intercept_column(x̂); interval, l.level)
+	        return if !isnothing(interval)
+	            ŷ, lower, upper = pred
+	            (x̂, ŷ), (; lower, upper)
+	        else
+	            ŷ = pred
+	            (x̂, ŷ), (;)
+	        end
+	    end
+	    default_plottype = isempty(output.named) ? Lines : LinesFill
+	    plottype = Makie.plottype(output.plottype, default_plottype)
+	    return ProcessedLayer(output; plottype)
+	end
+	
+	logistic_smooth(; options...) = AlgebraOfGraphics.transformation(LogisticAnalysis(; options...))
+end
+
 # ╔═╡ 537aa0cb-3f3f-497b-b81e-5f271bfb247c
+"""
+    bin_sum_EV(data::DataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, bin_group::Union{Nothing, Int64} = nothing)
+
+Bins test data by expected value and summarizes choice behavior across participants.
+
+# Arguments
+- `data::DataFrame`: The input DataFrame containing test data.
+- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition).
+   If `nothing`, all data is treated as a single group.
+- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
+- `col::Symbol`: The column used for binning based on expected value differences. Defaults to `:empirical_EV_diff`.
+- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, 
+   if additional binning of the grouping variable is desired.
+
+# Returns
+- A summarized DataFrame that reports the mean choice behavior (`right_chosen`) by group and binned expected value, 
+  along with the standard error (`se`) for each bin.
+"""
 function bin_sum_EV(
 	data::DataFrame;
 	group::Union{Nothing, Symbol} = nothing,
@@ -111,77 +172,117 @@ function bin_sum_EV(
 		:right_chosen => mean => :right_chosen,
 		:right_chosen => sem => :se
 	)
-
-
 end
 
 # ╔═╡ a71b8ea1-ba68-43f8-9597-d1b32c3a9413
-# Bin and plot choice
+"""
+	bin_EV_plot(f::GridPosition, data::AbstractDataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, group_label_f::Function = string, legend_title = "", colors::AbstractVector = Makie.wong_colors(), bin_group::Union{Nothing, Int64} = nothing)
+
+Bins and plots summarized choice data based on expected value differences.
+
+# Arguments
+- `f::GridPosition`: The Makie grid position or figure to plot into.
+- `data::AbstractDataFrame`: The input DataFrame containing test data.
+- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition). If `nothing`, all data is treated as a single group.
+- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
+- `col::Symbol`: The column used for binning based on expected value differences (x-axis data). Defaults to `:empirical_EV_diff`.
+- `group_label_f::Function`: A function to apply to group labels for the legend. Defaults to `string`.
+- `legend_title::String`: Title for the legend. Defaults to an empty string.
+- `colors::AbstractVector`: A vector of colors to use for different groups. Defaults to `Makie.wong_colors()`.
+- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, if additional binning of the grouping variable is desired.
+
+# Returns
+- `Axis`: The plot axis displaying binned and summarized choice data with error bars.
+"""
 function bin_EV_plot(
 	f::GridPosition,
-	data::AbstractDataFrame;
+	df::AbstractDataFrame;
 	group::Union{Nothing, Symbol} = nothing,
 	n_bins::Int64 = 5,
 	col::Symbol = :empirical_EV_diff, # x axis data column,
 	group_label_f::Function = string,
-	legend_title = "",
+	legend_title::String = "",
+	title::String = "",
+	xlabel::String = "Diff. in EV (£)",
+	ylabel::String = "Prop. right chosen",
 	colors::AbstractVector = Makie.wong_colors(),
 	bin_group::Union{Nothing, Int64} = nothing
 )
 
 	choice_EV_sum = bin_sum_EV(
-		data,
+		df,
 		group = group,
 		n_bins = n_bins,
 		col = col,
 		bin_group = bin_group
 	)
+
+	grouped = length(unique(choice_EV_sum.group)) > 1 # Whether there is more than one group
+
+	# Prepare color keyword arguments
+	kwargs = grouped ? 
+		(;
+			color = :group => nonnumeric => legend_title
+		) :
+		(;)
 	
 	# Plot
-	ax_diff_choice = Axis(
-		f,
-		xlabel = "Diff. in EV (£)"
+	f_map = 
+		data(choice_EV_sum) *
+		(
+			mapping(
+				:EV_diff_bin, 
+				:right_chosen,
+				:se;
+				kwargs...
+			) * visual(Errorbars) +
+			mapping(
+				:EV_diff_bin, 
+				:right_chosen; 
+				kwargs...
+			) * visual(Scatter)
+		)
+
+	f_grid = draw!(
+		f[1 + grouped,1],
+		f_map;
+		axis = (; xlabel = xlabel, ylabel = ylabel)
 	)
 
-	groups = sort(unique(choice_EV_sum.group))
-
-	for g in groups
-
-		t_sum = filter(x -> x.group == g, choice_EV_sum)
-
-			scatter!(
-				ax_diff_choice,
-				t_sum.EV_diff_bin,
-				t_sum.right_chosen,
-				colormap = :viridis
-			)
-		
-			errorbars!(
-				ax_diff_choice,
-				t_sum.EV_diff_bin,
-				t_sum.right_chosen,
-				t_sum.se
-			)
-	end
-
-	if !isnothing(group)
-		Legend(
-			f,
-			[MarkerElement(marker = :circle, color = colors[c]) for c in eachindex(groups)],
-			group_label_f.(groups),
-			legend_title,
+	if grouped
+		legend!(
+			f[1,1],
+			f_grid,
 			valign = :top,
-			halign = :left,
-			tellwidth = false,
+			orientation = :horizontal,
 			framevisible = false,
-			nbanks = 2
+			tellwidth = false
 		)
 	end
 
-	return ax_diff_choice
 end
 
 # ╔═╡ 572cf109-ca2c-4da2-950e-7a34a7c2eadd
+"""
+	compute_optimality(data::AbstractDataFrame)
+
+Computes which stimuli were optimal or suboptimal during the learning phase, based on test data.
+
+# Arguments
+- `data::AbstractDataFrame`: The input DataFrame containing columns that describe the session, block, stimulus pair, 
+  left and right stimulus images, and whether the right stimulus was the optimal choice.
+
+# Returns
+- `DataFrame`: A DataFrame with two columns: 
+  - `stimulus`: The stimulus identifier (without the "imgs/" prefix).
+  - `optimal`: A boolean indicating whether the stimulus was optimal (`true`) or suboptimal (`false`).
+
+# Process
+1. The function first selects relevant columns related to the task structure (session, block, stimulus pair, left and right images, and optimality).
+2. It determines the optimal and suboptimal stimuli by comparing the `optimalRight` indicator.
+3. Removes duplicate stimulus pairs (left/right order permutations).
+4. Converts the data from wide format (optimal and suboptimal columns) to long format (stimulus and optimal columns).
+"""
 function compute_optimality(data::AbstractDataFrame)
 	
 	# Select columns and reduce to task strcuture, which is the same across participants
@@ -215,6 +316,25 @@ function compute_optimality(data::AbstractDataFrame)
 end
 
 # ╔═╡ 0260582c-2712-4692-a355-7e37de5af471
+"""
+	extract_stimulus_magnitude()
+
+Extracts the magnitude (feedback value) of each stimulus based on the task structure file from the learning phase.
+
+# Arguments
+This function does not take any arguments but reads the task structure from a CSV file (`"./results/pilot2.csv"`).
+
+# Returns
+- `DataFrame`: A DataFrame with two columns:
+  - `stimulus`: The stimulus identifier.
+  - `feedback`: The average feedback or magnitude associated with the stimulus, calculated by averaging the unique feedback values across trials.
+
+# Process
+1. The function reads the task structure file (`pilot2.csv`).
+2. Filters out the trials where the feedback is common (`feedback_common` is `true`).
+3. Collects the feedback for each stimulus from both the left and right stimuli columns.
+4. Combines the feedback values and groups them by stimulus, computing the mean feedback for each unique stimulus.
+"""
 function extract_stimulus_magnitude()
 
 	task = DataFrame(CSV.File("./results/pilot2.csv"))
@@ -243,15 +363,15 @@ function extract_stimulus_magnitude()
 
 end
 
-# ╔═╡ 78847e80-0600-4079-b32f-e97c2a9bb4ee
+# ╔═╡ acd469d0-81d0-4d1e-8e55-ffdd1c7ddb08
 # Prepare test data
-only_observed_test = let
+only_observed_test = let test_data = test_data
 
 	# Compute EV from PILT
 	PLT_data.chosen_stim = replace.(PLT_data.chosenImg, "imgs/" => "")
 	
 	empirical_EVs = combine(
-		groupby(PLT_data, [:session, :prolific_pid, :chosen_stim]),
+		groupby(PLT_data, [:session, :prolific_pid, :stimulus_pair_id, :chosen_stim]),
 		:chosenOutcome => mean => :EV
 	)
 
@@ -261,7 +381,8 @@ only_observed_test = let
 		rename(
 			empirical_EVs,
 			:chosen_stim => :stimulus_left,
-			:EV => :empirical_EV_left
+			:EV => :empirical_EV_left,
+			:stimulus_pair_id => :cpair_left
 		),
 		on = [:session, :prolific_pid, :stimulus_left],
 		order = :left
@@ -272,12 +393,18 @@ only_observed_test = let
 		rename(
 			empirical_EVs,
 			:chosen_stim => :stimulus_right,
-			:EV => :empirical_EV_right
+			:EV => :empirical_EV_right,
+			:stimulus_pair_id => :cpair_right
 		),
 		on = [:session, :prolific_pid, :stimulus_right],
 		order = :left
 	)
 
+	@assert all(
+		filter(x -> !ismissing(x.cpair_right) & ! ismissing(x.cpair_left), test_data) |>
+			df -> df.cpair_right .!= df.cpair_left
+	) "Test stimuli should be paired such that their learning-phase cpair id is different"
+	
 	# Compute empirical EV diff
 	test_data.empirical_EV_diff = test_data.empirical_EV_right .- 	
 		test_data.empirical_EV_left
@@ -339,7 +466,7 @@ only_observed_test = let
 
 	only_observed_test
 
-end;
+end
 
 # ╔═╡ 7c47b391-13e4-450a-86a8-c3a0077a68c5
 # Describe EV distributions
@@ -373,6 +500,8 @@ let
 
 	ablines!(ax_scatt, 0., 1., color = :grey, linestyle=:dash)
 
+	save("results/pilot2_test_EV_dists.png", f, pt_per_unit = 1)
+	
 	f
 
 end
@@ -382,21 +511,98 @@ end
 let
 
 	f = Figure(size = (700, 300))
-	
+
+	# Plot all together
 	bin_EV_plot(f[1,1], only_observed_test)
 
+	# Plot by block
 	bin_EV_plot(f[1,2], only_observed_test; 
 		group = :block,
-		legend_title = "Block"
+		legend_title = "Test block"
 	)
 
-	bin_EV_plot(f[1,3], only_observed_test; 
-		group = :same_valence,
-		legend_title = "Same original valence"
+	# Plot by valence
+	fp = insertcols(
+		only_observed_test,
+		:valence_label => CategoricalArray(
+			ifelse.(only_observed_test.same_valence, "Same", "Different"),
+			levels = ["Same", "Different"]
+		)
 	)
 
+	bin_EV_plot(f[1,3], fp; 
+		group = :valence_label,
+		legend_title = "Valence"
+	)
+
+	save("results/pilot2_test_EV_curves.png", f, pt_per_point = 1)
 
 	f
+end
+
+# ╔═╡ d7cc189b-ddaf-4997-ac76-447dcbac6233
+let
+
+	f = Figure(size = (700, 300))
+
+	fp = filter(
+		x -> x.same_valence,
+		only_observed_test
+	)
+	
+	insertcols!(
+		fp,
+		:block_label => CategoricalArray(
+			ifelse.(fp.same_block, "Same", "Different"),
+			levels = ["Same", "Different"]
+		)
+	)
+
+	isa(fp.block_label, CategoricalArray)
+
+	bin_EV_plot(f[1,1], fp; 
+		group = :block_label,
+		legend_title = "Learning block"
+	)
+
+	# Plot by block lag
+	only_observed_test.sum_cpair = 
+		sum([only_observed_test.cpair_left, only_observed_test.cpair_right])
+
+	only_observed_test.learning_stage = cut(
+		only_observed_test.sum_cpair,
+		quantile(only_observed_test.sum_cpair, range(0, 1, length = 6)),
+		labels = ["1 Early"; string.(2:4); "5 Late"],
+		extend = true
+	)
+
+	lag_map = 
+		data(dropmissing(only_observed_test)) * 
+		mapping(
+			:empirical_EV_diff, 
+			:right_chosen, 
+			color = :learning_stage => "Learning") * 
+		logistic_smooth(; interval = nothing) * visual(linewidth = 2.4)
+
+	lag_grid = draw!(
+		f[1,2], 
+		lag_map, 
+		scales(Color = (; palette = [:blue, :skyblue3, :grey55, :thistle, :red])),
+		axis = (; xlabel = "Diff. in EV (£)", ylabel = "Prop. right chosen")
+	)
+
+	 legend!(
+		 f[1,3],
+		 lag_grid,
+		 framevisible = false
+	 )
+
+	save("results/pilot2_test_learning_block_effects.png", f,
+		pt_per_unit = 1
+	)
+
+	f
+
 end
 
 # ╔═╡ d254ed77-7386-4fec-b09d-ef7822e969ae
@@ -438,19 +644,19 @@ let
 			eachrow(hcat(
 				ifelse.(
 					val.valence_left .> 0,
-					fill("P", nrow(val)),
-					fill("N", nrow(val))
+					fill("R", nrow(val)),
+					fill("P", nrow(val))
 				),
 				ifelse.(
 					val.valence_right .> 0,
-					fill("P", nrow(val)),
-					fill("N", nrow(val))
+					fill("R", nrow(val)),
+					fill("P", nrow(val))
 				)
 			))
 		)
 
 	val.type = CategoricalArray(val.type, 
-		levels = ["PP", "NN", "NP", "PN"]
+		levels = ["RR", "PP", "RP", "PR"]
 			)
 
 
@@ -536,14 +742,14 @@ let
 				fill("Neither", nrow(positive_chosen)),
 				ifelse.(
 					(positive_chosen.optimal_right .&& (positive_chosen.valence_right .> 0)) .||(positive_chosen.optimal_left .&& (positive_chosen.valence_left .> 0)),
-					fill("P", nrow(positive_chosen)),
-					fill("N", nrow(positive_chosen))
+					fill("R", nrow(positive_chosen)),
+					fill("P", nrow(positive_chosen))
 				)
 			)
 		)
 
 	positive_chosen.type = CategoricalArray(positive_chosen.type, 
-		levels = ["Both", "Neither", "P", "N"]
+		levels = ["Both", "Neither", "R", "P"]
 			)
 
 	# Average by participant and optimality
@@ -628,6 +834,8 @@ let
 		draw!(f[2,2], bar + err + hline; axis = (; xlabel = "Rewarding", ylabel = "Prop. optimal chosen"))
 	end
 
+	save("results/pilot2_test_choice_by_valence_optimality.png", f, pt_per_point = 1)
+	
 	f
 end
 
@@ -692,7 +900,7 @@ let
 	vspans = data(spans) * mapping(:low, :high, color = :optimal => nonnumeric => AlgebraOfGraphics.scale(:secondary)) * visual(VSpan)
 
 
-	draw(vspans + plt + err + hline, 
+	f = draw(vspans + plt + err + hline, 
 		scales(
 			secondary = (; palette = [(:red, 0.2), (:green, 0.2)]), 
 			Color = (; palette = [:red, :green])); 
@@ -702,15 +910,21 @@ let
 			ylabel = "Prop. chosen high magnitude"
 		)
 	)
+
+	save("results/pilot2_test_by_magnitude.png", f, pt_per_unit = 1)
+
+	f
 end
 
 # ╔═╡ Cell order:
 # ╠═5255888c-7b4a-11ef-231e-e597b3580bd4
 # ╠═71b2700e-62a9-4f19-a898-1ac6e11943f3
 # ╠═e6bd359a-5f0d-4b3a-bf08-96160db9d4a1
-# ╠═78847e80-0600-4079-b32f-e97c2a9bb4ee
+# ╠═acd469d0-81d0-4d1e-8e55-ffdd1c7ddb08
 # ╠═7c47b391-13e4-450a-86a8-c3a0077a68c5
 # ╠═26253722-31a6-4977-973b-2f9d2a4db119
+# ╠═d7cc189b-ddaf-4997-ac76-447dcbac6233
+# ╠═85e41c86-4a18-4175-ab1d-b26f49bdbac1
 # ╠═d254ed77-7386-4fec-b09d-ef7822e969ae
 # ╠═d5967e11-51e7-40a2-ae4a-b5f071234357
 # ╠═537aa0cb-3f3f-497b-b81e-5f271bfb247c
