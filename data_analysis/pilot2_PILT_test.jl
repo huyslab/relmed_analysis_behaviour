@@ -50,13 +50,33 @@ begin
 	nothing
 end
 
+# ╔═╡ 3d359ff7-c654-4ae6-856b-068f4a9c12dd
+isa(LogitLink(), Link)
+
 # ╔═╡ 85e41c86-4a18-4175-ab1d-b26f49bdbac1
 begin
-	Base.@kwdef struct LogisticAnalysis{I}
+	"""
+	    GLMAnalysis{I}(; npoints=200, dropcollinear=false, interval=AlgebraOfGraphics.automatic, level=0.95, distribution, link)
+	
+	A struct that defines the settings for performing generalized linear model (GLM) analysis for plotting with AlgebraOfGraphics.
+	
+	# Fields
+	- `npoints::Int`: The number of points used for plotting predictions (default: `200`).
+	- `dropcollinear::Bool`: Whether to drop collinear data when fitting the model. By default, collinear data causes an error (default: `false`).
+	- `interval::I`: Specifies the type of interval for plotting (`:confidence`, `:prediction`, or `nothing`). If set to `AlgebraOfGraphics.automatic`, it automatically chooses based on whether weights are provided (default: `AlgebraOfGraphics.automatic`).
+	- `level::Float64`: Coverage level for the confidence or prediction intervals. The default `0.95` corresponds to `alpha = 0.05` (default: `0.95`).
+	- `distribution::Distribution`: The probability distribution used in the GLM. Common choices include `Binomial()` for logistic regression or `Normal()` for linear regression.
+	- `link::Link`: The link function that relates the linear predictor to the mean of the distribution. For logistic regression, `LogitLink()` is typically used.
+	
+	This struct is used to configure and execute a GLM fit with customizable options for prediction intervals, collinearity handling, and plotting settings.
+	"""
+	Base.@kwdef struct GLMAnalysis{I}
 	    npoints::Int=200
 	    dropcollinear::Bool=false
 	    interval::I=AlgebraOfGraphics.automatic
 	    level::Float64=0.95
+		distribution::Distribution
+		link::Link
 	end
 
 	function add_intercept_column(x::AbstractVector{T}) where {T}
@@ -65,18 +85,40 @@ begin
 	    copyto!(view(mat, :, 2), x)
 	    return mat
 	end
+
+	"""
+    (l::GLMAnalysis)(input::ProcessedLayer)
+
+	Apply the generalized linear model (GLM) analysis to the input data and return the results in a format suitable for plotting.
 	
-	# TODO: add multidimensional version
-	function (l::LogisticAnalysis)(input::ProcessedLayer)
+	# Arguments
+	- `input::ProcessedLayer`: The processed input layer containing the data. Each entry in the layer is a tuple of `(x, y)` where `x` represents the independent variable and `y` the dependent variable. Optionally, named mappings such as `:weights` can be included for weighted data.
+	
+	# Behavior
+	The method:
+	1. Adds an intercept column to the predictor `x`.
+	2. Fits a GLM model using the specified `distribution` and `link` from the `GLMAnalysis` struct.
+	3. Generates predicted values over a specified range of `x` values.
+	4. Optionally computes confidence or prediction intervals based on the `interval` and `level` parameters.
+	   - If `interval` is not `nothing`, the function returns both the predicted values and their intervals (lower and upper bounds).
+	   - If `interval` is `nothing`, only the predicted values are returned without uncertainty bands.
+	
+	# Output
+	Returns a `ProcessedLayer` containing the prediction results, which can be visualized using Makie. The default plot type is either `Lines` or `LinesFill`, depending on whether intervals are included.
+	
+	# Notes
+	- The number of points used for generating predictions is controlled by `npoints`.
+	- If the input includes weighted data, the method automatically adjusts the interval settings.
+	"""
+	function (l::GLMAnalysis)(input::ProcessedLayer)
 	    output = map(input) do p, n
 	        x, y = p
 	        weights = get(n, :weights, similar(x, 0))
 	        default_interval = length(weights) > 0 ? nothing : :confidence
 	        interval = l.interval === AlgebraOfGraphics.automatic ? default_interval : l.interval
-	        # FIXME: handle collinear case gracefully
-	        lin_model = GLM.glm(add_intercept_column(x), y, Binomial(), LogitLink(); wts=weights, l.dropcollinear)
+	        model = GLM.glm(add_intercept_column(x), y, l.distribution, l.link; wts=weights, l.dropcollinear)
 	        x̂ = range(extrema(x)..., length=l.npoints)
-	        pred = GLM.predict(lin_model, add_intercept_column(x̂); interval, l.level)
+	        pred = GLM.predict(model, add_intercept_column(x̂); interval, l.level)
 	        return if !isnothing(interval)
 	            ŷ, lower, upper = pred
 	            (x̂, ŷ), (; lower, upper)
@@ -89,8 +131,29 @@ begin
 	    plottype = Makie.plottype(output.plottype, default_plottype)
 	    return ProcessedLayer(output; plottype)
 	end
+
+	"""
+	    logistic_curve(; interval=automatic, level=0.95, dropcollinear=false, npoints=200)
 	
-	logistic_smooth(; options...) = AlgebraOfGraphics.transformation(LogisticAnalysis(; options...))
+	Compute a logistic fit of `y ~ 1 + x` using a binomial distribution and a logit link function.
+	An optional named mapping `weights` determines the weights.
+	Use `interval` to specify what type of interval the shaded band should represent,
+	for a given coverage `level` (the default `0.95` equates to `alpha = 0.05`).
+	Valid values of `interval` are `:confidence`, to delimit the uncertainty of the predicted
+	relationship, and `:prediction`, to delimit estimated bounds for new data points.
+	Use `interval = nothing` to only compute the logistic fit, without any uncertainty estimate.
+	By default, this analysis errors on singular (collinear) data. To avoid that,
+	it is possible to set `dropcollinear=true`.
+	`npoints` is the number of points used by Makie to draw the shaded band.
+	
+	Weighted data is supported via the keyword `weights` (passed to `mapping`).
+	"""
+	logistic_curve(; options...) = 
+		AlgebraOfGraphics.transformation(GLMAnalysis(; 
+			distribution = Binomial(), 
+			link = LogitLink(),
+			options...
+		))
 end
 
 # ╔═╡ 537aa0cb-3f3f-497b-b81e-5f271bfb247c
@@ -596,7 +659,7 @@ let
 			:empirical_EV_diff, 
 			:right_chosen, 
 			color = :learning_stage => "Learning") * 
-		logistic_smooth(; interval = nothing) * visual(linewidth = 2.4)
+		logistic_curve(; interval = nothing) * visual(linewidth = 2.4)
 
 	lag_grid = draw!(
 		f[1,2], 
@@ -938,6 +1001,7 @@ end
 # ╠═7c47b391-13e4-450a-86a8-c3a0077a68c5
 # ╠═26253722-31a6-4977-973b-2f9d2a4db119
 # ╠═d7cc189b-ddaf-4997-ac76-447dcbac6233
+# ╠═3d359ff7-c654-4ae6-856b-068f4a9c12dd
 # ╠═85e41c86-4a18-4175-ab1d-b26f49bdbac1
 # ╠═d254ed77-7386-4fec-b09d-ef7822e969ae
 # ╠═d5967e11-51e7-40a2-ae4a-b5f071234357
