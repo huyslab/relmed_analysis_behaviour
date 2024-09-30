@@ -153,7 +153,8 @@ function load_pilot2_data()
 	test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	### Vigour task here
-	vigour_data = DataFrame()
+	vigour_data = extract_vigour_data(jspsych_data) |>
+		x -> exclude_vigour_trials(x, 66)
 
 	return PLT_data, test_data, vigour_data, jspsych_data
 end
@@ -411,7 +412,7 @@ end
 
 This function processes the given `vigour_data` DataFrame to exclude certain trials based on specific criteria:
 
-1. **Non-finishers**: Participants who have completed fewer than 66 trials are identified and excluded.
+1. **Non-finishers**: Participants who have completed fewer than complete trials are identified and excluded.
 2. **Double takes**: Participants who have multiple sessions are identified, and only the earliest session is retained.
 
 # Arguments
@@ -420,14 +421,14 @@ This function processes the given `vigour_data` DataFrame to exclude certain tri
 # Returns
 - `DataFrame`: A cleaned DataFrame with non-finishers and extra trials from multiple sessions excluded.
 """
-function exclude_vigour_trials(vigour_data::DataFrame)
+function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	# Find non-finishers
 	non_finishers = combine(groupby(vigour_data,
 		[:prolific_id, :exp_start_time]),
 		:trial_number => (x -> length(unique(x))) => :n_trials
 	)
 
-	filter!(x -> x.n_trials < 66, non_finishers)
+	filter!(x -> x.n_trials < n_trials, non_finishers)
 
 	# Exclude non-finishers
 	vigour_data_clean = antijoin(vigour_data, non_finishers,
