@@ -420,14 +420,14 @@ This function processes the given `vigour_data` DataFrame to exclude certain tri
 # Returns
 - `DataFrame`: A cleaned DataFrame with non-finishers and extra trials from multiple sessions excluded.
 """
-function exclude_vigour_trials(vigour_data::DataFrame)
+function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	# Find non-finishers
 	non_finishers = combine(groupby(vigour_data,
 		[:prolific_id, :exp_start_time]),
 		:trial_number => (x -> length(unique(x))) => :n_trials
 	)
 
-	filter!(x -> x.n_trials < 66, non_finishers)
+	filter!(x -> x.n_trials < n_trials, non_finishers)
 
 	# Exclude non-finishers
 	vigour_data_clean = antijoin(vigour_data, non_finishers,
