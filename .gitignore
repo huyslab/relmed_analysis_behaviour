@@ -31,5 +31,9 @@ results/*
 .viminfo
 .cmdstanr/
 env.list
+.dotnet/
+.julia/
+.ssh/
+.vscode-server/
+Icon
 
-Icon
