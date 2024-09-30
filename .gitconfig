@@ -1,0 +1,15 @@
+[user]
+	email = haoyang.lu@ucl.ac.uk
+	name = Haoyang Lu
+[core]
+	excludesfile = /Users/luhaoyang/.gitignore_global
+[difftool "sourcetree"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+	path = 
+[mergetool "sourcetree"]
+	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
+[commit]
+	template = /Users/luhaoyang/.stCommitMsg
+[credential]
+	helper = "!f() { /home/jovyan/.vscode-server/bin/38c31bc77e0dd6ae88a4e9cc93428cc27a56ba40/node /tmp/vscode-remote-containers-416819b1-a889-4007-a75c-5ed8a4ff8790.js git-credential-helper $*; }; f"
