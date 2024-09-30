@@ -389,6 +389,7 @@ function extract_vigour_data(data::DataFrame)
 		:record_id,
 		:exp_start_time,
 		:trial_number,
+		:trial_duration,
 		names(x, r"(reward|presses)$"),
 		:response_time, :timeline_variables
 	) |>
@@ -397,7 +398,6 @@ function extract_vigour_data(data::DataFrame)
     ) |>
 	x -> transform(x,
 		:response_time => ByRow(JSON.parse) => :response_times,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["trialDuration"]) => :trial_duration,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
