@@ -374,14 +374,14 @@ Extracts and processes vigour-related data from the given DataFrame.
   - `:reward_per_press`: The reward per press calculated as `magnitude / ratio`.
 
 # Details
-1. Removes testing participants from the data.
+# 1. Removes testing participants from the data.
 2. Selects relevant columns from the input DataFrame.
 3. Filters out rows where `:trial_number` is missing.
 4. Transforms JSON strings in `:response_time` and `:timeline_variables` to extract specific values.
 5. Removes the original `:response_time` and `:timeline_variables` columns from the final DataFrame.
 """
 function extract_vigour_data(data::DataFrame)
-	remove_testing!(data)
+	# remove_testing!(data)
 	
 	vigour_data = data |>
 	x -> select(x, 
@@ -397,6 +397,7 @@ function extract_vigour_data(data::DataFrame)
     ) |>
 	x -> transform(x,
 		:response_time => ByRow(JSON.parse) => :response_times,
+		:timeline_variables => ByRow(x -> JSON.parse(x)["trialDuration"]) => :trial_duration,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
