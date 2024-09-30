@@ -34,8 +34,6 @@ function posterior_sample_single_p_QL(
 	prior_a::Distribution = Normal(0., 1)
 )
 	model = single_p_QL(;
-		N = nrow(data),
-		n_blocks = maximum(data.block),
 		block = data.block,
 		choice = data.choice,
 		outcomes = hcat(
@@ -94,8 +92,6 @@ function optimize_single_p_QL(
 	prior_a::Union{Distribution, Missing}
 )
 	model = single_p_QL(;
-		N = nrow(data),
-		n_blocks = maximum(data.block),
 		block = data.block,
 		choice = data.choice,
 		outcomes = hcat(
@@ -296,8 +292,6 @@ function simulate_from_posterior_single_p_QL(
 	outcomes = task.outcomes
 
 	post_model = single_p_QL(
-		N = length(block),
-		n_blocks = maximum(block),
 		block = block,
 		choice = fill(missing, length(block)),
 		outcomes = outcomes,

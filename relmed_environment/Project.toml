@@ -1,4 +1,5 @@
 [deps]
+AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
@@ -38,4 +39,5 @@ StanSample = "c1514b29-d3a0-5178-b312-660c88baa699"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
+Tidier = "f0413319-3358-4bb0-8e7c-0c83523a93bd"
 Turing = "fce5fe82-541a-59a6-adf8-730c64b5f9a0"
