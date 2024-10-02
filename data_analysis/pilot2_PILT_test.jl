@@ -40,7 +40,27 @@ begin
 			ytickwidth = 1.5
 		)
 	)
+
+	ppt_th = Theme(
+		font = "Helvetica",
+		fontsize = 20,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 18,
+			yticklabelsize = 18,
+			spinewidth = 2,
+			xtickwidth = 2,
+			ytickwidth = 2
+		)
+	)
+
+	
 	set_theme!(th)
+
+	
 end
 
 # ╔═╡ e6bd359a-5f0d-4b3a-bf08-96160db9d4a1
@@ -919,24 +939,31 @@ end
 # ╔═╡ d5967e11-51e7-40a2-ae4a-b5f071234357
 # Magnitude effect on choice
 let
+
+	# Drop missing
 	dat = dropmissing(only_observed_test[!, [:prolific_pid, :magnitude_left, :magnitude_right, :right_chosen]])
 
+	# Calculate low magnitude stimulus
 	dat.magnitude_low = minimum(hcat(dat.magnitude_right, dat.magnitude_left), dims = 2) |> vec
 
+	# Calculate high magnitude stimulus
 	dat.magnitude_high = maximum(hcat(dat.magnitude_right, dat.magnitude_left), dims = 2) |> vec
 
+	# Calculate whether high was chosen
 	dat.high_chosen = ifelse.(
 		dat.magnitude_right .== dat.magnitude_high,
 		dat.right_chosen,
 		.!dat.right_chosen
 	)
-	
+
+	# Average by participant and magnitude
 	dat_sum = combine(
 		groupby(dat, [:prolific_pid, :magnitude_low, :magnitude_high]),
 		:high_chosen => mean => :high_chosen,
 		:high_chosen => length => :n
 	)
 
+	# Average by magnitude
 	dat_sum = combine(
 		groupby(dat_sum, [:magnitude_low, :magnitude_high]),
 		:high_chosen => mean => :high_chosen,
@@ -944,12 +971,16 @@ let
 		:n => median => :n
 	)
 
+	# Exclude ties
 	filter!(x -> !(x.magnitude_low == x.magnitude_high), dat_sum)
 
+	# Sort by magnitude
 	sort!(dat_sum, [:magnitude_low, :magnitude_high])
 
+	# Assign optimality
 	dat_sum.high_optimal = (x -> x in [-0.255, -0.01, 0.75, 1.]).(dat_sum.magnitude_high)
 
+	# Plot everything
 	plt = data(dat_sum) * 
 		visual(ScatterLines) * 
 		mapping(:magnitude_low => nonnumeric, :high_chosen, 
@@ -976,8 +1007,8 @@ let
 
 	vspans = data(spans) * mapping(:low, :high, color = :optimal => nonnumeric => AlgebraOfGraphics.scale(:secondary)) * visual(VSpan)
 
-
-	f = draw(vspans + plt + err + hline, 
+	# Put figure together
+	f1 = draw(vspans + plt + err + hline, 
 		scales(
 			secondary = (; palette = [(:red, 0.2), (:green, 0.2)]), 
 			Color = (; palette = [:red, :green])); 
@@ -988,9 +1019,57 @@ let
 		)
 	)
 
-	save("results/pilot2_test_by_magnitude.png", f, pt_per_unit = 1)
+	save("results/pilot2_test_by_magnitude.png", f1, pt_per_unit = 1)
+	
+	# Plot only small rewards vs small punishments for example -------
 
-	f
+	# Filter summarized data
+	dat_small = filter(x -> 
+		(x.magnitude_low < 0) & (x.magnitude_low > -0.5) & 
+		(x.magnitude_high < 0.5), dat_sum)
+
+	# Create labels
+	options = hcat(dat_small.magnitude_low, 
+		dat_small.magnitude_high) .* 100
+
+	options = [@sprintf("%.3g", x) * "p" for x in options]		
+		
+	dat_small.options = join.(
+		eachrow(options),
+		" vs. "
+	)
+
+	# Sort levels
+	sorted_levels = sort(dat_small.options, 
+		by = c -> mean(dat_small.high_chosen[dat_small.options .== c]))
+
+	dat_small.options = CategoricalArray(dat_small.options, levels = sorted_levels)
+
+	# Plot
+	f2 = with_theme(ppt_th) do
+		f2_map = data(dat_small) *
+			((mapping(:options, :high_chosen) *
+			visual(BarPlot, direction = :x)) +
+			(mapping(:high_chosen, :options, :se) *
+			visual(Errorbars, direction = :x))) +
+		mapping(0.5) * visual(VLines, color = :grey, linestyle = :dash)
+
+		f2 = Figure(; 
+			size = (16, 6.85) .* 72 ./ 2.54,
+			figure_padding = (5, 0, 4, 0)
+		)
+		draw!(
+			f2,
+			f2_map;
+			axis = (; ylabel = "", xlabel = "Prop. higher chosen")
+		)
+
+		save("results/pilot2_test_by_magnitude_ppt.pdf", f2, pt_per_unit = 1)
+
+		f2
+	end
+
+	f2, f1
 end
 
 # ╔═╡ Cell order:
