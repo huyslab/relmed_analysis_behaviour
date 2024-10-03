@@ -64,8 +64,6 @@ function map_data_to_single_p_QL(
 	tdata = dropmissing(data)
 
 	return (;
-		N = nrow(tdata),
-		n_blocks = maximum(tdata.block),
 		block = collect(tdata.block),
 		choice = tdata.choice,
 		outcomes = hcat(tdata.feedback_suboptimal, tdata.feedback_optimal)
@@ -145,21 +143,61 @@ function sum_FI_for_feedback_sequence(;
 	return across_summary_method(FIs)
 end
 
-# ╔═╡ 5dbe7bc7-f348-4efa-91f3-17a1261a4e78
-FIs = let n_trials = 10,
-	FI_res = 10
+# ╔═╡ e5395ac6-7525-445d-8e7e-d161c9f74f93
+function sequence_to_task_df(;
+	feedback_common::Vector{Bool}, # Sequence of common (true) / confusing (false) feedback
+	feedback_magnitude_high::Vector{Float64}, # Sequence of high magnitude feedback,
+	feedback_magnitude_low::Vector{Float64}, # Sequence of low magnitude feedback
+)
+	# Check inputs
+	@assert length(feedback_common) == length(feedback_magnitude_high)
+	@assert length(feedback_magnitude_low) == length(feedback_magnitude_high)
 
+	n_trials = length(feedback_common)
+
+	# Build data frame
 	task = DataFrame(
 		block = fill(1, n_trials),
-		feedback_suboptimal = fill(0.01, n_trials),
-		feedback_optimal = fill(1., n_trials),
+		feedback_optimal = ifelse.(
+			feedback_common, 
+			feedback_magnitude_high, 
+			feedback_magnitude_low
+		), # Swap feedback magnitude on confusing trials
+		feedback_suboptimal = ifelse.(
+			.!feedback_common, 
+			feedback_magnitude_high, 
+			feedback_magnitude_low
+		),
 		trial = 1:n_trials
 	)
 
-	for t in [3, 7]
-		task[t, [:feedback_suboptimal,:feedback_optimal]] = 
-			collect(task[t, [:feedback_optimal, :feedback_suboptimal]])
-	end
+	return task
+
+end
+
+# ╔═╡ f5b0c228-d73a-4001-b272-b00e6fc2446c
+function shuffled_fill(
+	values::AbstractVector, # Values to fill vector
+	n::Int64; # How many trials overall
+	random_seed::Int64 = 0
+)	
+	# Create vector with as equal number of appearance for each value as possible
+	shuffled_values = shuffle(Xoshiro(random_seed), values)
+	unshuffled_vector = collect(Iterators.take(Iterators.cycle(shuffled_values), n))
+
+	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
+end
+
+# ╔═╡ 5dbe7bc7-f348-4efa-91f3-17a1261a4e78
+# Look at FI across parameter range for one sequence
+FIs = let n_trials = 10,
+	FI_res = 10
+
+	task = sequence_to_task_df(;
+		feedback_common = shuffled_fill([true, false], n_trials),
+		feedback_magnitude_high = fill(1., n_trials),
+		feedback_magnitude_low = shuffled_fill([0.01, 0.5], n_trials)
+	)
 
 	FIs = sum_FI_for_feedback_sequence(;
 		task = task,
@@ -208,5 +246,7 @@ end
 # ╠═2b7e29ee-742c-4afd-95b9-602b3e42a6f2
 # ╠═a16f068f-a86d-4d91-990b-bbba4a0da511
 # ╠═bb3917a6-50a3-4b07-ba23-c64e0efe4097
+# ╠═e5395ac6-7525-445d-8e7e-d161c9f74f93
+# ╠═f5b0c228-d73a-4001-b272-b00e6fc2446c
 # ╠═5dbe7bc7-f348-4efa-91f3-17a1261a4e78
 # ╠═2624f499-e554-43dc-ac89-e2adb82780e4
