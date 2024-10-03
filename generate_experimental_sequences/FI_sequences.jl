@@ -14,8 +14,10 @@ begin
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
 	using CairoMakie, Random, DataFrames, Distributions, StatsBase,
-		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf
+		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf, Combinatorics
 	using LogExpFunctions: logistic, logit
+
+	Turing.setprogress!(false)
 
 	include("$(pwd())/PILT_models.jl")
 	include("$(pwd())/sample_utils.jl")
@@ -175,9 +177,6 @@ function sequence_to_task_df(;
 
 end
 
-# ╔═╡ 4ac1daa1-c915-453a-90b8-892863df7cf1
-
-
 # ╔═╡ f5b0c228-d73a-4001-b272-b00e6fc2446c
 function shuffled_fill(
 	values::AbstractVector, # Values to fill vector
@@ -189,6 +188,61 @@ function shuffled_fill(
 	unshuffled_vector = collect(Iterators.take(Iterators.cycle(shuffled_values), n))
 
 	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
+end
+
+# ╔═╡ 1e9e4f9c-6a61-4f0d-a17b-08ba5875616f
+let n_trials = 10,
+	n_confusing = 2,
+	FI_res = 5
+
+	# All possible sequences of confusing feedback
+	sequences = collect(
+		multiset_permutations(
+			vcat(
+				fill(false, n_confusing), 
+				fill(true, n_trials - n_confusing)
+			),
+			n_trials
+		)
+	)
+
+	# Compute FIs
+	FIs = [sum_FI_for_feedback_sequence(;
+			task = sequence_to_task_df(;
+				feedback_common = seq,
+				feedback_magnitude_high = fill(1., n_trials),
+				feedback_magnitude_low = fill(0.01, n_trials)
+			),
+			ρ_vals = range(1., 10., length = FI_res),
+			a_vals = range(-1.5, 1.5, length = FI_res),
+			initV = aao,
+			across_summary_method = median,
+			n_blocks = 200
+		) for seq in sequences]
+
+	# Sort
+	sorted_FIs = sort(FIs)
+	sorted_seq = hcat(sequences[sortperm(FIs)]...) 
+
+	# Plot heatmap
+	f = Figure()
+
+	ax = Axis(
+		f[1,1],
+		xlabel = "Sequence",
+		ylabel = "FI",
+		yticks = 1:2:length(sequences),
+		ytickformat = 
+			values -> ["$(round(sorted_FIs[round(Int64, v)], digits = 2))" 
+				for v in values]
+	)
+
+	hidexdecorations!(ax, label = false)
+
+	heatmap!(ax, sorted_seq)
+	
+	f
+		
 end
 
 # ╔═╡ 5dbe7bc7-f348-4efa-91f3-17a1261a4e78
@@ -211,6 +265,8 @@ let n_trials = 10,
 		initV = aao,
 		across_summary_method = identity
 	)
+
+	println(mean(FIs))
 
 	# Plot
 	f = Figure()
@@ -247,6 +303,6 @@ end
 # ╠═a16f068f-a86d-4d91-990b-bbba4a0da511
 # ╠═bb3917a6-50a3-4b07-ba23-c64e0efe4097
 # ╠═e5395ac6-7525-445d-8e7e-d161c9f74f93
-# ╠═4ac1daa1-c915-453a-90b8-892863df7cf1
 # ╠═f5b0c228-d73a-4001-b272-b00e6fc2446c
+# ╠═1e9e4f9c-6a61-4f0d-a17b-08ba5875616f
 # ╠═5dbe7bc7-f348-4efa-91f3-17a1261a4e78
