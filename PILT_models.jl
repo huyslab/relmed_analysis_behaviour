@@ -171,6 +171,3 @@ Performs a variant of Q-learning for a single participant in a reinforcement lea
 	return Qs
 
 end
-
-# Same mapping function as single_p_QL
-map_data_to_single_p_recip_QL = map_data_to_single_p_QL
