@@ -175,6 +175,9 @@ function sequence_to_task_df(;
 
 end
 
+# ╔═╡ 4ac1daa1-c915-453a-90b8-892863df7cf1
+
+
 # ╔═╡ f5b0c228-d73a-4001-b272-b00e6fc2446c
 function shuffled_fill(
 	values::AbstractVector, # Values to fill vector
@@ -190,15 +193,17 @@ end
 
 # ╔═╡ 5dbe7bc7-f348-4efa-91f3-17a1261a4e78
 # Look at FI across parameter range for one sequence
-FIs = let n_trials = 10,
+let n_trials = 10,
 	FI_res = 10
 
+	# Create task dataframe
 	task = sequence_to_task_df(;
 		feedback_common = shuffled_fill([true, false], n_trials),
 		feedback_magnitude_high = fill(1., n_trials),
 		feedback_magnitude_low = shuffled_fill([0.01, 0.5], n_trials)
 	)
 
+	# Compute FI for each parameter combination
 	FIs = sum_FI_for_feedback_sequence(;
 		task = task,
 		ρ_vals = range(0., 10., length = FI_res),
@@ -207,12 +212,7 @@ FIs = let n_trials = 10,
 		across_summary_method = identity
 	)
 
-	FIs
-
-end
-
-# ╔═╡ 2624f499-e554-43dc-ac89-e2adb82780e4
-let
+	# Plot
 	f = Figure()
 
 	ax = Axis(
@@ -247,6 +247,6 @@ end
 # ╠═a16f068f-a86d-4d91-990b-bbba4a0da511
 # ╠═bb3917a6-50a3-4b07-ba23-c64e0efe4097
 # ╠═e5395ac6-7525-445d-8e7e-d161c9f74f93
+# ╠═4ac1daa1-c915-453a-90b8-892863df7cf1
 # ╠═f5b0c228-d73a-4001-b272-b00e6fc2446c
 # ╠═5dbe7bc7-f348-4efa-91f3-17a1261a4e78
-# ╠═2624f499-e554-43dc-ac89-e2adb82780e4
