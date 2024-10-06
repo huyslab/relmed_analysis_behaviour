@@ -19,9 +19,9 @@ begin
 	
 	Turing.setprogress!(false)
 	
-	include("$(pwd())/simulate.jl")
-	include("$(pwd())/turing_models.jl")
-	include("$(pwd())/plotting_utils.jl")
+	include("$(pwd())/working_memory/simulate.jl")
+	include("$(pwd())/working_memory/RL+RLWM_models.jl")
+	include("$(pwd())/working_memory/plotting_utils.jl")
 
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
@@ -55,6 +55,8 @@ begin
 	    n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = [2, 4, 6]
 	)
 	chce = fill(missing, nrow(random_task))
+	
+	nothing
 end
 
 # ╔═╡ 4dae9630-b32a-4f51-8ef3-d707bf260c5a
@@ -122,12 +124,12 @@ end
 # ╠═╡ disabled = true
 #=╠═╡
 let
-	f_rl = optimization_calibration(
+	f_ql = optimization_calibration(
 		prior_sample_ql,
 		optimize_multiple,
 		estimate = "MAP"
 	)	
-	f_rl
+	f_ql
 end
   ╠═╡ =#
 
@@ -191,12 +193,12 @@ end
 # ╠═╡ disabled = true
 #=╠═╡
 let
-	f_rl = optimization_calibration(
+	f_ql_rec = optimization_calibration(
 		prior_sample_ql_rec,
 		optimize_multiple,
 		estimate = "MAP"
 	)	
-	f_rl
+	f_ql_rec
 end
   ╠═╡ =#
 
@@ -271,8 +273,6 @@ let
 end
 
 # ╔═╡ 2635c4bf-1941-46d8-b20c-de982c610a6b
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	f_rlwm = optimization_calibration(
 		prior_sample_rlwm,
@@ -280,7 +280,6 @@ let
 		estimate = "MAP",
 		model = RLWM_ss,
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, mean(truncated(Normal(2., 2.), lower = 1.))],
-		parameters = [:ρ, :a, :F_wm, :W, :C],
 		transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w0),
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -293,7 +292,6 @@ let
 
 	f_rlwm
 end
-  ╠═╡ =#
 
 # ╔═╡ 85024085-eb50-4698-a7c4-0b51097cac81
 md"
@@ -362,8 +360,6 @@ let
 end
 
 # ╔═╡ 66136216-e21f-4229-b0a5-9186238e7da8
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	f_pmst = optimization_calibration(
 		prior_sample_pmstwm,
@@ -371,7 +367,6 @@ let
 		estimate = "MAP",
 		model = RLWM_pmst,
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, mean(truncated(Normal(4., 2.), lower = 1.))],
-		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w0),
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -383,7 +378,6 @@ let
 
 	f_pmst
 end
-  ╠═╡ =#
 
 # ╔═╡ 810da379-c8f1-4173-9d85-10d1631cfec0
 md"
@@ -452,8 +446,6 @@ let
 end
 
 # ╔═╡ 01555619-dae0-4a7e-95f7-e17c82df8e1a
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	f_pmst = optimization_calibration(
 		prior_sample_pmstsg,
@@ -461,7 +453,6 @@ let
 		estimate = "MAP",
 		model = RLWM_pmst_sgd,
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, mean(truncated(Normal(4., 2.), lower = 1.))],
-		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w0),
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -473,7 +464,6 @@ let
 
 	f_pmst
 end
-  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═52da319e-824e-11ef-18dc-31b1ab4d2e75

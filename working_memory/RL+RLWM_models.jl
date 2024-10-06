@@ -7,6 +7,18 @@ a2α(a) = logistic(π/sqrt(3) * a)
 
 @assert α2a(a2α(0.5)) ≈ 0.5
 
+# Get data into correct format for the model -----------------------------------
+function unpack_data(data::DataFrame)
+    data_tuple = (
+        block = data.block, # length = number of trials
+        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
+        pair = data.pair, # length = number of trials
+        outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
+        set_size = filter(x -> x.trial == 1 && x.pair == 1, data).set_size, # length = number of blocks
+    )
+    return data_tuple
+end
+
 @model function RL_ss(
     data::NamedTuple,
     choice;
