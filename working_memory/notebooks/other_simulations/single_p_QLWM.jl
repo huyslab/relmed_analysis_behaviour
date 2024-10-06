@@ -62,6 +62,8 @@ md"""
 """
 
 # ╔═╡ 9bfdd2b3-7885-42b3-8839-c426dae394a4
+# ╠═╡ disabled = true
+#=╠═╡
 # Sample datasets from prior
 begin
 	prior_samples = let
@@ -139,8 +141,11 @@ begin
 
 	describe(prior_samples)
 end
+  ╠═╡ =#
 
 # ╔═╡ 3ea2b653-a8f7-4e6b-910d-c5e4d284be53
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_samples,
@@ -152,6 +157,7 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ bb8fc03d-f85a-451c-89c4-2303f0cb7fef
 md"
@@ -159,6 +165,8 @@ md"
 "
 
 # ╔═╡ bfe4c9c1-72f0-4999-bbcb-76bdd4f579da
+# ╠═╡ disabled = true
+#=╠═╡
 # Sample datasets from prior
 begin
 	prior_rlwm_samples = let
@@ -244,8 +252,11 @@ begin
 
 	describe(prior_rlwm_samples)
 end
+  ╠═╡ =#
 
 # ╔═╡ 4b628e68-0625-4cff-bfc4-f146f9673d3c
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_rlwm_samples,
@@ -260,6 +271,7 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 91548dc3-0812-4070-9b32-5b5b3bb05eb9
 # Sample datasets from prior
@@ -906,7 +918,7 @@ let
 		optimize_multiple,
 		estimate = "MAP",
 		model = RLWM_pmst,
-		initial = aao,
+		initial = aao, 
 		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, mean(truncated(Normal(4., 2.), lower = 1.))],
 		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w0),

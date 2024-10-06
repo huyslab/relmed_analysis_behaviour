@@ -17,14 +17,9 @@ function task_vars_for_condition(condition::String)
     task.pair .= 1
 
 	# Arrange outcomes such as second column is optimal
-	outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
+	# outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
 
-	return (
-		task = task,
-		block = task.block,
-		valence = unique(task[!, [:block, :valence]]).valence,
-		outcomes = outcomes
-	)
+	return task
 
 end
 
@@ -140,26 +135,21 @@ function create_random_task(;
         pair = Int.(outcomes[:, 3]),
 		valence = valence[block],
 		feedback_optimal = outcomes[:, 2],
-		feedback_suboptimal = outcomes[:, 1]
+		feedback_suboptimal = outcomes[:, 1],
+        set_size = set_sizes_blk[block]
 	)
 
-	return (
-		task = df,
-		block = block,
-        set_sizes = set_sizes_blk,
-        valence = valence,
-		outcomes = outcomes[: , 1:2]
-	)
+	return df
 end
 
 function simulate_from_prior(
     N::Int64; # number of simulated participants or repeats (depending on priors)
     model::Function,
-    initial::Float64, # initial Q-value
     priors::Dict,
+    initial::Union{Float64, Nothing} = nothing,
     transformed::Dict{Symbol, Symbol}, # Transformed parameters
     condition::Union{String, Nothing} = nothing,
-    fixed_struct::Union{NamedTuple, Nothing} = nothing,
+    fixed_struct::Union{DataFrame, Nothing} = nothing,
     structure::NamedTuple = (
         n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2
     ),
@@ -170,37 +160,26 @@ function simulate_from_prior(
     # Load sequence from file or generate random task
     if !isnothing(condition)
         task_strct = task_vars_for_condition(condition)
-        n_trials = div(length(task_strct.block), maximum(task_strct.block))
-        if length(task_strct.block) % maximum(task_strct.block) != 0
-            n_trials += 1
-        end
-        set_sizes = set_size_per_block(
+        task_strct.set_size = set_size_per_block(
             set_sizes = structure.set_sizes,
             n_blocks = maximum(task_strct.block)
-        )
+        )[task_strct.block]
     elseif !isnothing(fixed_struct)
         task_strct = fixed_struct
-        n_trials = maximum(task_strct.task.trial)
-        set_sizes = task_strct.set_sizes
     else
         task_strct = create_random_task(;
             structure...
         )
-        n_trials = structure.n_trials
-        set_sizes = task_strct.set_sizes
     end
 
     # define model
+    chce = fill(missing, nrow(task_strct))
+    data_to_fit = unpack_data(task_strct)
     prior_model = model(
-        block = task_strct.block,
-        valence = task_strct.valence,
-        pair = task_strct.task.pair,
-        choice = fill(missing, length(task_strct.block)),
-        outcomes = task_strct.outcomes,
-        set_size = set_sizes,
-        initV = fill(initial, 1, maximum(set_sizes)),
-        parameters = collect(keys(priors)),
-        priors = priors
+        data_to_fit,
+        chce;
+        priors = priors,
+        initial = initial
     )
 
     # Draw parameters and simulate choice
@@ -211,16 +190,16 @@ function simulate_from_prior(
         N
     )
 
-    nT = length(task_strct.block)
+    nT = length(data_to_fit.block)
 
     # Arrange choice for return
     sim_data = DataFrame(
         PID = repeat(1:N, inner = nT),
         block = repeat(task_strct.block, N),
-        valence = repeat(task_strct.task.valence, N),
-        trial = repeat(task_strct.task.trial, N),
-        pair = repeat(task_strct.task.pair, N),
-        set_size = repeat(set_sizes[task_strct.block], N),
+        valence = repeat(task_strct.valence, N),
+        trial = repeat(task_strct.trial, N),
+        pair = repeat(task_strct.pair, N),
+        set_size = repeat(task_strct.set_size, N),
     )
 
     for p in collect(keys(priors))
@@ -234,7 +213,7 @@ function simulate_from_prior(
     end
 
     sim_data = leftjoin(sim_data, 
-        task_strct.task[!, [:block, :trial, :pair, :feedback_optimal, :feedback_suboptimal]],
+        task_strct[!, [:block, :trial, :pair, :feedback_optimal, :feedback_suboptimal]],
         on = [:block, :trial, :pair]
     )
 
@@ -251,10 +230,12 @@ function simulate_from_prior(
         choices = [pt.choice for pt in gq] |> vec
         sim_data.choice = vcat([ch for ch in choices]...)
 
+        # loglik = [pt.loglike for pt in gq] |> vec
+
         sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
         sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
 
-        if model == RLWM_ss || model == RLWM_pmst
+        if haskey(priors, :C)
             Ws = [pt.Ws for pt in gq] |> vec
             sim_data.W_optimal = vcat([ws[:, 2] for ws in Ws]...)
             sim_data.W_suboptimal = vcat([ws[:, 1] for ws in Ws]...)
@@ -420,7 +401,7 @@ end
 # Find MLE / MAP for DataFrame with data for single participant
 function optimize_ss(
 	data::AbstractDataFrame;
-    initV::Float64, # initial Q-value
+    initial::Union{Float64, Nothing} = nothing,
     model::Function = RL_ss,
 	estimate::String = "MAP",
     initial_params::Union{AbstractVector, Nothing} = nothing,
@@ -431,20 +412,12 @@ function optimize_ss(
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
     parameters::Vector{Symbol} = collect(keys(priors))
 )
-    set_size_blk = filter(x -> x.trial == 1, data).set_size
-	res = model(;
-		block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
-        pair = data.pair,
-		choice = data.choice,
-		outcomes = hcat(
-			data.feedback_suboptimal,
-			data.feedback_optimal,
-		),
-		set_size = set_size_blk,
-        initV = fill(initV, 1, maximum(set_size_blk)),
-        parameters = parameters,
-        priors = priors
+	data_for_fit = unpack_data(data)
+    res = model(
+        data_for_fit,
+        data.choice;
+        priors = priors,
+        initial = initial
     )
 
 	if estimate == "MLE"
@@ -468,19 +441,11 @@ function optimize_ss(
         end
     end
     
-    gq_mod = model(;
-        block = data.block,
-		valence = unique(data[!, [:block, :valence]]).valence,
-        pair = data.pair,
-		choice = fill(missing, length(data.block)),
-		outcomes = hcat(
-			data.feedback_suboptimal,
-			data.feedback_optimal,
-		),
-		set_size = set_size_blk,
-        initV = fill(initV, 1, maximum(set_size_blk)),
-        parameters = collect(keys(priors_fitted)),
-        priors = priors_fitted
+    gq_mod = model(
+        data_for_fit,
+        fill(missing, length(data.block));
+        priors = priors_fitted,
+        initial = initial
     )
 
     # Draw parameters and simulate choice
@@ -499,7 +464,7 @@ end
 # Find MLE / MAP multiple times
 function optimize_multiple(
 	data::AbstractDataFrame;
-    initV::Float64, # initial Q-value
+    initial::Union{Float64, Nothing} = nothing,
     model::Function = RL_ss,
     estimate::String = "MAP",
 	include_true::Bool = true, # Whether to return true value if this is simulation
@@ -523,7 +488,7 @@ function optimize_multiple(
 		# Optimize
 		est, bic, choices = optimize_ss(
 			gdf;
-			initV = initV,
+			initial = initial,
             model = model,
 			estimate = estimate,
 			initial_params = initial_params,

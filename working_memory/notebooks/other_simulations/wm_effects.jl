@@ -21,7 +21,7 @@ begin
 	include("$(pwd())/fetch_preprocess_data.jl")
 	include("$(pwd())/simulate.jl")
 	include("$(pwd())/turing_models.jl")
-	include("$(pwd())/plotting.jl")
+	include("$(pwd())/plotting_utils.jl")
 end
 
 # ╔═╡ 8c71424c-42ee-4cea-a397-b830dcc97db5

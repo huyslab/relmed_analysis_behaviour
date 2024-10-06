@@ -1033,7 +1033,7 @@ end
 function optimization_calibration(
 	prior_sample::DataFrame,
 	optimize_func::Function;
-	initial::Float64, # initial Q-value
+	initial::Union{Nothing, Float64} = nothing, # initial Q-value
 	estimate::String = "MLE",
     model::Function = RL_ss,
 	initial_params::Union{AbstractVector,Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
@@ -1042,13 +1042,12 @@ function optimization_calibration(
 		:ρ => truncated(Normal(0., 2.), lower = 0.),
 		:a => Normal(0., 1.)
 	),
-	parameters::Vector{Symbol} = collect(keys(priors)),
 	ms::Float64 = 4.
 )
-
+    parameters = collect(keys(priors))
 	MLEs = optimize_func(
 		prior_sample;
-		initV = initial,
+		initial = initial,
 		model = model,
 		estimate = estimate,
         include_true = true,
