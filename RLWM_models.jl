@@ -143,7 +143,6 @@ end
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
-        :F_wm => Normal(0., 0.5),
         :W => Normal(0., 0.5),
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
