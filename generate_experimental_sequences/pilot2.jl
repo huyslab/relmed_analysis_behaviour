@@ -11,7 +11,7 @@ begin
     # activate the shared project environment
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
-    Pkg.instantiate
+    Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, CairoMakie
 end
 
@@ -564,6 +564,32 @@ task = let set_sizes = 1:3,
 
 end
 
+# ╔═╡ 0161bed8-5a4d-4a0e-bda0-883b9d58fa63
+# Test task sequence
+let
+
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert issorted(task.block) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	@assert all(combine(groupby(task, :cpair),
+		:appearance => maximum => :max_appear
+	).max_appear .== 10) "Didn't find exactly 10 apperances per pair"
+	
+
+end
+
 # ╔═╡ 08366330-e5da-4f12-85c5-fc780c4a98a2
 # Visualize PILT seuqnce
 let
@@ -603,6 +629,8 @@ let
 		.!task.feedback_common
 	)
 
+	save("results/pilot2_trial_plan.png", f, pt_per_unit = 1)
+
 	f
 
 end
@@ -614,7 +642,7 @@ filter(x -> x.valence == -1, task).worse_feedback |> countmap
 # ╔═╡ 723476b8-8df9-417c-b941-a6af097656c9
 # Create sequence of post-PILT test
 test_pairs = let n_blocks = 2,
-	random_seed = 3
+	random_seed = 4
 
 	# Set random seed
 	rng = Xoshiro(random_seed)
@@ -623,10 +651,12 @@ test_pairs = let n_blocks = 2,
 	test_pairs_wide = DataFrame()
 	prop_same_original = 0.
 	prop_same_valence = 1.
+	all_different_category = false
 
 	# Make sure with have exactly 1/3 pairs that were previously in same block
 	# and 1/2 that were of the same valence
-	while !(prop_same_original == 1/3) || !(prop_same_valence == 0.5)
+	while !(prop_same_original == 1/3) || !(prop_same_valence == 0.5) || 
+		!all_different_category
 		
 		# Extract list of stimuli from PILT task sequence
 		stimuli = vcat([rename(
@@ -744,23 +774,30 @@ test_pairs = let n_blocks = 2,
 		)
 
 		# Compute EV difference and match in block and valence
+		sort!(test_pairs, [:session, :block, :cpair, :stimulus])
+		
 		test_pairs_wide = combine(
-			groupby(test_pairs, [:block, :cpair]),
+			groupby(test_pairs, [:session, :block, :cpair]),
 			:stimulus => maximum => :stimulus_A,
 			:stimulus => minimum => :stimulus_B,
 			:EV => diff => :EV_diff,
 			:EV => (x -> sign(x[1]) == sign(x[2])) => :same_valence,
 			:original_block => (x -> x[1] == x[2]) => :same_block
 		)
-		
+
+		# Compute conditions for accepting this shuffle
 		prop_same_original = mean(test_pairs_wide.same_block)
 	
 		prop_same_valence = mean(test_pairs_wide.same_valence)
+
+		all_different_category = 
+			all((x -> x.stimulus_A[1:(end-5)] != x.stimulus_B[1:(end-5)]).(eachrow(test_pairs_wide)))
 
 end
 
 	@info "Proportion of pairs that were in the same original block: $prop_same_original"
 	@info "Proprotion of pairs with the same valence: $prop_same_valence"
+	@info "All pairs are from different visual categories: $all_different_category"
 
 	# Assign right / left stimulus randomly
 	A_on_right = sample(rng, [true, false], nrow(test_pairs_wide))
@@ -777,9 +814,16 @@ end
 		test_pairs_wide.stimulus_B
 	)
 
+	# Resign EV_diff to be right - left
+	test_pairs_wide.EV_diff = ifelse.(
+		A_on_right,
+		test_pairs_wide.EV_diff,
+		.- test_pairs_wide.EV_diff
+	)
+
 	# Save to file
-	save_to_JSON(task, "results/pilot2_test.json")
-	CSV.write("results/pilot2_test.csv", task)
+	save_to_JSON(test_pairs_wide, "results/pilot2_test.json")
+	CSV.write("results/pilot2_test.csv", test_pairs_wide)
 	
 	test_pairs_wide
 end
@@ -821,18 +865,25 @@ let
 		abs.(test_pairs.EV_diff)
 	)
 
+	save("results/pilot2_test_trial_plan.png", f, pt_per_unit = 1)
+
 
 	f
 	
 end
 
+# ╔═╡ ad3d8369-9455-44b0-9e6b-9ab3364dbce0
+test_pairs
+
 # ╔═╡ Cell order:
 # ╠═784d74ba-21c7-454e-916e-2c54ed0e6911
 # ╠═2c31faf8-8b32-4709-ba3a-43ee9376a3c4
+# ╠═0161bed8-5a4d-4a0e-bda0-883b9d58fa63
 # ╠═08366330-e5da-4f12-85c5-fc780c4a98a2
 # ╠═b176448a-74a5-4304-b2a2-95bd9298afb5
 # ╠═95143c27-80b7-42c1-a065-723d405c3c4d
 # ╠═723476b8-8df9-417c-b941-a6af097656c9
+# ╠═ad3d8369-9455-44b0-9e6b-9ab3364dbce0
 # ╠═87b8c113-cc45-4fb7-b6b6-056afbdb246b
 # ╠═dea0a1fd-7ec3-4004-af9e-3f3155f19ec0
 # ╠═1b3aca46-c259-43f7-8b06-9ffc63e36228
