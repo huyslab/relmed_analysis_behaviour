@@ -629,6 +629,8 @@ let
 		.!task.feedback_common
 	)
 
+	save("results/pilot2_trial_plan.png", f, pt_per_unit = 1)
+
 	f
 
 end
@@ -862,6 +864,8 @@ let
 		block_group + rand(nrow(test_pairs)) * 0.25,
 		abs.(test_pairs.EV_diff)
 	)
+
+	save("results/pilot2_test_trial_plan.png", f, pt_per_unit = 1)
 
 
 	f
