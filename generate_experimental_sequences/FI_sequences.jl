@@ -191,27 +191,6 @@ function shuffled_fill(
 	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
 end
 
-# ╔═╡ cb26d70f-1d42-4ff5-9803-46af4e48127a
-# compute_save_FIs_for_all_seqs(;
-# 	n_trials = 10,
-# 	n_confusing = 2,
-# 	fifty_high = false
-# )
-
-# ╔═╡ e21e131f-75fd-4d4a-9d84-e06a124783c9
-# compute_save_FIs_for_all_seqs(;
-# 	n_trials = 10,
-# 	n_confusing = 2,
-# 	fifty_high = true
-# )
-
-# ╔═╡ 15ff66ec-ade9-4e94-be2f-643e0c50cdeb
-# compute_save_FIs_for_all_seqs(;
-# 	n_trials = 10,
-# 	n_confusing = 1,
-# 	fifty_high = false
-# )
-
 # ╔═╡ 753d4d21-1346-42ed-860a-b04019fa0e74
 function optimize_FI_distribution(;
 	n_wanted::Vector{Int64}, # How many sequences wanted of each category
@@ -220,6 +199,12 @@ function optimize_FI_distribution(;
 	magn_seqs::Vector{Vector{Vector{Float64}}}, # Sequences of feedback magnitude in each category
 	ω_FI::Float64 # Weight of FI vs uniform distributions.
 )
+
+	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 1:2:length(FIs)]) "Assuming inputs are arranged in pairs matching in sizes. Common sequences will be constrained to be only chosen once across pairs"
+
+	@assert all([size(FIs[s], 1) == length(common_seqs[s]) for s in eachindex(FIs)]) "FIs and common_seqs not matching in size"
+
+	@assert all([size(FIs[s], 2) == length(magn_seqs[s]) for s in eachindex(FIs)]) "FIs and magn_seqs not matching in size"
 	
 	# Number of available sequences per dimension, category
 	n_common_seqs = [length(cmn) for cmn in common_seqs]
@@ -243,7 +228,7 @@ function optimize_FI_distribution(;
 
 	# # Decision variables: x[v] is 1 if vector v is selected, 0 otherwise
 	xs = [@variable(model, [1:c, 1:m], Bin) 
-		for c in n_common_seqs for m in n_magn_seqs]
+		for (c,m) in zip(n_common_seqs, n_magn_seqs)]
 
 	# Mean vector variables: mu_common[i] is the proportion of common feedback of selected vectors at position i
 	@variable(model, mu_common[i = 1:n_trials])
@@ -256,17 +241,19 @@ function optimize_FI_distribution(;
 	for s in eachindex(xs)
 		@constraint(model, sum(xs[s]) == n_wanted[s])
 
-	# Each row (sequence) is selected exactly once across all columns
-	for i in 1:n_common_seqs[s]
-	    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) <= 1)  # Each row selected at most once
-	end
-	
-	# Each column (magnitude) is selected exactly once across all rows
-	for j in 1:n_magn_seqs[s]
-	    @constraint(model, sum(xs[s][i,j] for i in 1:n_common_seqs[s]) <= 1)  # Each column selected at most once
-	end
+		if isodd(s) # Make sure no common sequence is chosen twice across variations of magnitude
+			# Each row (sequence) is selected exactly once across all columns
+			for i in 1:n_common_seqs[s]
+			    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) + sum(xs[s+1][i,j] for j in 1:n_magn_seqs[s+1]) <= 1)  # Each row selected at most once
+			end
+		end
+			
+		# Each column (magnitude) is selected exactly once across all rows
+		for j in 1:n_magn_seqs[s]
+			@constraint(model, sum(xs[s][i,j] for i in 1:n_common_seqs[s]) <= 1)  # Each column selected at most once
+		end
 		
-end
+	end
 
 	# # Constraints to calculate the mean vector
 	for i in 1:n_trials
@@ -433,21 +420,46 @@ function compute_save_FIs_for_all_seqs(;
 	return FIs, common_seqs, magn_seq
 end
 
+# ╔═╡ cb26d70f-1d42-4ff5-9803-46af4e48127a
+compute_save_FIs_for_all_seqs(;
+	n_trials = 10,
+	n_confusing = 2,
+	fifty_high = false
+)
+
+# ╔═╡ e21e131f-75fd-4d4a-9d84-e06a124783c9
+compute_save_FIs_for_all_seqs(;
+	n_trials = 10,
+	n_confusing = 2,
+	fifty_high = true
+)
+
+# ╔═╡ 15ff66ec-ade9-4e94-be2f-643e0c50cdeb
+compute_save_FIs_for_all_seqs(;
+	n_trials = 10,
+	n_confusing = 1,
+	fifty_high = false
+)
+
 # ╔═╡ b76a5feb-e86d-46fb-8c92-8dc662248f6b
 let
-	FIs, common_seqs, magn_seqs = compute_save_FIs_for_all_seqs(;
+	FI_seqs = [compute_save_FIs_for_all_seqs(;
 		n_trials = 10,
-		n_confusing = 1,
-		fifty_high = true
-	)
+		n_confusing = nc,
+		fifty_high = fh
+	) for nc in [1, 2] for fh in [true, false]]
 
-	size(FIs), size(common_seqs), size(magn_seqs)
+	FIs = [x[1] for x in FI_seqs]
+
+	common_seqs = [x[2] for x in FI_seqs]
+
+	magn_seqs = [x[3] for x in FI_seqs]
 
 	optimize_FI_distribution(
-		n_wanted = [5],
-		FIs = [FIs],
-		common_seqs = [common_seqs],
-		magn_seqs = [magn_seqs],
+		n_wanted = [1, 1, 16, 17],
+		FIs = FIs,
+		common_seqs = common_seqs,
+		magn_seqs = magn_seqs,
 		ω_FI = 0.35
 	)
 end
