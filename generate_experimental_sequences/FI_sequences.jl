@@ -14,7 +14,7 @@ begin
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
 	using CairoMakie, Random, DataFrames, Distributions, StatsBase,
-		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf, Combinatorics
+		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf, Combinatorics, JuMP, HiGHS
 	using LogExpFunctions: logistic, logit
 
 	Turing.setprogress!(false)
@@ -154,6 +154,7 @@ function sequence_to_task_df(;
 	# Check inputs
 	@assert length(feedback_common) == length(feedback_magnitude_high)
 	@assert length(feedback_magnitude_low) == length(feedback_magnitude_high)
+	@assert sum(feedback_magnitude_high) > sum(feedback_magnitude_low)
 
 	n_trials = length(feedback_common)
 
@@ -190,10 +191,271 @@ function shuffled_fill(
 	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
 end
 
+# ╔═╡ cb26d70f-1d42-4ff5-9803-46af4e48127a
+# compute_save_FIs_for_all_seqs(;
+# 	n_trials = 10,
+# 	n_confusing = 2,
+# 	fifty_high = false
+# )
+
+# ╔═╡ e21e131f-75fd-4d4a-9d84-e06a124783c9
+# compute_save_FIs_for_all_seqs(;
+# 	n_trials = 10,
+# 	n_confusing = 2,
+# 	fifty_high = true
+# )
+
+# ╔═╡ 15ff66ec-ade9-4e94-be2f-643e0c50cdeb
+# compute_save_FIs_for_all_seqs(;
+# 	n_trials = 10,
+# 	n_confusing = 1,
+# 	fifty_high = false
+# )
+
+# ╔═╡ 753d4d21-1346-42ed-860a-b04019fa0e74
+function optimize_FI_distribution(;
+	n_wanted::Vector{Int64}, # How many sequences wanted of each category
+	FIs::Vector{Matrix{Float64}}, # Fisher information for all the sequences in each category
+	common_seqs::Vector{Vector{Vector{Bool}}}, # Sequences of common feedback position in each category
+	magn_seqs::Vector{Vector{Vector{Float64}}}, # Sequences of feedback magnitude in each category
+	ω_FI::Float64 # Weight of FI vs uniform distributions.
+)
+	
+	# Number of available sequences per dimension, category
+	n_common_seqs = [length(cmn) for cmn in common_seqs]
+	n_magn_seqs = [length(magn) for magn in magn_seqs]
+	n_cats = length(FIs)
+
+	# Number of trials in block
+	n_trials = length(common_seqs[1][1])
+
+	# Proportion of common feedback trials
+	common_prop = mean(vcat(common_seqs...))
+
+	# Maximum magnitude for normalizing
+	magn_max = maximum(vcat(vcat(magn_seqs...)...))
+
+	# Average magnitude
+	magn_avg = mean(vcat(magn_seqs...)) ./ magn_max
+
+	# # # Create the optimization model
+	model = Model(HiGHS.Optimizer)
+
+	# # Decision variables: x[v] is 1 if vector v is selected, 0 otherwise
+	xs = [@variable(model, [1:c, 1:m], Bin) 
+		for c in n_common_seqs for m in n_magn_seqs]
+
+	# Mean vector variables: mu_common[i] is the proportion of common feedback of selected vectors at position i
+	@variable(model, mu_common[i = 1:n_trials])
+
+	# Mean vector variables: mu_magn[i] is the mean magnitude of selected vectors at position i
+	@variable(model, mu_magn[i = 1:n_trials])
+
+
+	# Constraint: Exactly n_wanted vectors should be selected
+	for s in eachindex(xs)
+		@constraint(model, sum(xs[s]) == n_wanted[s])
+
+	# Each row (sequence) is selected exactly once across all columns
+	for i in 1:n_common_seqs[s]
+	    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) <= 1)  # Each row selected at most once
+	end
+	
+	# Each column (magnitude) is selected exactly once across all rows
+	for j in 1:n_magn_seqs[s]
+	    @constraint(model, sum(xs[s][i,j] for i in 1:n_common_seqs[s]) <= 1)  # Each column selected at most once
+	end
+		
+end
+
+	# # Constraints to calculate the mean vector
+	for i in 1:n_trials
+
+		# Compute average common feedback
+		@constraint(
+			model, 
+			mu_common[i] == sum([common_seqs[s][v][i] * xs[s][v] for s in eachindex(xs) for v in 1:n_common_seqs[s]]) / sum(n_wanted)
+		)
+
+		# Compute average magnitude
+		@constraint(
+			model, 
+			mu_magn[i] == sum([magn_seqs[s][v][i] * xs[s][v] for s in eachindex(xs) for v in 1:n_magn_seqs[s]]) / (sum(n_wanted) + magn_max)
+		)
+	end
+
+	# Auxiliary variables for absolute deviations
+	@variable(model, common_abs_dev[1:n_trials])
+	@variable(model, magn_abs_dev[1:n_trials])
+
+	# Constraints for absolute deviations
+	for i in 1:n_trials
+
+		# Proportion of common feedback
+		@constraint(model, common_abs_dev[i] >= mu_common[i] - common_prop[i])
+		@constraint(model, common_abs_dev[i] >= common_prop[i] - mu_common[i])
+
+		# Average magnitude
+		@constraint(model, magn_abs_dev[i] >= (mu_magn[i] - magn_avg[i]))
+		@constraint(model, magn_abs_dev[i] >= (magn_avg[i] - mu_magn[i]))
+
+	end
+
+
+	# Objective: Maximize the total score and minimize the mean vector deviation
+	@objective(
+		model, 
+		Max, 
+		ω_FI * sum(sum(FIs[s][i,j] * xs[s][i,j] for i in 1:n_common_seqs[s] 
+			for j in 1:n_magn_seqs[s]) for s in 1:n_cats)  -
+		((1 - ω_FI) * (mean(common_abs_dev[i] for i in 1:n_trials) + mean(magn_abs_dev[i] for i in 1:n_trials)) / 2)
+	)
+
+	# Solve the optimization problem
+	set_silent(model)
+	optimize!(model)
+
+	# Check the status of the solution
+	status = termination_status(model)
+	if status == MOI.OPTIMAL
+		@info "Optimal solution found"
+	elseif status == MOI.INFEASIBLE_OR_UNBOUNDED
+		@info "Problem infeasible or unbounded"
+	else
+		@info "Solver terminated with status: $status"
+	end
+
+	# Retrieve the solution
+	selected_idx = [[(i,j) for i in 1:n_common_seqs[s] 
+			for j in 1:n_magn_seqs[s] if value(xs[s][i,j]) > 0.5] for s in 1:n_cats]
+
+	return selected_idx
+end
+
+# ╔═╡ 2fc7e7bc-8940-4f98-9225-9535b878bd76
+function zscore_avg_matrices(matrices::Array{Matrix{Float64}})
+	
+    # Ensure all matrices are of the same size
+    m, n = size(matrices[1])
+    for mat in matrices
+        @assert size(mat) == (m, n) "All matrices must be of the same dimensions"
+    end
+
+    # Initialize arrays for means and standard deviations
+    mean_vals = zeros(m, n)
+    std_vals = zeros(m, n)
+	
+    # Calculate means and standard deviations across matrices by position
+    for i in 1:m, j in 1:n
+        values = [mat[i, j] for mat in matrices]
+        mean_vals[i, j] = mean(values)
+        std_vals[i, j] = std(values, corrected=true)
+    end
+
+    # Z-score each element in each matrix
+    zscored_matrices = [ (mat .- mean_vals) ./ std_vals for mat in matrices ]
+	
+	# # Average each matrix
+	avg_mat = [mean(m) for m in zscored_matrices]
+
+end
+
+# ╔═╡ 269bf7ae-5a00-40fd-afc0-b45c92c43597
+function compute_save_FIs_for_all_seqs(;
+	n_trials::Int64,
+	n_confusing::Int64,
+	fifty_high::Bool,
+	FI_res::Int64 = 6
+)
+
+	filename = "saved_models/FI/FIs_$(n_trials)_$(n_confusing)_$(fifty_high).jld2"
+
+	if !isfile(filename)
+		# All possible sequences of confusing feedback
+		common_seqs = collect(
+			multiset_permutations(
+				vcat(
+					fill(false, n_confusing), 
+					fill(true, n_trials - n_confusing)
+				),
+				n_trials
+			)
+		)
+
+		# All possible sequences of magnitude
+		magn_seq = collect(
+			multiset_permutations(
+				vcat(
+					fill(.5, div(n_trials, 2)), 
+					fill(fifty_high ? 1. : 0.01, div(n_trials, 2))
+				),
+				n_trials
+			)
+		)
+
+		# Compute FIs ---------------
+
+		# Preallocate
+		lk = ReentrantLock()
+		FIs = fill(fill(-99., FI_res, FI_res), length(common_seqs), length(magn_seq))
+
+		# Compute in parallel
+		Threads.@threads for i in eachindex(common_seqs)
+			for (j, magn) in enumerate(magn_seq)
+				thisFI = sum_FI_for_feedback_sequence(;
+						task = sequence_to_task_df(;
+							feedback_common = common_seqs[i],
+							feedback_magnitude_high = fifty_high ? magn : fill(1., n_trials),
+							feedback_magnitude_low = fifty_high ? fill(0.01, n_trials) : magn
+						),
+						ρ_vals = range(1., 10., length = FI_res),
+						a_vals = range(-1.5, 1.5, length = FI_res),
+						initV = aao,
+						across_summary_method = identity,
+						n_blocks = 200
+					) 
+
+				lock(lk) do
+					FIs[i,j] = thisFI
+				end
+			end
+		end
+
+		FIs = zscore_avg_matrices(FIs)
+
+		# Save
+		JLD2.@save filename FIs common_seqs magn_seq
+
+	else
+		JLD2.@load filename FIs common_seqs magn_seq
+	end
+
+	return FIs, common_seqs, magn_seq
+end
+
+# ╔═╡ b76a5feb-e86d-46fb-8c92-8dc662248f6b
+let
+	FIs, common_seqs, magn_seqs = compute_save_FIs_for_all_seqs(;
+		n_trials = 10,
+		n_confusing = 1,
+		fifty_high = true
+	)
+
+	size(FIs), size(common_seqs), size(magn_seqs)
+
+	optimize_FI_distribution(
+		n_wanted = [5],
+		FIs = [FIs],
+		common_seqs = [common_seqs],
+		magn_seqs = [magn_seqs],
+		ω_FI = 0.35
+	)
+end
+
 # ╔═╡ 1e9e4f9c-6a61-4f0d-a17b-08ba5875616f
 let n_trials = 10,
 	n_confusing = 2,
-	FI_res = 5
+	FI_res = 6
 
 	# All possible sequences of confusing feedback
 	sequences = collect(
@@ -206,19 +468,31 @@ let n_trials = 10,
 		)
 	)
 
-	# Compute FIs
-	FIs = [sum_FI_for_feedback_sequence(;
-			task = sequence_to_task_df(;
-				feedback_common = seq,
-				feedback_magnitude_high = fill(1., n_trials),
-				feedback_magnitude_low = fill(0.01, n_trials)
-			),
-			ρ_vals = range(1., 10., length = FI_res),
-			a_vals = range(-1.5, 1.5, length = FI_res),
-			initV = aao,
-			across_summary_method = median,
-			n_blocks = 200
-		) for seq in sequences]
+	# Compute FIs ---------------
+	lk = ReentrantLock()
+	FIs = fill(fill(-99., FI_res, FI_res), length(sequences))
+	
+	# Preallocate
+	Threads.@threads for i in eachindex(sequences)
+		thisFI = sum_FI_for_feedback_sequence(;
+				task = sequence_to_task_df(;
+					feedback_common = sequences[i],
+					feedback_magnitude_high = fill(1., n_trials),
+					feedback_magnitude_low = fill(0.01, n_trials)
+				),
+				ρ_vals = range(1., 10., length = FI_res),
+				a_vals = range(-1.5, 1.5, length = FI_res),
+				initV = aao,
+				across_summary_method = identity,
+				n_blocks = 200
+			)
+
+		lock(lk) do
+			FIs[i] = thisFI
+		end
+	end
+
+	FIs = zscore_avg_matrices(FIs)
 
 	# Sort
 	sorted_FIs = sort(FIs)
@@ -244,6 +518,9 @@ let n_trials = 10,
 	f
 		
 end
+
+# ╔═╡ 6d9999c8-5ca5-4bee-986f-09d6b96fd1f6
+binomial(10, 5) * 10 / 60
 
 # ╔═╡ 5dbe7bc7-f348-4efa-91f3-17a1261a4e78
 # Look at FI across parameter range for one sequence
@@ -304,5 +581,13 @@ end
 # ╠═bb3917a6-50a3-4b07-ba23-c64e0efe4097
 # ╠═e5395ac6-7525-445d-8e7e-d161c9f74f93
 # ╠═f5b0c228-d73a-4001-b272-b00e6fc2446c
+# ╠═cb26d70f-1d42-4ff5-9803-46af4e48127a
+# ╠═e21e131f-75fd-4d4a-9d84-e06a124783c9
+# ╠═15ff66ec-ade9-4e94-be2f-643e0c50cdeb
+# ╠═b76a5feb-e86d-46fb-8c92-8dc662248f6b
+# ╠═753d4d21-1346-42ed-860a-b04019fa0e74
+# ╠═269bf7ae-5a00-40fd-afc0-b45c92c43597
+# ╠═2fc7e7bc-8940-4f98-9225-9535b878bd76
 # ╠═1e9e4f9c-6a61-4f0d-a17b-08ba5875616f
+# ╠═6d9999c8-5ca5-4bee-986f-09d6b96fd1f6
 # ╠═5dbe7bc7-f348-4efa-91f3-17a1261a4e78
