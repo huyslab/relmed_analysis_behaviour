@@ -9,12 +9,14 @@ a2α(a) = logistic(π/sqrt(3) * a)
 
 # Get data into correct format for the model -----------------------------------
 function unpack_data(data::DataFrame)
+    # sort by block and trial
+    sort!(data, [:block, :trial])
     data_tuple = (
         block = data.block, # length = number of trials
         valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
         pair = data.pair, # length = number of trials
         outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
-        set_size = filter(x -> x.trial == 1 && x.pair == 1, data).set_size, # length = number of blocks
+        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
     )
     return data_tuple
 end
@@ -186,17 +188,16 @@ end
     Ws = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
 
     # Initial values
-    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
-    Wv = copy(Ws[:, 1:2])
+    Q, Wv = copy(Qs[:, 1:2]), Wv = copy(Ws[:, 1:2])
 
     # Initial set-size
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
 
     # Initialize circular buffers and running sums for outcomes
-    buffer_size = floor(Int, convert(Float64, C))
-    buffers = [zeros(Float64, ssz) for _ in 1:buffer_size]
-    buffer_sums = zeros(Float64, ssz)
+    buffer_size = floor(Int, C)
+    buffers = [Vector{Any}(nothing, ssz) for _ in 1:buffer_size]
+    buffer_sums = Vector{Any}(nothing, ssz)
     buffer_counts = zeros(Int, ssz)
     buffer_indicies = ones(Int, ssz)
     outc_no = ones(Int, ssz)
@@ -236,7 +237,10 @@ end
             ## Update circular buffer and running sum for the chosen option
             # 1. remove outcome C outcomes (for that choice) back from buffer
             buffer_upd_idx = buffer_indicies[choice_idx]
-            buffer_sums[choice_idx] -= buffers[buffer_upd_idx][choice_idx]
+            buffer_sums[choice_idx] = (
+                (buffer_sums[choice_idx] === nothing ? 0 : buffer_sums[choice_idx]) - 
+                (buffers[buffer_upd_idx][choice_idx] === nothing ? 0 : buffers[buffer_upd_idx][choice_idx])
+            )
             # 2. store the new outcome, and update the counts and sum of the chosen option
             buffers[buffer_upd_idx][choice_idx] = data.outcomes[i, choice_1id] * ρ # store the new outcome
             buffer_sums[choice_idx] += data.outcomes[i, choice_1id] * ρ # update the running sum of the chosen option
@@ -313,7 +317,9 @@ end
     ## Initialisation ----------------------------------------------------------
     # sigmoid transformation using C
     k = 5 # sharpness of the sigmoid
-    nT = sum(data.block .== 1)
+    g = DataFrame("block" => data.block, "pair" => data.pair)
+	grouped_data = groupby(g, :block)
+    nT = maximum([maximum(values(countmap(gd.pair))) for gd in grouped_data])
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k)) |> reverse
 
     # Initialize Q and W values
@@ -321,15 +327,14 @@ end
     Ws = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
 
     # Initial values
-    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
-    Wv = copy(Ws[:, 1:2])
+    Q, Wv = copy(Qs[:, 1:2]), copy(Ws[:, 1:2])
 
     # Initial set-size
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
 
     # Initialize outcome buffers
-    outc_mat = zeros(Float64, nT, ssz)
+    outc_mat = Matrix{Any}(undef, nT, ssz)
     outc_nos = zeros(Int, ssz)
     outc_num = 0
 
@@ -378,7 +383,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
             # Reset buffers at the start of a new block
-            outc_mat = zeros(Float64, nT, ssz)
+            outc_mat = Matrix{Any}(undef, nT, ssz)
             outc_nos = zeros(Int, ssz)
             outc_num = 0
         end
