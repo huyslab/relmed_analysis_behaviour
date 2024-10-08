@@ -234,7 +234,7 @@ function optimize_FI_distribution(;
 	filename::String # Filename to save results
 )
 
-	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 1:2:length(FIs)]) "Assuming inputs are arranged in pairs matching in sizes. Common sequences will be constrained to be only chosen once across pairs"
+	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 2:2:length(FIs)]) "Assuming inputs are arranged in pairs matching in sizes, except first stimulus. Common sequences will be constrained to be only chosen once across pairs"
 
 	@assert all([size(FIs[s], 1) == length(common_seqs[s]) for s in eachindex(FIs)]) "FIs and common_seqs not matching in size"
 
@@ -282,7 +282,7 @@ function optimize_FI_distribution(;
 		for s in eachindex(xs)
 			@constraint(model, sum(xs[s]) == n_wanted[s])
 	
-			if isodd(s) # Make sure no common sequence is chosen twice across variations of magnitude
+			if iseven(s) # Make sure no common sequence is chosen twice across variations of magnitude
 				# Each row (sequence) is selected exactly once across all columns
 				for i in 1:n_common_seqs[s]
 				    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) + sum(xs[s+1][i,j] for j in 1:n_magn_seqs[s+1]) <= 1)  # Each row selected at most once
