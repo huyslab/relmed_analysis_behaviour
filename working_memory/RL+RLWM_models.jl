@@ -433,7 +433,8 @@ end
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
     loglike = 0.
-    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
+    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
+    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
 
     # Initialize circular buffers and running sums for outcomes
     bs = clamp(C, 1., nT)
@@ -583,8 +584,14 @@ end
 
     # sigmoid transformation using C
     k = 5 # sharpness of the sigmoid
-    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
-    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k)) |> reverse
+    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
+    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
+
+    # for each unique outcome in data.outcomes, premultiply by ρ and wt
+    unq_outc = unique(data.outcomes)
+    outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
+    outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -599,9 +606,10 @@ end
     ssz = data.set_size[data.block[1]]
 
     # Initialize outcome buffers
-    outc_mat = Matrix{Any}(nothing, nT, ssz)
-    outc_nos = zeros(Int, ssz)
-    outc_num = 0
+    outc_no = 0
+    outc_mat = Matrix{Any}(nothing, ssz, nT) # matrix of recent outcomes for each stimulus
+    outc_lag = zeros(Int, ssz, nT) # how many outcomes back was this outcome?
+    outc_num = zeros(Int, ssz) # how many outcomes have we seen for this stimulus?
 
     # store log-loglikelihood
     loglike = 0.
@@ -629,27 +637,29 @@ end
         loglike += loglikelihood(BernoulliLogit(π), choice[i])
 
 		# Prediction error
-		δ = data.outcomes[i, choice_1id] * ρ - Qs[i, choice_idx]
+        chce = data.outcomes[i, choice_1id]
+		δ = chce * ρ - Qs[i, choice_idx]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
             Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
             Ws[i + 1, :] = Ws[i, :] # store previous W
-
-            # we're going to do this deeply inefficiently...
-            # 1. add outcome to buffer
-            outc_nos[choice_idx] += 1
-            outc_num = outc_nos[choice_idx]
-            outc_mat[outc_num, choice_idx] = data.outcomes[i, choice_1id] * ρ
-            # 2. multiply the buffer by the weight and get the average
-            Ws[i + 1, choice_idx] = sum(outc_mat[1:outc_num, choice_idx] .* wt[(end-outc_num+1):end]) / outc_num
+            # 1. iterate lags for prior outcomes and update outcome number for this stimulus
+            outc_lag[choice_idx] += outc_lag[choice_idx] .!== 0
+            outc_num[choice_idx] += 1
+            outc_no = outc_num[choice_idx]
+            # 2. initialise the lag for this outcome number and store the relevant outcome
+            outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
+            # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
-            # Reset buffers at the start of a new block
-            outc_mat = Matrix{Any}(nothing, nT, ssz)
-            outc_nos = zeros(Int, ssz)
-            outc_num = 0
+            # reset buffers at the start of a new block
+            outc_no = 0
+            outc_mat = Matrix{Any}(nothing, ssz, nT)
+            outc_lag = zeros(Int, ssz, nT)
+            outc_num = zeros(Int, ssz)
         end
         # store Q- and W- values for output
         Q[i, :] = Qs[i, (pri-1):pri]
