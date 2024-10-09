@@ -25,7 +25,7 @@ begin
 	include("$(pwd())/plotting_utils.jl")
 	include("$(pwd())/single_p_QL.jl")
 	include("$(pwd())/fetch_preprocess_data.jl")
-	include("$(pwd())/generate_experimental_sequences/FI_sequences_utils.jl")
+	include("$(pwd())/generate_experimental_sequences/sequence_utils.jl")
 	nothing
 end
 
@@ -38,6 +38,9 @@ begin
 
 	# Total number of blocks
 	n_total_blocks = length(set_sizes) * block_per_set
+
+	# Total number of pairs
+	n_total_pairs = sum(set_sizes .* block_per_set)
 
 	# Shaping protocol
 	n_confusing = vcat([0, 1, 1], fill(2, n_total_blocks - 3)) # Per block
@@ -145,9 +148,7 @@ pair_sequences = let random_seed = 321
 	chosen_magn = [[magn_seqs[s][idx[2]] for idx in chosen_idx[s]]
 		for s in eachindex(magn_seqs)]
 
-	# Repack into DataFrame
-	n_total_pairs = length(vcat(chosen_common...))
-	
+	# Repack into DataFrame	
 	task = DataFrame(
 		appearance = repeat(1:trials_per_pair, n_total_pairs),
 		cpair = repeat(1:n_total_pairs, inner = trials_per_pair),
@@ -280,13 +281,22 @@ feedback_sequence = let random_seed = 0
 end
 
 # ╔═╡ 56bf5285-75e3-46cc-8b35-389ae7281ce3
-
-
-# ╔═╡ 36de90d8-b854-4c87-b8f5-3ab2eaae84f9
+# Assign stimulus images
+stimuli = let random_seed = 0
 	# Load stimulus names
 	categories = shuffle(unique([replace(s, ".png" => "")[1:(end-1)] for s in 
 		readlines("generate_experimental_sequences/eeg_stim_list.txt")]))
+	
+	# Assign stimulus pairs
+	stimuli = assign_stimuli_and_optimality(;
+		n_phases = 1,
+		n_pairs = valence_set_size.n_pairs,
+		categories = categories,
+		random_seed = random_seed
+	)
 
+	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+end
 
 # ╔═╡ Cell order:
 # ╠═63e8c382-8560-11ef-1246-0923653e81d2
@@ -295,4 +305,3 @@ end
 # ╠═2018073a-656d-4723-8384-07c9d533245f
 # ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
 # ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
-# ╠═36de90d8-b854-4c87-b8f5-3ab2eaae84f9
