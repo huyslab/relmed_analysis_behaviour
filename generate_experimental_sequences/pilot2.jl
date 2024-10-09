@@ -17,56 +17,6 @@ begin
 	nothing
 end
 
-# ╔═╡ 1b3aca46-c259-43f7-8b06-9ffc63e36228
-"""
-    save_to_JSON(df::DataFrame, file_path::String)
-
-Saves a given task sequence `DataFrame` to a JSON file, organizing the data by session and block.
-
-# Arguments
-- `df::DataFrame`: The DataFrame containing task data to be saved. The DataFrame must have at least `session` and `block` columns to structure the data.
-- `file_path::String`: The path (including file name) where the JSON file will be saved.
-
-# Procedure
-1. The function groups the DataFrame rows by `session` and then by `block`.
-2. Each row within a block is converted into a dictionary.
-3. The grouped data is converted to a JSON string.
-4. The JSON string is written to the specified file path.
-
-# Notes
-- This function assumes that the DataFrame includes `session` and `block` columns for proper grouping.
-- The resulting JSON file will contain a nested list structure, where each session contains its respective blocks, and each block contains rows of data represented as dictionaries.
-"""
-function save_to_JSON(
-	df::DataFrame, 
-	file_path::String
-)
-	# Initialize an empty dictionary to store the grouped data
-	json_groups = []
-	
-	# Iterate through unique blocks and their respective rows
-	for s in unique(df.session)
-		session_groups = []
-		for b in unique(df.block)
-		    # Filter the rows corresponding to the current block
-		    block_group = df[(df.block .== b) .&& (df.session .== s), :]
-		    
-		    # Convert each row in the block group to a dictionary and collect them into a list
-		    push!(session_groups, [Dict(pairs(row)) for row in eachrow(block_group)])
-		end
-		push!(json_groups, session_groups)
-	end
-	
-	# Convert to JSON String
-	json_string = JSON.json(json_groups)
-		
-	# Write the JSON string to the file
-	open(file_path, "w") do file
-	    write(file, json_string)
-	end
-
-end
-
 # ╔═╡ 94a4ac24-2d30-4410-ae5f-6432f9e2973e
 """
     generate_multiple_n_confusing_sequences(; 
@@ -764,5 +714,4 @@ test_pairs
 # ╠═723476b8-8df9-417c-b941-a6af097656c9
 # ╠═ad3d8369-9455-44b0-9e6b-9ab3364dbce0
 # ╠═dea0a1fd-7ec3-4004-af9e-3f3155f19ec0
-# ╠═1b3aca46-c259-43f7-8b06-9ffc63e36228
 # ╠═94a4ac24-2d30-4410-ae5f-6432f9e2973e
