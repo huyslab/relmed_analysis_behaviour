@@ -51,7 +51,7 @@ md"""
 - stimulus_A: Image filename for stimulus "A". Used for randomization.
 - stimulus_B: Image filename for stimulus "B". Used for randomization.
 - optimal_A: Whether stimulus A is the optimal stimulus for the block. Output of randomization.
-- A_on_right: Whether stimulus A is displayed on righ. Output of randomization.
+- A\_on\_right: Whether stimulus A is displayed on righ. Output of randomization.
 - **stimulus_right: Image filename for the stimulus on the right.**
 - **stimulus_left: Image filename for the stimulus on the left.**
 - **optimal_right: Whether the stimulus on the right is the optimal one (True /False).**
