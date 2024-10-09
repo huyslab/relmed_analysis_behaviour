@@ -1,12 +1,13 @@
 ### A Pluto.jl notebook ###
-# v0.19.45
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
 
 # ╔═╡ 52da319e-824e-11ef-18dc-31b1ab4d2e75
 begin
-	cd("/home/jovyan")
+	# cd("/home/jovyan")
+	cd("/Users/quentin/Documents/research_work/repos/relmed_analysis_behaviour")
 	import Pkg
 	
 	# activate the shared project environment
@@ -65,6 +66,7 @@ md"
 "
 
 # ╔═╡ ac5e7807-db3c-43da-90a0-f49a4dbd195c
+#=╠═╡
 let
 	m = RL_ss(unpack_data(random_task), chce)
 	c = sample(m, Prior(), 500)
@@ -80,6 +82,7 @@ let
 	scatter!(ax, eachcol(ll_df)...)
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ ae42c592-1f69-414e-a263-bcf67934f65a
 md"
@@ -87,9 +90,10 @@ md"
 "
 
 # ╔═╡ ba70f606-a366-4f9d-962a-a1245e5b0f06
+#=╠═╡
 begin
 	prior_sample_ql = simulate_from_prior(
-		100;
+		200;
 		model = RL_ss,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -105,8 +109,10 @@ begin
 	)
 	describe(prior_sample_ql)
 end
+  ╠═╡ =#
 
 # ╔═╡ 02716563-b8ab-4f0c-907d-a773b3618ee1
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_sample_ql,
@@ -119,8 +125,10 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 01740ca2-dda9-4c48-a52a-8c361d036b57
+#=╠═╡
 let
 	f_ql = optimization_calibration(
 		prior_sample_ql,
@@ -129,6 +137,7 @@ let
 	)	
 	f_ql
 end
+  ╠═╡ =#
 
 # ╔═╡ 5fb23da2-258c-4125-a349-4165cdf6afe2
 md"
@@ -136,6 +145,7 @@ md"
 "
 
 # ╔═╡ d2a118fa-700f-44b7-9cf4-dbe0f785784b
+#=╠═╡
 let
 	m = RL_recip_ss(unpack_data(random_task), chce)
 	c = sample(m, Prior(), 500)
@@ -151,11 +161,13 @@ let
 	scatter!(ax, eachcol(ll_df)...)
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 94c92aa8-04ce-4208-9ef8-fd032b2b4177
+#=╠═╡
 begin
 	prior_sample_ql_rec = simulate_from_prior(
-		100;
+		200;
 		model = RL_recip_ss,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -171,8 +183,10 @@ begin
 	)
 	describe(prior_sample_ql_rec)
 end
+  ╠═╡ =#
 
 # ╔═╡ c874c7cb-422f-4330-8ed3-a35a47dcf5a3
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_sample_ql_rec,
@@ -185,8 +199,10 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ fac0f8df-c3c5-4f7e-bd69-adbbaa8ab757
+#=╠═╡
 let
 	f_ql_rec = optimization_calibration(
 		filter(x -> x.PID <= 50, prior_sample_ql_rec),
@@ -195,6 +211,7 @@ let
 	)	
 	f_ql_rec
 end
+  ╠═╡ =#
 
 # ╔═╡ 4de24130-d8dd-476e-91af-998d2c57f760
 md"
@@ -202,6 +219,7 @@ md"
 "
 
 # ╔═╡ 8a0b4210-0525-4485-ad5e-1478948f7d7a
+#=╠═╡
 let
 	m = RLWM_ss(unpack_data(random_task), chce)
 	c = sample(m, Prior(), 500)
@@ -227,11 +245,13 @@ let
 	scatter!(ax3, ll_df.C, ll_df.φ_wm, ll_df.loglike)
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 7afd9cab-a329-4839-9b56-32fa439df50e
+#=╠═╡
 begin
 	prior_sample_rlwm = simulate_from_prior(
-		100;
+		200;
 		model = RLWM_ss,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -250,8 +270,10 @@ begin
 	)
 	describe(prior_sample_rlwm)
 end
+  ╠═╡ =#
 
 # ╔═╡ 1dbe2f06-7075-486d-a70e-52752b28e869
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_sample_rlwm,
@@ -265,9 +287,9 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 2635c4bf-1941-46d8-b20c-de982c610a6b
-# ╠═╡ disabled = true
 #=╠═╡
 let
 	f_rlwm = optimization_calibration(
@@ -296,6 +318,7 @@ md"
 "
 
 # ╔═╡ 2ec1567e-86cc-4fe5-894e-81651cec5cc1
+#=╠═╡
 let
 	m = RLWM_pmst(unpack_data(random_task), chce)
 	c = sample(m, Prior(), 500)
@@ -318,11 +341,12 @@ let
 	scatter!(ax2, ll_df.C, ll_df.w0, ll_df.loglike)
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 4ca11ee5-0135-4618-9125-ffa4303f15f1
 begin
 	prior_sample_pmstwm = simulate_from_prior(
-		100;
+		200;
 		model = RLWM_pmst,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -342,6 +366,7 @@ begin
 end
 
 # ╔═╡ d2fb5d7a-305b-42ef-a83f-7345f7c424e4
+#=╠═╡
 let
 	f = plot_prior_predictive_by_valence(
 		prior_sample_pmstwm,
@@ -355,6 +380,7 @@ let
 	)	
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 66136216-e21f-4229-b0a5-9186238e7da8
 let
@@ -408,7 +434,7 @@ end
 # ╔═╡ 003dbd73-315c-4a65-8c16-25b00d67052f
 begin
 	prior_sample_pmstsg = simulate_from_prior(
-	    100;
+	    200;
 		model = RLWM_pmst_sgd,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),

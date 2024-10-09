@@ -329,8 +329,9 @@ end
 # end
 
 # Prepare pilot data for fititng with model
-function prepare_for_fit(data)
+function prepare_for_fit(data; pilot2::Bool = false)
 
+    data.condition .= pilot2 ? 1 : data.condition
 	forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
 
 	rename!(forfit, :isOptimal => :choice)
@@ -358,6 +359,11 @@ function prepare_for_fit(data)
 
 	# Block as Int64
 	forfit.block = convert(Vector{Int64}, forfit.block)
+
+    if pilot2
+        forfit.set_size = data.n_pairs .* 2
+	    forfit.pair = data.stimulus_pair
+    end
 
 	return forfit, pids
 end
@@ -457,8 +463,9 @@ function optimize_ss(
     )
     gq = generated_quantities(gq_mod, gq_samp)
     choices = gq[1].choice
+    loglike = gq[1].loglike
 
-	return fit, bic, choices
+	return fit, bic, choices, loglike
 end
 
 # Find MLE / MAP multiple times
@@ -468,13 +475,13 @@ function optimize_multiple(
     model::Function = RL_ss,
     estimate::String = "MAP",
 	include_true::Bool = true, # Whether to return true value if this is simulation
-	parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
     initial_params::Union{AbstractVector, Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
     ),
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α) # Transformed parameters
+    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
+    parameters::Vector{Symbol} = collect(keys(priors))
 )
 	ests = []
     choice_df = Dict{Int64, DataFrame}()
@@ -486,7 +493,7 @@ function optimize_multiple(
 		gdf = filter(x -> x.PID == p, data)
 
 		# Optimize
-		est, bic, choices = optimize_ss(
+		est, bic, choices, loglike = optimize_ss(
 			gdf;
 			initial = initial,
             model = model,
@@ -507,8 +514,10 @@ function optimize_multiple(
             for p in parameters
                 est_dct[p] = est.values[p]
             end
-        est_dct[:BIC] = bic
         end
+
+        est_dct[:loglike] = loglike
+        est_dct[:BIC] = bic
 
 		lock(lk) do
             est = NamedTuple{Tuple(keys(est_dct))}(values(est_dct))
