@@ -135,15 +135,15 @@ pair_sequences = let random_seed = 321
 	n_total_pairs = length(vcat(chosen_common...))
 	
 	task = DataFrame(
-		trial = repeat(1:trials_per_pair, n_total_pairs),
-		pair = repeat(1:n_total_pairs, inner = trials_per_pair),
+		appearance = repeat(1:trials_per_pair, n_total_pairs),
+		cpair = repeat(1:n_total_pairs, inner = trials_per_pair),
 		feedback_common = vcat(vcat(chosen_common...)...),
 		variable_magnitude = vcat(vcat(chosen_magn...)...)
 	)
 
 	# Compute n_confusing and fifty_high per block
 	DataFrames.transform!(
-		groupby(task, :pair),
+		groupby(task, :cpair),
 		:feedback_common => (x -> trials_per_pair - sum(x)) => :n_confusing,
 		:variable_magnitude => (x -> 1. in x) => :fifty_high
 	)
@@ -154,30 +154,101 @@ pair_sequences = let random_seed = 321
 
 	# Shuffle within n_confusing
 	DataFrames.transform!(
-		groupby(task, [:n_confusing, :pair]),
+		groupby(task, [:n_confusing, :cpair]),
 		:n_confusing => (x -> x .* 10 .+ rand(rng)) => :random_pair
 	)
 
-	sort!(task, [:n_confusing, :random_pair, :trial])
+	sort!(task, [:n_confusing, :random_pair, :appearance])
 
-	task.pair = repeat(1:n_total_pairs, inner = trials_per_pair)
+	task.cpair = repeat(1:n_total_pairs, inner = trials_per_pair)
 
 	select!(task, Not(:random_pair))
 
-	# Compute feedback_high and feedback_low
+	@warn "Must write assertion to make sure statistics are conserved from output of optimizing function"
+
+	task
+end
+
+# ╔═╡ 424aaf3d-f773-4ce3-a21c-eabd449e4105
+# Shape into per-block sequence
+feedback_sequence = let random_seed = 0
+
+	# Create pair list
+	task = combine(
+		groupby(valence_set_size, [:block, :n_pairs, :valence, :n_confusing]),
+		:n_pairs => (x -> repeat(vcat([1:xi for xi in x]...), inner = trials_per_pair)) => :pair
+	)
+
+	# Shuffle pair appearance
+	rng = Xoshiro(random_seed)
+	
+	DataFrames.transform!(
+		groupby(task, :block),
+		:pair => (x -> shuffle(rng, x)) => :pair
+	)
+
+	# Add cumulative pair variable
+	pairs = sort(unique(task[!, [:block, :pair]]), [:block, :pair])
+	pairs.cpair = 1:nrow(pairs)
+
+	task = innerjoin(
+		task,
+		pairs,
+		on = [:block, :pair],
+		order = :left
+	)
+
+	# Add apperance count variable
+	DataFrames.transform!(
+		groupby(task, [:block, :pair]),
+		:block => (x -> 1:length(x)) => :appearance
+	)
+
+
+	# Join with pair sequences
+	task = innerjoin(
+		task,
+		pair_sequences,
+		on = [:cpair, :appearance],
+		order = :left,
+		makeunique = true
+	)
+
+	# Check and delete excess column
+	@assert task.n_confusing == task.n_confusing_1 "Problem in join"
+
+	select!(task, Not(:n_confusing_1))
+
+	# Compute low and high feedback
 	task.feedback_high = ifelse.(
-		task.fifty_high,
-		task.variable_magnitude,
-		fill(1., nrow(task))
+		task.valence .> 0,
+		ifelse.(
+			task.fifty_high,
+			task.variable_magnitude,
+			fill(1., nrow(task))
+		),
+		ifelse.(
+			task.fifty_high,
+			fill(-0.01, nrow(task)),
+			.- task.variable_magnitude
+		)
 	)
 
 	task.feedback_low = ifelse.(
-		task.fifty_high,
-		fill(0.01, nrow(task)),
-		task.variable_magnitude
+		task.valence .> 0,
+		ifelse.(
+			.!task.fifty_high,
+			task.variable_magnitude,
+			fill(0.01, nrow(task))
+		),
+		ifelse.(
+			.!task.fifty_high,
+			fill(-1, nrow(task)),
+			.- task.variable_magnitude
+		)
 	)
 
-	# Compute feedback_optimal and feedback_suboptimal
+	# Compute feedback optimal and suboptimal
 	task.feedback_optimal = ifelse.(
 		task.feedback_common,
 		task.feedback_high,
@@ -190,10 +261,12 @@ pair_sequences = let random_seed = 321
 		task.feedback_low
 	)
 
-	@warn "Must write assertion to make sure statistics are conserved from output of optimizing function"
-
 	task
+
 end
+
+# ╔═╡ 56bf5285-75e3-46cc-8b35-389ae7281ce3
+
 
 # ╔═╡ 36de90d8-b854-4c87-b8f5-3ab2eaae84f9
 	# Load stimulus names
@@ -206,4 +279,6 @@ end
 # ╠═4c34228b-6140-4748-8835-5ee130be4bc3
 # ╠═4c09fe35-8015-43d8-a38f-2434318e74fe
 # ╠═2018073a-656d-4723-8384-07c9d533245f
+# ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
+# ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
 # ╠═36de90d8-b854-4c87-b8f5-3ab2eaae84f9
