@@ -48,26 +48,38 @@ end
 
 # ╔═╡ 4c09fe35-8015-43d8-a38f-2434318e74fe
 # Assign valence and set size per block
-valence_set_size = let random_seed = 10
+valence_set_size = let random_seed = 0
 	
 	# # All combinations of set sizes and valence
 	@assert iseven(block_per_set) # Requisite for code below
-	
+
+	n_repetitions = div(block_per_set, 2) # How many repetitions of each cell
 	valence_set_size = DataFrame(
 		n_pairs = repeat(set_sizes, inner = block_per_set),
-		valence = repeat([1, -1], inner = 3, outer = div(n_total_blocks, 6))
+		valence = repeat([1, -1], inner = n_repetitions, outer = div(n_total_blocks, block_per_set)),
+		super_block = repeat(1:n_repetitions, outer = div(n_total_blocks, n_repetitions))
 	)
 
 	# Shuffle set size and valence, making sure set size rises gradually and valence is varied in first three blocks, and positive in the first
 	rng = Xoshiro(random_seed)
 	
 	while (valence_set_size[1:3, :n_pairs] != [1, 2, 3]) | 
-	allequal(valence_set_size[1:3, :valence]) | (valence_set_size.valence[1] == -1)
-		valence_set_size.block = shuffle(rng, 1:n_total_blocks)
-		sort!(valence_set_size, :block)
+		allequal(valence_set_size[1:3, :valence]) | 
+		(valence_set_size.valence[1] == -1)
+
+		DataFrames.transform!(
+			groupby(valence_set_size, :super_block),
+			:super_block => (x -> shuffle(rng, 1:length(x))) => :order
+		)
+		
+		sort!(valence_set_size, [:super_block, :order])
 	end
 
+	# Add n_confusing
 	valence_set_size.n_confusing = n_confusing
+
+	# Add block variable
+	valence_set_size.block = 1:nrow(valence_set_size)
 
 	# Return
 	valence_set_size
