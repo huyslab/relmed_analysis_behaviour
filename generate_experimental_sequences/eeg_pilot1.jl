@@ -90,7 +90,7 @@ end
 
 # ╔═╡ 2018073a-656d-4723-8384-07c9d533245f
 # Create feedback sequences per pair
-pair_sequences = let random_seed = 321
+pair_sequences, common_per_pos, EV_per_pos = let random_seed = 321
 	# Compute n_confusing per each pair
 	n_confusing_pair = vcat([fill(nc, np) 
 		for (nc, np) in zip(valence_set_size.n_confusing, valence_set_size.n_pairs)]...)
@@ -130,7 +130,7 @@ pair_sequences = let random_seed = 321
 	pushfirst!(magn_seqs, zero_seq[3])
 
 	# Choose sequences optimizing FI under contraints
-	chosen_idx = optimize_FI_distribution(
+	chosen_idx, common_per_pos, EV_per_pos = optimize_FI_distribution(
 		n_wanted = n_wanted,
 		FIs = FIs,
 		common_seqs = common_seqs,
@@ -179,9 +179,7 @@ pair_sequences = let random_seed = 321
 
 	select!(task, Not(:random_pair))
 
-	@warn "Must write assertion to make sure statistics are conserved from output of optimizing function"
-
-	task
+	task, common_per_pos, EV_per_pos
 end
 
 # ╔═╡ 424aaf3d-f773-4ce3-a21c-eabd449e4105
@@ -218,6 +216,9 @@ feedback_sequence = let random_seed = 0
 		groupby(task, [:block, :pair]),
 		:block => (x -> 1:length(x)) => :appearance
 	)
+
+	# Add trial variable
+	task.trial = 1:nrow(task)
 
 
 	# Join with pair sequences
@@ -354,6 +355,37 @@ task = let random_seed = 0
 	task
 end
 
+# ╔═╡ 263f4366-b6f4-47fd-b76a-fbeffcc07f14
+# Validate task DataFrame
+let
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert issorted(task.block) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	@assert all(combine(groupby(task, :cpair),
+		:appearance => maximum => :max_appear
+	).max_appear .== 10) "Didn't find exactly 10 apperances per pair"
+
+	@assert all(combine(groupby(task, :appearance), :feedback_common => sum => :common_per_pos).common_per_pos .== common_per_pos) "Number of common feedback per position doesn't match output from optimization function"
+
+	@assert all(combine(groupby(task, :appearance), :variable_magnitude => mean => :EV_per_pos).EV_per_pos .≈ EV_per_pos) "EV per position doesn't match output from optimization function"
+
+	@assert all((task.variable_magnitude .== abs.(task.feedback_right)) .| 
+		(task.variable_magnitude .== abs.(task.feedback_left))) ":variable_magnitude, which is used for sequnece optimization, doesn't match end result column :feedback_right no :feedback_left"
+
+end
+
 # ╔═╡ Cell order:
 # ╠═63e8c382-8560-11ef-1246-0923653e81d2
 # ╠═4c34228b-6140-4748-8835-5ee130be4bc3
@@ -362,3 +394,4 @@ end
 # ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
 # ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
 # ╠═bbdd062e-49e4-4a03-bb8f-9ad97b08288a
+# ╠═263f4366-b6f4-47fd-b76a-fbeffcc07f14

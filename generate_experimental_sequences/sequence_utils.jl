@@ -495,16 +495,20 @@ function optimize_FI_distribution(;
 
 	@info "FI quantile for each category: $quantile_F"
 	
-	# Print distributions stats
+	# Compute and print distributions stats
 	chosen_common = hcat([common_seqs[s][idx[1]] for s in eachindex(common_seqs) for idx in selected_idx[s]]...)
 
-	@info "Number of common feedback trials per trial position $(vec(sum(chosen_common, dims = 2)))"
+	common_per_pos = vec(sum(chosen_common, dims = 2))
+
+	@info "Number of common feedback trials per trial position $(common_per_pos)"
 
 	chosen_magn = hcat([magn_seqs[s][idx[2]] for s in eachindex(magn_seqs) for idx in selected_idx[s]]...)
 
-	@info "EV per trial position $(round.(vec(mean(chosen_magn, dims = 2)), digits = 2))"
+	EV_per_pos = vec(mean(chosen_magn, dims = 2))
+
+	@info "EV per trial position $(round.(EV_per_pos, digits = 2))"
 		
-	return selected_idx
+	return selected_idx, common_per_pos, EV_per_pos
 end
 
 """
