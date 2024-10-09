@@ -298,6 +298,62 @@ stimuli = let random_seed = 0
 	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
 end
 
+# ╔═╡ bbdd062e-49e4-4a03-bb8f-9ad97b08288a
+# Add stimulus assignments to sequences DataFrame, and assign right / left
+task = let random_seed = 0
+
+	# Join stimuli and sequences
+	task = innerjoin(
+		feedback_sequence,
+		stimuli,
+		on = [:block, :pair],
+		order = :left
+	)
+
+	@assert nrow(task) == nrow(feedback_sequence) "Problem in join operation"
+
+	# Assign right / left, equal proportions within each pair
+	rng = Xoshiro(random_seed)
+
+	DataFrames.transform!(
+		groupby(task, [:block, :cpair]),
+		:block => 
+			(x -> shuffled_fill([true, false], length(x); random_seed = random_seed)) =>
+			:A_on_right
+	)
+
+	# Create stimulus_right and stimulus_left variables
+	task.stimulus_right = ifelse.(
+		task.A_on_right,
+		task.stimulus_A,
+		task.stimulus_B
+	)
+
+	task.stimulus_left = ifelse.(
+		.!task.A_on_right,
+		task.stimulus_A,
+		task.stimulus_B
+	)
+
+	# Create optimal_right variable
+	task.optimal_right = (task.A_on_right .& task.optimal_A) .| (.!task.A_on_right .& .!task.optimal_A)
+
+	# Create feedback_right and feedback_left variables
+	task.feedback_right = ifelse.(
+		task.optimal_right,
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_left = ifelse.(
+		.!task.optimal_right,
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task
+end
+
 # ╔═╡ Cell order:
 # ╠═63e8c382-8560-11ef-1246-0923653e81d2
 # ╠═4c34228b-6140-4748-8835-5ee130be4bc3
@@ -305,3 +361,4 @@ end
 # ╠═2018073a-656d-4723-8384-07c9d533245f
 # ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
 # ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
+# ╠═bbdd062e-49e4-4a03-bb8f-9ad97b08288a
