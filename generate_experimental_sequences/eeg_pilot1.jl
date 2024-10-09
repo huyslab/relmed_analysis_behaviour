@@ -33,7 +33,7 @@ end
 # General attributes of pilot PILT structure
 begin
 	set_sizes = 1:3
-	block_per_set = 6
+	block_per_set = 8
 	trials_per_pair = 10
 
 	# Total number of blocks
@@ -135,6 +135,8 @@ pair_sequences = let random_seed = 321
 		ω_FI = 0.1,
 		filename = "results/exp_sequences/eeg_pilot_FI_opt.jld2"
 	)
+
+	@assert length(vcat(chosen_idx...)) == sum(valence_set_size.n_pairs) "Number of saved optimize sequences does not match number of sequences needed. Delete file and rerun."
 
 	# Unpack chosen sequences
 	chosen_common = [[common_seqs[s][idx[1]] for idx in chosen_idx[s]]
