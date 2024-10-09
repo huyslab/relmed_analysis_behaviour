@@ -31,7 +31,10 @@ end
 
 # ╔═╡ 0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
 md"""
-# Legend for output csv files (Columns that are important for task code in bold.):
+# PILT
+
+## Legend for output csv files (Columns that are important for task code in bold.):
+
 - **block: Block number. Integer.**
 - n_pairs: Number of stimulus pairs in block (set size). Integer.
 - valence: Reward = 1, punishment = -1 block.
@@ -87,7 +90,8 @@ end
 # General attributes of pilot PILT structure
 begin
 	set_sizes = 1:3
-	block_per_set = 8
+	block_per_set = 8 # Including reward and punishment
+	base_blocks_per_set = 6 # Last two are extra for EEG quality
 	trials_per_pair = 10
 
 	# Total number of blocks
@@ -407,6 +411,9 @@ task = let random_seed = 0
 		task.feedback_optimal,
 		task.feedback_suboptimal
 	)
+
+	# Mark which blocks are extra
+	task.extra = task.block .>= base_blocks_per_set * length(set_sizes)
 
 	task
 end
