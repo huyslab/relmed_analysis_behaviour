@@ -267,8 +267,6 @@ let
 end
 
 # ╔═╡ 2635c4bf-1941-46d8-b20c-de982c610a6b
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	f_rlwm = optimization_calibration(
 		prior_sample_rlwm,
@@ -288,7 +286,6 @@ let
 
 	f_rlwm
 end
-  ╠═╡ =#
 
 # ╔═╡ 85024085-eb50-4698-a7c4-0b51097cac81
 md"
