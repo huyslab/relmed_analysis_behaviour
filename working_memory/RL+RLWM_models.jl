@@ -433,9 +433,11 @@ end
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
     loglike = 0.
+    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
 
     # Initialize circular buffers and running sums for outcomes
-    buffer_size = floor(Int, C)
+    bs = clamp(C, 1., nT)
+    buffer_size = floor(Int, bs)
     buffers = [Vector{Any}(nothing, ssz) for _ in 1:buffer_size]
     buffer_sums = Vector{Any}(nothing, ssz)
     buffer_counts = zeros(Int, ssz)
@@ -581,9 +583,7 @@ end
 
     # sigmoid transformation using C
     k = 5 # sharpness of the sigmoid
-    g = DataFrame("block" => data.block, "pair" => data.pair)
-	grouped_data = groupby(g, :block)
-    nT = maximum([maximum(values(countmap(gd.pair))) for gd in grouped_data])
+    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k)) |> reverse
 
     # Initialize Q and W values
@@ -599,7 +599,7 @@ end
     ssz = data.set_size[data.block[1]]
 
     # Initialize outcome buffers
-    outc_mat = Matrix{Any}(undef, nT, ssz)
+    outc_mat = Matrix{Any}(nothing, nT, ssz)
     outc_nos = zeros(Int, ssz)
     outc_num = 0
 
@@ -647,7 +647,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
             # Reset buffers at the start of a new block
-            outc_mat = Matrix{Any}(undef, nT, ssz)
+            outc_mat = Matrix{Any}(nothing, nT, ssz)
             outc_nos = zeros(Int, ssz)
             outc_num = 0
         end
