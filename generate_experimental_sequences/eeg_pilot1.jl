@@ -29,6 +29,60 @@ begin
 	nothing
 end
 
+# ╔═╡ 0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
+md"""
+# Legend for output csv files (Columns that are important for task code in bold.):
+- **block: Block number. Integer.**
+- n_pairs: Number of stimulus pairs in block (set size). Integer.
+- valence: Reward = 1, punishment = -1 block.
+- n_confusing: Number of confusing trials in block. Integer.
+- **pair: Pair number for trial (1-3).**
+- **cpair: Pair number for trial, across all blocks (1-48).**
+- **appearance: Apperance number for pair. Integer.**
+- **trial: Trial number in block. Integer.**
+- feedback_common: Whether this is a common feedback trial (True) or a confusing trial (False).
+- variable_magnitude: Feedback magnitude for the stimulus that can have 50pence as feedback. Used in optimization.
+- fifty_high: Whether the high magnitude stimulus has the 50pence (True / False). Balanced across pairs.
+- feedback_high: High magnitude feedback for the trial.
+- feedback_low: Low magnitude feedback for the trial.
+- feedback_optimal: Feedback for the optimal stimulus on this trial.
+- feedback_suboptimal: Feedback for the suboptimal stimulus on this trial.
+- session: Session number. Integer.
+- stimulus_A: Image filename for stimulus "A". Used for randomization.
+- stimulus_B: Image filename for stimulus "B". Used for randomization.
+- optimal_A: Whether stimulus A is the optimal stimulus for the block. Output of randomization.
+- A_on_right: Whether stimulus A is displayed on righ. Output of randomization.
+- **stimulus_right: Image filename for the stimulus on the right.**
+- **stimulus_left: Image filename for the stimulus on the left.**
+- **optimal_right: Whether the stimulus on the right is the optimal one (True /False).**
+- **feedback_right: Feedback for the stimulus on the right for this trial.**
+- **feedback_left: Feedback for the stimulus on the right for this trial.**
+"""
+
+# ╔═╡ ae105318-5c25-4823-8070-67ce35aff543
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
+
 # ╔═╡ 4c34228b-6140-4748-8835-5ee130be4bc3
 # General attributes of pilot PILT structure
 begin
@@ -218,8 +272,10 @@ feedback_sequence = let random_seed = 0
 	)
 
 	# Add trial variable
-	task.trial = 1:nrow(task)
-
+	DataFrames.transform!(
+		groupby(task, :block),
+		:block => (x -> 1:length(x)) => :trial
+	)
 
 	# Join with pair sequences
 	task = innerjoin(
@@ -386,8 +442,90 @@ let
 
 end
 
+# ╔═╡ c68c334e-54f9-4410-92b1-91c0e78a2dc9
+let
+	save_to_JSON(task, "results/eeg_pilot.json")
+	CSV.write("results/eeg_pilot.csv", task)
+end
+
+# ╔═╡ 59bc1127-32b4-4c68-84e9-1892c10a6c45
+# Visualize PILT seuqnce
+let
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, :trial),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	# Plot
+	f = Figure(size = (700, 500))
+
+	ax_prob = Axis(
+		f[1,1][1,1],
+		xlabel = "Trial #",
+		ylabel = "Prop. confusing feedback"
+	)
+
+	scatter!(
+		ax_prob,
+		confusing_location.trial,
+		confusing_location.feedback_confusing
+	)
+
+	# Proportion of confusing by aeppearance
+	confusing_app = combine(
+		groupby(task, :appearance),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	# Plot
+	ax_app = Axis(
+		f[1,1][2,1],
+		xlabel = "Pair appearance #",
+		ylabel = "Prop. confusing feedback",
+		limits = (nothing, nothing, 0., maximum(confusing_app.feedback_confusing) + 0.01)
+	)
+
+	scatter!(
+		ax_app,
+		confusing_app.appearance,
+		confusing_app.feedback_confusing
+	)
+
+	# Plot confusing trials by block
+	ax_heatmap = Axis(
+		f[1, 2],
+		xlabel = "Trial #",
+		ylabel = "Block",
+		yreversed = true,
+		subtitle = "Green - reward, yellow - punishment,\ndark - confusing"
+	)
+
+	heatmap!(
+		task.trial,
+		task.block,
+		ifelse.(
+			.!task.feedback_common,
+			fill(0., nrow(task)),
+			ifelse.(
+				task.valence .> 0,
+				fill(1., nrow(task)),
+				fill(2., nrow(task))
+			)
+		)
+	)
+
+	save("results/eeg_trial_plan.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
 # ╔═╡ Cell order:
 # ╠═63e8c382-8560-11ef-1246-0923653e81d2
+# ╟─0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
+# ╠═ae105318-5c25-4823-8070-67ce35aff543
 # ╠═4c34228b-6140-4748-8835-5ee130be4bc3
 # ╠═4c09fe35-8015-43d8-a38f-2434318e74fe
 # ╠═2018073a-656d-4723-8384-07c9d533245f
@@ -395,3 +533,5 @@ end
 # ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
 # ╠═bbdd062e-49e4-4a03-bb8f-9ad97b08288a
 # ╠═263f4366-b6f4-47fd-b76a-fbeffcc07f14
+# ╠═c68c334e-54f9-4410-92b1-91c0e78a2dc9
+# ╠═59bc1127-32b4-4c68-84e9-1892c10a6c45
