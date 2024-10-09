@@ -12,130 +12,9 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, CairoMakie
-end
-
-# ╔═╡ 87b8c113-cc45-4fb7-b6b6-056afbdb246b
-"""
-Assigns stimulus filenames and determines the optimal stimulus in each pair.
-
-# Arguments
-- `n_phases::Int64`: Number of phases (or blocks) in the session.
-- `n_pairs::Vector{Int64}`: Vector containing the number of pairs in each block. Assumes the same number of pairs for all phases.
-- `categories::Vector{String}`: Vector of category labels to generate stimulus filenames. Default is the combination of letters 'A' to 'Z' and 'a' to 'z', repeated as necessary to cover the number of stimuli required.
-
-# Returns
-- `stimulus_A::Vector{String}`: Vector of filenames for the "A" stimuli in each pair.
-- `stimulus_B::Vector{String}`: Vector of filenames for the "B" stimuli in each pair.
-- `optimal_A::Vector{Int64}`: Vector indicating which stimulus in each pair is the optimal one (1 if stimulus A is optimal, 0 if stimulus B is optimal).
-
-# Description
-1. The function first validates that the number of blocks is even and that there are enough categories to cover all stimuli.
-2. It generates filenames for two stimuli per pair: `stimulus_A` and `stimulus_B`. The filenames are based on the provided `categories` vector, with "2.png" for `stimulus_A` and "1.png" for `stimulus_B`.
-3. The function then randomly assigns which stimulus in each pair is the optimal one (`optimal_A`), ensuring that exactly half of the stimuli are marked as optimal in a balanced way.
-4. A loop ensures that the repeating category in each block and the optimal stimulus are relatively independent.
-
-# Constraints
-- Assumes an even number of blocks per session.
-- Ensures that there are enough category labels to generate filenames for all stimuli in all phases.
-"""
-function assign_stimuli_and_optimality(;
-	n_phases::Int64,
-	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
-	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
-		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1
-	)
-
-	total_n_pairs = sum(n_pairs) # Number of pairs needed
-	
-	@assert rem(length(n_pairs), 2) == 0 "Code only works for even number of blocks per sesion"
-
-	@assert length(categories) >= sum(total_n_pairs) * n_phases + n_phases "Not enought categories supplied"
-
-	# Compute how many repeating categories we will have
-	n_repeating = sum(min.(n_pairs[2:end], n_pairs[1:end-1]))
-
-	# Assign whether repeating is optimal and shuffle
-	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
-		vcat(
-			fill(true, div(n_repeating, 2)),
-			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
-		)
-	)
-
-	# Assign whether categories that cannot repeat are optimal
-	rest_optimal = shuffle(
-		vcat(
-			fill(true, div(total_n_pairs - n_repeating, 2) + 
-				rem(total_n_pairs - n_repeating, 2)),
-			fill(false, div(total_n_pairs - n_repeating, 2))
-		)
-	)
-
-	# Initialize vectors for stimuli. A is always novel, B may be repeating
-	stimulus_A = []
-	stimulus_B = []
-	optimal_B = []
-	
-	for j in 1:n_phases
-		for (i, p) in enumerate(n_pairs)
-	
-			# Choose repeating categories for this block
-			n_repeating = ((i > 1) && minimum([p, n_pairs[i - 1]])) * 1
-			append!(
-				stimulus_B,
-				stimulus_A[(end - n_repeating + 1):end]
-			)
-	
-			# Fill up stimulus_repeating with novel categories if not enough to repeat
-			for _ in 1:(p - n_repeating)
-				push!(
-					stimulus_B,
-					popfirst!(categories)
-				)
-			end
-			
-			# Choose novel categories for this block
-			for _ in 1:p
-				push!(
-					stimulus_A,
-					popfirst!(categories)
-				)
-			end
-
-			# Populate who is optimal vector
-			for _ in 1:(n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(repeating_optimal)
-				)
-			end
-
-			for _ in 1:(p - n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(rest_optimal)
-				)
-			end
-		end
-	end
-
-	stimulus_A = (x -> x * "1.png").(stimulus_A)
-	stimulus_B = (x -> x * "2.png").(stimulus_B)
-
-	return DataFrame(
-		phase = repeat(1:n_phases, inner = total_n_pairs),
-		block = repeat(
-			vcat([fill(i, p) for (i, p) in enumerate(n_pairs)]...), n_phases),
-		pair = repeat(
-			vcat([1:p for p in n_pairs]...), n_phases),
-		stimulus_A = stimulus_A,
-		stimulus_B = stimulus_B,
-		optimal_A = .!(optimal_B)
-	)
-
+	using Random, DataFrames, JSON, CSV, StatsBase, CairoMakie, JLD2, JuMP
+	include("$(pwd())/generate_experimental_sequences/sequence_utils.jl")
+	nothing
 end
 
 # ╔═╡ 1b3aca46-c259-43f7-8b06-9ffc63e36228
@@ -884,7 +763,6 @@ test_pairs
 # ╠═95143c27-80b7-42c1-a065-723d405c3c4d
 # ╠═723476b8-8df9-417c-b941-a6af097656c9
 # ╠═ad3d8369-9455-44b0-9e6b-9ab3364dbce0
-# ╠═87b8c113-cc45-4fb7-b6b6-056afbdb246b
 # ╠═dea0a1fd-7ec3-4004-af9e-3f3155f19ec0
 # ╠═1b3aca46-c259-43f7-8b06-9ffc63e36228
 # ╠═94a4ac24-2d30-4410-ae5f-6432f9e2973e
