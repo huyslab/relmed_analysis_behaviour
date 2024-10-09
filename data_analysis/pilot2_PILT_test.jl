@@ -70,396 +70,6 @@ begin
 	nothing
 end
 
-# ╔═╡ 3d359ff7-c654-4ae6-856b-068f4a9c12dd
-isa(LogitLink(), Link)
-
-# ╔═╡ 85e41c86-4a18-4175-ab1d-b26f49bdbac1
-begin
-	"""
-	    GLMAnalysis{I}(; npoints=200, dropcollinear=false, interval=AlgebraOfGraphics.automatic, level=0.95, distribution, link)
-	
-	A struct that defines the settings for performing generalized linear model (GLM) analysis for plotting with AlgebraOfGraphics.
-	
-	# Fields
-	- `npoints::Int`: The number of points used for plotting predictions (default: `200`).
-	- `dropcollinear::Bool`: Whether to drop collinear data when fitting the model. By default, collinear data causes an error (default: `false`).
-	- `interval::I`: Specifies the type of interval for plotting (`:confidence`, `:prediction`, or `nothing`). If set to `AlgebraOfGraphics.automatic`, it automatically chooses based on whether weights are provided (default: `AlgebraOfGraphics.automatic`).
-	- `level::Float64`: Coverage level for the confidence or prediction intervals. The default `0.95` corresponds to `alpha = 0.05` (default: `0.95`).
-	- `distribution::Distribution`: The probability distribution used in the GLM. Common choices include `Binomial()` for logistic regression or `Normal()` for linear regression.
-	- `link::Link`: The link function that relates the linear predictor to the mean of the distribution. For logistic regression, `LogitLink()` is typically used.
-	
-	This struct is used to configure and execute a GLM fit with customizable options for prediction intervals, collinearity handling, and plotting settings.
-	"""
-	Base.@kwdef struct GLMAnalysis{I}
-	    npoints::Int=200
-	    dropcollinear::Bool=false
-	    interval::I=AlgebraOfGraphics.automatic
-	    level::Float64=0.95
-		distribution::Distribution
-		link::Link
-	end
-
-	function add_intercept_column(x::AbstractVector{T}) where {T}
-	    mat = similar(x, float(T), (length(x), 2))
-	    fill!(view(mat, :, 1), 1)
-	    copyto!(view(mat, :, 2), x)
-	    return mat
-	end
-
-	"""
-    (l::GLMAnalysis)(input::ProcessedLayer)
-
-	Apply the generalized linear model (GLM) analysis to the input data and return the results in a format suitable for plotting.
-	
-	# Arguments
-	- `input::ProcessedLayer`: The processed input layer containing the data. Each entry in the layer is a tuple of `(x, y)` where `x` represents the independent variable and `y` the dependent variable. Optionally, named mappings such as `:weights` can be included for weighted data.
-	
-	# Behavior
-	The method:
-	1. Adds an intercept column to the predictor `x`.
-	2. Fits a GLM model using the specified `distribution` and `link` from the `GLMAnalysis` struct.
-	3. Generates predicted values over a specified range of `x` values.
-	4. Optionally computes confidence or prediction intervals based on the `interval` and `level` parameters.
-	   - If `interval` is not `nothing`, the function returns both the predicted values and their intervals (lower and upper bounds).
-	   - If `interval` is `nothing`, only the predicted values are returned without uncertainty bands.
-	
-	# Output
-	Returns a `ProcessedLayer` containing the prediction results, which can be visualized using Makie. The default plot type is either `Lines` or `LinesFill`, depending on whether intervals are included.
-	
-	# Notes
-	- The number of points used for generating predictions is controlled by `npoints`.
-	- If the input includes weighted data, the method automatically adjusts the interval settings.
-	"""
-	function (l::GLMAnalysis)(input::ProcessedLayer)
-	    output = map(input) do p, n
-	        x, y = p
-	        weights = get(n, :weights, similar(x, 0))
-	        default_interval = length(weights) > 0 ? nothing : :confidence
-	        interval = l.interval === AlgebraOfGraphics.automatic ? default_interval : l.interval
-	        model = GLM.glm(add_intercept_column(x), y, l.distribution, l.link; wts=weights, l.dropcollinear)
-	        x̂ = range(extrema(x)..., length=l.npoints)
-	        pred = GLM.predict(model, add_intercept_column(x̂); interval, l.level)
-	        return if !isnothing(interval)
-	            ŷ, lower, upper = pred
-	            (x̂, ŷ), (; lower, upper)
-	        else
-	            ŷ = pred
-	            (x̂, ŷ), (;)
-	        end
-	    end
-	    default_plottype = isempty(output.named) ? Lines : LinesFill
-	    plottype = Makie.plottype(output.plottype, default_plottype)
-	    return ProcessedLayer(output; plottype)
-	end
-
-	"""
-	    logistic_curve(; interval=automatic, level=0.95, dropcollinear=false, npoints=200)
-	
-	Compute a logistic fit of `y ~ 1 + x` using a binomial distribution and a logit link function.
-	An optional named mapping `weights` determines the weights.
-	Use `interval` to specify what type of interval the shaded band should represent,
-	for a given coverage `level` (the default `0.95` equates to `alpha = 0.05`).
-	Valid values of `interval` are `:confidence`, to delimit the uncertainty of the predicted
-	relationship, and `:prediction`, to delimit estimated bounds for new data points.
-	Use `interval = nothing` to only compute the logistic fit, without any uncertainty estimate.
-	By default, this analysis errors on singular (collinear) data. To avoid that,
-	it is possible to set `dropcollinear=true`.
-	`npoints` is the number of points used by Makie to draw the shaded band.
-	
-	Weighted data is supported via the keyword `weights` (passed to `mapping`).
-	"""
-	logistic_curve(; options...) = 
-		AlgebraOfGraphics.transformation(GLMAnalysis(; 
-			distribution = Binomial(), 
-			link = LogitLink(),
-			options...
-		))
-end
-
-# ╔═╡ 537aa0cb-3f3f-497b-b81e-5f271bfb247c
-"""
-    bin_sum_EV(data::DataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, bin_group::Union{Nothing, Int64} = nothing)
-
-Bins test data by expected value and summarizes choice behavior across participants.
-
-# Arguments
-- `data::DataFrame`: The input DataFrame containing test data.
-- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition).
-   If `nothing`, all data is treated as a single group.
-- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
-- `col::Symbol`: The column used for binning based on expected value differences. Defaults to `:empirical_EV_diff`.
-- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, 
-   if additional binning of the grouping variable is desired.
-
-# Returns
-- A summarized DataFrame that reports the mean choice behavior (`right_chosen`) by group and binned expected value, 
-  along with the standard error (`se`) for each bin.
-"""
-function bin_sum_EV(
-	data::DataFrame;
-	group::Union{Nothing, Symbol} = nothing,
-	n_bins::Int64 = 5,
-	col::Symbol = :empirical_EV_diff, # x axis data column,
-	bin_group::Union{Nothing, Int64} = nothing
-)
-	# Copy data to avoid changing origianl DataFrame
-	tdata = copy(data)
-
-	# If no grouping is needed
-	if isnothing(group)
-		tdata[!, :group] .= 1
-	else
-		if !isnothing(bin_group)
-			
-			# Quantile bin breaks
-			group_bins = quantile(tdata[!, col], 
-				range(0, 1, length=bin_group + 1))
-
-			# Bin group
-			tdata.EV_group_cut = 	
-				cut(tdata[!, group], group_bins, extend = true)
-		
-			# Use mean of bin as label
-			transform!(
-				groupby(tdata, :EV_group_cut),
-				group => mean => :group
-			)
-		else
-			rename!(tdata, group => :group)
-		end
-	end
-
-	# Quantile bin breaks
-	EV_bins = quantile(tdata[!, col], 
-		range(0, 1, length=n_bins + 1))
-
-	# Bin EV_diff
-	tdata.EV_diff_cut = 	
-		cut(tdata[!, col], EV_bins, extend = true)
-
-	# Use mean of bin as label
-	transform!(
-		groupby(tdata, :EV_diff_cut),
-		col => mean => :EV_diff_bin
-	)
-
-	# Summarize by participant and bin
-	choice_EV_sum = combine(
-		groupby(tdata, [:prolific_pid, :group, :EV_diff_bin]),
-		:right_chosen => mean => :right_chosen
-	) |> dropmissing
-
-	# Summarize by bin
-	choice_EV_sum = combine(
-		groupby(choice_EV_sum, [:group, :EV_diff_bin]),
-		:right_chosen => mean => :right_chosen,
-		:right_chosen => sem => :se
-	)
-end
-
-# ╔═╡ a71b8ea1-ba68-43f8-9597-d1b32c3a9413
-"""
-    bin_EV_plot(f::GridPosition, df::AbstractDataFrame;
-                group::Union{Nothing, Symbol} = nothing,
-                n_bins::Int64 = 5,
-                col::Symbol = :empirical_EV_diff,
-                group_label_f::Function = string,
-                legend_title::String = "",
-                title::String = "",
-                xlabel::String = "Diff. in EV (£)",
-                ylabel::String = "Prop. right chosen",
-                bin_group::Union{Nothing, Int64} = nothing)
-
-Bins and plots summarized choice data based on expected value (EV) differences, optionally grouping by a specified factor. This function computes summary statistics for choices binned by EV differences and produces a plot displaying the proportion of "right" choices across EV difference bins, with optional error bars.
-
-# Arguments
-- `f::GridPosition`: The grid position for plotting (e.g., `f = layout(1,2)`).
-- `df::AbstractDataFrame`: The data containing choice and EV information.
-- `group::Union{Nothing, Symbol}`: The column in `df` to group by (optional). If `nothing`, no grouping is applied. Default is `nothing`.
-- `n_bins::Int64`: The number of bins to divide the EV difference data into. Default is `5`.
-- `col::Symbol`: The column in `df` to use for EV differences on the x-axis. Default is `:empirical_EV_diff`.
-- `group_label_f::Function`: A function to apply to the group labels. Default is `string`.
-- `legend_title::String`: The title for the legend (if grouping is applied). Default is an empty string.
-- `title::String`: The title for the plot. Default is an empty string.
-- `xlabel::String`: The label for the x-axis. Default is `"Diff. in EV (£)"`.
-- `ylabel::String`: The label for the y-axis. Default is `"Prop. right chosen"`.
-- `bin_group::Union{Nothing, Int64}`: Optionally specify another grouping variable for binning (e.g., trial number ranges). Default is `nothing`.
-
-# Details
-This function:
-1. Computes summary statistics for the rightward choices binned by EV differences using the `bin_sum_EV` function.
-2. If `group` is provided, it colors the plot by the grouping variable.
-3. Produces a plot with error bars indicating the standard error of the proportion of "right" choices.
-4. If multiple groups are present, a legend is added to the plot.
-"""
-function bin_EV_plot(
-	f::GridPosition,
-	df::AbstractDataFrame;
-	group::Union{Nothing, Symbol} = nothing,
-	n_bins::Int64 = 5,
-	col::Symbol = :empirical_EV_diff, # x axis data column,
-	group_label_f::Function = string,
-	legend_title::String = "",
-	title::String = "",
-	xlabel::String = "Diff. in EV (£)",
-	ylabel::String = "Prop. right chosen",
-	bin_group::Union{Nothing, Int64} = nothing
-)
-
-	choice_EV_sum = bin_sum_EV(
-		df,
-		group = group,
-		n_bins = n_bins,
-		col = col,
-		bin_group = bin_group
-	)
-
-	grouped = length(unique(choice_EV_sum.group)) > 1 # Whether there is more than one group
-
-	# Prepare color keyword arguments
-	kwargs = grouped ? 
-		(;
-			color = :group => nonnumeric => legend_title
-		) :
-		(;)
-	
-	# Plot
-	f_map = 
-		data(choice_EV_sum) *
-		(
-			mapping(
-				:EV_diff_bin, 
-				:right_chosen,
-				:se;
-				kwargs...
-			) * visual(Errorbars) +
-			mapping(
-				:EV_diff_bin, 
-				:right_chosen; 
-				kwargs...
-			) * visual(Scatter)
-		)
-
-	f_grid = draw!(
-		f[1 + grouped,1],
-		f_map;
-		axis = (; xlabel = xlabel, ylabel = ylabel)
-	)
-
-	if grouped
-		legend!(
-			f[1,1],
-			f_grid,
-			valign = :top,
-			orientation = :horizontal,
-			framevisible = false,
-			tellwidth = false
-		)
-	end
-
-end
-
-# ╔═╡ 572cf109-ca2c-4da2-950e-7a34a7c2eadd
-"""
-	compute_optimality(data::AbstractDataFrame)
-
-Computes which stimuli were optimal or suboptimal during the learning phase, based on test data.
-
-# Arguments
-- `data::AbstractDataFrame`: The input DataFrame containing columns that describe the session, block, stimulus pair, 
-  left and right stimulus images, and whether the right stimulus was the optimal choice.
-
-# Returns
-- `DataFrame`: A DataFrame with two columns: 
-  - `stimulus`: The stimulus identifier (without the "imgs/" prefix).
-  - `optimal`: A boolean indicating whether the stimulus was optimal (`true`) or suboptimal (`false`).
-
-# Process
-1. The function first selects relevant columns related to the task structure (session, block, stimulus pair, left and right images, and optimality).
-2. It determines the optimal and suboptimal stimuli by comparing the `optimalRight` indicator.
-3. Removes duplicate stimulus pairs (left/right order permutations).
-4. Converts the data from wide format (optimal and suboptimal columns) to long format (stimulus and optimal columns).
-"""
-function compute_optimality(data::AbstractDataFrame)
-	
-	# Select columns and reduce to task strcuture, which is the same across participants
-	optimality = unique(data[!, [:session, :block, :stimulus_pair, :imageLeft, :imageRight, :optimalRight]])
-
-	# Which was the optimal stimulus?
-	optimality.optimal = replace.(ifelse.(
-		optimality.optimalRight .== 1, 
-		optimality.imageRight, 
-		optimality.imageLeft
-	), "imgs/" => "")
-
-	# Which was the suboptimal stimulus?
-	optimality.suboptimal = replace.(ifelse.(
-		optimality.optimalRight .== 0, 
-		optimality.imageRight, 
-		optimality.imageLeft
-	), "imgs/" => "")
-
-	# Remove double appearances (right left permutation)
-	optimality = unique(optimality[!, [:session, :block, :stimulus_pair, 
-		:optimal, :suboptimal]])
-
-	# Wide to long
-	optimality = DataFrame(
-		stimulus = vcat(optimality.optimal, optimality.suboptimal),
-		optimal = vcat(fill(true, nrow(optimality)), fill(false, nrow(optimality)))
-	)
-
-	return optimality
-end
-
-# ╔═╡ 0260582c-2712-4692-a355-7e37de5af471
-"""
-	extract_stimulus_magnitude()
-
-Extracts the magnitude (feedback value) of each stimulus based on the task structure file from the learning phase.
-
-# Arguments
-This function does not take any arguments but reads the task structure from a CSV file (`"./results/pilot2.csv"`).
-
-# Returns
-- `DataFrame`: A DataFrame with two columns:
-  - `stimulus`: The stimulus identifier.
-  - `feedback`: The average feedback or magnitude associated with the stimulus, calculated by averaging the unique feedback values across trials.
-
-# Process
-1. The function reads the task structure file (`pilot2.csv`).
-2. Filters out the trials where the feedback is common (`feedback_common` is `true`).
-3. Collects the feedback for each stimulus from both the left and right stimuli columns.
-4. Combines the feedback values and groups them by stimulus, computing the mean feedback for each unique stimulus.
-"""
-function extract_stimulus_magnitude()
-
-	task = DataFrame(CSV.File("./results/pilot2.csv"))
-
-	outcomes = filter(x -> x.feedback_common, task)
-
-	outcomes = vcat(
-		rename(
-			outcomes[!, [:stimulus_right, :feedback_right]],
-			:stimulus_right => :stimulus,
-			:feedback_right => :feedback
-		),
-		rename(
-			outcomes[!, [:stimulus_left, :feedback_left]],
-			:stimulus_left => :stimulus,
-			:feedback_left => :feedback
-		)
-	)
-
-	outcomes = combine(
-		groupby(outcomes, :stimulus),
-		:feedback => (x -> mean(unique(x))) => :feedback
-	)
-
-	return outcomes
-
-end
-
 # ╔═╡ acd469d0-81d0-4d1e-8e55-ffdd1c7ddb08
 # Prepare test data
 only_observed_test = let test_data = test_data
@@ -700,6 +310,112 @@ let
 
 	f
 
+end
+
+# ╔═╡ 3d359ff7-c654-4ae6-856b-068f4a9c12dd
+isa(LogitLink(), Link)
+
+# ╔═╡ 85e41c86-4a18-4175-ab1d-b26f49bdbac1
+begin
+	"""
+	    GLMAnalysis{I}(; npoints=200, dropcollinear=false, interval=AlgebraOfGraphics.automatic, level=0.95, distribution, link)
+	
+	A struct that defines the settings for performing generalized linear model (GLM) analysis for plotting with AlgebraOfGraphics.
+	
+	# Fields
+	- `npoints::Int`: The number of points used for plotting predictions (default: `200`).
+	- `dropcollinear::Bool`: Whether to drop collinear data when fitting the model. By default, collinear data causes an error (default: `false`).
+	- `interval::I`: Specifies the type of interval for plotting (`:confidence`, `:prediction`, or `nothing`). If set to `AlgebraOfGraphics.automatic`, it automatically chooses based on whether weights are provided (default: `AlgebraOfGraphics.automatic`).
+	- `level::Float64`: Coverage level for the confidence or prediction intervals. The default `0.95` corresponds to `alpha = 0.05` (default: `0.95`).
+	- `distribution::Distribution`: The probability distribution used in the GLM. Common choices include `Binomial()` for logistic regression or `Normal()` for linear regression.
+	- `link::Link`: The link function that relates the linear predictor to the mean of the distribution. For logistic regression, `LogitLink()` is typically used.
+	
+	This struct is used to configure and execute a GLM fit with customizable options for prediction intervals, collinearity handling, and plotting settings.
+	"""
+	Base.@kwdef struct GLMAnalysis{I}
+	    npoints::Int=200
+	    dropcollinear::Bool=false
+	    interval::I=AlgebraOfGraphics.automatic
+	    level::Float64=0.95
+		distribution::Distribution
+		link::Link
+	end
+
+	function add_intercept_column(x::AbstractVector{T}) where {T}
+	    mat = similar(x, float(T), (length(x), 2))
+	    fill!(view(mat, :, 1), 1)
+	    copyto!(view(mat, :, 2), x)
+	    return mat
+	end
+
+	"""
+    (l::GLMAnalysis)(input::ProcessedLayer)
+
+	Apply the generalized linear model (GLM) analysis to the input data and return the results in a format suitable for plotting.
+	
+	# Arguments
+	- `input::ProcessedLayer`: The processed input layer containing the data. Each entry in the layer is a tuple of `(x, y)` where `x` represents the independent variable and `y` the dependent variable. Optionally, named mappings such as `:weights` can be included for weighted data.
+	
+	# Behavior
+	The method:
+	1. Adds an intercept column to the predictor `x`.
+	2. Fits a GLM model using the specified `distribution` and `link` from the `GLMAnalysis` struct.
+	3. Generates predicted values over a specified range of `x` values.
+	4. Optionally computes confidence or prediction intervals based on the `interval` and `level` parameters.
+	   - If `interval` is not `nothing`, the function returns both the predicted values and their intervals (lower and upper bounds).
+	   - If `interval` is `nothing`, only the predicted values are returned without uncertainty bands.
+	
+	# Output
+	Returns a `ProcessedLayer` containing the prediction results, which can be visualized using Makie. The default plot type is either `Lines` or `LinesFill`, depending on whether intervals are included.
+	
+	# Notes
+	- The number of points used for generating predictions is controlled by `npoints`.
+	- If the input includes weighted data, the method automatically adjusts the interval settings.
+	"""
+	function (l::GLMAnalysis)(input::ProcessedLayer)
+	    output = map(input) do p, n
+	        x, y = p
+	        weights = get(n, :weights, similar(x, 0))
+	        default_interval = length(weights) > 0 ? nothing : :confidence
+	        interval = l.interval === AlgebraOfGraphics.automatic ? default_interval : l.interval
+	        model = GLM.glm(add_intercept_column(x), y, l.distribution, l.link; wts=weights, l.dropcollinear)
+	        x̂ = range(extrema(x)..., length=l.npoints)
+	        pred = GLM.predict(model, add_intercept_column(x̂); interval, l.level)
+	        return if !isnothing(interval)
+	            ŷ, lower, upper = pred
+	            (x̂, ŷ), (; lower, upper)
+	        else
+	            ŷ = pred
+	            (x̂, ŷ), (;)
+	        end
+	    end
+	    default_plottype = isempty(output.named) ? Lines : LinesFill
+	    plottype = Makie.plottype(output.plottype, default_plottype)
+	    return ProcessedLayer(output; plottype)
+	end
+
+	"""
+	    logistic_curve(; interval=automatic, level=0.95, dropcollinear=false, npoints=200)
+	
+	Compute a logistic fit of `y ~ 1 + x` using a binomial distribution and a logit link function.
+	An optional named mapping `weights` determines the weights.
+	Use `interval` to specify what type of interval the shaded band should represent,
+	for a given coverage `level` (the default `0.95` equates to `alpha = 0.05`).
+	Valid values of `interval` are `:confidence`, to delimit the uncertainty of the predicted
+	relationship, and `:prediction`, to delimit estimated bounds for new data points.
+	Use `interval = nothing` to only compute the logistic fit, without any uncertainty estimate.
+	By default, this analysis errors on singular (collinear) data. To avoid that,
+	it is possible to set `dropcollinear=true`.
+	`npoints` is the number of points used by Makie to draw the shaded band.
+	
+	Weighted data is supported via the keyword `weights` (passed to `mapping`).
+	"""
+	logistic_curve(; options...) = 
+		AlgebraOfGraphics.transformation(GLMAnalysis(; 
+			distribution = Binomial(), 
+			link = LogitLink(),
+			options...
+		))
 end
 
 # ╔═╡ d254ed77-7386-4fec-b09d-ef7822e969ae
@@ -1070,6 +786,290 @@ let
 	end
 
 	f2, f1
+end
+
+# ╔═╡ 537aa0cb-3f3f-497b-b81e-5f271bfb247c
+"""
+    bin_sum_EV(data::DataFrame; group::Union{Nothing, Symbol} = nothing, n_bins::Int64 = 5, col::Symbol = :empirical_EV_diff, bin_group::Union{Nothing, Int64} = nothing)
+
+Bins test data by expected value and summarizes choice behavior across participants.
+
+# Arguments
+- `data::DataFrame`: The input DataFrame containing test data.
+- `group::Union{Nothing, Symbol}`: An optional grouping variable (e.g., participant ID or condition).
+   If `nothing`, all data is treated as a single group.
+- `n_bins::Int64`: Number of quantile bins to divide the expected value (`col`) into. Defaults to 5.
+- `col::Symbol`: The column used for binning based on expected value differences. Defaults to `:empirical_EV_diff`.
+- `bin_group::Union{Nothing, Int64}`: Optional number of quantile bins to divide the group by, 
+   if additional binning of the grouping variable is desired.
+
+# Returns
+- A summarized DataFrame that reports the mean choice behavior (`right_chosen`) by group and binned expected value, 
+  along with the standard error (`se`) for each bin.
+"""
+function bin_sum_EV(
+	data::DataFrame;
+	group::Union{Nothing, Symbol} = nothing,
+	n_bins::Int64 = 5,
+	col::Symbol = :empirical_EV_diff, # x axis data column,
+	bin_group::Union{Nothing, Int64} = nothing
+)
+	# Copy data to avoid changing origianl DataFrame
+	tdata = copy(data)
+
+	# If no grouping is needed
+	if isnothing(group)
+		tdata[!, :group] .= 1
+	else
+		if !isnothing(bin_group)
+			
+			# Quantile bin breaks
+			group_bins = quantile(tdata[!, col], 
+				range(0, 1, length=bin_group + 1))
+
+			# Bin group
+			tdata.EV_group_cut = 	
+				cut(tdata[!, group], group_bins, extend = true)
+		
+			# Use mean of bin as label
+			transform!(
+				groupby(tdata, :EV_group_cut),
+				group => mean => :group
+			)
+		else
+			rename!(tdata, group => :group)
+		end
+	end
+
+	# Quantile bin breaks
+	EV_bins = quantile(tdata[!, col], 
+		range(0, 1, length=n_bins + 1))
+
+	# Bin EV_diff
+	tdata.EV_diff_cut = 	
+		cut(tdata[!, col], EV_bins, extend = true)
+
+	# Use mean of bin as label
+	transform!(
+		groupby(tdata, :EV_diff_cut),
+		col => mean => :EV_diff_bin
+	)
+
+	# Summarize by participant and bin
+	choice_EV_sum = combine(
+		groupby(tdata, [:prolific_pid, :group, :EV_diff_bin]),
+		:right_chosen => mean => :right_chosen
+	) |> dropmissing
+
+	# Summarize by bin
+	choice_EV_sum = combine(
+		groupby(choice_EV_sum, [:group, :EV_diff_bin]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+end
+
+# ╔═╡ a71b8ea1-ba68-43f8-9597-d1b32c3a9413
+"""
+    bin_EV_plot(f::GridPosition, df::AbstractDataFrame;
+                group::Union{Nothing, Symbol} = nothing,
+                n_bins::Int64 = 5,
+                col::Symbol = :empirical_EV_diff,
+                group_label_f::Function = string,
+                legend_title::String = "",
+                title::String = "",
+                xlabel::String = "Diff. in EV (£)",
+                ylabel::String = "Prop. right chosen",
+                bin_group::Union{Nothing, Int64} = nothing)
+
+Bins and plots summarized choice data based on expected value (EV) differences, optionally grouping by a specified factor. This function computes summary statistics for choices binned by EV differences and produces a plot displaying the proportion of "right" choices across EV difference bins, with optional error bars.
+
+# Arguments
+- `f::GridPosition`: The grid position for plotting (e.g., `f = layout(1,2)`).
+- `df::AbstractDataFrame`: The data containing choice and EV information.
+- `group::Union{Nothing, Symbol}`: The column in `df` to group by (optional). If `nothing`, no grouping is applied. Default is `nothing`.
+- `n_bins::Int64`: The number of bins to divide the EV difference data into. Default is `5`.
+- `col::Symbol`: The column in `df` to use for EV differences on the x-axis. Default is `:empirical_EV_diff`.
+- `group_label_f::Function`: A function to apply to the group labels. Default is `string`.
+- `legend_title::String`: The title for the legend (if grouping is applied). Default is an empty string.
+- `title::String`: The title for the plot. Default is an empty string.
+- `xlabel::String`: The label for the x-axis. Default is `"Diff. in EV (£)"`.
+- `ylabel::String`: The label for the y-axis. Default is `"Prop. right chosen"`.
+- `bin_group::Union{Nothing, Int64}`: Optionally specify another grouping variable for binning (e.g., trial number ranges). Default is `nothing`.
+
+# Details
+This function:
+1. Computes summary statistics for the rightward choices binned by EV differences using the `bin_sum_EV` function.
+2. If `group` is provided, it colors the plot by the grouping variable.
+3. Produces a plot with error bars indicating the standard error of the proportion of "right" choices.
+4. If multiple groups are present, a legend is added to the plot.
+"""
+function bin_EV_plot(
+	f::GridPosition,
+	df::AbstractDataFrame;
+	group::Union{Nothing, Symbol} = nothing,
+	n_bins::Int64 = 5,
+	col::Symbol = :empirical_EV_diff, # x axis data column,
+	group_label_f::Function = string,
+	legend_title::String = "",
+	title::String = "",
+	xlabel::String = "Diff. in EV (£)",
+	ylabel::String = "Prop. right chosen",
+	bin_group::Union{Nothing, Int64} = nothing
+)
+
+	choice_EV_sum = bin_sum_EV(
+		df,
+		group = group,
+		n_bins = n_bins,
+		col = col,
+		bin_group = bin_group
+	)
+
+	grouped = length(unique(choice_EV_sum.group)) > 1 # Whether there is more than one group
+
+	# Prepare color keyword arguments
+	kwargs = grouped ? 
+		(;
+			color = :group => nonnumeric => legend_title
+		) :
+		(;)
+	
+	# Plot
+	f_map = 
+		data(choice_EV_sum) *
+		(
+			mapping(
+				:EV_diff_bin, 
+				:right_chosen,
+				:se;
+				kwargs...
+			) * visual(Errorbars) +
+			mapping(
+				:EV_diff_bin, 
+				:right_chosen; 
+				kwargs...
+			) * visual(Scatter)
+		)
+
+	f_grid = draw!(
+		f[1 + grouped,1],
+		f_map;
+		axis = (; xlabel = xlabel, ylabel = ylabel)
+	)
+
+	if grouped
+		legend!(
+			f[1,1],
+			f_grid,
+			valign = :top,
+			orientation = :horizontal,
+			framevisible = false,
+			tellwidth = false
+		)
+	end
+
+end
+
+# ╔═╡ 572cf109-ca2c-4da2-950e-7a34a7c2eadd
+"""
+	compute_optimality(data::AbstractDataFrame)
+
+Computes which stimuli were optimal or suboptimal during the learning phase, based on test data.
+
+# Arguments
+- `data::AbstractDataFrame`: The input DataFrame containing columns that describe the session, block, stimulus pair, 
+  left and right stimulus images, and whether the right stimulus was the optimal choice.
+
+# Returns
+- `DataFrame`: A DataFrame with two columns: 
+  - `stimulus`: The stimulus identifier (without the "imgs/" prefix).
+  - `optimal`: A boolean indicating whether the stimulus was optimal (`true`) or suboptimal (`false`).
+
+# Process
+1. The function first selects relevant columns related to the task structure (session, block, stimulus pair, left and right images, and optimality).
+2. It determines the optimal and suboptimal stimuli by comparing the `optimalRight` indicator.
+3. Removes duplicate stimulus pairs (left/right order permutations).
+4. Converts the data from wide format (optimal and suboptimal columns) to long format (stimulus and optimal columns).
+"""
+function compute_optimality(data::AbstractDataFrame)
+	
+	# Select columns and reduce to task strcuture, which is the same across participants
+	optimality = unique(data[!, [:session, :block, :stimulus_pair, :imageLeft, :imageRight, :optimalRight]])
+
+	# Which was the optimal stimulus?
+	optimality.optimal = replace.(ifelse.(
+		optimality.optimalRight .== 1, 
+		optimality.imageRight, 
+		optimality.imageLeft
+	), "imgs/" => "")
+
+	# Which was the suboptimal stimulus?
+	optimality.suboptimal = replace.(ifelse.(
+		optimality.optimalRight .== 0, 
+		optimality.imageRight, 
+		optimality.imageLeft
+	), "imgs/" => "")
+
+	# Remove double appearances (right left permutation)
+	optimality = unique(optimality[!, [:session, :block, :stimulus_pair, 
+		:optimal, :suboptimal]])
+
+	# Wide to long
+	optimality = DataFrame(
+		stimulus = vcat(optimality.optimal, optimality.suboptimal),
+		optimal = vcat(fill(true, nrow(optimality)), fill(false, nrow(optimality)))
+	)
+
+	return optimality
+end
+
+# ╔═╡ 0260582c-2712-4692-a355-7e37de5af471
+"""
+	extract_stimulus_magnitude()
+
+Extracts the magnitude (feedback value) of each stimulus based on the task structure file from the learning phase.
+
+# Arguments
+This function does not take any arguments but reads the task structure from a CSV file (`"./results/pilot2.csv"`).
+
+# Returns
+- `DataFrame`: A DataFrame with two columns:
+  - `stimulus`: The stimulus identifier.
+  - `feedback`: The average feedback or magnitude associated with the stimulus, calculated by averaging the unique feedback values across trials.
+
+# Process
+1. The function reads the task structure file (`pilot2.csv`).
+2. Filters out the trials where the feedback is common (`feedback_common` is `true`).
+3. Collects the feedback for each stimulus from both the left and right stimuli columns.
+4. Combines the feedback values and groups them by stimulus, computing the mean feedback for each unique stimulus.
+"""
+function extract_stimulus_magnitude()
+
+	task = DataFrame(CSV.File("./results/pilot2.csv"))
+
+	outcomes = filter(x -> x.feedback_common, task)
+
+	outcomes = vcat(
+		rename(
+			outcomes[!, [:stimulus_right, :feedback_right]],
+			:stimulus_right => :stimulus,
+			:feedback_right => :feedback
+		),
+		rename(
+			outcomes[!, [:stimulus_left, :feedback_left]],
+			:stimulus_left => :stimulus,
+			:feedback_left => :feedback
+		)
+	)
+
+	outcomes = combine(
+		groupby(outcomes, :stimulus),
+		:feedback => (x -> mean(unique(x))) => :feedback
+	)
+
+	return outcomes
+
 end
 
 # ╔═╡ Cell order:

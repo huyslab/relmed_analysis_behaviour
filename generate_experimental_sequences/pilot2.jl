@@ -17,318 +17,6 @@ begin
 	nothing
 end
 
-# ╔═╡ 94a4ac24-2d30-4410-ae5f-6432f9e2973e
-"""
-    generate_multiple_n_confusing_sequences(; 
-        n_trials::Vector{Int64}, n_confusing::Vector{Int64}, n_pairs::Vector{Int64}
-    ) -> DataFrame
-
-Generates sequences that determine which trials in a task will have confusing feedback, based on the number of confusing trials per block. The assignment of confusing trials is random, with the restriction that the last trial in each block cannot be confusing.
-
-# Arguments
-- `n_trials::Vector{Int64}`: Number of trials per block.
-- `n_confusing::Vector{Int64}`: Number of confusing feedback trials per block.
-- `n_pairs::Vector{Int64}`: Number of stimulus pairs per block.
-
-# Returns
-- `DataFrame`: A DataFrame where each row represents a trial in a block, and the `feedback_common` column specifies whether the trial will have common feedback (`true`) or confusing feedback (`false`). The structure includes:
-  - `cblock`: The cumulative block number.
-  - `pair`: The stimulus pair for the trial.
-  - `appearance`: The appearance number for the pair in the block.
-  - `feedback_common`: A boolean value indicating whether the trial has common feedback (`true`) or confusing feedback (`false`).
-
-# Procedure
-1. For each block, trials are grouped by stimulus pairs, ensuring that the total number of trials is divisible by the number of pairs.
-2. For each pair, a sequence of trials is generated where a specified number of trials receive confusing feedback (`false`), while the rest receive common feedback (`true`).
-3. The feedback sequence for each pair is shuffled randomly, with the constraint that the last trial in the sequence must always have common feedback (`true`).
-4. The resulting sequences for all blocks are concatenated into a single DataFrame.
-
-# Notes
-- An assertion ensures that the total number of trials per block is divisible by the number of stimulus pairs (`n_trials[i] % n_pairs[i] == 0`).
-- This function provides a random but constrained assignment of confusing trials for mixed task designs with varying numbers of blocks, pairs, and confusing trials.
-"""
-function generate_multiple_n_confusing_sequences(;
-		n_trials::Vector{Int64}, # Per block
-		n_confusing::Vector{Int64},
-		n_pairs::Vector{Int64} # Per block
-)
-
-	@assert all(rem.(n_trials, n_pairs) .== 0) "Not all n_trials divisible by n_pairs"
-
-	seqs = []
-
-	for (i, (t, c, p)) in enumerate(zip(n_trials, n_confusing, n_pairs))
-
-		nttp = div(t, p) # Number of trials per pair
-
-		seq = DataFrame(
-			cblock = fill(i, t),
-			pair = repeat(1:p, inner = nttp),
-			appearance = repeat(1:nttp, outer = p),
-			feedback_common = vcat(
-				[
-					vcat(shuffle(
-						vcat(
-							fill(false, c),
-							fill(true, nttp - c - 1)
-						)
-					), [true]) # Shuffle, making sure last is not confusing
-					for _ in 1:p
-				]...
-			)
-		)
-		push!(seqs, seq)
-	end
-
-	return vcat(seqs...)
-
-end
-
-# ╔═╡ dea0a1fd-7ec3-4004-af9e-3f3155f19ec0
-"""
-    prepare_task_structure(; 
-        n_sessions::Int64, n_blocks::Int64, n_trials::Vector{Int64}, 
-        n_pairs::Vector{Int64}, n_confusing::Vector{Int64}, valence::Vector{Int64}, 
-        categories::Vector{String}, stop_after::Union{Int64, Missing}, output_file::String, 
-        high_reward_magnitudes::Vector{Vector{Float64}}, low_reward_magnitudes::Vector{Vector{Float64}}
-    ) -> DataFrame
-
-Generates a task structure for a Probabilistic Inference Learning Task (PILT) by organizing trial sequences, reward feedback magnitudes, stimulus pairing, and saving the resulting structure. 
-
-# Arguments
-- `n_sessions::Int64`: Number of sessions.
-- `n_blocks::Int64`: Number of blocks per session.
-- `n_trials::Vector{Int64}`: Number of trials per block.
-- `n_pairs::Vector{Int64}`: Number of stimulus pairs per block.
-- `n_confusing::Vector{Int64}`: Number of trials with confusing feedback per block.
-- `valence::Vector{Int64}`: Specifies the valence (positive/negative) of rewards for each block.
-- `categories::Vector{String}`: List of stimulus categories.
-- `stop_after::Union{Int64, Missing}`: Number of trials after which the task should stop, or `missing` if no early stopping is required.
-- `output_file::String`: Name of the output file to save the task data.
-- `high_reward_magnitudes::Vector{Vector{Float64}}`: High reward magnitudes for each stimulus pair, sorted by blocks.
-- `low_reward_magnitudes::Vector{Vector{Float64}}`: Low reward magnitudes for each stimulus pair, sorted by blocks.
-
-# Returns
-- `task::DataFrame`: A DataFrame representing the complete task structure, including stimulus file on right / left, feedback, and optimality.
-
-# Procedure
-1. Validates input dimensions to ensure consistency across sessions, blocks, and trials.
-2. Assigns stimuli and determines their optimality for each trial.
-3. Creates feedback sequences (confusing/common) for each block and trial.
-4. Organizes trials into a DataFrame, setting attributes such as session, block, and trial number.
-5. Randomizes the presentation of stimuli and shuffles their appearance order.
-6. Joins feedback sequences and stimulus information into the task structure.
-7. Randomly assigns the reward magnitudes for each trial and computes feedback for stimuli.
-8. Saves the generated task structure to JSON and CSV formats.
-"""
-function prepare_task_strucutre(;
-	n_sessions::Int64,
-	n_blocks::Int64,
-	n_trials::Vector{Int64}, # Per block
-	n_pairs::Vector{Int64}, # Per block
-	n_confusing::Vector{Int64}, # Per block
-	valence::Vector{Int64}, # Per block
-	categories::Vector{String},
-	stop_after::Union{Int64, Missing},
-	output_file::String,
-	high_reward_magnitudes::Vector{Vector{Float64}}, # Per pair
-	low_reward_magnitudes::Vector{Vector{Float64}} # Per pair
-) 
-
-	# Checks
-	n_blocks_total = n_sessions * n_blocks
-	n_pairs_total = sum(n_pairs)
-	
-	@assert length(n_confusing) == n_blocks_total "Length of n_confusing does not match total number of blocks specified"
-
-	@assert length(n_pairs) == n_blocks_total "Length of n_pairs does not match total number of blocks specified"
-
-	@assert length(n_trials) == n_blocks_total "Length of n_trials does not match total number of blocks specified"
-
-	@assert length(valence) == n_blocks_total "Length of valence does not match total number of blocks specified"
-
-	@assert length(high_reward_magnitudes) == n_pairs_total "Length of high_reward_magnitudes does not match total number of stimulus pairs specified"
-
-	@assert length(low_reward_magnitudes) == n_pairs_total "Length of low_reward_magnitudes does not match total number of stimulus pairs specified"
-
-	# Assign stimulus pairs
-	stimuli = assign_stimuli_and_optimality(;
-		n_phases = n_sessions,
-		n_pairs = n_pairs,
-		categories = categories
-	)
-
-	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
-
-	# Create sequences of confusing / common feedback
-	feedback_sequences = generate_multiple_n_confusing_sequences(
-		n_trials = n_trials,
-		n_confusing = n_confusing,
-		n_pairs = n_pairs
-	)
-
-	# Prepare task DataFrame
-	task = DataFrame(
-		session = repeat(1:n_sessions, inner = sum(n_trials)),
-		block = vcat([fill(b, t) for (b, t) in enumerate(n_trials)]...),
-		n_pairs = vcat([fill(n_pairs[b], t) for (b, t) in enumerate(n_trials)]...),
-		valence = vcat([fill(valence[b], t) for (b, t) in enumerate(n_trials)]...),
-		pair = vcat([repeat(1:p, inner = div(n_trials[i], p)) for (i, p) in enumerate(n_pairs)]...)
-	)
-
-	# Cumulative block number across sessions
-	task.cblock = task.block .+ (task.session .- 1) .* maximum(task.block)
-
-	# Shuffle pair in trial
-	transform!(
-		groupby(task, [:session, :block, :cblock]),
-		:pair => shuffle => :pair
-	)
-
-	# Number apperanece of each pair
-	transform!(
-		groupby(task, [:session, :block, :pair]),
-		:pair => (x -> 1:length(x)) => :appearance
-	)
-	
-	# Number trials
-	transform!(
-		groupby(task, [:session, :block]),
-		:pair => (x -> 1:length(x)) => :trial
-	)
-	
-	# Join with sequences	
-	task = innerjoin(
-		task,
-		feedback_sequences,
-		on = [:cblock, :pair, :appearance],
-		order = :left
-	)
-
-	# Join with stimuli
-	task = innerjoin(
-		task,
-		stimuli,
-		on = [:session, :block, :pair],
-		order = :left
-	)
-
-	# Assign whether optimal stimulus is on right
-	transform!(
-		groupby(task, :cblock),
-		:trial => (x -> shuffle(
-			collect(Iterators.take(Iterators.cycle(shuffle([true, false])), length(x)))
-		)) => :optimal_right
-	)
-
-	# Assign stimulus on right
-	task.stimulus_right = ifelse.(
-		task.optimal_right,
-		ifelse.(
-			task.optimal_A,
-			task.stimulus_A,
-			task.stimulus_B
-		),
-		ifelse.(
-			task.optimal_A,
-			task.stimulus_B,
-			task.stimulus_A
-		)
-	)
-
-	# Assign stimulus on left
-	task.stimulus_left = ifelse.(
-		task.optimal_right,
-		ifelse.(
-			task.optimal_A,
-			task.stimulus_B,
-			task.stimulus_A
-		),
-		ifelse.(
-			task.optimal_A,
-			task.stimulus_A,
-			task.stimulus_B
-		)
-	)
-
-	# Compute cumulative pair number
-	pairs = unique(task[!, [:cblock, :pair]])
-	pairs.cpair = 1:nrow(pairs)
-
-	task = innerjoin(
-		task,
-		pairs,
-		on = [:cblock, :pair],
-		order = :left
-	)
-	
-	
-	# Shuffle reward magnitudes
-	transform!(
-		groupby(task, [:session, :block, :pair]),
-		:cpair => (
-			x -> shuffle(collect(Iterators.take(
-				Iterators.cycle(shuffle(high_reward_magnitudes[x[1]])),
-				length(x)
-			)))
-		) => :high_magnitude,
-		:cpair => (
-			x -> shuffle(collect(Iterators.take(
-				Iterators.cycle(shuffle(low_reward_magnitudes[x[1]])),
-				length(x)
-			)))
-		) => :low_magnitude
-	)
-
-	# Compute better feedback value
-	task.better_feedback = ifelse.(
-		task.valence .== 1,
-		task.high_magnitude,
-		.- task.low_magnitude
-	)
-
-	task.worse_feedback = ifelse.(
-		task.valence .== 1,
-		task.low_magnitude,
-		.- task.high_magnitude
-	)
-
-	# Assign feedback to stimulus
-	task.feedback_right = ifelse.(
-		task.feedback_common,
-		ifelse.(
-			task.optimal_right,
-			task.better_feedback,
-			task.worse_feedback
-		),
-		ifelse.(
-			.!task.optimal_right,
-			task.better_feedback,
-			task.worse_feedback
-		)
-	)
-
-	task.feedback_left = ifelse.(
-		task.feedback_common,
-		ifelse.(
-			.!task.optimal_right,
-			task.better_feedback,
-			task.worse_feedback
-		),
-		ifelse.(
-			task.optimal_right,
-			task.better_feedback,
-			task.worse_feedback
-		)
-	)
-
-	# Save to file
-	save_to_JSON(task, "results/$output_file.json")
-	CSV.write("results/$output_file.csv", task)
-	
-	return task
-end
-
 # ╔═╡ 2c31faf8-8b32-4709-ba3a-43ee9376a3c4
 # Create PILT sequence for pilot 2
 task = let set_sizes = 1:3,
@@ -703,6 +391,318 @@ end
 
 # ╔═╡ ad3d8369-9455-44b0-9e6b-9ab3364dbce0
 test_pairs
+
+# ╔═╡ dea0a1fd-7ec3-4004-af9e-3f3155f19ec0
+"""
+    prepare_task_structure(; 
+        n_sessions::Int64, n_blocks::Int64, n_trials::Vector{Int64}, 
+        n_pairs::Vector{Int64}, n_confusing::Vector{Int64}, valence::Vector{Int64}, 
+        categories::Vector{String}, stop_after::Union{Int64, Missing}, output_file::String, 
+        high_reward_magnitudes::Vector{Vector{Float64}}, low_reward_magnitudes::Vector{Vector{Float64}}
+    ) -> DataFrame
+
+Generates a task structure for a Probabilistic Inference Learning Task (PILT) by organizing trial sequences, reward feedback magnitudes, stimulus pairing, and saving the resulting structure. 
+
+# Arguments
+- `n_sessions::Int64`: Number of sessions.
+- `n_blocks::Int64`: Number of blocks per session.
+- `n_trials::Vector{Int64}`: Number of trials per block.
+- `n_pairs::Vector{Int64}`: Number of stimulus pairs per block.
+- `n_confusing::Vector{Int64}`: Number of trials with confusing feedback per block.
+- `valence::Vector{Int64}`: Specifies the valence (positive/negative) of rewards for each block.
+- `categories::Vector{String}`: List of stimulus categories.
+- `stop_after::Union{Int64, Missing}`: Number of trials after which the task should stop, or `missing` if no early stopping is required.
+- `output_file::String`: Name of the output file to save the task data.
+- `high_reward_magnitudes::Vector{Vector{Float64}}`: High reward magnitudes for each stimulus pair, sorted by blocks.
+- `low_reward_magnitudes::Vector{Vector{Float64}}`: Low reward magnitudes for each stimulus pair, sorted by blocks.
+
+# Returns
+- `task::DataFrame`: A DataFrame representing the complete task structure, including stimulus file on right / left, feedback, and optimality.
+
+# Procedure
+1. Validates input dimensions to ensure consistency across sessions, blocks, and trials.
+2. Assigns stimuli and determines their optimality for each trial.
+3. Creates feedback sequences (confusing/common) for each block and trial.
+4. Organizes trials into a DataFrame, setting attributes such as session, block, and trial number.
+5. Randomizes the presentation of stimuli and shuffles their appearance order.
+6. Joins feedback sequences and stimulus information into the task structure.
+7. Randomly assigns the reward magnitudes for each trial and computes feedback for stimuli.
+8. Saves the generated task structure to JSON and CSV formats.
+"""
+function prepare_task_strucutre(;
+	n_sessions::Int64,
+	n_blocks::Int64,
+	n_trials::Vector{Int64}, # Per block
+	n_pairs::Vector{Int64}, # Per block
+	n_confusing::Vector{Int64}, # Per block
+	valence::Vector{Int64}, # Per block
+	categories::Vector{String},
+	stop_after::Union{Int64, Missing},
+	output_file::String,
+	high_reward_magnitudes::Vector{Vector{Float64}}, # Per pair
+	low_reward_magnitudes::Vector{Vector{Float64}} # Per pair
+) 
+
+	# Checks
+	n_blocks_total = n_sessions * n_blocks
+	n_pairs_total = sum(n_pairs)
+	
+	@assert length(n_confusing) == n_blocks_total "Length of n_confusing does not match total number of blocks specified"
+
+	@assert length(n_pairs) == n_blocks_total "Length of n_pairs does not match total number of blocks specified"
+
+	@assert length(n_trials) == n_blocks_total "Length of n_trials does not match total number of blocks specified"
+
+	@assert length(valence) == n_blocks_total "Length of valence does not match total number of blocks specified"
+
+	@assert length(high_reward_magnitudes) == n_pairs_total "Length of high_reward_magnitudes does not match total number of stimulus pairs specified"
+
+	@assert length(low_reward_magnitudes) == n_pairs_total "Length of low_reward_magnitudes does not match total number of stimulus pairs specified"
+
+	# Assign stimulus pairs
+	stimuli = assign_stimuli_and_optimality(;
+		n_phases = n_sessions,
+		n_pairs = n_pairs,
+		categories = categories
+	)
+
+	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+
+	# Create sequences of confusing / common feedback
+	feedback_sequences = generate_multiple_n_confusing_sequences(
+		n_trials = n_trials,
+		n_confusing = n_confusing,
+		n_pairs = n_pairs
+	)
+
+	# Prepare task DataFrame
+	task = DataFrame(
+		session = repeat(1:n_sessions, inner = sum(n_trials)),
+		block = vcat([fill(b, t) for (b, t) in enumerate(n_trials)]...),
+		n_pairs = vcat([fill(n_pairs[b], t) for (b, t) in enumerate(n_trials)]...),
+		valence = vcat([fill(valence[b], t) for (b, t) in enumerate(n_trials)]...),
+		pair = vcat([repeat(1:p, inner = div(n_trials[i], p)) for (i, p) in enumerate(n_pairs)]...)
+	)
+
+	# Cumulative block number across sessions
+	task.cblock = task.block .+ (task.session .- 1) .* maximum(task.block)
+
+	# Shuffle pair in trial
+	transform!(
+		groupby(task, [:session, :block, :cblock]),
+		:pair => shuffle => :pair
+	)
+
+	# Number apperanece of each pair
+	transform!(
+		groupby(task, [:session, :block, :pair]),
+		:pair => (x -> 1:length(x)) => :appearance
+	)
+	
+	# Number trials
+	transform!(
+		groupby(task, [:session, :block]),
+		:pair => (x -> 1:length(x)) => :trial
+	)
+	
+	# Join with sequences	
+	task = innerjoin(
+		task,
+		feedback_sequences,
+		on = [:cblock, :pair, :appearance],
+		order = :left
+	)
+
+	# Join with stimuli
+	task = innerjoin(
+		task,
+		stimuli,
+		on = [:session, :block, :pair],
+		order = :left
+	)
+
+	# Assign whether optimal stimulus is on right
+	transform!(
+		groupby(task, :cblock),
+		:trial => (x -> shuffle(
+			collect(Iterators.take(Iterators.cycle(shuffle([true, false])), length(x)))
+		)) => :optimal_right
+	)
+
+	# Assign stimulus on right
+	task.stimulus_right = ifelse.(
+		task.optimal_right,
+		ifelse.(
+			task.optimal_A,
+			task.stimulus_A,
+			task.stimulus_B
+		),
+		ifelse.(
+			task.optimal_A,
+			task.stimulus_B,
+			task.stimulus_A
+		)
+	)
+
+	# Assign stimulus on left
+	task.stimulus_left = ifelse.(
+		task.optimal_right,
+		ifelse.(
+			task.optimal_A,
+			task.stimulus_B,
+			task.stimulus_A
+		),
+		ifelse.(
+			task.optimal_A,
+			task.stimulus_A,
+			task.stimulus_B
+		)
+	)
+
+	# Compute cumulative pair number
+	pairs = unique(task[!, [:cblock, :pair]])
+	pairs.cpair = 1:nrow(pairs)
+
+	task = innerjoin(
+		task,
+		pairs,
+		on = [:cblock, :pair],
+		order = :left
+	)
+	
+	
+	# Shuffle reward magnitudes
+	transform!(
+		groupby(task, [:session, :block, :pair]),
+		:cpair => (
+			x -> shuffle(collect(Iterators.take(
+				Iterators.cycle(shuffle(high_reward_magnitudes[x[1]])),
+				length(x)
+			)))
+		) => :high_magnitude,
+		:cpair => (
+			x -> shuffle(collect(Iterators.take(
+				Iterators.cycle(shuffle(low_reward_magnitudes[x[1]])),
+				length(x)
+			)))
+		) => :low_magnitude
+	)
+
+	# Compute better feedback value
+	task.better_feedback = ifelse.(
+		task.valence .== 1,
+		task.high_magnitude,
+		.- task.low_magnitude
+	)
+
+	task.worse_feedback = ifelse.(
+		task.valence .== 1,
+		task.low_magnitude,
+		.- task.high_magnitude
+	)
+
+	# Assign feedback to stimulus
+	task.feedback_right = ifelse.(
+		task.feedback_common,
+		ifelse.(
+			task.optimal_right,
+			task.better_feedback,
+			task.worse_feedback
+		),
+		ifelse.(
+			.!task.optimal_right,
+			task.better_feedback,
+			task.worse_feedback
+		)
+	)
+
+	task.feedback_left = ifelse.(
+		task.feedback_common,
+		ifelse.(
+			.!task.optimal_right,
+			task.better_feedback,
+			task.worse_feedback
+		),
+		ifelse.(
+			task.optimal_right,
+			task.better_feedback,
+			task.worse_feedback
+		)
+	)
+
+	# Save to file
+	save_to_JSON(task, "results/$output_file.json")
+	CSV.write("results/$output_file.csv", task)
+	
+	return task
+end
+
+# ╔═╡ 94a4ac24-2d30-4410-ae5f-6432f9e2973e
+"""
+    generate_multiple_n_confusing_sequences(; 
+        n_trials::Vector{Int64}, n_confusing::Vector{Int64}, n_pairs::Vector{Int64}
+    ) -> DataFrame
+
+Generates sequences that determine which trials in a task will have confusing feedback, based on the number of confusing trials per block. The assignment of confusing trials is random, with the restriction that the last trial in each block cannot be confusing.
+
+# Arguments
+- `n_trials::Vector{Int64}`: Number of trials per block.
+- `n_confusing::Vector{Int64}`: Number of confusing feedback trials per block.
+- `n_pairs::Vector{Int64}`: Number of stimulus pairs per block.
+
+# Returns
+- `DataFrame`: A DataFrame where each row represents a trial in a block, and the `feedback_common` column specifies whether the trial will have common feedback (`true`) or confusing feedback (`false`). The structure includes:
+  - `cblock`: The cumulative block number.
+  - `pair`: The stimulus pair for the trial.
+  - `appearance`: The appearance number for the pair in the block.
+  - `feedback_common`: A boolean value indicating whether the trial has common feedback (`true`) or confusing feedback (`false`).
+
+# Procedure
+1. For each block, trials are grouped by stimulus pairs, ensuring that the total number of trials is divisible by the number of pairs.
+2. For each pair, a sequence of trials is generated where a specified number of trials receive confusing feedback (`false`), while the rest receive common feedback (`true`).
+3. The feedback sequence for each pair is shuffled randomly, with the constraint that the last trial in the sequence must always have common feedback (`true`).
+4. The resulting sequences for all blocks are concatenated into a single DataFrame.
+
+# Notes
+- An assertion ensures that the total number of trials per block is divisible by the number of stimulus pairs (`n_trials[i] % n_pairs[i] == 0`).
+- This function provides a random but constrained assignment of confusing trials for mixed task designs with varying numbers of blocks, pairs, and confusing trials.
+"""
+function generate_multiple_n_confusing_sequences(;
+		n_trials::Vector{Int64}, # Per block
+		n_confusing::Vector{Int64},
+		n_pairs::Vector{Int64} # Per block
+)
+
+	@assert all(rem.(n_trials, n_pairs) .== 0) "Not all n_trials divisible by n_pairs"
+
+	seqs = []
+
+	for (i, (t, c, p)) in enumerate(zip(n_trials, n_confusing, n_pairs))
+
+		nttp = div(t, p) # Number of trials per pair
+
+		seq = DataFrame(
+			cblock = fill(i, t),
+			pair = repeat(1:p, inner = nttp),
+			appearance = repeat(1:nttp, outer = p),
+			feedback_common = vcat(
+				[
+					vcat(shuffle(
+						vcat(
+							fill(false, c),
+							fill(true, nttp - c - 1)
+						)
+					), [true]) # Shuffle, making sure last is not confusing
+					for _ in 1:p
+				]...
+			)
+		)
+		push!(seqs, seq)
+	end
+
+	return vcat(seqs...)
+
+end
 
 # ╔═╡ Cell order:
 # ╠═784d74ba-21c7-454e-916e-2c54ed0e6911
