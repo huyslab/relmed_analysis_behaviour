@@ -189,7 +189,7 @@ end
 # ╔═╡ fac0f8df-c3c5-4f7e-bd69-adbbaa8ab757
 let
 	f_ql_rec = optimization_calibration(
-		filter(x -> x.PID <= 50, prior_sample_ql_rec),
+		prior_sample_ql_rec,
 		optimize_multiple,
 		estimate = "MAP"
 	)	

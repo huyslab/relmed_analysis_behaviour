@@ -1,25 +1,6 @@
 ##------------------------------------------------------------------------------
 # RL models --------------------------------------------------------------------
 ## -----------------------------------------------------------------------------
-# Transform unconstrainted a to learning rate α
-a2α(a) = logistic(π/sqrt(3) * a)
-α2a(α) = logit(α) / (π/sqrt(3))
-
-@assert α2a(a2α(0.5)) ≈ 0.5
-
-# Get data into correct format for the model -----------------------------------
-function unpack_data(data::DataFrame)
-    # sort by block and trial
-    sort!(data, [:block, :trial])
-    data_tuple = (
-        block = data.block, # length = number of trials
-        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
-        pair = data.pair, # length = number of trials
-        outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
-        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
-    )
-    return data_tuple
-end
 
 @model function RL_ss(
     data::NamedTuple,
@@ -37,44 +18,7 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Set priors and transform bounded parameters
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F in parameters
-        F ~ priors[:F]
-        φ = a2α(F)
-    elseif :φ in parameters
-        φ ~ priors[:φ]
-    else
-        φ = 0
-    end
+    @submodel a, E, F, β, ρ, α, ε, φ = rl_pars(priors, parameters)
 
 	# Initialize Q values
 	Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -89,7 +33,7 @@ end
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
         pri = 2 * data.pair[i]
-        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
+        π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
 		choice[i] ~ BernoulliLogit(π)
@@ -133,44 +77,7 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Set priors and transform bounded parameters
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F in parameters
-        F ~ priors[:F]
-        φ = a2α(F)
-    elseif :φ in parameters
-        φ ~ priors[:φ]
-    else
-        φ = 0
-    end
+    @submodel a, E, F, β, ρ, α, ε, φ = rl_pars(priors, parameters)
 
 	# Initialize Q values
 	Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -185,7 +92,7 @@ end
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
         pri = 2 * data.pair[i]
-        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
+        π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
 		choice[i] ~ BernoulliLogit(π)
@@ -234,67 +141,9 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w0, C = wm_pars(priors, parameters)
     
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_rl in parameters
-        φ_rl ~ priors[:φ_rl]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-
-    # forgetting rate
-    if :F_wm in parameters
-        F_wm ~ priors[:F_wm]
-        φ_wm = a2α(F_wm)
-    elseif :φ_wm in parameters
-        φ_wm ~ priors[:φ_wm]
-    else
-        φ_wm = 0
-    end
-
-    # initial weight of WM vs RL
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-
-    C ~ priors[:C] # capacity
-
     # Weight of WM vs RL
     w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
 
@@ -370,53 +219,8 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-	# reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_RL in parameters
-        φ_rl ~ priors[:φ_RL]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-    C ~ priors[:C] # capacity
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w0, C = wm_pars(priors, parameters)
 
     # Weight of WM vs RL
     w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
@@ -531,53 +335,8 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-	# reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_RL in parameters
-        φ_rl ~ priors[:φ_RL]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-    C ~ priors[:C] # capacity
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w0, C = wm_pars(priors, parameters)
 
     # Weight of WM vs RL
     w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
@@ -845,3 +604,102 @@ end
 #     return (choice = choice, Qs = Qs, Ws = Ws)
 
 # end
+
+
+### HELPER FUNCTIONS -----------------------------------------------------------
+
+# Transform unconstrainted a to learning rate α
+a2α(a) = logistic(π/sqrt(3) * a)
+α2a(α) = logit(α) / (π/sqrt(3))
+
+@assert α2a(a2α(0.5)) ≈ 0.5
+
+# Get data into correct format for the model -----------------------------------
+function unpack_data(data::DataFrame)
+    # sort by block and trial
+    sort!(data, [:block, :trial])
+    data_tuple = (
+        block = data.block, # length = number of trials
+        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
+        pair = data.pair, # length = number of trials
+        outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
+        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
+    )
+    return data_tuple
+end
+
+@model function rl_pars(
+    priors::Dict,
+    parameters::Vector{Symbol}
+)
+    # Set priors and transform bounded parameters
+    # reward sensitivity or inverse temp?
+    if :ρ in parameters
+        ρ ~ priors[:ρ]
+        β = 1.
+    elseif :β in parameters
+        β ~ priors[:β]
+        ρ = 1.
+    end
+    
+    # learning rate
+    if :a in parameters
+        a ~ priors[:a]
+        α = a2α(a)
+    elseif :α in parameters
+        a = nothing
+        α ~ priors[:α]
+    end
+
+    # undirected noise or lapse rate
+    if :E in parameters
+        E ~ priors[:E]
+        ε = a2α(E)
+    elseif :ε in parameters
+        E = 0
+        ε ~ priors[:ε]
+    else
+        E, ε = nothing, 0
+    end
+
+    # forgetting rate
+    if :F in parameters
+        F ~ priors[:F]
+        φ = a2α(F)
+    elseif :φ in parameters
+        φ ~ priors[:φ]
+    else
+        F, φ = nothing, 0
+    end
+
+    return (a, E, F, β, ρ, α, ε, φ)
+end
+
+@model function wm_pars(
+    priors::Dict,
+    parameters::Vector{Symbol}
+)
+    # forgetting rate
+    if :F_wm in parameters
+        F_wm ~ priors[:F_wm]
+        φ_wm = a2α(F_wm)
+    elseif :φ_wm in parameters
+        F_wm = nothing
+        φ_wm ~ priors[:φ_wm]
+    else
+        F_wm, φ_wm = nothing, 0
+    end
+
+    # initial weight of WM vs RL
+    if :W in parameters
+        W ~ priors[:W]
+        w0 = a2α(W)
+    elseif :w0 in parameters
+        W = nothing
+        w0 ~ priors[:w0]
+    end
+
+    C ~ priors[:C] # capacity
+
+    return (F_wm, φ_wm, W, w0, C)
+end
