@@ -549,14 +549,18 @@ md"""
 # Post-PILT test
 """
 
-# ╔═╡ 6155f43d-be4c-40c9-9d81-fc42b1197e21
-test_pairs_wide = let random_seed = 0
-
+# ╔═╡ 6631654e-7368-4228-8694-df35c607b1a3
+function create_test_sequence(
+	pilt_task::DataFrame;
+	random_seed::Int64, 
+	same_weight::Float64 = 6.5
+) 
+	
 	rng = Xoshiro(random_seed)
 
 	# Extract stimuli and their common feedback from task structure
 	stimuli = vcat([rename(
-		task[task.feedback_common, [:session, :n_pairs, :block, :cpair, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		pilt_task[pilt_task.feedback_common, [:session, :n_pairs, :block, :cpair, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
 		Symbol("stimulus_$s") => :stimulus,
 		Symbol("feedback_$s") => :feedback
 	) for s in ["right", "left"]]...)
@@ -567,161 +571,191 @@ test_pairs_wide = let random_seed = 0
 		:feedback => (x -> mean(unique(x))) => :magnitude
 	)
 
-	println(first(stimuli[!, [:block, :cpair, :stimulus, :magnitude]], 10))
+	# Step 1: Identify unique stimuli
+	unique_stimuli = unique(stimuli.stimulus)
 
+	# Step 2: Define existing pairs
+	create_pair_list(d) = [filter(x -> x.cpair == p, d).stimulus 
+		for p in unique(stimuli.cpair)]
 
-	# # Function that creates a list of pairs from DataFrame
-	# create_pair_list(d) = [filter(x -> x.cpair == p, d).stimulus 
-	# 	for p in unique(stimuli.cpair)]
+	existing_pairs = create_pair_list(stimuli)
 
-	# # Function to check whether pair is novel
-	# check_novel(p) = !(p in used_pairs) && !(reverse(p) in used_pairs)
+	# Step 3: Generate all possible pairs
+	all_possible_pairs = unique(sort.(collect(combinations(unique_stimuli, 2))))
 
-	# # Pairs used in PILT - will add post-PILT test blocks into this as we go
-	# used_pairs = create_pair_list(stimuli)
+	# Step 6: Select pairs ensuring each stimulus is used once and magnitudes are balanced
+	final_pairs = []
+	used_stimuli = Set{String}()
 
+	# Create a priority queue for balanced selection based on pair counts
+	pair_counts = Dict{Vector{Float64}, Int}()
 
-	# # Intialize DataFrame and summary stats for checking
-	# test_pairs_wide = DataFrame()
-	# prop_same_original = 0.
-	# prop_same_valence = 1.
-	# same_magnitude_n = 10
-	# diff_magnitude_min = 0
-	# dif_magnitude_sd = 3.
-	# all_different_category = false
+	# Function to retrieve attribute of stimulus
+	stim_attr(s, attr) = stimuli[stimuli.stimulus .== s, :][!, attr][1]
 
-	# # Make sure with have exactly 1/3 pairs that were previously in same block
-	# # and 1/2 that were of the same valence
-	# while diff_magnitude_min < 1 || same_magnitude_n > 10 || dif_magnitude_sd > 2. ||
-	# 	!all_different_category
+	for b in 1:test_n_blocks
 
-	# 	# Initialize long format DataFrame
-	# 	test_pairs = DataFrame()
-
-	# 	# Run over neede block number
-	# 	for bl in 1:test_n_blocks
-
-	# 		# Variable to record whether suggested pairs are novel
-	# 		all_within_novel = false
-
-	# 		# Intialize DataFrame for pairs that were in the same block
-	# 		block_within_pairs = DataFrame()
-
-	# 		# Create within-block pairs
-	# 		while !all_within_novel
-				
-	# 			# Select blocks with n_pairs > 1
-	# 			multi_pair_blocks = groupby(
-	# 				filter(x -> x.n_pairs > 1, stimuli), 
-	# 				[:session, :block]
-	# 			)
-
-	# 			# For each block, pick one stimulus from each of two pairs
-	# 			for (i, gdf) in enumerate(multi_pair_blocks)
-			
-	# 				if gdf.n_pairs[1] == 3
-	# 					chosen_pairs = sample(rng, unique(gdf.cpair), 2, replace = false)
-	# 					tdf = filter(x -> x.cpair in chosen_pairs, gdf)
-	# 				else
-	# 					tdf = copy(gdf)
-	# 				end
-			
-	# 				stim = vcat([sample(rng, filter(x -> x.cpair == c, tdf).stimulus, 1) 
-	# 					for c in unique(tdf.cpair)]...)
+		# Step 4: Filter valid pairs: were not paired in PILT, ano same category
+		valid_pairs = 
+			filter(pair -> 
+				!(pair in existing_pairs) && 
+				!(reverse(pair) in existing_pairs) && 
+				(pair[1][1:(end-5)] != pair[2][1:(end-5)]), 
+			all_possible_pairs)
 	
-	# 				append!(block_within_pairs, DataFrame(
-	# 					block = fill(bl, 2),
-	# 					cpair = fill(i, 2),
-	# 					stimulus = stim
-	# 				))
-	# 			end
-
-	# 			# Check that picked combinations are novel
-	# 			pair_list = create_pair_list(block_within_pairs)
-	
-	# 			all_within_novel = all(check_novel.(pair_list))
-	
-	# 		end
-
-	# 		# Add to block list
-	# 		block_pairs = block_within_pairs
-
-	# 		# Stimuli not included previously
-	# 		remaining_stimuli = 
-	# 			filter(x -> !(x in block_pairs.stimulus), stimuli.stimulus)
-
-	# 		# Variable for checking whether remaining pairs are novel
-	# 		all_between_novel = false
-	
-	# 		block_between_pairs = DataFrame()
-
-	# 		# Add across-block pairs
-	# 		while !all_between_novel
-
-	# 			# Assign pairs
-	# 			block_between_pairs = DataFrame(
-	# 				block = fill(bl, length(remaining_stimuli)),
-	# 				cpair = repeat(
-	# 					(maximum(block_pairs.cpair) + 1):maximum(stimuli.cpair), 
-	# 					inner = 2
-	# 				),
-	# 				stimulus = shuffle(rng, remaining_stimuli)
-	# 			)
-
-	# 			# Check novelty
-	# 			pair_list = create_pair_list(block_between_pairs)
+		# Step 5: Create a mapping of pairs to their magnitudes
+		magnitude_pairs = Dict{Vector{Float64}, Vector{Vector{String}}}()
 		
-	# 			all_between_novel = all(check_novel.(pair_list))
-	# 		end
-
-	# 		# Add to lists of pairs for checking future block against
-	# 		append!(block_pairs, block_between_pairs)
+		for pair in valid_pairs
+		    mag1 = stimuli[stimuli.stimulus .== pair[1], :].magnitude[1]
+		    mag2 = stimuli[stimuli.stimulus .== pair[2], :].magnitude[1]
+		    key = sort([mag1, mag2])
+		    if !haskey(magnitude_pairs, key)
+		        magnitude_pairs[key] = []
+		    end
+		    push!(magnitude_pairs[key], pair)
+		end
 	
-	# 		append!(test_pairs, block_pairs)
-			
-	# 	end
-
-	# 	# Add magnitude from PILT
-	# 	test_pairs = innerjoin(test_pairs, 
-	# 		rename(stimuli, :block => :original_block)[!, Not(:cpair)],
-	# 		on = :stimulus
-	# 	)
-
-	# 	# Compute EV difference and match in block and valence
-	# 	sort!(test_pairs, [:session, :block, :cpair, :stimulus])
-		
-	# 	test_pairs_wide = combine(
-	# 		groupby(test_pairs, [:session, :block, :cpair]),
-	# 		:stimulus => maximum => :stimulus_A,
-	# 		:stimulus => minimum => :stimulus_B,
-	# 		[:magnitude, :stimulus] => ((m, s) -> m[argmax(s)]) => :magnitude_A,
-	# 		[:magnitude, :stimulus] => ((m, s) -> m[argmin(s)]) => :magnitude_B,
-	# 		:magnitude => maximum => :magnitude_high,
-	# 		:magnitude => minimum => :magnitude_low,
-	# 		:magnitude => (x -> sign(x[1]) == sign(x[2])) => :same_valence,
-	# 		:original_block => (x -> x[1] == x[2]) => :same_block
-	# 	)
-
-	# 	# Compute conditions for accepting this shuffle
-	# 	same_magnitude_n, diff_magnitude_min, diff_magnitude_sd = 
-	# 		test_squence_evaluate_magnitudes(test_pairs_wide)
-		
-	# 	prop_same_original = mean(test_pairs_wide.same_block)
+		@assert sum(length(vec) for vec in values(magnitude_pairs)) == length(valid_pairs)
 	
-	# 	prop_same_valence = mean(test_pairs_wide.same_valence)
+		# Step 5.5 - Shuffle order within each magnitude
+		for (k, v) in magnitude_pairs
+			magnitude_pairs[k] = shuffle(rng, v)
+		end
 
-	# 	all_different_category = 
-	# 		all((x -> x.stimulus_A[1:(end-5)] != x.stimulus_B[1:(end-5)]).(eachrow(test_pairs_wide)))
+		# Initialize counts
+		if b == 1
+			for key in keys(magnitude_pairs)
+			    pair_counts[key] = 0
+			end
+		end
+		
+		block_pairs = []
+		
+		while true
+		    found_pair = false
+	
+		    # Select pairs while balancing magnitudes
+		    for key in sort(collect(keys(magnitude_pairs)), by = x -> pair_counts[x] + same_weight * (x[1] == x[2])) # Sort by count, putting equal magnitude las
+		        pairs = magnitude_pairs[key]
+	
+				# First try to find a same block pair
+		        for pair in pairs
+		            if !(pair[1] in used_stimuli) && !(pair[2] in used_stimuli)  && 
+						stim_attr(pair[1], "block") == stim_attr(pair[2], "block")
+					
+		                push!(block_pairs, pair)
+		                push!(used_stimuli, pair[1])
+		                push!(used_stimuli, pair[2])
+		                pair_counts[key] += 1
+		                found_pair = true
+		                break  # Stop going over pairs
+		            end
+		        end
+	
+				# Then try different block pair
+		        for pair in pairs
+		            if !found_pair &&!(pair[1] in used_stimuli) && 
+						!(pair[2] in used_stimuli) 
+					
+		                push!(block_pairs, pair)
+		                push!(used_stimuli, pair[1])
+		                push!(used_stimuli, pair[2])
+		                pair_counts[key] += 1
+		                found_pair = true
+		                break  # Stop going over pairs
+		            end
+		        end
+		        
+		        if found_pair
+		            break  # Restart the outer loop if a pair was found
+		        end
+		    end
 
-	# end
+			# Alert bad seed
+			if !found_pair
+				return DataFrame(), NaN, NaN, NaN
+			end
+		
+		    if length(used_stimuli) == length(unique_stimuli)
+		        break  # Exit if all stimuli are used or no valid pairs remain
+		    end
+		end
 
-	# @info prop_same_original
-	# @info prop_same_valence
+		# Step 7 - Shuffle pair order
+		shuffle!(rng, block_pairs)
 
-	# @info test_squence_evaluate_magnitudes(test_pairs_wide)
+		# Add block pairs to final pairs
+		append!(final_pairs, block_pairs)
 
-	# test_pairs_wide
+		# Add block pairs to existing pairs
+		append!(existing_pairs, block_pairs)
 
+		# Empty used_stimuli
+		used_stimuli = []
+	end
+
+	# Shuffle order within each pair
+	shuffle!.(rng, final_pairs)
+
+	# Step 8 - Form DataFrame
+	pairs_df = DataFrame(
+		block = repeat(1:test_n_blocks, inner = length(unique_stimuli) ÷ 2),
+		trial = repeat(1:(length(unique_stimuli) ÷ 2) * test_n_blocks),
+		stimulus_right = [p[2] for p in final_pairs],
+		stimulus_left = [p[1] for p in final_pairs],
+		magnitude_right = [stimuli[stimuli.stimulus .== p[2], :].magnitude[1] for p in final_pairs],
+		magnitude_left = [stimuli[stimuli.stimulus .== p[1], :].magnitude[1] for p in final_pairs],
+		original_block_right = [stimuli[stimuli.stimulus .== p[2], :].block[1] for p in final_pairs],
+		original_block_left = [stimuli[stimuli.stimulus .== p[1], :].block[1] for p in final_pairs]
+	)
+
+	# Same / different block variable
+	pairs_df.same_block = pairs_df.original_block_right .== pairs_df.original_block_left
+
+	# Valence variables
+	pairs_df.valence_left = sign.(pairs_df.magnitude_left)
+	pairs_df.valence_right = sign.(pairs_df.magnitude_right)
+	pairs_df.same_valence = pairs_df.valence_left .== pairs_df.valence_right
+
+	# Compute sequence stats
+	prop_same_block = (mean(pairs_df.same_block)) 
+	prop_same_valence = (mean(pairs_df.same_valence))
+	n_same_magnitude = sum(pairs_df.magnitude_right .== pairs_df.magnitude_left)
+	
+	pairs_df, prop_same_block, prop_same_valence, n_same_magnitude
+end
+
+# ╔═╡ 81754bac-950c-4f0e-a51b-14feab30e0e1
+# Choose test sequence with best stats
+let n_seeds = 100, same_weight = 4.1
+
+	prop_block = []
+	prop_valence = []
+	n_magnitude = []
+
+	for s in 1:n_seeds
+		_, pb, pv, nm = create_test_sequence(filter(x -> !x.extra, task), random_seed = s, same_weight = same_weight)
+
+		push!(prop_block, pb)
+		push!(prop_valence, pv)
+		push!(n_magnitude, nm)
+	end
+
+	pass_magnitude = (1:n_seeds)[n_magnitude .== 
+		minimum(filter(x -> !isnan(x), n_magnitude))]
+
+	@assert !isempty(pass_magnitude)
+
+	prop_block = prop_block[pass_magnitude]
+	prop_valence = prop_valence[pass_magnitude]
+
+	dev_block = abs.(prop_block .- 1/3)
+	dev_valence = abs.(prop_block .- 0.5)
+
+	chosen = pass_magnitude[argmin(dev_block .+ dev_valence)]
+
+	create_test_sequence(filter(x -> !x.extra, task), random_seed = chosen, same_weight = same_weight)
 end
 
 # ╔═╡ 47379c5a-67c1-4f44-9e31-efa34a6a525a
@@ -787,5 +821,6 @@ end
 # ╠═c68c334e-54f9-4410-92b1-91c0e78a2dc9
 # ╠═59bc1127-32b4-4c68-84e9-1892c10a6c45
 # ╟─96f2d1b5-248b-4c43-8e87-fc727c9ea6f0
-# ╠═6155f43d-be4c-40c9-9d81-fc42b1197e21
+# ╠═6631654e-7368-4228-8694-df35c607b1a3
+# ╠═81754bac-950c-4f0e-a51b-14feab30e0e1
 # ╠═47379c5a-67c1-4f44-9e31-efa34a6a525a
