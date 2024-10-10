@@ -52,7 +52,7 @@ md"
 # ╔═╡ 3fb61265-25f8-456d-8e4c-5e6d2064467a
 begin
 	random_task = create_random_task(;
-	    n_blocks = 32, n_trials = 10, n_confusing = 3, set_sizes = [2, 4, 6]
+	    n_blocks = 48, n_trials = 10, n_confusing = 3, set_sizes = [2, 4, 6]
 	)
 	chce = fill(missing, nrow(random_task))
 	
@@ -189,7 +189,7 @@ end
 # ╔═╡ fac0f8df-c3c5-4f7e-bd69-adbbaa8ab757
 let
 	f_ql_rec = optimization_calibration(
-		filter(x -> x.PID <= 50, prior_sample_ql_rec),
+		prior_sample_ql_rec,
 		optimize_multiple,
 		estimate = "MAP"
 	)	
@@ -267,8 +267,6 @@ let
 end
 
 # ╔═╡ 2635c4bf-1941-46d8-b20c-de982c610a6b
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	f_rlwm = optimization_calibration(
 		prior_sample_rlwm,
@@ -288,7 +286,6 @@ let
 
 	f_rlwm
 end
-  ╠═╡ =#
 
 # ╔═╡ 85024085-eb50-4698-a7c4-0b51097cac81
 md"

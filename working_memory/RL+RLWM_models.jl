@@ -1,25 +1,6 @@
 ##------------------------------------------------------------------------------
 # RL models --------------------------------------------------------------------
 ## -----------------------------------------------------------------------------
-# Transform unconstrainted a to learning rate α
-a2α(a) = logistic(π/sqrt(3) * a)
-α2a(α) = logit(α) / (π/sqrt(3))
-
-@assert α2a(a2α(0.5)) ≈ 0.5
-
-# Get data into correct format for the model -----------------------------------
-function unpack_data(data::DataFrame)
-    # sort by block and trial
-    sort!(data, [:block, :trial])
-    data_tuple = (
-        block = data.block, # length = number of trials
-        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
-        pair = data.pair, # length = number of trials
-        outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
-        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
-    )
-    return data_tuple
-end
 
 @model function RL_ss(
     data::NamedTuple,
@@ -37,46 +18,9 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
+    @submodel a, E, F, β, ρ, α, ε, φ = rl_pars(priors, parameters)
 
-    ## Set priors and transform bounded parameters
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F in parameters
-        F ~ priors[:F]
-        φ = a2α(F)
-    elseif :φ in parameters
-        φ ~ priors[:φ]
-    else
-        φ = 0
-    end
-
-	# Initialize Q values
+    # Initialize Q values
 	Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
     Q0, Q = copy(Qs), copy(Qs[:, 1:2])
 
@@ -89,7 +33,7 @@ end
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
         pri = 2 * data.pair[i]
-        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
+        π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
 		choice[i] ~ BernoulliLogit(π)
@@ -133,44 +77,7 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Set priors and transform bounded parameters
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F in parameters
-        F ~ priors[:F]
-        φ = a2α(F)
-    elseif :φ in parameters
-        φ ~ priors[:φ]
-    else
-        φ = 0
-    end
+    @submodel a, E, F, β, ρ, α, ε, φ = rl_pars(priors, parameters)
 
 	# Initialize Q values
 	Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -185,7 +92,7 @@ end
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
         pri = 2 * data.pair[i]
-        π = (1 - ε) * (Qs[i, pri] - Qs[i, pri - 1]) + ε * 0.5
+        π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
 		choice[i] ~ BernoulliLogit(π)
@@ -234,69 +141,8 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-    # reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_rl in parameters
-        φ_rl ~ priors[:φ_rl]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-
-    # forgetting rate
-    if :F_wm in parameters
-        F_wm ~ priors[:F_wm]
-        φ_wm = a2α(F_wm)
-    elseif :φ_wm in parameters
-        φ_wm ~ priors[:φ_wm]
-    else
-        φ_wm = 0
-    end
-
-    # initial weight of WM vs RL
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-
-    C ~ priors[:C] # capacity
-
-    # Weight of WM vs RL
-    w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -358,7 +204,7 @@ end
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
         :F_wm => Normal(0., 0.5),
-        :W => Normal(0., 0.5),
+        :W => Dict(2 => Normal(0., 0.5)),
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
     initial::Union{Nothing, Float64} = nothing
@@ -370,56 +216,8 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-	# reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_RL in parameters
-        φ_rl ~ priors[:φ_RL]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-    C ~ priors[:C] # capacity
-
-    # Weight of WM vs RL
-    w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -433,7 +231,8 @@ end
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
     loglike = 0.
-    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
+    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
+    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
 
     # Initialize circular buffers and running sums for outcomes
     bs = clamp(C, 1., nT)
@@ -517,7 +316,7 @@ end
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
-        :W => Normal(0., 0.5),
+        :W => Dict(2 => Normal(0., 0.5)) # for each set size
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
     initial::Union{Nothing, Float64} = nothing
@@ -530,61 +329,19 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
-
-    ## Priors on RL parameters ------------------------------------------------
-	# reward sensitivity or inverse temp?
-    if :ρ in parameters
-        ρ ~ priors[:ρ]
-        β = 1.
-    elseif :β in parameters
-        β ~ priors[:β]
-        ρ = 1.
-    end
-    
-    # learning rate
-    if :a in parameters
-        a ~ priors[:a]
-        α = a2α(a)
-    elseif :α in parameters
-        α ~ priors[:α]
-    end
-
-    # undirected noise or lapse rate
-    if :E in parameters
-        E ~ priors[:E]
-        ε = a2α(E)
-    elseif :ε in parameters
-        ε ~ priors[:ε]
-    else
-        ε = 0
-    end
-
-    # forgetting rate
-    if :F_rl in parameters
-        F_rl ~ priors[:F_rl]
-        φ_rl = a2α(F_rl)
-    elseif :φ_RL in parameters
-        φ_rl ~ priors[:φ_RL]
-    else
-        φ_rl = 0
-    end
-
-    ## Priors on WM parameters ------------------------------------------------
-    if :W in parameters
-        W ~ priors[:W]
-        w0 = a2α(W)
-    elseif :w0 in parameters
-        w0 ~ priors[:w0]
-    end
-    C ~ priors[:C] # capacity
-
-    # Weight of WM vs RL
-    w = Dict(s => w0 * min(1, C / s) for s in unique(data.set_size))
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
 
     # sigmoid transformation using C
     k = 5 # sharpness of the sigmoid
-    nT = maximum([maximum(values(countmap(gd.pair))) for gd in groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)])
-    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k)) |> reverse
+    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
+    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
+
+    # for each unique outcome in data.outcomes, premultiply by ρ and wt
+    unq_outc = unique(data.outcomes)
+    outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
+    outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -599,9 +356,10 @@ end
     ssz = data.set_size[data.block[1]]
 
     # Initialize outcome buffers
-    outc_mat = Matrix{Any}(nothing, nT, ssz)
-    outc_nos = zeros(Int, ssz)
-    outc_num = 0
+    outc_no = 0
+    outc_mat = Matrix{Any}(nothing, ssz, nT) # matrix of recent outcomes for each stimulus
+    outc_lag = zeros(Int, ssz, nT) # how many outcomes back was this outcome?
+    outc_num = zeros(Int, ssz) # how many outcomes have we seen for this stimulus?
 
     # store log-loglikelihood
     loglike = 0.
@@ -629,27 +387,29 @@ end
         loglike += loglikelihood(BernoulliLogit(π), choice[i])
 
 		# Prediction error
-		δ = data.outcomes[i, choice_1id] * ρ - Qs[i, choice_idx]
+        chce = data.outcomes[i, choice_1id]
+		δ = chce * ρ - Qs[i, choice_idx]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
             Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
             Ws[i + 1, :] = Ws[i, :] # store previous W
-
-            # we're going to do this deeply inefficiently...
-            # 1. add outcome to buffer
-            outc_nos[choice_idx] += 1
-            outc_num = outc_nos[choice_idx]
-            outc_mat[outc_num, choice_idx] = data.outcomes[i, choice_1id] * ρ
-            # 2. multiply the buffer by the weight and get the average
-            Ws[i + 1, choice_idx] = sum(outc_mat[1:outc_num, choice_idx] .* wt[(end-outc_num+1):end]) / outc_num
+            # 1. iterate lags for prior outcomes and update outcome number for this stimulus
+            outc_lag[choice_idx] += outc_lag[choice_idx] .!== 0
+            outc_num[choice_idx] += 1
+            outc_no = outc_num[choice_idx]
+            # 2. initialise the lag for this outcome number and store the relevant outcome
+            outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
+            # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
-            # Reset buffers at the start of a new block
-            outc_mat = Matrix{Any}(nothing, nT, ssz)
-            outc_nos = zeros(Int, ssz)
-            outc_num = 0
+            # reset buffers at the start of a new block
+            outc_no = 0
+            outc_mat = Matrix{Any}(nothing, ssz, nT)
+            outc_lag = zeros(Int, ssz, nT)
+            outc_num = zeros(Int, ssz)
         end
         # store Q- and W- values for output
         Q[i, :] = Qs[i, (pri-1):pri]
@@ -663,80 +423,46 @@ end
 # ##------------------------------------------------------------------------------
 # # Hierarchical RL models -------------------------------------------------------
 # ##------------------------------------------------------------------------------
+@model function RL(
+	data::DataFrame;
+    hyperpriors::Dict = Dict(
+        :ρ_μ => Normal(0., 2.),
+        :ρ_σ => Exponential(1.),
+        :a_μ => Normal(0., 2.),
+        :a_σ => Exponential(1.)
+    ),
+    initial::Union{Nothing, Float64} = nothing
+)
+    a_μ ~ hyperpriors[:a_μ]
+    a_σ ~ hyperpriors[:a_σ]
+    ρ_μ ~ hyperpriors[:ρ_μ]
+    ρ_σ ~ hyperpriors[:ρ_σ]
 
-# @model function RL(;
-# 	block::Vector{Vector{Int64}}, # Block number per trial
-# 	valence::Vector{Vector{Float64}}, # Valence of each block. Vector of lenth maximum(block) per participant
-# 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
-# 	outcomes::Vector{Matrix{Float64}}, # Outcomes for options, second column optimal
-# 	initV::Matrix{Float64}, # Initial Q values
-#     set_size::Nothing = nothing, # here for compatibility with RLWM
-#     parameters::Vector{Symbol} = [:ρ, :a], # Group-level parameters to estimate
-#     sigmas::Dict{Symbol, Float64} = Dict(:ρ => 1., :a => 0.5)
-# )
-#     p = length(block) # number of participants
+    ppts = unique(data.PID)
+    choices = Array{Vector{Any}}(undef, length(ppts))
+    Qs = Vector{Matrix{Any}}(undef, length(ppts))
+    loglike = Vector{Any}(undef, length(ppts))
 
-#     ## Set priors and transform bounded parameters
-#     # reward sensitivity or inverse temp?
-#     if :ρ in parameters
-#         ρ ~ filldist(truncated(Normal(0., sigmas[:ρ]), lower = 0.), p)
-#         β = ones(p)
-#     elseif :β in parameters
-#         β ~ filldist(truncated(Normal(0., sigmas[:β]), lower = 0.), p)
-#         ρ = ones(p)
-#     end
-#     # learning rate
-# 	a ~ MvNormal(fill(0., p), I(p) * sigmas[:a])
-#     α = a2α.(a)
-#     # undirected noise or lapse rate
-#     if :E in parameters
-#         E ~ MvNormal(fill(0., p), I(p) * sigmas[:E])
-#         ε = a2α.(E)
-#     else
-#         ε = zeros(p)
-#     end
-#     # forgetting rate
-#     if :F in parameters
-#         F ~ MvNormal(fill(0., p), I(p) * sigmas[:F])
-#         φ = a2α.(F)
-#     else
-#         φ = zeros(p)
-#     end
+    d = [unpack_data(filter(x -> x.PID == ppts[p], data)) for p in eachindex(ppts)]
+    c = [filter(x -> x.PID == ppts[p], data).choice for p in eachindex(ppts)]
 
-# 	# Initialize Q values
-# 	Qs = [initV .* (ρ[s] .* valence[s][block[s]]) for s in eachindex(valence)]
-#     if @isdefined(φ)
-#         Q0 = copy(Qs)
-#     end
+    lk = ReentrantLock()
 
-# 	# Loop over trials, updating Q values and incrementing log-density
-#     for s in eachindex(block)
-#         for i in eachindex(block[s])
-
-#             # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
-#             # in Collins et al. terminology, these are directed and undirected noise
-#             π = (1 - ε[s]) * (1 / (1 + exp(-β[s] * (Qs[s][i, 2] - Qs[s][i, 1])))) + ε[s] * 0.5
-
-#             # Choice
-#             choice[s][i] ~ Bernoulli(π)
-#             choice_idx::Int64 = choice[s][i] + 1
-
-#             # Prediction error
-#             δ = outcomes[s][i, choice_idx] * ρ[s] - Qs[s][i, choice_idx]
-
-#             dcy = φ[s] * (Q0[s][i, :] .- Qs[s][i, :])
-
-#             # Update Q value
-#             if (i != length(block[s])) && (block[s][i] == block[s][i+1])
-#                 Qs[s][i + 1, choice_idx] = Qs[s][i, choice_idx] + α[s] * δ + dcy[choice_idx]
-#                 Qs[s][i + 1, 3 - choice_idx] = Qs[s][i, 3 - choice_idx] + dcy[3 - choice_idx]
-#             end
-#         end
-#     end
-
-# 	return (choice = choice, Qs = Qs)
-
-# end
+    Threads.@threads for p in eachindex(ppts)
+        lock(lk) do
+            @submodel prefix="pt$p" choices[p], Qs[p], loglike[p] = RL_ss(
+                d[p],
+                c[p];
+                priors = Dict(
+                    :ρ => truncated(Normal(ρ_μ, ρ_σ), lower = 0.),
+                    :a => Normal(a_μ, a_σ)
+                ),
+                initial = initial
+            )
+        end
+    end
+    return (choice = choices, Qs = Qs, loglike = loglike)
+end
 
 # @model function RLWM(;
 #     block::Vector{Vector{Int64}}, # Block number per trial
@@ -835,3 +561,119 @@ end
 #     return (choice = choice, Qs = Qs, Ws = Ws)
 
 # end
+
+
+### HELPER FUNCTIONS -----------------------------------------------------------
+
+# Transform unconstrainted a to learning rate α
+a2α(a) = logistic(π/sqrt(3) * a)
+α2a(α) = logit(α) / (π/sqrt(3))
+
+@assert α2a(a2α(0.5)) ≈ 0.5
+
+# Get data into correct format for the model -----------------------------------
+function unpack_data(data::DataFrame)
+    # sort by block and trial
+    sort!(data, [:block, :trial])
+    data_tuple = (
+        block = data.block, # length = number of trials
+        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
+        pair = data.pair, # length = number of trials
+        outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
+        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
+    )
+    return data_tuple
+end
+
+@model function rl_pars(
+    priors::Dict,
+    parameters::Vector{Symbol}
+)
+    # Set priors and transform bounded parameters
+    # reward sensitivity or inverse temp?
+    if :ρ in parameters
+        ρ ~ priors[:ρ]
+        β = 1.
+    elseif :β in parameters
+        β ~ priors[:β]
+        ρ = 1.
+    end
+    
+    # learning rate
+    if :a in parameters
+        a ~ priors[:a]
+        α = a2α(a)
+    elseif :α in parameters
+        a = nothing
+        α ~ priors[:α]
+    end
+
+    # undirected noise or lapse rate
+    if :E in parameters
+        E ~ priors[:E]
+        ε = a2α(E)
+    elseif :ε in parameters
+        E = 0
+        ε ~ priors[:ε]
+    else
+        E, ε = nothing, 0
+    end
+
+    # forgetting rate
+    if :F in parameters
+        F ~ priors[:F]
+        φ = a2α(F)
+    elseif :φ in parameters
+        φ ~ priors[:φ]
+    else
+        F, φ = nothing, 0
+    end
+
+    return (a, E, F, β, ρ, α, ε, φ)
+end
+
+@model function wm_pars(
+    priors::Dict,
+    parameters::Vector{Symbol},
+    set_sizes::Vector{Int}
+)
+    # forgetting rate
+    if :F_wm in parameters
+        F_wm ~ priors[:F_wm]
+        φ_wm = a2α(F_wm)
+    elseif :φ_wm in parameters
+        F_wm = nothing
+        φ_wm ~ priors[:φ_wm]
+    else
+        F_wm, φ_wm = nothing, 0
+    end
+
+    C ~ priors[:C] # capacity
+
+    # initial weight of WM vs RL
+    if :W in parameters
+        if isa(priors[:W], Dict)
+            W = Dict{Int, Any}()
+            for s in set_sizes
+                W[s] ~ priors[:W][s]
+            end
+            wd = Dict(s => a2α(W[s]) for s in set_sizes)
+        else
+            W ~ priors[:W]
+            wd = Dict(s => a2α(W) * min(1, C / s) for s in set_sizes)
+        end
+    elseif :w in parameters
+        if isa(priors[:w], Dict)
+            wd = Dict{Int, Any}()
+            for s in keys(priors[:w])
+                w[s] ~ priors[:w][s]
+            end
+        else
+            W = nothing
+            w ~ priors[:w]
+            wd = Dict(s => w * min(1, C / s) for s in set_sizes)
+        end
+    end
+
+    return (F_wm, φ_wm, W, wd, C)
+end
