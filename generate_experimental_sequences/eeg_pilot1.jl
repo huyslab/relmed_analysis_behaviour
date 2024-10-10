@@ -29,6 +29,56 @@ begin
 	nothing
 end
 
+# ╔═╡ 1d93b32c-bd95-4aae-83c6-f6acb5bd6d52
+# General attributes of pilot PILT structure
+begin
+
+	# PILT Parameters
+	set_sizes = 1:3
+	block_per_set = 8 # Including reward and punishment
+	base_blocks_per_set = 6 # Last two are extra for EEG quality
+	trials_per_pair = 10
+
+	# Total number of blocks
+	n_total_blocks = length(set_sizes) * block_per_set
+
+	# Total number of pairs
+	n_total_pairs = sum(set_sizes .* block_per_set)
+
+	# Shaping protocol
+	n_confusing = vcat([0, 1, 1], fill(2, n_total_blocks - 3)) # Per block
+
+	# Initial Q value for simulation - average outcome
+	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+
+	# Post-PILT test parameters
+	test_n_blocks = 2
+end
+
+# ╔═╡ 9a12e584-eff1-482a-b7cc-9daa5321d8de
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
+
 # ╔═╡ 0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
 md"""
 # PILT
@@ -61,51 +111,6 @@ md"""
 - **feedback_right: Feedback for the stimulus on the right for this trial.**
 - **feedback_left: Feedback for the stimulus on the right for this trial.**
 """
-
-# ╔═╡ ae105318-5c25-4823-8070-67ce35aff543
-begin
-	# Set theme
-	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
-	
-	th = Theme(
-		font = "Helvetica",
-		fontsize = 16,
-		Axis = (
-			xgridvisible = false,
-			ygridvisible = false,
-			rightspinevisible = false,
-			topspinevisible = false,
-			xticklabelsize = 14,
-			yticklabelsize = 14,
-			spinewidth = 1.5,
-			xtickwidth = 1.5,
-			ytickwidth = 1.5
-		)
-	)
-	
-	set_theme!(th)
-end
-
-# ╔═╡ 4c34228b-6140-4748-8835-5ee130be4bc3
-# General attributes of pilot PILT structure
-begin
-	set_sizes = 1:3
-	block_per_set = 8 # Including reward and punishment
-	base_blocks_per_set = 6 # Last two are extra for EEG quality
-	trials_per_pair = 10
-
-	# Total number of blocks
-	n_total_blocks = length(set_sizes) * block_per_set
-
-	# Total number of pairs
-	n_total_pairs = sum(set_sizes .* block_per_set)
-
-	# Shaping protocol
-	n_confusing = vcat([0, 1, 1], fill(2, n_total_blocks - 3)) # Per block
-
-	# Initial Q value for simulation - average outcome
-	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
-end
 
 # ╔═╡ 4c09fe35-8015-43d8-a38f-2434318e74fe
 # Assign valence and set size per block
@@ -347,7 +352,7 @@ stimuli = let random_seed = 0
 	# Load stimulus names
 	categories = shuffle(unique([replace(s, ".png" => "")[1:(end-1)] for s in 
 		readlines("generate_experimental_sequences/eeg_stim_list.txt")]))
-	
+
 	# Assign stimulus pairs
 	stimuli = assign_stimuli_and_optimality(;
 		n_phases = 1,
@@ -413,7 +418,7 @@ task = let random_seed = 0
 	)
 
 	# Mark which blocks are extra
-	task.extra = task.block .>= base_blocks_per_set * length(set_sizes)
+	task.extra = task.block .> base_blocks_per_set * length(set_sizes)
 
 	task
 end
@@ -446,6 +451,16 @@ let
 
 	@assert all((task.variable_magnitude .== abs.(task.feedback_right)) .| 
 		(task.variable_magnitude .== abs.(task.feedback_left))) ":variable_magnitude, which is used for sequnece optimization, doesn't match end result column :feedback_right no :feedback_left"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence == -1, task) |> 
+		df -> ifelse.(
+			df.feedback_right < df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
 
 end
 
@@ -529,11 +544,240 @@ let
 
 end
 
+# ╔═╡ 96f2d1b5-248b-4c43-8e87-fc727c9ea6f0
+md"""
+# Post-PILT test
+"""
+
+# ╔═╡ 6155f43d-be4c-40c9-9d81-fc42b1197e21
+test_pairs_wide = let random_seed = 0
+
+	rng = Xoshiro(random_seed)
+
+	# Extract stimuli and their common feedback from task structure
+	stimuli = vcat([rename(
+		task[task.feedback_common, [:session, :n_pairs, :block, :cpair, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in ["right", "left"]]...)
+
+	# Summarize magnitude per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :n_pairs, :block, :cpair, :stimulus]),
+		:feedback => (x -> mean(unique(x))) => :magnitude
+	)
+
+	println(first(stimuli[!, [:block, :cpair, :stimulus, :magnitude]], 10))
+
+
+	# # Function that creates a list of pairs from DataFrame
+	# create_pair_list(d) = [filter(x -> x.cpair == p, d).stimulus 
+	# 	for p in unique(stimuli.cpair)]
+
+	# # Function to check whether pair is novel
+	# check_novel(p) = !(p in used_pairs) && !(reverse(p) in used_pairs)
+
+	# # Pairs used in PILT - will add post-PILT test blocks into this as we go
+	# used_pairs = create_pair_list(stimuli)
+
+
+	# # Intialize DataFrame and summary stats for checking
+	# test_pairs_wide = DataFrame()
+	# prop_same_original = 0.
+	# prop_same_valence = 1.
+	# same_magnitude_n = 10
+	# diff_magnitude_min = 0
+	# dif_magnitude_sd = 3.
+	# all_different_category = false
+
+	# # Make sure with have exactly 1/3 pairs that were previously in same block
+	# # and 1/2 that were of the same valence
+	# while diff_magnitude_min < 1 || same_magnitude_n > 10 || dif_magnitude_sd > 2. ||
+	# 	!all_different_category
+
+	# 	# Initialize long format DataFrame
+	# 	test_pairs = DataFrame()
+
+	# 	# Run over neede block number
+	# 	for bl in 1:test_n_blocks
+
+	# 		# Variable to record whether suggested pairs are novel
+	# 		all_within_novel = false
+
+	# 		# Intialize DataFrame for pairs that were in the same block
+	# 		block_within_pairs = DataFrame()
+
+	# 		# Create within-block pairs
+	# 		while !all_within_novel
+				
+	# 			# Select blocks with n_pairs > 1
+	# 			multi_pair_blocks = groupby(
+	# 				filter(x -> x.n_pairs > 1, stimuli), 
+	# 				[:session, :block]
+	# 			)
+
+	# 			# For each block, pick one stimulus from each of two pairs
+	# 			for (i, gdf) in enumerate(multi_pair_blocks)
+			
+	# 				if gdf.n_pairs[1] == 3
+	# 					chosen_pairs = sample(rng, unique(gdf.cpair), 2, replace = false)
+	# 					tdf = filter(x -> x.cpair in chosen_pairs, gdf)
+	# 				else
+	# 					tdf = copy(gdf)
+	# 				end
+			
+	# 				stim = vcat([sample(rng, filter(x -> x.cpair == c, tdf).stimulus, 1) 
+	# 					for c in unique(tdf.cpair)]...)
+	
+	# 				append!(block_within_pairs, DataFrame(
+	# 					block = fill(bl, 2),
+	# 					cpair = fill(i, 2),
+	# 					stimulus = stim
+	# 				))
+	# 			end
+
+	# 			# Check that picked combinations are novel
+	# 			pair_list = create_pair_list(block_within_pairs)
+	
+	# 			all_within_novel = all(check_novel.(pair_list))
+	
+	# 		end
+
+	# 		# Add to block list
+	# 		block_pairs = block_within_pairs
+
+	# 		# Stimuli not included previously
+	# 		remaining_stimuli = 
+	# 			filter(x -> !(x in block_pairs.stimulus), stimuli.stimulus)
+
+	# 		# Variable for checking whether remaining pairs are novel
+	# 		all_between_novel = false
+	
+	# 		block_between_pairs = DataFrame()
+
+	# 		# Add across-block pairs
+	# 		while !all_between_novel
+
+	# 			# Assign pairs
+	# 			block_between_pairs = DataFrame(
+	# 				block = fill(bl, length(remaining_stimuli)),
+	# 				cpair = repeat(
+	# 					(maximum(block_pairs.cpair) + 1):maximum(stimuli.cpair), 
+	# 					inner = 2
+	# 				),
+	# 				stimulus = shuffle(rng, remaining_stimuli)
+	# 			)
+
+	# 			# Check novelty
+	# 			pair_list = create_pair_list(block_between_pairs)
+		
+	# 			all_between_novel = all(check_novel.(pair_list))
+	# 		end
+
+	# 		# Add to lists of pairs for checking future block against
+	# 		append!(block_pairs, block_between_pairs)
+	
+	# 		append!(test_pairs, block_pairs)
+			
+	# 	end
+
+	# 	# Add magnitude from PILT
+	# 	test_pairs = innerjoin(test_pairs, 
+	# 		rename(stimuli, :block => :original_block)[!, Not(:cpair)],
+	# 		on = :stimulus
+	# 	)
+
+	# 	# Compute EV difference and match in block and valence
+	# 	sort!(test_pairs, [:session, :block, :cpair, :stimulus])
+		
+	# 	test_pairs_wide = combine(
+	# 		groupby(test_pairs, [:session, :block, :cpair]),
+	# 		:stimulus => maximum => :stimulus_A,
+	# 		:stimulus => minimum => :stimulus_B,
+	# 		[:magnitude, :stimulus] => ((m, s) -> m[argmax(s)]) => :magnitude_A,
+	# 		[:magnitude, :stimulus] => ((m, s) -> m[argmin(s)]) => :magnitude_B,
+	# 		:magnitude => maximum => :magnitude_high,
+	# 		:magnitude => minimum => :magnitude_low,
+	# 		:magnitude => (x -> sign(x[1]) == sign(x[2])) => :same_valence,
+	# 		:original_block => (x -> x[1] == x[2]) => :same_block
+	# 	)
+
+	# 	# Compute conditions for accepting this shuffle
+	# 	same_magnitude_n, diff_magnitude_min, diff_magnitude_sd = 
+	# 		test_squence_evaluate_magnitudes(test_pairs_wide)
+		
+	# 	prop_same_original = mean(test_pairs_wide.same_block)
+	
+	# 	prop_same_valence = mean(test_pairs_wide.same_valence)
+
+	# 	all_different_category = 
+	# 		all((x -> x.stimulus_A[1:(end-5)] != x.stimulus_B[1:(end-5)]).(eachrow(test_pairs_wide)))
+
+	# end
+
+	# @info prop_same_original
+	# @info prop_same_valence
+
+	# @info test_squence_evaluate_magnitudes(test_pairs_wide)
+
+	# test_pairs_wide
+
+end
+
+# ╔═╡ 47379c5a-67c1-4f44-9e31-efa34a6a525a
+function test_squence_evaluate_magnitudes(test_pairs_wide::DataFrame)
+
+	# Summarize current proposal
+	magnitude_count = combine(
+		groupby(test_pairs_wide, [:magnitude_low, :magnitude_high]),
+		:magnitude_low => length => :n
+	)
+
+	sort!(magnitude_count, [:magnitude_low, :magnitude_high])
+
+	# Compute all possible options
+	mags = vcat([0.01, 0.255, 0.75, 1.], .- [0.01, 0.255, 0.75, 1.])
+
+	couples = DataFrame(
+		unique([(x1, x2) for x1 in mags for x2 in mags if x2 >= x1]),
+		[:magnitude_low, :magnitude_high]
+	)
+
+	# Combine to have missing options
+	magnitude_count = leftjoin(
+		couples,
+		magnitude_count,
+		on = [:magnitude_low, :magnitude_high]
+	)
+
+	# Replace missing with zero
+	magnitude_count.n = ifelse.(
+		ismissing.(magnitude_count.n),
+		fill(0, nrow(magnitude_count)),
+		magnitude_count.n
+	)
+
+	# Compute how many pairs have the same magnitude
+	same_magnitude_n = sum(
+		filter(x -> x.magnitude_low == x.magnitude_high, magnitude_count).n
+	)
+
+	# Compute the range of different magnitude pair numbers
+	diff_magnitude = 
+		filter(x -> x.magnitude_low != x.magnitude_high, magnitude_count).n
+	diff_magnitude_min = minimum(diff_magnitude)
+
+	diff_magnitude_sd = std(diff_magnitude)
+
+	return same_magnitude_n, diff_magnitude_min, diff_magnitude_sd
+	
+end
+
 # ╔═╡ Cell order:
 # ╠═63e8c382-8560-11ef-1246-0923653e81d2
+# ╠═1d93b32c-bd95-4aae-83c6-f6acb5bd6d52
+# ╠═9a12e584-eff1-482a-b7cc-9daa5321d8de
 # ╟─0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
-# ╠═ae105318-5c25-4823-8070-67ce35aff543
-# ╠═4c34228b-6140-4748-8835-5ee130be4bc3
 # ╠═4c09fe35-8015-43d8-a38f-2434318e74fe
 # ╠═2018073a-656d-4723-8384-07c9d533245f
 # ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
@@ -542,3 +786,6 @@ end
 # ╠═263f4366-b6f4-47fd-b76a-fbeffcc07f14
 # ╠═c68c334e-54f9-4410-92b1-91c0e78a2dc9
 # ╠═59bc1127-32b4-4c68-84e9-1892c10a6c45
+# ╟─96f2d1b5-248b-4c43-8e87-fc727c9ea6f0
+# ╠═6155f43d-be4c-40c9-9d81-fc42b1197e21
+# ╠═47379c5a-67c1-4f44-9e31-efa34a6a525a
