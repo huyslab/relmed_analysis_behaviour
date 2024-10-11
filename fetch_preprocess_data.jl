@@ -110,7 +110,7 @@ function REDCap_data_to_df(jspsych_data, records)
 	return jspsych_data
 end
 
-remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"yaniv|tore|demo|simulate", x.prolific_pid), data)
+remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"hy|haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
 
 # Filter PLT data
 function prepare_PLT_data(data::DataFrame)
@@ -153,7 +153,8 @@ function load_pilot2_data()
 	test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	### Vigour task here
-	vigour_data = DataFrame()
+	vigour_data = extract_vigour_data(jspsych_data) |>
+		x -> exclude_vigour_trials(x, 66)
 
 	return PLT_data, test_data, vigour_data, jspsych_data
 end
@@ -202,7 +203,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame)
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
 		"yyyy-mm-dd_HH:MM:SS")
 
-	DataFrames.transform!(
+	DataFrames.DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
 		:condition => length => :n,
 		:date => minimum => :first_date
@@ -395,7 +396,8 @@ function extract_vigour_data(data::DataFrame)
 	x -> subset(x, 
         :trial_number => ByRow(!ismissing)
     ) |>
-	x -> transform(x,
+	
+  x -> DataFrames.transform(x,
 		:response_time => ByRow(JSON.parse) => :response_times,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
@@ -441,7 +443,7 @@ function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
 		"yyyy-mm-dd_HH:MM:SS")
 
-	transform!(
+	DataFrames.transform!(
 		groupby(double_takers, [:prolific_id]),
 		:date => minimum => :first_date
 	)

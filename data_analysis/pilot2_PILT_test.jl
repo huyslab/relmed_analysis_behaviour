@@ -55,13 +55,11 @@ begin
 			xtickwidth = 2,
 			ytickwidth = 2
 		)
-	)
-
-	
+	)	
 	set_theme!(th)
-
 	
 end
+
 
 # ╔═╡ e6bd359a-5f0d-4b3a-bf08-96160db9d4a1
 # Load data

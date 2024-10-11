@@ -701,7 +701,6 @@ function generate_multiple_n_confusing_sequences(;
 	end
 
 	return vcat(seqs...)
-
 end
 
 # ╔═╡ Cell order:
