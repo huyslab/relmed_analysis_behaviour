@@ -14,7 +14,7 @@ begin
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
 	using CairoMakie, Random, DataFrames, Distributions, StatsBase,
-		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, Printf, Combinatorics, JuMP, HiGHS
+		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, Printf, Combinatorics, JuMP, HiGHS, AlgebraOfGraphics
 	using LogExpFunctions: logistic, logit
 
 	Turing.setprogress!(false)
@@ -728,34 +728,100 @@ end
 
 # ╔═╡ 81754bac-950c-4f0e-a51b-14feab30e0e1
 # Choose test sequence with best stats
-let n_seeds = 100, same_weight = 4.1
+function find_best_test_sequence(
+	task::DataFrame; # PILT task structure
+	n_seeds::Int64 = 100, # Number of random seeds to try
+	same_weight::Float64 = 4.1 # Weight reducing the number of same magntiude pairs
+) 
 
+	# Initialize stats variables
 	prop_block = []
 	prop_valence = []
 	n_magnitude = []
 
+	# Run over seeds
 	for s in 1:n_seeds
-		_, pb, pv, nm = create_test_sequence(filter(x -> !x.extra, task), random_seed = s, same_weight = same_weight)
+		_, pb, pv, nm = create_test_sequence(task, random_seed = s, same_weight = same_weight)
 
 		push!(prop_block, pb)
 		push!(prop_valence, pv)
 		push!(n_magnitude, nm)
 	end
 
+	# First, choose a sequence with the minimal number of same-magnitude pairs
 	pass_magnitude = (1:n_seeds)[n_magnitude .== 
 		minimum(filter(x -> !isnan(x), n_magnitude))]
 
 	@assert !isempty(pass_magnitude)
 
+	# Apply magnitude selection
 	prop_block = prop_block[pass_magnitude]
 	prop_valence = prop_valence[pass_magnitude]
 
+	# Compute deviation from goal
 	dev_block = abs.(prop_block .- 1/3)
 	dev_valence = abs.(prop_block .- 0.5)
 
+	# Choose best sequence
 	chosen = pass_magnitude[argmin(dev_block .+ dev_valence)]
 
-	create_test_sequence(filter(x -> !x.extra, task), random_seed = chosen, same_weight = same_weight)
+	# Return sequence and stats
+	return create_test_sequence(task, random_seed = chosen, same_weight = same_weight)
+end
+
+# ╔═╡ 554b2477-682a-4eb8-9cd4-aae7036c36da
+test = let
+	# Find test sequence for main part
+	main_test, bpb, bpv, bnm = find_best_test_sequence(
+		filter(x -> !x.extra, task),
+		n_seeds = 500, # Number of random seeds to try
+		same_weight = 4.1 # Weight reducing the number of same magntiude pairs
+	) 
+
+	insertcols!(
+		main_test,
+		:extra => false
+	)
+
+	@info "Base: proportion of same block pairs: $bpb"
+	@info "Base: proportion of same valence pairs: $bpv"
+	@info "Base: number of same magnitude pairs: $bnm"
+
+	# Find sequence for extra part
+	extra_test, epb, epv, enm = find_best_test_sequence(
+		filter(x -> x.extra, task),
+		n_seeds = 500, # Number of random seeds to try
+		same_weight = 4.1 # Weight reducing the number of same magntiude pairs
+	) 
+
+	@info "Extra: proportion of same block pairs: $epb"
+	@info "Extra: proportion of same valence pairs: $epv"
+	@info "Extra: number of same magnitude pairs: $enm"
+
+	insertcols!(
+		extra_test,
+		:extra => true
+	)
+
+	# Renumber extra part trials
+	extra_test.trial .+= maximum(main_test.trial)
+
+	# Concatenate parts
+	test = vcat(
+		main_test,
+		extra_test
+	)
+
+	# Create magnitude_pair variable
+	test.magnitude_pair = [sort([r.magnitude_left, r.magnitude_right]) for r in eachrow(test)]
+
+	test
+end
+
+# ╔═╡ 480c4439-969d-4370-968e-964daccfcf9c
+let
+	save_to_JSON(task, "results/eeg_pilot_test.json")
+	CSV.write("results/eeg_pilot_test.csv", test)
 end
 
 # ╔═╡ 47379c5a-67c1-4f44-9e31-efa34a6a525a
@@ -821,6 +887,8 @@ end
 # ╠═c68c334e-54f9-4410-92b1-91c0e78a2dc9
 # ╠═59bc1127-32b4-4c68-84e9-1892c10a6c45
 # ╟─96f2d1b5-248b-4c43-8e87-fc727c9ea6f0
+# ╠═554b2477-682a-4eb8-9cd4-aae7036c36da
+# ╠═480c4439-969d-4370-968e-964daccfcf9c
 # ╠═6631654e-7368-4228-8694-df35c607b1a3
 # ╠═81754bac-950c-4f0e-a51b-14feab30e0e1
 # ╠═47379c5a-67c1-4f44-9e31-efa34a6a525a
