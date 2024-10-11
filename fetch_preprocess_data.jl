@@ -396,7 +396,8 @@ function extract_vigour_data(data::DataFrame)
 	x -> subset(x, 
         :trial_number => ByRow(!ismissing)
     ) |>
-	x -> DataFrames.transform(x,
+	
+  x -> DataFrames.transform(x,
 		:response_time => ByRow(JSON.parse) => :response_times,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
