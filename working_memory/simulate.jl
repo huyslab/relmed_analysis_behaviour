@@ -100,7 +100,7 @@ function set_size_per_block(;
                 set_sizes,
                 sample(
                     set_sizes,
-                    aweights([i for i in reverse(1:length(set_sizes))]),
+                    aweights(fill(1, length(set_sizes))),
                     n_blocks - length(set_sizes),
                     replace = true
                 )
@@ -146,6 +146,7 @@ function simulate_from_prior(
     N::Int64; # number of simulated participants or repeats (depending on priors)
     model::Function,
     priors::Dict,
+    parameters::Vector{Symbol} = collect(keys(priors)),
     initial::Union{Float64, Nothing} = nothing,
     transformed::Dict{Symbol, Symbol}, # Transformed parameters
     condition::Union{String, Nothing} = nothing,
@@ -202,7 +203,7 @@ function simulate_from_prior(
         set_size = repeat(task_strct.set_size, N),
     )
 
-    for p in collect(keys(priors))
+    for p in parameters
         v = repeat(prior_sample[:, p, 1], inner = nT)
         if haskey(transformed, p)
             v = v .|> a2α # assume all transformations are to [0, 1]
@@ -415,7 +416,6 @@ function optimize_ss(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
     ),
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
     parameters::Vector{Symbol} = collect(keys(priors))
 )
 	data_for_fit = unpack_data(data)
@@ -439,12 +439,7 @@ function optimize_ss(
     priors_fitted = Dict{Symbol, Distribution}()
     for p in parameters
         v = fit.values[p]
-        if haskey(transformed, p)
-            v = v .|> a2α # assume all transformations are to [0, 1]
-            priors_fitted = merge!(priors_fitted, Dict(transformed[p] => Dirac(v)))
-        else
-            priors_fitted = merge!(priors_fitted, Dict(p => Dirac(v)))
-        end
+        priors_fitted = merge!(priors_fitted, Dict(p => Dirac(v)))
     end
     
     gq_mod = model(
@@ -500,19 +495,21 @@ function optimize_multiple(
 			estimate = estimate,
 			initial_params = initial_params,
             priors = priors,
-            transformed = transformed
+            parameters = parameters
 		)
 
 		# Return
         est_dct = Dict{Symbol, Union{Int64, Float64}}(:PID => gdf.PID[1])
         if include_true
             for p in parameters
-                est_dct[Symbol("true_$p")] = haskey(transformed, p) ? α2a(gdf[!, transformed[p]][1]) : gdf[!, p][1]
-                est_dct[Symbol("MLE_$p")] = est.values[p]
+                est_par = haskey(transformed, p) ? transformed[p] : p
+                est_dct[Symbol("true_$est_par")] = gdf[!, est_par][1]
+                est_dct[Symbol("MLE_$est_par")] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
             end
         else
             for p in parameters
-                est_dct[p] = est.values[p]
+                est_par = haskey(transformed, p) ? transformed[p] : p
+                est_dct[est_par] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
             end
         end
 

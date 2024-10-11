@@ -1038,13 +1038,13 @@ function optimization_calibration(
     model::Function = RL_ss,
 	initial_params::Union{AbstractVector,Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-	priors::Dict{Symbol, Distribution{Univariate, Continuous}} = Dict(
+	priors::Dict = Dict(
 		:ρ => truncated(Normal(0., 2.), lower = 0.),
 		:a => Normal(0., 1.)
 	),
+	parameters::Vector{Symbol} = collect(keys(priors)),
 	ms::Float64 = 4.
 )
-    parameters = collect(keys(priors))
 	MLEs = optimize_func(
 		prior_sample;
 		initial = initial,
@@ -1057,21 +1057,23 @@ function optimization_calibration(
 		transformed = transformed
 	)[1]
 
-    other_pars = setdiff(parameters, [:a, :ρ])
+	# if parameter[i] in transformed, use transformed name, else use original
+	final_parameters = [haskey(transformed, p) ? transformed[p] : p for p in parameters]
+    other_pars = setdiff(final_parameters, [:α, :ρ])
 	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))
 
 	# Plot a
 	ax_a = Axis(
 		f[1,1],
-		xlabel = "True a",
-		ylabel = "$estimate a",
+		xlabel = "True α",
+		ylabel = "$estimate α",
 		aspect = 1.
 	)
 
 	scatter!(
 		ax_a,
-		MLEs.true_a,
-		MLEs.MLE_a,
+		MLEs.true_α,
+		MLEs.MLE_α,
 		markersize = ms
 	)
 
@@ -1095,31 +1097,31 @@ function optimization_calibration(
 	unit_line!(ax_ρ)
 
 	# Plot bivariate
-	ax_aρ = Axis(
+	ax_αρ = Axis(
 		f[1,3],
-		xlabel = "$estimate a",
+		xlabel = "$estimate α",
 		ylabel = "$estimate ρ",
 		aspect = 1.
 	)
 
 	scatter!(
-		ax_aρ,
-		MLEs.MLE_a,
+		ax_αρ,
+		MLEs.MLE_α,
 		MLEs.MLE_ρ,
 		markersize = ms
 	)
 
 	# Plot ground truth
-	ax_taρ = Axis(
+	ax_tαρ = Axis(
 		f[1,4],
-		xlabel = "True a",
+		xlabel = "True α",
 		ylabel = "True ρ",
 		aspect = 1.
 	)
 
 	scatter!(
-		ax_taρ,
-		MLEs.true_a,
+		ax_tαρ,
+		MLEs.true_α,
 		MLEs.true_ρ,
 		markersize = ms
 	)

@@ -141,8 +141,12 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
+    set_sizes = unique(data.set_size)
     @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
-    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
+    @submodel F_wm, φ_wm, W = wm_pars(priors, parameters, set_sizes)
+
+    C ~ priors[:C] # capacity
+    w = Dict(s => a2α(W) * min(1, C / s) for s in set_sizes)
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -204,7 +208,11 @@ end
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
         :F_wm => Normal(0., 0.5),
-        :W => Normal(0., 0.5),
+        :W => Dict(
+            2 => Normal(0., 0.5),
+            4 => Normal(0., 0.5),
+            6 => Normal(0., 0.5)
+        ),
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
     initial::Union{Nothing, Float64} = nothing
@@ -216,8 +224,12 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
+    set_sizes = unique(data.set_size)
     @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
-    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
+    @submodel F_wm, φ_wm, W = wm_pars(priors, parameters, set_sizes)
+
+    C ~ priors[:C] # capacity
+    w = Dict(s => a2α(W[s]) for s in set_sizes)
 
     # Initialize Q and W values
     Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
@@ -316,7 +328,11 @@ end
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
-        :W => Normal(0., 0.5),
+        :W => Dict(
+            2 => Normal(0., 0.5),
+            4 => Normal(0., 0.5),
+            6 => Normal(0., 0.5)
+        ),
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
     initial::Union{Nothing, Float64} = nothing
@@ -329,11 +345,15 @@ end
     
     # Parameters to estimate
     parameters = collect(keys(priors))
+    set_sizes = unique(data.set_size)
     @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
-    @submodel F_wm, φ_wm, W, w, C = wm_pars(priors, parameters, unique(data.set_size))
+    @submodel F_wm, φ_wm, W = wm_pars(priors, parameters, set_sizes)
+
+    C ~ priors[:C] # capacity
+    w = Dict(s => a2α(W[s]) for s in set_sizes)
 
     # sigmoid transformation using C
-    k = 5 # sharpness of the sigmoid
+    k = 3 # sharpness of the sigmoid
     gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
     nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
@@ -397,6 +417,123 @@ end
             Ws[i + 1, :] = Ws[i, :] # store previous W
             # 1. iterate lags for prior outcomes and update outcome number for this stimulus
             outc_lag[choice_idx] += outc_lag[choice_idx] .!== 0
+            outc_num[choice_idx] += 1
+            outc_no = outc_num[choice_idx]
+            # 2. initialise the lag for this outcome number and store the relevant outcome
+            outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
+            # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
+        elseif (i != N)
+            ssz = data.set_size[data.block[i+1]]
+            # reset buffers at the start of a new block
+            outc_no = 0
+            outc_mat = Matrix{Any}(nothing, ssz, nT)
+            outc_lag = zeros(Int, ssz, nT)
+            outc_num = zeros(Int, ssz)
+        end
+        # store Q- and W- values for output
+        Q[i, :] = Qs[i, (pri-1):pri]
+        Wv[i, :] = Ws[i, (pri-1):pri]
+    end
+
+    return (choice = choice, Qs = Q, Ws = Wv, loglike = loglike)
+
+end
+
+@model function RLWM_all_outc_pmst_sgd(
+    data::NamedTuple,
+    choice;
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5),
+        :W => Dict(
+            2 => Normal(0., 0.5),
+            4 => Normal(0., 0.5),
+            6 => Normal(0., 0.5)
+        ),
+        :C => truncated(Normal(3., 2.), lower = 1.)
+    ),
+    initial::Union{Nothing, Float64} = nothing
+)
+
+    # initial values
+    aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+    initial = isnothing(initial) ? aao : initial
+    initV::AbstractArray{Float64} = fill(initial, 1, maximum(data.set_size))
+    
+    # Parameters to estimate
+    parameters = collect(keys(priors))
+    set_sizes = unique(data.set_size)
+    @submodel a, E, F_rl, β, ρ, α, ε, φ_rl = rl_pars(priors, parameters)
+    @submodel F_wm, φ_wm, W = wm_pars(priors, parameters, set_sizes)
+
+    C ~ priors[:C] # capacity
+    w = Dict(s => a2α(W[s]) for s in set_sizes)
+
+    # sigmoid transformation using C
+    k = 3 # sharpness of the sigmoid
+    nT = sum(data.block .== mode(data.block))
+    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
+
+    # for each unique outcome in data.outcomes, premultiply by ρ and wt
+    unq_outc = unique(data.outcomes)
+    outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
+    outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
+
+    # Initialize Q and W values
+    Qs = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
+    Ws = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
+
+    # Initial values
+    Q0, Q = copy(Qs), copy(Qs[:, 1:2])
+    Wv = copy(Ws[:, 1:2])
+
+    # Initial set-size
+    N = length(data.block)
+    ssz = data.set_size[data.block[1]]
+
+    # Initialize outcome buffers
+    outc_no = 0
+    outc_mat = Matrix{Any}(nothing, ssz, nT) # matrix of recent outcomes for each stimulus
+    outc_lag = zeros(Int, ssz, nT) # how many outcomes back was this outcome?
+    outc_num = zeros(Int, ssz) # how many outcomes have we seen for this stimulus?
+
+    # store log-loglikelihood
+    loglike = 0.
+
+    # Loop over trials, updating Q values and incrementing log-density
+    for i in 1:N
+        pri = 2 * data.pair[i]
+        # RL and WM policies (softmax with directed and undirected noise)
+        π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
+        π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
+
+        # Weighted policy
+        π = w[ssz] * π_wm + (1 - w[ssz]) * π_rl
+
+        # done it this way because Bernoulli() is not numerically stable
+        # but the weights are defined by weighting the policy probabilities
+        logit_π = log(π / (1 - π))
+
+		# Choice
+		choice[i] ~ BernoulliLogit(logit_π)
+		choice_idx::Int64 = choice[i] + pri - 1
+        choice_1id::Int64 = choice[i] + 1
+
+        # log likelihood
+        loglike += loglikelihood(BernoulliLogit(π), choice[i])
+
+		# Prediction error
+        chce = data.outcomes[i, choice_1id]
+		δ = chce * ρ - Qs[i, choice_idx]
+
+        # Update Qs and Ws and decay Ws
+        if (i != N) && (data.block[i] == data.block[i+1])
+            Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
+			Qs[i + 1, choice_idx] += α * δ
+            Ws[i + 1, :] = Ws[i, :] # store previous W
+            # 1. iterate lags for all prior outcomes and update outcome number for this stimulus
+            outc_lag += outc_lag .!== 0
             outc_num[choice_idx] += 1
             outc_no = outc_num[choice_idx]
             # 2. initialise the lag for this outcome number and store the relevant outcome
@@ -648,32 +785,17 @@ end
         F_wm, φ_wm = nothing, 0
     end
 
-    C ~ priors[:C] # capacity
-
     # initial weight of WM vs RL
-    if :W in parameters
-        if isa(priors[:W], Dict)
-            W = Dict{Int, Any}()
-            for s in set_sizes
-                W[s] ~ priors[:W][s]
-            end
-            wd = Dict(s => a2α(W[s]) for s in set_sizes)
-        else
-            W ~ priors[:W]
-            wd = Dict(s => a2α(W) * min(1, C / s) for s in set_sizes)
+    w_pr = :W in parameters ? priors[:W] : Dict{Int, Any}()
+    if isa(w_pr, Dict)
+        W = Dict{Int, Any}()
+        for s in set_sizes
+            w_pr_d = Symbol("W[$s]") in parameters ? priors[Symbol("W[$s]")] : w_pr[s]
+            W[s] ~ w_pr_d
         end
-    elseif :w in parameters
-        if isa(priors[:w], Dict)
-            wd = Dict{Int, Any}()
-            for s in keys(priors[:w])
-                w[s] ~ priors[:w][s]
-            end
-        else
-            W = nothing
-            w ~ priors[:w]
-            wd = Dict(s => w * min(1, C / s) for s in set_sizes)
-        end
+    else
+        W ~ w_pr
     end
 
-    return (F_wm, φ_wm, W, wd, C)
+    return (F_wm, φ_wm, W)
 end

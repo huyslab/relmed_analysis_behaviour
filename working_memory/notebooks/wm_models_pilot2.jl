@@ -55,7 +55,6 @@ md"
 begin
 	PLT_data, test_data, vigour_data, jspsych_data = load_pilot2_data()
 	df = prepare_for_fit(PLT_data, pilot2=true)[1]
-	nothing
 end
 
 # ╔═╡ a0e0399e-a982-4bc4-856f-2e712d1e182b
