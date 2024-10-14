@@ -180,24 +180,29 @@ function load_pilot1_data()
 end
 
 # Exclude unfinished and double sessions
-function exclude_PLT_sessions(PLT_data::DataFrame)
+function exclude_PLT_sessions(
+	PLT_data::DataFrame;
+	required_n_blocks::Int64 = 24
+	)
 	# Find non-finishers
 	non_finishers = combine(groupby(PLT_data,
 		[:prolific_pid, :session, 
-		:exp_start_time, :condition]),
+		:exp_start_time]),
 		:block => (x -> length(unique(x))) => :n_blocks
 	)
 
-	filter!(x -> x.n_blocks < 24, non_finishers)
+	filter!(x -> x.n_blocks < required_n_blocks, non_finishers)
+
+	@info "Removing $(nrow(non_finishers)) ($(round(nrow(non_finishers) / length(unique(PLT_data.prolific_pid)) * 100; digits = 2))%) sessions with incomplete data"
 
 	# Exclude non-finishers
 	PLT_data_clean = antijoin(PLT_data, non_finishers,
 		on = [:prolific_pid, :session, 
-		:exp_start_time, :condition])
+		:exp_start_time])
 
 	# Find double takes
 	double_takers = unique(PLT_data_clean[!, [:prolific_pid, :session, 
-		:exp_start_time, :condition]])
+		:exp_start_time]])
 
 	# Find earliert session
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
@@ -205,16 +210,18 @@ function exclude_PLT_sessions(PLT_data::DataFrame)
 
 	DataFrames.DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
-		:condition => length => :n,
+		:prolific_pid => length => :n,
 		:date => minimum => :first_date
 	)
 
 	filter!(x -> (x.n > 1) & (x.date != x.first_date), double_takers)
 
+	@info "Removing $(nrow(double_takers)) ($(round(nrow(double_takers) / length(unique(PLT_data_clean.prolific_pid)) * 100; digits = 2))%) sessions that were retaken."
+
 	# Exclude extra sessions
 	PLT_data_clean = antijoin(PLT_data_clean, double_takers,
 		on = [:prolific_pid, :session, 
-		:exp_start_time, :condition]
+		:exp_start_time]
 	)
 
 	return PLT_data_clean
