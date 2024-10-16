@@ -1043,6 +1043,7 @@ function optimization_calibration(
 		:a => Normal(0., 1.)
 	),
 	parameters::Vector{Symbol} = collect(keys(priors)),
+	bootstraps::Int64 = 0,
 	ms::Float64 = 4.
 )
 	MLEs = optimize_func(
@@ -1054,7 +1055,8 @@ function optimization_calibration(
         initial_params = initial_params,
 		priors = priors,
 		parameters = parameters,
-		transformed = transformed
+		transformed = transformed,
+		bootstraps = bootstraps
 	)[1]
 
 	# if parameter[i] in transformed, use transformed name, else use original
@@ -1063,68 +1065,88 @@ function optimization_calibration(
 	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))
 
 	# Plot a
-	ax_a = Axis(
-		f[1,1],
-		xlabel = "True α",
-		ylabel = "$estimate α",
-		aspect = 1.
-	)
+	if :α in parameters
+		ax_a = Axis(
+			f[1,1],
+			xlabel = "True α",
+			ylabel = "$estimate α",
+			aspect = 1.
+		)
 
-	scatter!(
-		ax_a,
-		MLEs.true_α,
-		MLEs.MLE_α,
-		markersize = ms
-	)
+		scatter!(
+			ax_a,
+			MLEs.true_α,
+			MLEs.MLE_α,
+			markersize = ms
+		)
 
-	unit_line!(ax_a)
+		unit_line!(ax_a)
 
-	# Plot ρ
-	ax_ρ = Axis(
-		f[1,2],
-		xlabel = "True ρ",
-		ylabel = "$estimate ρ",
-		aspect = 1.
-	)
+		# Plot ρ
+		ax_ρ = Axis(
+			f[1,2],
+			xlabel = "True ρ",
+			ylabel = "$estimate ρ",
+			aspect = 1.
+		)
 
-	scatter!(
-		ax_ρ,
-		MLEs.true_ρ,
-		MLEs.MLE_ρ,
-		markersize = ms
-	)
+		scatter!(
+			ax_ρ,
+			MLEs.true_ρ,
+			MLEs.MLE_ρ,
+			markersize = ms
+		)
 
-	unit_line!(ax_ρ)
+		unit_line!(ax_ρ)
 
-	# Plot bivariate
-	ax_αρ = Axis(
-		f[1,3],
-		xlabel = "$estimate α",
-		ylabel = "$estimate ρ",
-		aspect = 1.
-	)
+		# Plot bivariate
+		ax_αρ = Axis(
+			f[1,3],
+			xlabel = "$estimate α",
+			ylabel = "$estimate ρ",
+			aspect = 1.
+		)
 
-	scatter!(
-		ax_αρ,
-		MLEs.MLE_α,
-		MLEs.MLE_ρ,
-		markersize = ms
-	)
+		scatter!(
+			ax_αρ,
+			MLEs.MLE_α,
+			MLEs.MLE_ρ,
+			markersize = ms
+		)
 
-	# Plot ground truth
-	ax_tαρ = Axis(
-		f[1,4],
-		xlabel = "True α",
-		ylabel = "True ρ",
-		aspect = 1.
-	)
+		# Plot ground truth
+		ax_tαρ = Axis(
+			f[1,4],
+			xlabel = "True α",
+			ylabel = "True ρ",
+			aspect = 1.
+		)
 
-	scatter!(
-		ax_tαρ,
-		MLEs.true_α,
-		MLEs.true_ρ,
-		markersize = ms
-	)
+		scatter!(
+			ax_tαρ,
+			MLEs.true_α,
+			MLEs.true_ρ,
+			markersize = ms
+		)
+	elseif :ρ in parameters
+		# Plot ρ
+		ax_ρ = Axis(
+			f[1,1],
+			xlabel = "True ρ",
+			ylabel = "$estimate ρ",
+			aspect = 1.
+		)
+
+		scatter!(
+			ax_ρ,
+			MLEs.true_ρ,
+			MLEs.MLE_ρ,
+			markersize = ms
+		)
+
+		unit_line!(ax_ρ)
+	end
+
 
     if length(other_pars) > 0
         for (i, p) in enumerate(other_pars)

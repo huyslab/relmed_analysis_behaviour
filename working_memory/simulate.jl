@@ -148,7 +148,7 @@ function simulate_from_prior(
     priors::Dict,
     parameters::Vector{Symbol} = collect(keys(priors)),
     initial::Union{Float64, Nothing} = nothing,
-    transformed::Dict{Symbol, Symbol}, # Transformed parameters
+    transformed::Dict{Symbol, Symbol} = Dict{Symbol, Symbol}(), # Transformed parameters
     condition::Union{String, Nothing} = nothing,
     fixed_struct::Union{DataFrame, Nothing} = nothing,
     structure::NamedTuple = (
@@ -233,8 +233,10 @@ function simulate_from_prior(
 
         # loglik = [pt.loglike for pt in gq] |> vec
 
-        sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
-        sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
+        if !any([isnothing(q) for q in Qs])
+            sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
+            sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
+        end
 
         if haskey(priors, :C)
             Ws = [pt.Ws for pt in gq] |> vec
@@ -411,34 +413,61 @@ function optimize_ss(
     initial::Union{Float64, Nothing} = nothing,
     model::Function = RL_ss,
 	estimate::String = "MAP",
-    initial_params::Union{AbstractVector, Nothing} = nothing,
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
     ),
-    parameters::Vector{Symbol} = collect(keys(priors))
+    parameters::Vector{Symbol} = collect(keys(priors)),
+    transformed::Dict{Symbol, Symbol} = Dict{:a => :α}, # Transformed parameters
+    bootstraps::Int64 = 0
 )
-	data_for_fit = unpack_data(data)
-    res = model(
-        data_for_fit,
-        data.choice;
-        priors = priors,
-        initial = initial
-    )
+    data_for_fit = unpack_data(data)
+    if bootstraps == 0
+        res = model(
+            data_for_fit,
+            data.choice;
+            priors = priors,
+            initial = initial
+        )
 
-	if estimate == "MLE"
-		fit = maximum_likelihood(res; initial_params = initial_params)
-	elseif estimate == "MAP"
-		fit = maximum_a_posteriori(res; initial_params = initial_params)
-	end
+        if estimate == "MLE"
+            fit = maximum_likelihood(res)
+        elseif estimate == "MAP"
+            fit = maximum_a_posteriori(res)
+        end
+        cov_mat = Matrix{Float64}(undef, length(parameters), length(parameters))
+    else
+        ests = Matrix{Float64}(undef, bootstraps, length(parameters))
+        ests_tr = Matrix{Float64}(undef, bootstraps, length(parameters))
+        Threads.@threads for b in 1:bootstraps
+            # sample rows with replacement
+            idxs = sample(Xoshiro(b), 1:nrow(data), nrow(data), replace=true)
+            data_boot = data[idxs, :]
 
-    loglik = loglikelihood(fit)
-    bic = -2 * loglik + length(parameters) * log(nrow(data))
-    
+            res = model(
+                data_for_fit,
+                data_boot.choice; # sample with replacement from choices
+                priors = priors,
+                initial = initial
+            )
+
+            if estimate == "MLE"
+                fit = maximum_likelihood(res)
+            elseif estimate == "MAP"
+                fit = maximum_a_posteriori(res)
+            end
+
+            ests[b, :] = [fit.values[p] for p in parameters]
+            ests_tr[b, :] = [haskey(transformed, p) ? a2α(fit.values[p]) : fit.values[p] for p in parameters]
+        end
+        cov_mat = cov(ests_tr, corrected = false) # covariance of transformed parameters
+        ests = DataFrame(ests, Symbol.(parameters))
+    end
+
     # get predictions from the model for choices by setting a Dirac prior on the parameters
     priors_fitted = Dict{Symbol, Distribution}()
     for p in parameters
-        v = fit.values[p]
+        v = bootstraps == 0 ? fit.values[p] : mean(ests[:, p])
         priors_fitted = merge!(priors_fitted, Dict(p => Dirac(v)))
     end
     
@@ -459,8 +488,9 @@ function optimize_ss(
     gq = generated_quantities(gq_mod, gq_samp)
     choices = gq[1].choice
     loglike = gq[1].loglike
+    bic = -2 * loglike + length(parameters) * log(nrow(data))
 
-	return fit, bic, choices, loglike
+	return fit, bic, choices, loglike, cov_mat
 end
 
 # Find MLE / MAP multiple times
@@ -470,16 +500,17 @@ function optimize_multiple(
     model::Function = RL_ss,
     estimate::String = "MAP",
 	include_true::Bool = true, # Whether to return true value if this is simulation
-    initial_params::Union{AbstractVector, Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
     ),
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    parameters::Vector{Symbol} = collect(keys(priors))
+    parameters::Vector{Symbol} = collect(keys(priors)),
+    bootstraps::Int64 = 0
 )
 	ests = []
     choice_df = Dict{Int64, DataFrame}()
+    cov_mat_dict = Dict{Int64, Matrix{Float64}}()
 	lk = ReentrantLock()
 
 	Threads.@threads for p in unique(data.PID)
@@ -488,37 +519,46 @@ function optimize_multiple(
 		gdf = filter(x -> x.PID == p, data)
 
 		# Optimize
-		est, bic, choices, loglike = optimize_ss(
+		est, bic, choices, loglike, cov_mat = optimize_ss(
 			gdf;
 			initial = initial,
             model = model,
 			estimate = estimate,
-			initial_params = initial_params,
             priors = priors,
-            parameters = parameters
+            parameters = parameters,
+            transformed = transformed,
+            bootstraps = bootstraps
 		)
 
 		# Return
         est_dct = Dict{Symbol, Union{Int64, Float64}}(:PID => gdf.PID[1])
+        est_par = Dict{Symbol, Symbol}()
         if include_true
             for p in parameters
-                est_par = haskey(transformed, p) ? transformed[p] : p
-                est_dct[Symbol("true_$est_par")] = gdf[!, est_par][1]
-                est_dct[Symbol("MLE_$est_par")] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
+                est_par[p] = haskey(transformed, p) ? transformed[p] : p
+                est_dct[Symbol("true_$(est_par[p])")] = gdf[!, est_par[p]][1]
+                est_dct[Symbol("MLE_$(est_par[p])")] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
             end
         else
             for p in parameters
-                est_par = haskey(transformed, p) ? transformed[p] : p
-                est_dct[est_par] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
+                est_par[p] = haskey(transformed, p) ? transformed[p] : p
+                est_dct[est_par[p]] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
             end
         end
 
         est_dct[:loglike] = loglike
         est_dct[:BIC] = bic
 
+        if bootstraps > 0
+            # add bootstrap standard deviations to output dictionary
+            for (i, p) in enumerate(parameters)
+                est_dct[Symbol("sd_$(est_par[p])")] = sqrt(cov_mat[i, i])
+            end
+        end
 		lock(lk) do
             est = NamedTuple{Tuple(keys(est_dct))}(values(est_dct))
 			push!(ests, est)
+            merge!(cov_mat_dict, Dict(p => cov_mat))
             choice_df[p] = DataFrame(
                 PID = gdf.PID,
                 block = gdf.block,
@@ -533,7 +573,7 @@ function optimize_multiple(
     # make choice_df into a single DataFrame
     choice_df = vcat(values(choice_df)...)
 
-	return DataFrame(ests), choice_df
+	return DataFrame(ests), choice_df, cov_mat_dict
 end
 
 # function bootstrap_optimize_single_p_QL(
