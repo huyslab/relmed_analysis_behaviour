@@ -32,4 +32,8 @@ results/*
 .cmdstanr/
 env.list
 
-Icon
+Icon
+.Rproj.user/
+.dotnet/
+.ssh/
+.julia/logs/
