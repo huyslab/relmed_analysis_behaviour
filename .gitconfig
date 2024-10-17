@@ -12,4 +12,4 @@
 [commit]
 	template = /Users/luhaoyang/.stCommitMsg
 [credential]
-	helper = "!f() { /home/jovyan/.vscode-server/bin/38c31bc77e0dd6ae88a4e9cc93428cc27a56ba40/node /tmp/vscode-remote-containers-416819b1-a889-4007-a75c-5ed8a4ff8790.js git-credential-helper $*; }; f"
+	helper = "!f() { /home/jovyan/.vscode-server/bin/384ff7382de624fb94dbaf6da11977bba1ecd427/node /tmp/vscode-remote-containers-6fb4bfad-cf31-46e5-a4bb-0a677e9a824c.js git-credential-helper $*; }; f"

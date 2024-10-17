@@ -36,4 +36,4 @@ env.list
 .ssh/
 .vscode-server/
 Icon
-
+.Rproj.user
