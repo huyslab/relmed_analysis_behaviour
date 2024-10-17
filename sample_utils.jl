@@ -20,8 +20,6 @@ function simulate_single_p_PILT(
 
 	# Prepare model for simulation
 	prior_model = model(
-		N = N,
-		n_blocks = maximum(block),
 		block = block,
 		choice = fill(missing, length(block)),
 		outcomes = outcomes,

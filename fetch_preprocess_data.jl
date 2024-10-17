@@ -203,7 +203,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame)
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
 		"yyyy-mm-dd_HH:MM:SS")
 
-	DataFrames.transform!(
+	DataFrames.DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
 		:condition => length => :n,
 		:date => minimum => :first_date
@@ -408,7 +408,8 @@ function extract_vigour_data(data::DataFrame)
 	x -> subset(x, 
         :trial_number => ByRow(!ismissing)
     ) |>
-	x -> transform(x,
+	
+  x -> DataFrames.transform(x,
 		:response_time => ByRow(JSON.parse) => :response_times,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
@@ -454,7 +455,7 @@ function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
 		"yyyy-mm-dd_HH:MM:SS")
 
-	transform!(
+	DataFrames.transform!(
 		groupby(double_takers, [:prolific_id]),
 		:date => minimum => :first_date
 	)
