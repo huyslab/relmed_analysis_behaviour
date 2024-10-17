@@ -101,3 +101,9 @@ function bootstrap_correlation(x, y, n_bootstrap=1000)
 
 	return corrs
 end
+
+# Spearman Brown correction
+spearman_brown(
+	r;
+	n = 2 # Number of splits
+	) = (n * r) / (1 + (n - 1) * r)
