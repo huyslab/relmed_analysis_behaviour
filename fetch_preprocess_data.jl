@@ -353,6 +353,16 @@ function safe_mean(arr)
 	end
 end
 
+function safe_median(arr)
+	if ismissing(arr) || isempty(arr)  # Check if array is missing or empty
+			return missing
+	elseif all(x -> x isa Number, arr)  # Check if all elements are numeric
+			return median(arr)
+	else
+			return missing  # Return missing if the array contains non-numeric elements
+	end
+end
+
 """
 	extract_vigour_data(data::DataFrame) -> DataFrame
 
