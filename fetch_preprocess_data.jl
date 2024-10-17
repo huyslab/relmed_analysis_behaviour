@@ -353,6 +353,16 @@ function safe_mean(arr)
 	end
 end
 
+function safe_median(arr)
+	if ismissing(arr) || isempty(arr)  # Check if array is missing or empty
+			return missing
+	elseif all(x -> x isa Number, arr)  # Check if all elements are numeric
+			return median(arr)
+	else
+			return missing  # Return missing if the array contains non-numeric elements
+	end
+end
+
 """
 	extract_vigour_data(data::DataFrame) -> DataFrame
 
@@ -387,11 +397,13 @@ function extract_vigour_data(data::DataFrame)
 	x -> select(x, 
 		:prolific_pid => :prolific_id,
 		:record_id,
+        names(x, r"^version$"),
 		:exp_start_time,
 		:trial_number,
 		:trial_duration,
 		names(x, r"(reward|presses)$"),
-		:response_time, :timeline_variables
+		:response_time,
+        :timeline_variables
 	) |>
 	x -> subset(x, 
         :trial_number => ByRow(!ismissing)
