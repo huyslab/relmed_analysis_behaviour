@@ -207,7 +207,6 @@ end
     priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5),
-        :F_wm => Normal(0., 0.5),
         :W => Normal(0., 0.5),
         :C => truncated(Normal(3., 2.), lower = 1.)
     ),
@@ -928,13 +927,9 @@ function ibic(;
         end
 
         iL[i] = wiL / sum(wk)
-        effSamp[i] = sum(exp.(LLi / length(choices)))  # effective number of samples
-    end
-    
-    if any(effSamp .< 50)
-        println("Warning: Less than 50 effective samples - dimensionality prob. too high!")
-    end
+    end    
     
     ibic = length(parameters) * log(nrow(data)) - 2 * sum(iL)
+    
     return ibic
 end

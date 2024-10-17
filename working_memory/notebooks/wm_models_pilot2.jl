@@ -67,12 +67,11 @@ md"
 
 # ╔═╡ 7243e277-a9c8-4c33-ac10-8573cb88fb69
 begin
-	rlwm_ests, rlwm_choices = optimize_multiple(
+	rlwm_ests, rlwm_choices, rlwm_cov = optimize_multiple(
 		df;
 		model = RLWM_ss,
 		estimate = "MAP",
 		include_true=false,
-		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, mean(truncated(Normal(2., 2.), lower = 1.))],
 		transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w),
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
@@ -80,7 +79,8 @@ begin
 			:F_wm => Normal(0., 0.5),
 			:W => Normal(0., 0.5),
 			:C => truncated(Normal(3., 2.), lower = 1.)
-		)
+		),
+		bootstraps=100
 	)
 
 	rlwm_ests
@@ -95,9 +95,9 @@ let
 	labs3 = (xlabel = "C", ylabel = "φ_wm", zlabel = "log-likelihood")
 	
 	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, a2α.(rlwm_ests.α), rlwm_ests.ρ, rlwm_ests.loglike)
-	scatter!(ax2, rlwm_ests.C, a2α.(rlwm_ests.w), rlwm_ests.loglike)
-	scatter!(ax3, rlwm_ests.C, a2α.(rlwm_ests.φ_wm), rlwm_ests.loglike)
+	scatter!(ax1, rlwm_ests.α, rlwm_ests.ρ, rlwm_ests.loglike)
+	scatter!(ax2, rlwm_ests.C, rlwm_ests.w, rlwm_ests.loglike)
+	scatter!(ax3, rlwm_ests.C, rlwm_ests.φ_wm, rlwm_ests.loglike)
 	f
 end
 
@@ -130,26 +130,20 @@ md"
 
 # ╔═╡ a0e0399e-a982-4bc4-856f-2e712d1e182b
 begin
-	pmst_ests, pmst_choices = optimize_multiple(
+	pmst_ests, pmst_choices, pmst_covs = optimize_multiple(
 		df;
 		model = RLWM_pmst,
 		estimate = "MAP",
 		include_true=false,
-		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, 0.5, mean(truncated(Normal(2., 2.), lower = 1.))],
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
 			:a => Normal(0., 0.5),
-			:W => Dict(
-	            2 => Normal(0., 0.5),
-	            4 => Normal(0., 0.5),
-	            6 => Normal(0., 0.5)
-	        ),
+			:W => Normal(0., 0.5),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
-		parameters = [:ρ, :a, Symbol("W[2]"), Symbol("W[4]"), Symbol("W[6]"), :C],
-		transformed = Dict(
-			:a => :α, Symbol("W[2]") => :w2, Symbol("W[4]") => :w4, Symbol("W[6]") => :w6
-		)
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w),
+		bootstraps=100
 	)
 	pmst_ests
 end
@@ -160,13 +154,11 @@ let
 	f = Figure(size = (1000, 300))
 	
 	labs1 = (xlabel = "α", ylabel = "ρ", zlabel = "log-likelihood")
-	labs2 = (xlabel = "C", ylabel = "w2", zlabel = "log-likelihood")
-	labs3 = (xlabel = "w4", ylabel = "w6", zlabel = "log-likelihood")
+	labs2 = (xlabel = "C", ylabel = "w", zlabel = "log-likelihood")
 	
-	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, a2α.(pmst_ests.α), pmst_ests.ρ, pmst_ests.loglike)
-	scatter!(ax2, pmst_ests.C, a2α.(pmst_ests.w2), pmst_ests.loglike)
-	scatter!(ax3, a2α.(pmst_ests.w4), a2α.(pmst_ests.w6), pmst_ests.loglike)
+	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
+	scatter!(ax1, pmst_ests.α, pmst_ests.ρ, pmst_ests.loglike)
+	scatter!(ax2, pmst_ests.C, pmst_ests.w, pmst_ests.loglike)
 	f
 end
 
@@ -199,26 +191,20 @@ md"
 
 # ╔═╡ 7af0c1fb-e32d-4fa2-96a2-094c58c57888
 begin
-	pmst_sg_ests, pmst_sg_choices = optimize_multiple(
+	pmst_sg_ests, pmst_sg_choices, pmst_sg_covs = optimize_multiple(
 		df;
 		model = RLWM_pmst_sgd,
 		estimate = "MAP",
 		include_true = false,
-		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, 0.5, mean(truncated(Normal(2., 2.), lower = 1.))],
-		parameters = [:ρ, :a, Symbol("W[2]"), Symbol("W[4]"), Symbol("W[6]"), :C],
-		transformed = Dict(
-			:a => :α, Symbol("W[2]") => :w2, Symbol("W[4]") => :w4, Symbol("W[6]") => :w6
-		),
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
 			:a => Normal(0., 0.5),
-			:W => Dict(
-	            2 => Normal(0., 0.5),
-	            4 => Normal(0., 0.5),
-	            6 => Normal(0., 0.5)
-	        ),
+			:W => Normal(0., 0.5),
 			:C => truncated(Normal(3., 2.), lower = 1.)
-		)
+		),
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w),
+		bootstraps=100
 	)
 	pmst_sg_ests
 end
@@ -229,13 +215,11 @@ let
 	f = Figure(size = (1000, 300))
 	
 	labs1 = (xlabel = "α", ylabel = "ρ", zlabel = "log-likelihood")
-	labs2 = (xlabel = "C", ylabel = "w2", zlabel = "log-likelihood")
-	labs3 = (xlabel = "w4", ylabel = "w6", zlabel = "log-likelihood")
+	labs2 = (xlabel = "C", ylabel = "w", zlabel = "log-likelihood")
 	
-	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, a2α.(pmst_sg_ests.α), pmst_sg_ests.ρ, pmst_sg_ests.loglike)
-	scatter!(ax2, pmst_sg_ests.C, a2α.(pmst_sg_ests.w2), pmst_sg_ests.loglike)
-	scatter!(ax3, a2α.(pmst_sg_ests.w4), a2α.(pmst_sg_ests.w6), pmst_sg_ests.loglike)
+	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
+	scatter!(ax1, pmst_sg_ests.α, pmst_sg_ests.ρ, pmst_sg_ests.loglike)
+	scatter!(ax2, pmst_sg_ests.C, pmst_sg_ests.w, pmst_sg_ests.loglike)
 	f
 end
 
@@ -268,7 +252,7 @@ md"
 
 # ╔═╡ 384270b1-0c13-4d7f-8cb1-fbdee5e8fc10
 begin
-	pmst_ovlC_ests, pmst_ovlC_choices = optimize_multiple(
+	pmst_ovlC_ests, pmst_ovlC_choices, pmst_ovlC_covs = optimize_multiple(
 		df;
 		model = RLWM_all_outc_pmst_sgd,
 		estimate = "MAP",
@@ -276,18 +260,12 @@ begin
 		priors = Dict(
 			:ρ => truncated(Normal(0., 1.), lower = 0.),
 			:a => Normal(0., 0.5),
-			:W => Dict(
-	            2 => Normal(0., 0.5),
-	            4 => Normal(0., 0.5),
-	            6 => Normal(0., 0.5)
-	        ),
+			:W => Normal(0, 0.5),
 			:C => truncated(Normal(6., 4.), lower = 1.)
 		),
-		initial_params = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5, 0.5, 0.5, 0.5, mean(truncated(Normal(6., 4.), lower = 1.))],
-		parameters = [:ρ, :a, Symbol("W[2]"), Symbol("W[4]"), Symbol("W[6]"), :C],
-		transformed = Dict(
-			:a => :α, Symbol("W[2]") => :w2, Symbol("W[4]") => :w4, Symbol("W[6]") => :w6
-		)
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w),
+		bootstraps=100
 	)
 	pmst_ovlC_ests
 end
@@ -298,13 +276,11 @@ let
 	f = Figure(size = (1000, 300))
 	
 	labs1 = (xlabel = "α", ylabel = "ρ", zlabel = "log-likelihood")
-	labs2 = (xlabel = "C", ylabel = "w2", zlabel = "log-likelihood")
-	labs3 = (xlabel = "w4", ylabel = "w6", zlabel = "log-likelihood")
+	labs2 = (xlabel = "C", ylabel = "w", zlabel = "log-likelihood")
 	
-	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, a2α.(pmst_ovlC_ests.α), pmst_ovlC_ests.ρ, pmst_ovlC_ests.loglike)
-	scatter!(ax2, pmst_ovlC_ests.C, a2α.(pmst_ovlC_ests.w2), pmst_ovlC_ests.loglike)
-	scatter!(ax3, a2α.(pmst_ovlC_ests.w4), a2α.(pmst_ovlC_ests.w6), pmst_ovlC_ests.loglike)
+	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
+	scatter!(ax1, pmst_ovlC_ests.α, pmst_ovlC_ests.ρ, pmst_ovlC_ests.loglike)
+	scatter!(ax2, pmst_ovlC_ests.C, pmst_ovlC_ests.w, pmst_ovlC_ests.loglike)
 	f
 end
 
@@ -330,6 +306,121 @@ let
 	f
 end
 
+# ╔═╡ 4f353003-24df-4671-8198-04d4ba7cb735
+md"
+### Working memory alone (palimpsest)
+"
+
+# ╔═╡ 08c886a0-b4a9-47ad-ac71-aaa42c021925
+begin
+	pmst_wm_ests, pmst_wm_choices, pmst_wm_covs = optimize_multiple(
+		df;
+		model = WM_pmst_sgd,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 2.), lower = 0.),
+			:C => truncated(Normal(3., 2), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		bootstraps=100
+	)
+	pmst_wm_ests
+end
+
+# ╔═╡ 47c03556-301f-4607-953a-ed16092b165d
+let
+	# Set the labels for the axes
+	f = Figure(size = (500, 300))
+	
+	labs1 = (xlabel = "ρ", ylabel = "C", zlabel = "log-likelihood")
+	
+	ax1 = Axis3(f[1,1]; labs1...)
+	scatter!(ax1, pmst_wm_ests.ρ, pmst_wm_ests.C, pmst_wm_ests.loglike)
+	f
+end
+
+# ╔═╡ a84787d9-e51c-4ed5-8ea0-b23d887cac1d
+let
+	choice_df = pmst_wm_choices
+	choice_df.true_choice = Int.(choice_df.true_choice)
+	choice_df.predicted_choice = Int.(choice_df.predicted_choice)
+	choice_df = stack(choice_df, [:true_choice, :predicted_choice])
+
+	f = Figure(size = (700, 400))
+	plot_prior_accuracy!(
+		f[1,1],
+		choice_df;
+		group = :variable,
+		pid_col = :PID,
+		acc_col = :value,
+		legend = true,
+		legend_rows = 1,
+		colors = Makie.colorschemes[:seaborn_pastel6],
+		error_band = "PI"
+	)
+	f
+end
+
+# ╔═╡ b2e221d0-93d6-4483-81e5-10e79040c623
+md"
+### Model comparison (sort of)
+"
+
+# ╔═╡ c9cb003a-1fe2-4f3e-a842-de94401db15e
+begin
+	# rlwm_fit = ibic(;
+	# 	model=RLWM_ss,
+	# 	data=df,
+	# 	parameter_df=rlwm_ests,
+	#     covariances=rlwm_cov,
+	# 	parameters = [:ρ, :a, :F_wm, :W, :C],
+	# 	transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w,)
+	# )
+
+	palimpsest_fit = ibic(;
+		model=RLWM_pmst,
+		data=df,
+		parameter_df=pmst_ests,
+	    covariances=pmst_covs,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w)
+	)
+	
+	sigmoid_fit = ibic(;
+		model=RLWM_pmst_sgd,
+		data=df,
+		parameter_df=pmst_sg_ests,
+	    covariances=pmst_sg_covs,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w)
+	)
+
+	sigmoid_ovlC_fit = ibic(;
+		model=RLWM_all_outc_pmst_sgd,
+		data=df,
+		parameter_df=pmst_ovlC_ests,
+	    covariances=pmst_ovlC_covs,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w)
+	)
+
+	wm_fit = ibic(;
+		model=WM_pmst_sgd,
+		data=df,
+		parameter_df=pmst_ovlC_ests,
+	    covariances=pmst_ovlC_covs,
+		parameters = [:ρ, :a, :W, :C],
+		transformed = Dict(:a => :α, :W => :w)
+	)
+end
+
+# ╔═╡ 734e07cc-bbd4-4c64-921d-6d348a3496b0
+let
+	bics = [palimpsest_fit, sigmoid_fit, sigmoid_ovlC_fit, wm_fit]
+	bics
+end
+
 # ╔═╡ Cell order:
 # ╠═2511ec84-857d-11ef-2e80-43218bddef4e
 # ╟─8a215c05-805a-4960-aca8-3c84b9452c3c
@@ -350,3 +441,10 @@ end
 # ╠═384270b1-0c13-4d7f-8cb1-fbdee5e8fc10
 # ╠═1e3b5bda-903b-42b0-a774-7e78d9524614
 # ╠═48c6907b-a64e-4690-bd09-4c6f5a5f4c47
+# ╟─4f353003-24df-4671-8198-04d4ba7cb735
+# ╠═08c886a0-b4a9-47ad-ac71-aaa42c021925
+# ╠═47c03556-301f-4607-953a-ed16092b165d
+# ╠═a84787d9-e51c-4ed5-8ea0-b23d887cac1d
+# ╟─b2e221d0-93d6-4483-81e5-10e79040c623
+# ╠═c9cb003a-1fe2-4f3e-a842-de94401db15e
+# ╠═734e07cc-bbd4-4c64-921d-6d348a3496b0

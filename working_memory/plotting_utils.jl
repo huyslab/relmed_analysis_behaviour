@@ -1036,7 +1036,6 @@ function optimization_calibration(
 	initial::Union{Nothing, Float64} = nothing, # initial Q-value
 	estimate::String = "MLE",
     model::Function = RL_ss,
-	initial_params::Union{AbstractVector,Nothing} = [mean(truncated(Normal(0., 2.), lower = 0.)), 0.5],
     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
 	priors::Dict = Dict(
 		:ρ => truncated(Normal(0., 2.), lower = 0.),
@@ -1052,7 +1051,6 @@ function optimization_calibration(
 		model = model,
 		estimate = estimate,
         include_true = true,
-        initial_params = initial_params,
 		priors = priors,
 		parameters = parameters,
 		transformed = transformed,
@@ -1065,7 +1063,7 @@ function optimization_calibration(
 	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))
 
 	# Plot a
-	if :α in parameters
+	if :α in final_parameters
 		ax_a = Axis(
 			f[1,1],
 			xlabel = "True α",
