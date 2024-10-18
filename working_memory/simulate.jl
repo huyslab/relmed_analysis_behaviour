@@ -434,32 +434,38 @@ function optimize_ss(
     elseif estimate == "MAP"
         fit = maximum_a_posteriori(res)
     end
-    
+
     # Estimate covariance matrix using bootstrapping?
     cov_mat = Matrix{Float64}(undef, length(parameters), length(parameters))
-    if bootstraps > 0
-        ests_tr = Matrix{Float64}(undef, bootstraps, length(parameters))
-        Threads.@threads for b in 1:bootstraps
-            # sample rows with replacement
-            idxs = sample(Xoshiro(b), 1:nrow(data), nrow(data), replace=true)
-            data_boot = data[idxs, :]
-
-            boot_res = model(
-                data_for_fit,
-                data_boot.choice; # sample with replacement from choices
-                priors = priors,
-                initial = initial
-            )
-
-            if estimate == "MLE"
-                boot_fit = maximum_likelihood(boot_res)
-            elseif estimate == "MAP"
-                boot_fit = maximum_a_posteriori(boot_res)
+    try
+        cov_mat = vcov(fit)
+    catch
+        if bootstraps > 0
+            ests_tr = Matrix{Float64}(undef, bootstraps, length(parameters))
+            Threads.@threads for b in 1:bootstraps
+                # sample rows with replacement
+                idxs = sample(Xoshiro(b), 1:nrow(data), nrow(data), replace=true)
+                data_boot = data[idxs, :]
+    
+                boot_res = model(
+                    data_for_fit,
+                    data_boot.choice; # sample with replacement from choices
+                    priors = priors,
+                    initial = initial
+                )
+    
+                if estimate == "MLE"
+                    boot_fit = maximum_likelihood(boot_res)
+                elseif estimate == "MAP"
+                    boot_fit = maximum_a_posteriori(boot_res)
+                end
+    
+                ests_tr[b, :] = [haskey(transformed, p) ? a2α(boot_fit.values[p]) : boot_fit.values[p] for p in parameters]
             end
-
-            ests_tr[b, :] = [haskey(transformed, p) ? a2α(boot_fit.values[p]) : boot_fit.values[p] for p in parameters]
+            cov_mat = cov(ests_tr, corrected = false) # covariance of transformed parameters
+        else
+            println("No covariance matrix estimated.")
         end
-        cov_mat = cov(ests_tr, corrected = false) # covariance of transformed parameters
     end
 
     # get predictions from the model for choices by setting a Dirac prior on the parameters

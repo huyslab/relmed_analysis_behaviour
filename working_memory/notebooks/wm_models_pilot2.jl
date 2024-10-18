@@ -79,8 +79,8 @@ begin
 			:F_wm => Normal(0., 0.5),
 			:W => Normal(0., 0.5),
 			:C => truncated(Normal(3., 2.), lower = 1.)
-		),
-		bootstraps=100
+		)
+		#bootstraps=100
 	)
 
 	rlwm_ests
@@ -142,8 +142,8 @@ begin
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w),
-		bootstraps=100
+		transformed = Dict(:a => :α, :W => :w)
+		#bootstraps=100
 	)
 	pmst_ests
 end
@@ -203,8 +203,8 @@ begin
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w),
-		bootstraps=100
+		transformed = Dict(:a => :α, :W => :w)
+		#bootstraps=100
 	)
 	pmst_sg_ests
 end
@@ -264,8 +264,8 @@ begin
 			:C => truncated(Normal(6., 4.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w),
-		bootstraps=100
+		transformed = Dict(:a => :α, :W => :w)
+		#bootstraps=100
 	)
 	pmst_ovlC_ests
 end
@@ -322,8 +322,8 @@ begin
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
 			:C => truncated(Normal(3., 2), lower = 1.)
 		),
-		parameters = [:ρ, :C],
-		bootstraps=100
+		parameters = [:ρ, :C]
+		#bootstraps=100
 	)
 	pmst_wm_ests
 end
@@ -362,65 +362,6 @@ let
 	f
 end
 
-# ╔═╡ b2e221d0-93d6-4483-81e5-10e79040c623
-md"
-### Model comparison (sort of)
-"
-
-# ╔═╡ c9cb003a-1fe2-4f3e-a842-de94401db15e
-begin
-	# rlwm_fit = ibic(;
-	# 	model=RLWM_ss,
-	# 	data=df,
-	# 	parameter_df=rlwm_ests,
-	#     covariances=rlwm_cov,
-	# 	parameters = [:ρ, :a, :F_wm, :W, :C],
-	# 	transformed = Dict(:a => :α, :F_wm => :φ_wm, :W => :w,)
-	# )
-
-	palimpsest_fit = ibic(;
-		model=RLWM_pmst,
-		data=df,
-		parameter_df=pmst_ests,
-	    covariances=pmst_covs,
-		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w)
-	)
-	
-	sigmoid_fit = ibic(;
-		model=RLWM_pmst_sgd,
-		data=df,
-		parameter_df=pmst_sg_ests,
-	    covariances=pmst_sg_covs,
-		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w)
-	)
-
-	sigmoid_ovlC_fit = ibic(;
-		model=RLWM_all_outc_pmst_sgd,
-		data=df,
-		parameter_df=pmst_ovlC_ests,
-	    covariances=pmst_ovlC_covs,
-		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w)
-	)
-
-	wm_fit = ibic(;
-		model=WM_pmst_sgd,
-		data=df,
-		parameter_df=pmst_ovlC_ests,
-	    covariances=pmst_ovlC_covs,
-		parameters = [:ρ, :a, :W, :C],
-		transformed = Dict(:a => :α, :W => :w)
-	)
-end
-
-# ╔═╡ 734e07cc-bbd4-4c64-921d-6d348a3496b0
-let
-	bics = [palimpsest_fit, sigmoid_fit, sigmoid_ovlC_fit, wm_fit]
-	bics
-end
-
 # ╔═╡ Cell order:
 # ╠═2511ec84-857d-11ef-2e80-43218bddef4e
 # ╟─8a215c05-805a-4960-aca8-3c84b9452c3c
@@ -445,6 +386,3 @@ end
 # ╠═08c886a0-b4a9-47ad-ac71-aaa42c021925
 # ╠═47c03556-301f-4607-953a-ed16092b165d
 # ╠═a84787d9-e51c-4ed5-8ea0-b23d887cac1d
-# ╟─b2e221d0-93d6-4483-81e5-10e79040c623
-# ╠═c9cb003a-1fe2-4f3e-a842-de94401db15e
-# ╠═734e07cc-bbd4-4c64-921d-6d348a3496b0

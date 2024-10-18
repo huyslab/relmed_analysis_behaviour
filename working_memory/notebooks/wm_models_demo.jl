@@ -44,6 +44,9 @@ begin
 	set_theme!(th)
 end
 
+# ╔═╡ 961a4264-9cd1-48d6-b169-80588c07e98c
+include("$(pwd())/working_memory/RL+RLWM_models.jl")
+
 # ╔═╡ 2fd2db62-49a5-4cae-8169-919c748bfc95
 md"
 ## Simulate a task structure
@@ -350,7 +353,7 @@ begin
 			Symbol("W[2]") => Normal(0., 0.5),
 			Symbol("W[4]") => Normal(0., 0.5),
 			Symbol("W[6]") => Normal(0., 0.5),
-			:C => truncated(Normal(8., 4.), lower = 1.)
+			:C => truncated(Normal(4., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :a, Symbol("W[2]"), Symbol("W[4]"), Symbol("W[6]"), :C],
 		transformed = Dict(
@@ -394,14 +397,13 @@ let
 			Symbol("W[2]") => Normal(0., 0.5),
 			Symbol("W[4]") => Normal(0., 0.5),
 			Symbol("W[6]") => Normal(0., 0.5),
-			:C => truncated(Normal(8., 4.), lower = 1.)
+			:C => truncated(Normal(4., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :a, Symbol("W[2]"), Symbol("W[4]"), Symbol("W[6]"), :C],
 		transformed = Dict(
 			:a => :α, Symbol("W[2]") => :w2, Symbol("W[4]") => :w4, Symbol("W[6]") => :w6
 		)
 	)
-
 	f_pmst
 end
 
@@ -481,9 +483,9 @@ let
 		model = RLWM_pmst_sgd,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
-			:a => Normal(-1., 0.5),
+			:a => Normal(0., 0.5),
 			:W => Normal(0., 0.5),
-			:C => truncated(Normal(3., 2.), lower = 1.)
+			:C => truncated(Normal(4., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w)
@@ -530,7 +532,7 @@ begin
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
 			:a => Normal(0., 0.5),
 			:W => Normal(0., 0.5),
-			:C => truncated(Normal(8., 4.), lower = 1.)
+			:C => truncated(Normal(6., 4.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w),
@@ -565,12 +567,12 @@ let
 		prior_sample_allO,
 		optimize_multiple,
 		estimate = "MAP",
-		model = RLWM_pmst_sgd,
+		model = RLWM_all_outc_pmst_sgd,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
 			:a => Normal(0., 0.5),
 			:W => Normal(0., 0.5),
-			:C => truncated(Normal(8., 4.), lower = 1.)
+			:C => truncated(Normal(6., 4.), lower = 1.)
 		),
 		parameters = [:ρ, :a, :W, :C],
 		transformed = Dict(:a => :α, :W => :w)
@@ -586,7 +588,7 @@ md"
 
 # ╔═╡ 79fddeaf-b66b-4098-9a15-8a73ecbf8b2b
 let
-	m = WM_pmst_sgd(unpack_data(random_task), chce)
+	m = WM_all_outc_pmst_sgd(unpack_data(random_task), chce)
 	c = sample(m, Prior(), 500)
 	gq = generated_quantities(m, c)
 	ll_df = DataFrame(
@@ -608,7 +610,7 @@ end
 begin
 	prior_sample_wma = simulate_from_prior(
 	    100;
-		model = WM_pmst_sgd,
+		model = WM_all_outc_pmst_sgd,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
 			:C => truncated(Normal(3., 2), lower = 1.)
@@ -626,14 +628,17 @@ end
 
 # ╔═╡ d30fb160-ecbb-490f-b0a8-3901ef61ca46
 let
+	using CategoricalArrays
+ 	sort!(prior_sample_wma, :C)
+	prior_sample_wma.capacity = categorical(round.(prior_sample_wma.C))
 	f = plot_prior_predictive_by_valence(
 		prior_sample_wma,
 		[:W_optimal, :W_suboptimal];
 		ylab = "W-value",
 		fig_size = (1000, 1000),
-		group = :set_size,
+		group = :capacity,
 		legend = true,
-		colors = Makie.colorschemes[:seaborn_pastel6]
+		colors = Makie.colorschemes[:YlGnBu]
 	)	
 	f
 end
@@ -644,7 +649,7 @@ let
 		prior_sample_wma,
 		optimize_multiple,
 		estimate = "MAP",
-		model = WM_pmst_sgd,
+		model = WM_all_outc_pmst_sgd,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 2.), lower = 0.),
 			:C => truncated(Normal(3., 2), lower = 1.)
@@ -671,6 +676,7 @@ end
 # ╠═c874c7cb-422f-4330-8ed3-a35a47dcf5a3
 # ╠═fac0f8df-c3c5-4f7e-bd69-adbbaa8ab757
 # ╟─4de24130-d8dd-476e-91af-998d2c57f760
+# ╠═961a4264-9cd1-48d6-b169-80588c07e98c
 # ╠═8a0b4210-0525-4485-ad5e-1478948f7d7a
 # ╠═7afd9cab-a329-4839-9b56-32fa439df50e
 # ╠═1dbe2f06-7075-486d-a70e-52752b28e869

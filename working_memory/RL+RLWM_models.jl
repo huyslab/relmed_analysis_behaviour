@@ -53,7 +53,7 @@
             Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
 		end
-        # store Q values for output
+        # store Q values for output (n.b. these are the values for pair[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
@@ -114,7 +114,7 @@ end
 			Qs[i + 1, choice_idx] += α * δ
             Qs[i + 1, alt_idx] -= α * δ
 		end
-        # store Q values for output 
+        # store Q values for output (n.b. these are the values for pair[i] *before* the update) 
         Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
@@ -192,7 +192,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
         end
-        # store Q- and W- values for output
+        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -308,7 +308,7 @@ end
             buffer_upd_idx = ones(Int, ssz)
             outc_no = ones(Int, ssz)
         end
-        # store Q- and W- values for output
+        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -397,7 +397,7 @@ end
             # 2. initialise the lag for this outcome number and store the relevant outcome
             outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
             # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
-            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / min(outc_no, C)
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
             # reset buffers at the start of a new block
@@ -406,7 +406,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W- values for output
+        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -510,7 +510,7 @@ end
             # 2. initialise the lag for this outcome number and store the relevant outcome
             outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
             # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
-            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / min(outc_no, C)
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
             # reset buffers at the start of a new block
@@ -519,12 +519,108 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W- values for output
+        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
     return (choice = choice, Qs = Q, Ws = Wv, loglike = loglike)
+
+end
+
+@model function WM_all_outc_pmst_sgd(
+    data::NamedTuple,
+    choice;
+    priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 2.), lower = 0.),
+        :C => truncated(Normal(3., 2.), lower = 1.)
+    ),
+    initial::Union{Nothing, Float64} = nothing
+)
+
+    # initial values
+    aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+    initial = isnothing(initial) ? aao : initial
+    initV::AbstractArray{Float64} = fill(initial, 1, maximum(data.set_size))
+    
+    # Parameters to estimate
+    ρ ~ priors[:ρ] # sensitivity
+    C ~ priors[:C] # capacity
+
+    # sigmoid transformation using C
+    k = 3 # sharpness of the sigmoid
+    nT = sum(data.block .== mode(data.block))
+    wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
+
+    # for each unique outcome in data.outcomes, premultiply by ρ and wt
+    unq_outc = unique(data.outcomes)
+    outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
+    outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
+
+    # Initialize Q and W values
+    Ws = repeat(initV .* ρ, length(data.block)) .* data.valence[data.block]
+
+    # Initial values
+    Wv = copy(Ws[:, 1:2])
+
+    # Initial set-size
+    N = length(data.block)
+    ssz = data.set_size[data.block[1]]
+
+    # Initialize outcome buffers
+    outc_no = 0
+    outc_mat = Matrix{Any}(nothing, ssz, nT) # matrix of recent outcomes for each stimulus
+    outc_lag = zeros(Int, ssz, nT) # how many outcomes back was this outcome?
+    outc_num = zeros(Int, ssz) # how many outcomes have we seen for this stimulus?
+
+    # store log-loglikelihood
+    loglike = 0.
+
+    # Loop over trials, updating Q values and incrementing log-density
+    for i in 1:N
+        pri = 2 * data.pair[i]
+        # WM policy (softmax with directed and undirected noise)
+        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
+
+        # done it this way because Bernoulli() is not numerically stable
+        # but the weights are defined by weighting the policy probabilities
+        logit_π = log(π / (1 - π))
+
+		# Choice
+		choice[i] ~ BernoulliLogit(logit_π)
+		choice_idx::Int64 = choice[i] + pri - 1
+        choice_1id::Int64 = choice[i] + 1
+
+        # log likelihood
+        loglike += loglikelihood(BernoulliLogit(π), choice[i])
+
+		# Prediction error
+        chce = data.outcomes[i, choice_1id]
+
+        # Update Qs and Ws and decay Ws
+        if (i != N) && (data.block[i] == data.block[i+1])
+            Ws[i + 1, :] = Ws[i, :] # store previous W
+            # 1. iterate lags for prior outcomes and update outcome number for this stimulus
+            outc_lag += outc_lag .!== 0
+            outc_num[choice_idx] += 1
+            outc_no = outc_num[choice_idx]
+            # 2. initialise the lag for this outcome number and store the relevant outcome
+            outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
+            # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / min(outc_no, C)
+        elseif (i != N)
+            ssz = data.set_size[data.block[i+1]]
+            # reset buffers at the start of a new block
+            outc_no = 0
+            outc_mat = Matrix{Any}(nothing, ssz, nT)
+            outc_lag = zeros(Int, ssz, nT)
+            outc_num = zeros(Int, ssz)
+        end
+        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        Wv[i, :] = Ws[i, (pri-1):pri]
+    end
+
+    return (choice = choice, Qs = nothing, Ws = Wv, loglike = loglike)
 
 end
 
@@ -623,7 +719,7 @@ end
             # 2. initialise the lag for this outcome number and store the relevant outcome
             outc_lag[choice_idx, outc_no], outc_mat[choice_idx, outc_no] = 1, chce
             # 3. use the pre-computed weights to calculate the sigmoid weighted average of recent outcomes
-            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / outc_no
+            Ws[i + 1, choice_idx] = sum([outc_wts[outc_key[outc_mat[choice_idx, j]], outc_lag[choice_idx, j]] for j in 1:outc_no]) / min(outc_no, C)
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
             # reset buffers at the start of a new block
@@ -632,7 +728,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W- values for output
+        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -883,53 +979,4 @@ end
     end
 
     return (F_wm, φ_wm, W)
-end
-
-function ibic(;
-    model::Function,
-    data::DataFrame,
-    parameter_df::DataFrame,
-    covariances::Dict{Int, Matrix{Float64}},
-    parameters::Vector{Symbol},
-    transformed::Dict{Symbol, Symbol},
-    samples = 2000
-)
-    
-    ppts = unique(data.PID)
-    iL = zeros(length(ppts))
-    effSamp = zeros(length(ppts))
-
-    for i in eachindex(ppts)
-
-        di = filter(x -> x.PID == ppts[i], data)
-        par_di = filter(x -> x.PID == ppts[i], parameter_df)
-        df = unpack_data(di)
-        choices = Int.(filter(x -> x.PID == ppts[i], data).choice)
-        mod = model(df, choices)
-        
-        # Estimate p(choices | prior parameters) by integrating over individual parameters
-        par_i = [p in keys(transformed) ? α2a(par_di[1, transformed[p]]) : par_di[1, p] for p in parameters]
-        cov = covariances[ppts[i]]
-        es = rand(MvNormal(par_i, cov), samples) # sample from the empirical prior
-
-        wiL = 0
-        wk = zeros(samples)
-        LLi = zeros(samples)
-        
-        Threads.@threads for k in 1:samples
-            par_est = Dict(p => es[i, k] for (i, p) in enumerate(parameters))
-            LLi[k] = loglikelihood(mod, (;par_est...))
-
-            # importance sampling weights
-            prior_log_density = logpdf(MvNormal(par_i, cov), es[:, k])
-            wk[k] = exp(LLi[k] - prior_log_density)
-            wiL += wk[k] * LLi[k]
-        end
-
-        iL[i] = wiL / sum(wk)
-    end    
-    
-    ibic = length(parameters) * log(nrow(data)) - 2 * sum(iL)
-    
-    return ibic
 end

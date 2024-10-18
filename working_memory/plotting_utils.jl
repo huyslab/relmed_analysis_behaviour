@@ -1248,14 +1248,9 @@ function plot_prior_predictive_by_valence(
 	pid_col::Symbol = :PID,
 	group::Union{Symbol, Nothing} = nothing,
 	fig_size::Tuple{Int, Int} = (700, 1000),
-	colors = Makie.wong_colors()
+	colors = Makie.wong_colors(),
+	error_band::String = "PI"
 )
-
-	# # Rename columns for plot_sim_q_value_acc!
-	# prior_sample = rename(prior_sample, 
-	# 	[c => Symbol("EV_$(('A':'Z')[i])") for (i, c) in enumerate(EV_cols)]...
-	# )
-
 	if isnothing(group)
 		prior_sample[!, :group] .= "1"
 	elseif !(:group in names(prior_sample))
@@ -1285,7 +1280,7 @@ function plot_prior_predictive_by_valence(
 		legend_title = legend_title,
 		colors = colors,
 		plw = 1.,
-		acc_error_band = "PI"
+		acc_error_band = error_band
 	)
 
 	Label(g_all[0,:], "All blocks", fontsize = 18, font = :bold)
@@ -1308,7 +1303,7 @@ function plot_prior_predictive_by_valence(
 		legend_title = legend_title,
 		colors = colors,
 		plw = 1.,
-		acc_error_band = "PI"
+		acc_error_band = error_band
 	)
 
 	Label(g_reward[0,:], "Reward blocks", fontsize = 18, font = :bold)
@@ -1331,7 +1326,7 @@ function plot_prior_predictive_by_valence(
 		legend_title = legend_title,
 		colors = colors,
 		plw = 1.,
-		acc_error_band = "PI"
+		acc_error_band = error_band
 	)
 
 	Label(g_punishment[0,:], "Punishment blocks", fontsize = 18, font = :bold)
