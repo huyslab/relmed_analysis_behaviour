@@ -45,8 +45,29 @@ begin
 	)
 end
 
-# ╔═╡ a183e803-2a26-485b-9b89-9b903175ecac
-3/10
+# ╔═╡ 2daa3d69-0e75-4234-bad4-50a6861eb54f
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
 
 # ╔═╡ b9db2e21-068b-4148-80b4-8c48edf8c4ec
 function find_lcm_denominators(props::Vector{Float64})
@@ -96,6 +117,8 @@ rev_feedback_optimal = let random_seed = 0
 
 	# Create timeline variables
 	timeline = [[Dict(
+		:block => bl,
+		:trial => t,
 		:feedback_left => isodd(bl) ? feedback_optimal[bl][t] : 
 			inverter(feedback_optimal[bl][t]),
 		:feedback_right => iseven(bl) ? feedback_optimal[bl][t] : 
@@ -118,9 +141,71 @@ rev_feedback_optimal = let random_seed = 0
 	feedback_optimal
 end
 
+# ╔═╡ efab3964-0ec5-4df1-870c-b20ce2882337
+let
+
+	f = Figure(size = (700, 300))
+
+	mp1 = data(
+		DataFrame(
+			block = repeat(1:rev_n_blocks, 2),
+			prop = vcat(rev_prop_confusing, 1. .- rev_prop_confusing),
+			feedback_type = repeat(["Confusing", "Common"], inner = rev_n_blocks)
+		)
+	) * mapping(
+		:block => "Block", 
+		:prop => "Proportion of trials", 
+		color = :feedback_type => "", 
+		stack = :feedback_type) * visual(BarPlot)
+
+	plt1 = draw!(f[1,1], mp1, axis = (; yticks = [0., 0.5, 0.7, 0.8, 0.9, 1.]))
+
+	legend!(f[1,1], plt1, 
+		valign = 1.18,
+		tellheight = false, 
+		framevisible = false,
+		orientation = :horizontal,
+		labelsize = 14
+	)
+
+	rowgap!(f[1,1].layout, 0)
+
+	rev_confusing = DataFrame(
+		block = repeat(1:rev_n_blocks, inner = rev_n_trials),
+		trial = repeat(1:rev_n_trials, outer = rev_n_blocks),
+		feedback_common = vcat(rev_feedback_optimal...) .== 1.
+	)
+
+	mp2 = data(rev_confusing) * 
+		mapping(:trial => "Trial", :block => "Block", :feedback_common) *
+		visual(Heatmap)
+
+	draw!(f[1,2], mp2, 
+		axis = (; 
+			yreversed = true, 
+			yticks = [1, 10, 20, 30],
+			subtitle = "Confusing Feedback"
+		)
+	)
+
+	mp3 = mapping(1:rev_n_blocks => "Block", rev_criterion => "# optimal choices)") * visual(ScatterLines)
+
+	draw!(f[1,3], mp3, axis = (; 
+		yticks = 3:8, 
+		xticks = [1, 10, 20, 30], 
+		subtitle = "Reversal criterion")
+	)
+
+	save("results/pilot4_reversal_sequence.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
 # ╔═╡ Cell order:
 # ╠═d5f0abd6-8cc2-11ef-0c92-7168bbb88d55
 # ╠═ca091875-8948-43ef-a27b-8e57948a17f1
-# ╠═a183e803-2a26-485b-9b89-9b903175ecac
+# ╠═2daa3d69-0e75-4234-bad4-50a6861eb54f
 # ╠═b9db2e21-068b-4148-80b4-8c48edf8c4ec
 # ╠═e1745880-0a58-4cca-ab6a-0c98de5430a1
+# ╠═efab3964-0ec5-4df1-870c-b20ce2882337
