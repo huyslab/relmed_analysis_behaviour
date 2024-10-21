@@ -197,6 +197,41 @@ let
 
 end
 
+# ╔═╡ 868309ad-7553-4414-b146-01e19e2815cd
+# Sort by stimulus pair rather than block for naive fitting
+PLT_remmaped = let
+	PLT_remmaped = copy(PLT_data)
+
+	# Make sure sorted
+	sort!(
+		PLT_remmaped,
+		[:session, :prolific_pid, :exp_start_time, :block, :trial]
+	)
+
+	# Renumber trials
+	DataFrames.transform!(
+		groupby(PLT_remmaped, [:session, :prolific_pid, :exp_start_time, :block, :stimulus_pair]),
+		:trial => (x -> 1:length(x)) => :trial
+	)
+
+	PLT_remmaped.block = PLT_remmaped.stimulus_pair_id
+
+	# Sort by new block
+	sort!(
+		PLT_remmaped, 
+		[:session, :prolific_pid, :exp_start_time, :block, :trial]
+	)
+
+	# Make sure sorted correctly
+	@assert all(combine(groupby(PLT_remmaped, [:session, :prolific_pid, :exp_start_time, :block]), :trial => issorted => :sorted).sorted)
+
+	PLT_remmaped
+
+end
+
+# ╔═╡ a54ab4d5-6b59-4fb7-a3d4-43deeb01d685
+
+
 # ╔═╡ 22d12a3f-c8ca-4c46-8ff3-b7e1432a77d5
 # Plot accuracy by switch / repeat
 let
@@ -265,4 +300,6 @@ end
 # ╠═ec053072-8386-4000-b425-88496b82bb1d
 # ╠═60559c55-840f-49cb-9537-1aceaaf5e658
 # ╠═cb470684-4557-4cb4-a6c2-90a207d4dcc6
+# ╠═868309ad-7553-4414-b146-01e19e2815cd
+# ╠═a54ab4d5-6b59-4fb7-a3d4-43deeb01d685
 # ╠═22d12a3f-c8ca-4c46-8ff3-b7e1432a77d5
