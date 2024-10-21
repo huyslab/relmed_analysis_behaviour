@@ -372,6 +372,12 @@ let
 	@assert all((task.variable_magnitude .== abs.(task.feedback_right)) .| 
 		(task.variable_magnitude .== abs.(task.feedback_left))) ":variable_magnitude, which is used for sequnece optimization, doesn't match end result column :feedback_right no :feedback_left"
 
+	@assert all(combine(
+		groupby(task, [:cpair]),
+		[:feedback_optimal, :feedback_suboptimal] =>
+			((o, s) -> ((0.5 ∈ abs.(o)) && (0.5 ∉ abs.(s))) || ((0.5 ∉ abs.(o)) && (0.5 ∈ abs.(s)))) => :test
+	).test) "50 pence not allocated correctly"
+
 	# Count losses to allocate coins in to safe for beginning of task
 	worst_loss = filter(x -> x.valence == -1, task) |> 
 		df -> ifelse.(
