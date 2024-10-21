@@ -257,9 +257,6 @@ let
 	# fs
 end
 
-# ╔═╡ 89d32f15-a670-449c-a17a-7dc37ca503b9
-describe(PLT_data)
-
 # ╔═╡ Cell order:
 # ╠═ff8c6dd6-7b4a-11ef-3148-ad43f7d07801
 # ╠═3f653d16-588f-4a30-8746-105c93305156
@@ -269,4 +266,3 @@ describe(PLT_data)
 # ╠═60559c55-840f-49cb-9537-1aceaaf5e658
 # ╠═cb470684-4557-4cb4-a6c2-90a207d4dcc6
 # ╠═22d12a3f-c8ca-4c46-8ff3-b7e1432a77d5
-# ╠═89d32f15-a670-449c-a17a-7dc37ca503b9
