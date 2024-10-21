@@ -356,8 +356,6 @@ function optimize_FI_distribution(;
 	filename::String # Filename to save results
 )
 
-	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 2:2:length(FIs)]) "Assuming inputs are arranged in pairs matching in sizes, except first stimulus. Common sequences will be constrained to be only chosen once across pairs"
-
 	@assert all([size(FIs[s], 1) == length(common_seqs[s]) for s in eachindex(FIs)]) "FIs and common_seqs not matching in size"
 
 	@assert all([size(FIs[s], 2) == length(magn_seqs[s]) for s in eachindex(FIs)]) "FIs and magn_seqs not matching in size"
@@ -404,7 +402,7 @@ function optimize_FI_distribution(;
 		for s in eachindex(xs)
 			@constraint(model, sum(xs[s]) == n_wanted[s])
 	
-			if iseven(s) # Make sure no common sequence is chosen twice across variations of magnitude
+			if (isodd(length(FIs)) && iseven(s)) || (iseven(length(FIs)) && isodd(s)) # Make sure no common sequence is chosen twice across variations of magnitude
 				# Each row (sequence) is selected exactly once across all columns
 				for i in 1:n_common_seqs[s]
 				    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) + sum(xs[s+1][i,j] for j in 1:n_magn_seqs[s+1]) <= 1)  # Each row selected at most once
@@ -572,14 +570,21 @@ Generate a shuffled vector by filling `n` trials with the values from `values`, 
 function shuffled_fill(
 	values::AbstractVector, # Values to fill vector
 	n::Int64; # How many trials overall
+	rng::Union{Xoshiro, Nothing} = nothing,
 	random_seed::Int64 = 0
 )	
+
+	if isnothing(rng)
+		rng = Xoshiro(random_seed)
+	end
+
 	# Create vector with as equal number of appearance for each value as possible
-	shuffled_values = shuffle(Xoshiro(random_seed), values)
+	shuffled_values = shuffle(rng, values)
 	unshuffled_vector = collect(Iterators.take(Iterators.cycle(shuffled_values), n))
 
-	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
+	return shuffle(rng, unshuffled_vector)
 end
+
 
 """
     zscore_avg_matrices(matrices::Array{Matrix{Float64}})
