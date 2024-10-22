@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates
 	include("fetch_preprocess_data.jl")
 	nothing
 end
@@ -140,7 +140,19 @@ end
 summarize_participation(jspsych_data)
 
 # ╔═╡ 99ca84c3-3df1-448d-b5b6-593328611aa1
-filter(x -> !ismissing(x.finished) && x.finished, summarize_participation(jspsych_data))
+begin 
+	finished_sub = filter(x -> !ismissing(x.finished) && x.finished && !ismissing(x.vigour_bonus), summarize_participation(jspsych_data)) |>
+	x -> transform(x, :exp_start_time => (dt -> DateTime.(dt, "yyyy-mm-dd_HH:MM:SS")) => :exp_start_time) |>
+	x -> subset(x, :exp_start_time => (x -> x .> DateTime("2024-10-01_08:00:00", "yyyy-mm-dd_HH:MM:SS"))) |>
+	x -> select(x, :prolific_pid, :vigour_bonus)
+	for row in eachrow(finished_sub)
+		println(join(row, ","))
+	end
+	finished_sub
+end
+
+# ╔═╡ e0666381-e1b6-4cf3-b84e-1c0ce7c6c371
+sum(finished_sub.vigour_bonus) * (1 + 1/3 * 1.2)
 
 # ╔═╡ 8815162b-6592-44aa-8eb4-8c3d2e2cda59
 mean(skipmissing(summarize_participation(jspsych_data).vigour_bonus))
@@ -153,6 +165,7 @@ quantile(skipmissing(summarize_participation(jspsych_data).vigour_bonus), [0, 0.
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
 # ╠═e35effd6-5c62-48aa-8932-872c7af50d7b
 # ╠═99ca84c3-3df1-448d-b5b6-593328611aa1
+# ╠═e0666381-e1b6-4cf3-b84e-1c0ce7c6c371
 # ╠═8815162b-6592-44aa-8eb4-8c3d2e2cda59
 # ╠═3de841b9-ef50-4cfa-ab5b-dd472ca01d4b
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc

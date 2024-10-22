@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Tidier
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Tidier, Dates
 	include("fetch_preprocess_data.jl")
 	nothing
 end
@@ -143,8 +143,22 @@ end
 summarize_participation(jspsych_data)
 
 # ╔═╡ 99ca84c3-3df1-448d-b5b6-593328611aa1
-filter(x -> !ismissing(x.finished) && x.finished, summarize_participation(jspsych_data)) |>
-filter(x -> x.vigour_bonus .== 0)
+filter(x -> !ismissing(x.finished) && x.finished, summarize_participation(jspsych_data))
+
+# ╔═╡ f221ad44-920c-4b29-a48a-ba6aa529ab45
+begin
+	sub_list = CSV.read("/home/jovyan/data/prolific_participant_info/prolific_export_670aadfac3deeac9d40a5788.csv", DataFrame)
+	finished_df = filter(x -> !ismissing(x.finished) && x.finished && !ismissing(x.vigour_bonus), summarize_participation(jspsych_data)) |>
+	x -> select(x, :prolific_pid, :vigour_bonus) |>
+	x -> subset(x, :vigour_bonus => ByRow(x -> x > 0))
+	finished_df = semijoin(finished_df, sub_list, on = [:prolific_pid => Symbol("Participant id")])
+	for row in eachrow(finished_df)
+		println(join(row, ","))
+	end
+end
+
+# ╔═╡ 30aebcee-9138-46cf-8dd9-d03f93404517
+sum(finished_df.vigour_bonus) * (1 + 1/3 * 1.2)
 
 # ╔═╡ 8815162b-6592-44aa-8eb4-8c3d2e2cda59
 mean(skipmissing(summarize_participation(jspsych_data).vigour_bonus))
@@ -158,6 +172,8 @@ quantile(skipmissing(summarize_participation(jspsych_data).vigour_bonus), [0, 0.
 # ╠═bed41c93-2f7e-4f2c-bec4-d5f5cd475e0f
 # ╠═e35effd6-5c62-48aa-8932-872c7af50d7b
 # ╠═99ca84c3-3df1-448d-b5b6-593328611aa1
+# ╠═f221ad44-920c-4b29-a48a-ba6aa529ab45
+# ╠═30aebcee-9138-46cf-8dd9-d03f93404517
 # ╠═8815162b-6592-44aa-8eb4-8c3d2e2cda59
 # ╠═3de841b9-ef50-4cfa-ab5b-dd472ca01d4b
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
