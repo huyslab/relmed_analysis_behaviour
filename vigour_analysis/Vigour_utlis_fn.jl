@@ -24,8 +24,8 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
     group_cols = grp_var === nothing ? [:prolific_id, x_var...] : [:prolific_id, grp_var, x_var...]
     # Group and calculate mean presses for each participant
     grouped_data = groupby(vigour_data, Cols(group_cols...)) |>
-        x -> combine(x, y_var => mean => :mean_y) |>
-        x -> sort(x, Cols(group_cols...))
+                   x -> combine(x, y_var => mean => :mean_y) |>
+                        x -> sort(x, Cols(group_cols...))
     # Calculate the average across all participants
     avg_w_data = @chain grouped_data begin
         @group_by(prolific_id)
@@ -37,7 +37,7 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
         @summarize(
             n = n(),
             avg_y = mean(mean_y),
-            se_y = std(mean_y_w)/sqrt(length(prolific_id)))
+            se_y = std(mean_y_w) / sqrt(length(prolific_id)))
         @ungroup
     end
     return grouped_data, avg_w_data
@@ -69,55 +69,57 @@ The function returns the generated plot figure.
 """
 function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, combine::Bool=false)
     grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [x_var], y_var, grp_var)
-    
+
     # Define mapping based on whether grp_var is provided
-    individual_mapping = grp_var === nothing ? 
-        mapping(x_var, :mean_y, group = :prolific_id) :
-        mapping(x_var, :mean_y, color = grp_var, group = :prolific_id)
-    
+    individual_mapping = grp_var === nothing ?
+                         mapping(x_var, :mean_y, group=:prolific_id) :
+                         mapping(x_var, :mean_y, color=grp_var, group=:prolific_id)
+
     average_mapping = grp_var === nothing ?
-        mapping(x_var, :avg_y) :
-        mapping(x_var, :avg_y, color = grp_var)
-    
+                      mapping(x_var, :avg_y) :
+                      mapping(x_var, :avg_y, color=grp_var)
+
     # Create the plot for individual participants
-    individual_plot = data(grouped_data) * 
-        individual_mapping * 
-        visual(Lines, alpha = 0.15, linewidth = 1)
-    
+    individual_plot = data(grouped_data) *
+                      individual_mapping *
+                      visual(Lines, alpha=0.15, linewidth=1)
+
     # Create the plot for the average line
     if grp_var === nothing
-        average_plot = data(avg_w_data) * 
-            average_mapping * (
-            visual(Errorbars, whiskerwidth = 4) *
-            mapping(:se_y) +
-            visual(ScatterLines, linewidth = 2)) *
-            visual(color = :dodgerblue)
+        average_plot = data(avg_w_data) *
+                       average_mapping * (
+                           visual(Errorbars, whiskerwidth=4) *
+                           mapping(:se_y) +
+                           visual(ScatterLines, linewidth=2)) *
+                       visual(color=:dodgerblue)
     else
-        average_plot = data(avg_w_data) * 
-            average_mapping * (
-            visual(Errorbars, whiskerwidth = 4) *
-            mapping(:se_y, color = grp_var) +
-            visual(ScatterLines, linewidth = 2))
+        average_plot = data(avg_w_data) *
+                       average_mapping * (
+                           visual(Errorbars, whiskerwidth=4) *
+                           mapping(:se_y, color=grp_var) +
+                           visual(ScatterLines, linewidth=2))
     end
-    
+
     # Combine the plots
-    fig = Figure()
-    
+    fig = Figure(
+        size=(12.2, 7.6) .* 144 ./ 2.54, # 144 points per inch, then cm
+    )
+
     # Set up the axis
-    xlab_text = ismissing(xlab) ? uppercasefirst(join(split(string(x_var[1]), r"\P{L}+"), " ")) : xlab
+    xlab_text = ismissing(xlab) ? uppercasefirst(join(split(string(x_var), r"\P{L}+"), " ")) : xlab
     ylab_text = ismissing(ylab) ? uppercasefirst(join(split(string(y_var), r"\P{L}+"), " ")) : ylab
 
     if combine
         axis = (
-            xlabel = xlab_text,
-            ylabel = ylab_text,
+            xlabel=xlab_text,
+            ylabel=ylab_text,
         )
         final_plot = individual_plot + average_plot
         fig = draw(final_plot; axis)
     else
         # Draw the plot
         fig_patch = fig[1, 1] = GridLayout()
-        ax_left = Axis(fig_patch[1, 1], ylabel = ylab_text)
+        ax_left = Axis(fig_patch[1, 1], ylabel=ylab_text)
         ax_right = Axis(fig_patch[1, 2])
         Label(fig_patch[2, :], xlab_text)
         draw!(ax_left, individual_plot)
