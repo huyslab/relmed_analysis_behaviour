@@ -70,6 +70,7 @@ end
 begin
 	transform!(raw_vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
 	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_id);
+	@count(vigour_data, prolific_id)
 end
 
 # ╔═╡ 2391eb75-db59-4156-99ae-abb8f1508037
@@ -104,8 +105,9 @@ begin
 		
 		# Combine the plots
 		final_plot = individual_plot + average_plot
-		fig = Figure()
-
+		fig = Figure(
+			size = (12.2, 7.6) .* 144 ./ 2.54, # 144 points per inch, then cm
+		)
 		# Draw the individual lines plot
 		draw!(fig[1, 1], individual_plot)
 		
@@ -120,25 +122,13 @@ begin
 end
 
 # ╔═╡ 89d68509-bcf0-44aa-9ddc-a685131ce146
-plot_presses_vs_var(vigour_data; combine = true)
+plot_presses_vs_var(vigour_data; combine = false)
 
 # ╔═╡ 50b3cb4b-8cbb-45d2-89c0-231e63a0ba20
-plot_presses_vs_var(vigour_data; combine = false, y_var=:press_per_sec)
+plot_presses_vs_var(vigour_data; x_var=:ratio, combine = false)
 
 # ╔═╡ 3a424bc7-1d6b-4670-8e18-03a79b43a9f6
-
-
-# ╔═╡ ef4c0f64-2f16-4700-8fc4-703a1b858c37
-plot_presses_vs_var(vigour_data; x_var=[:ratio], combine = true, xlab="Fixed ratio")
-
-# ╔═╡ eab61744-af48-4789-ba2f-a92d73527962
-plot_presses_vs_var(vigour_data; x_var=[:ratio], combine = false, xlab="Fixed ratio")
-
-# ╔═╡ c4e7d7ec-8da8-4a1f-8da3-0f2d29be6db7
-plot_presses_vs_var(vigour_data; x_var=[:magnitude], combine = true)
-
-# ╔═╡ 09a6f213-f70a-42c2-8eb7-8689d40d140b
-plot_presses_vs_var(vigour_data; x_var=[:magnitude], combine = false)
+plot_presses_vs_var(vigour_data; x_var=:magnitude, combine = false)
 
 # ╔═╡ 1066a576-c7bf-42cc-8097-607c663dcdac
 begin
@@ -211,9 +201,5 @@ end
 # ╠═89d68509-bcf0-44aa-9ddc-a685131ce146
 # ╠═50b3cb4b-8cbb-45d2-89c0-231e63a0ba20
 # ╠═3a424bc7-1d6b-4670-8e18-03a79b43a9f6
-# ╠═ef4c0f64-2f16-4700-8fc4-703a1b858c37
-# ╠═eab61744-af48-4789-ba2f-a92d73527962
-# ╠═c4e7d7ec-8da8-4a1f-8da3-0f2d29be6db7
-# ╠═09a6f213-f70a-42c2-8eb7-8689d40d140b
 # ╠═1066a576-c7bf-42cc-8097-607c663dcdac
 # ╠═302e4f7a-fd09-48c3-89ac-a80a63841ee7
