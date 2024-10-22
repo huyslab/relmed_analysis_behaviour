@@ -542,7 +542,7 @@ md"""
 
 # ╔═╡ 096ffb0d-cddb-445a-8887-d27dcd16ea47
 begin
-	diff_vigour_test_data = @chain vigour_test_data_2 begin
+	diff_vigour_test_data = @chain vigour_test_data begin
 		@mutate(
 			diff_mag = left_magnitude - right_magnitude,
 			diff_fr_rel = log2(left_ratio/right_ratio),
@@ -570,7 +570,7 @@ Since only RPP was balanced, perhaps it would be best to focus on and only on it
 # ╠═╡ show_logs = false
 begin
 	test_mixed_rpp = fit(GeneralizedLinearMixedModel,
-		@formula(chose_left ~ diff_rpp +
+		@formula(chose_left ~ diff_rpp * version +
 		(diff_rpp | prolific_id)),
 		diff_vigour_test_data, Binomial())
 end
@@ -581,11 +581,12 @@ diff_vigour_test_data
 # ╔═╡ 2f8f197a-77c1-48ac-b18a-d2e3a9006bfb
 begin
 	test_acc_df = @chain diff_vigour_test_data begin
-		@group_by(prolific_id)
+		@group_by(prolific_id, version)
 		@select(diff_rpp, chose_left)
 		@mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
 		@mutate(acc = chose_left == truth)
 		@summarize(acc = mean(acc))
+		@ungroup
 	end
 	@printf "%.2f" mean(test_acc_df.acc)
 	data(test_acc_df) *
@@ -642,21 +643,27 @@ end
 
 # ╔═╡ 24545992-c191-43c3-8741-22175650f580
 begin
+	avg_acc_version_df = @chain test_acc_df begin
+		@group_by(version)
+		@summarize(acc = mean(acc))
+		@ungroup
+		@mutate(x = 2, y = [0.2, 0.1],
+		acc_text = string("Accuracy: ", round(acc; digits = 2)))
+	end
 	diff_rpp_range = LinRange(minimum(diff_vigour_test_data.diff_rpp), maximum(diff_vigour_test_data.diff_rpp), 100)
-	pred_effect_rpp = DataFrame(
-		prolific_id = "New",
-		chose_left = 0.5,
-		diff_rpp = diff_rpp_range
-	)
+	pred_effect_rpp = crossjoin(DataFrame.((pairs((;prolific_id="New",chose_left=0.5,diff_rpp=diff_rpp_range,version=["3.1", "3.2"]))...,))...)
 	pred_effect_rpp.pred = predict(test_mixed_rpp, pred_effect_rpp; new_re_levels=:population, type=:response)
 	rpp_pred_plot = 
 		data(diff_vigour_test_data) *
-			mapping(:diff_rpp, :chose_left) *
-			visual(Scatter, alpha = 0.01) +
+			mapping(:diff_rpp, :chose_left, color=:version => "Version") *
+			visual(Scatter, alpha = 0.15) +
 		data(pred_effect_rpp) *
-			mapping(:diff_rpp, :pred) *
-			visual(Lines, color = :royalblue)
-	draw(rpp_pred_plot)
+			mapping(:diff_rpp, :pred, color=:version => "Version") *
+			visual(Lines, color = :royalblue) +
+		data(avg_acc_version_df) *
+			mapping(:x, :y, color = :version => "Version"; text = :acc_text => verbatim) *
+			visual(Makie.Text, fontsize = 16, font = :bold)
+	draw(rpp_pred_plot;axis=(;xlabel="ΔRPP: Left−Right", ylabel="P(Choose left)"))
 end
 
 # ╔═╡ 54178f5c-6950-4aca-97e4-aeb56c176c74
