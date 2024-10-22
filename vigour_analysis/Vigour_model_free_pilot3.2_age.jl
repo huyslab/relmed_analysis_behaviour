@@ -356,7 +356,7 @@ begin
 		# Draw the plot
 
 		fig = Figure(
-			size = (12.2, 7.6) .* 144 ./ 2.54, # 72 points per inch, then cm
+			size = (12.2, 7.6) .* 144 ./ 2.54, # 144 points per inch, then cm
 		)
 	
 		# Plot plot plot
