@@ -206,23 +206,29 @@ begin
 			x -> combine(x, :n_presses => mean => :n_presses)
 end
 
+# ╔═╡ 366287ba-7c26-497c-aada-ec8a131ad22e
+sort(unique(vigour_data.reward_per_press))
+
+# ╔═╡ 1281426b-2f18-42d1-b6f2-a72bde6381e8
+[1/16, 1/8, 2/16, 2/8, 5/16, 5/8, 1/1, 2/1, 5/1]
+
 # ╔═╡ 00f78d00-ca54-408a-a4a6-ad755566052a
-plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=false)
+plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ 89d68509-bcf0-44aa-9ddc-a685131ce146
-plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=true)
+plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Reward/press", combine=true)
 
 # ╔═╡ ef4c0f64-2f16-4700-8fc4-703a1b858c37
-plot_presses_vs_var(vigour_data; x_var=:ratio, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=false)
+plot_presses_vs_var(vigour_data; x_var=:ratio, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Fixed ratio", combine=false)
 
 # ╔═╡ eab61744-af48-4789-ba2f-a92d73527962
-plot_presses_vs_var(vigour_data; x_var=:ratio, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=true)
+plot_presses_vs_var(vigour_data; x_var=:ratio, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Fixed ratio", combine=true)
 
 # ╔═╡ c4e7d7ec-8da8-4a1f-8da3-0f2d29be6db7
-plot_presses_vs_var(vigour_data; x_var=:magnitude, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=false)
+plot_presses_vs_var(vigour_data; x_var=:magnitude, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Reward magnitude", combine=false)
 
 # ╔═╡ 09a6f213-f70a-42c2-8eb7-8689d40d140b
-plot_presses_vs_var(vigour_data; x_var=:magnitude, y_var=:press_per_sec, grp_var=:version, xlab="Press/sec", ylab = "Reward/press", combine=true)
+plot_presses_vs_var(vigour_data; x_var=:magnitude, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Reward magnitude", combine=true)
 
 # ╔═╡ 14d72296-7392-4375-9748-a8ee84d34701
 CSV.write("data/pilot3.2_vigour_data.csv", vigour_data)
@@ -347,7 +353,8 @@ begin
 		mapping(:intercept, :slope) *
 		visual(ABLines, linestyle = :dash, color = :gray70)
 	draw(
-		first_second_plot
+		first_second_plot;
+		axis=(;xlabel="First half trials",ylabel="Second half trials")
 	)
 end
 
@@ -379,7 +386,8 @@ let
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
 			visual(ABLines, linestyle = :dash, color = :gray70)
-	draw(p)
+	draw(p;
+		axis=(;xlabel="First half trials",ylabel="Second half trials"))
 end
 
 # ╔═╡ 50e8263e-a593-47d3-abc4-aceeeb68ba58
@@ -428,7 +436,8 @@ begin
 			mapping(:intercept, :slope) *
 			visual(ABLines, linestyle = :dash, color = :gray70)
 	draw(
-		even_odd_plot
+		even_odd_plot;
+		axis=(;xlabel="Even trials",ylabel="Odd trials")
 	)	
 end
 
@@ -773,6 +782,8 @@ end
 # ╠═2391eb75-db59-4156-99ae-abb8f1508037
 # ╟─b9f4babc-8da0-40f2-b0d2-95f915989faf
 # ╠═fd68ab0d-ca1b-437b-8c55-24f900a0628d
+# ╠═366287ba-7c26-497c-aada-ec8a131ad22e
+# ╠═1281426b-2f18-42d1-b6f2-a72bde6381e8
 # ╠═00f78d00-ca54-408a-a4a6-ad755566052a
 # ╠═89d68509-bcf0-44aa-9ddc-a685131ce146
 # ╠═ef4c0f64-2f16-4700-8fc4-703a1b858c37
