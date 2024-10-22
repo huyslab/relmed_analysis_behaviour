@@ -100,6 +100,9 @@ function REDCap_data_to_df(jspsych_data, records)
 		cols=:union
 	)
 
+	# Exclude missing prolific_pid
+	filter!(x -> !ismissing(x.prolific_pid), jspsych_data)
+
 	# Combine records and jspsych data
 	jspsych_data = leftjoin(jspsych_data, 
 		rename(records_df[!, [:prolific_pid, :record_id, :start_time]],
@@ -271,7 +274,9 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	test_data = test_data[:, Not(map(col -> all(ismissing, col),
 		eachcol(test_data)))]
 
-	select!(test_data, Not(:stimulus))
+	if :stimulus in names(test_data)
+		select!(test_data, Not(:stimulus))
+	end
 
 	# Compute chosen stimulus
 	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", nothing]) "Unexected responses in PILT test data"
@@ -399,14 +404,16 @@ function extract_vigour_data(data::DataFrame)
 		:record_id,
         names(x, r"^version$"),
 		:exp_start_time,
+		:trialphase,
 		:trial_number,
+		:pit_trial_number,
 		:trial_duration,
 		names(x, r"(reward|presses)$"),
 		:response_time,
         :timeline_variables
 	) |>
 	x -> subset(x, 
-        :trial_number => ByRow(!ismissing)
+        :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_trial", "pit_trial"])
     ) |>
 	
   x -> DataFrames.transform(x,
@@ -468,4 +475,27 @@ function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	)
 
 	return vigour_data_clean
+end
+
+"""
+    prepare_reversal_data(data::DataFrame) -> DataFrame
+
+Extracts reversal task data. The function removes columns where all values are missing, sorts the remaining data by `:prolific_pid`, `:session`, `:block`, and `:trial`, and returns the cleaned DataFrame.
+
+# Arguments
+- `data::DataFrame`: The input DataFrame containing experimental data.
+
+# Returns
+- `DataFrame`: A filtered and sorted DataFrame containing only reversal trials.
+"""
+function prepare_reversal_data(data::DataFrame)
+	reversal_data = filter(x -> x.trial_type == "reversal", data)
+
+	# Select columns
+	reversal_data = reversal_data[:, Not(map(col -> all(ismissing, col), eachcol(reversal_data)))]
+
+	# Sort
+	sort!(reversal_data, [:prolific_pid, :session, :block, :trial])
+
+	return reversal_data
 end
