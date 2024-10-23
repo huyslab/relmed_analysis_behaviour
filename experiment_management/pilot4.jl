@@ -61,9 +61,6 @@ end
 # ╔═╡ 57ca3929-faa6-4a95-9e4d-6c1add13b121
 PLT_data, test_data, vigour_data, reversal_data, jspsych_data = load_pilot4_data()
 
-# ╔═╡ e65cf9b8-efd0-4d72-975a-7fb1e5772659
-filter(x -> x.prolific_pid == "6658b98a00f23f1985eb8f07", PLT_data).block |> (x -> length(unique(filter(y -> isa(y, Int64), x))))
-
 # ╔═╡ e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -79,7 +76,8 @@ Extracts and processes debrief responses from the experimental data. It filters 
 function extract_debrief_responses(data::DataFrame)
 	# Select trials
 	debrief = filter(x -> !ismissing(x.trialphase) && 
-		occursin(r"(acceptability|debrief)(?!.*instructions)", x.trialphase), data)
+		occursin(r"(acceptability|debrief)(?!.*pre)", x.trialphase), data)
+
 
 	# Select variables
 	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
@@ -93,7 +91,7 @@ function extract_debrief_responses(data::DataFrame)
 	)
 
 	# Parse JSON and make into DataFrame
-	debrief_colnames = filter(x -> occursin(r"acceptability|debrief", x), names(debrief))
+	debrief_colnames = ["acceptability_pilt", "acceptability_vigour", "debrief_vigour", "acceptability_reversal", "debrief_reversal", "debrief_instructions"]
 	expanded = [
 		DataFrame([JSON.parse(row[col]) for row in eachrow(debrief)]) 
 			for col in debrief_colnames
@@ -159,15 +157,17 @@ end
 # ╔═╡ 5d616c03-85db-4c54-baba-92d288479113
 p_sum = summarize_participation(jspsych_data)
 
-# ╔═╡ c54a801b-8cbf-409a-b345-ef4b949bfe26
-filter(x -> x.prolific_pid == "6715013670bed7e4e955f109", p_sum)
+# ╔═╡ 2b4c69cb-a277-4c01-bb2e-10ce494118d7
+for r in eachrow(p_sum)
+	println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
+	println(sum(filter(x -> !ismissing(x.total_bonus), p_sum).total_bonus))
+end
 
 # ╔═╡ Cell order:
 # ╠═baba7ea8-9069-11ef-2bba-89fb74ddc46b
 # ╠═eafd04fa-05ab-4f29-921a-63890e8c83a0
 # ╠═57ca3929-faa6-4a95-9e4d-6c1add13b121
 # ╠═5d616c03-85db-4c54-baba-92d288479113
-# ╠═c54a801b-8cbf-409a-b345-ef4b949bfe26
-# ╠═e65cf9b8-efd0-4d72-975a-7fb1e5772659
+# ╠═2b4c69cb-a277-4c01-bb2e-10ce494118d7
 # ╠═e6ce2ef5-0bcb-45b7-a40b-0ebceff1a4c2
 # ╠═e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
