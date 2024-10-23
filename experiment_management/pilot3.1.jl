@@ -29,6 +29,32 @@ end
 # ╔═╡ bed41c93-2f7e-4f2c-bec4-d5f5cd475e0f
 names(jspsych_data)
 
+# ╔═╡ 431726e1-c06b-40b6-9183-107cc138a5d4
+md"""
+Check if there are timing issues
+"""
+
+# ╔═╡ 6ef2d203-d35e-4480-895f-cf1e553b469a
+begin
+	@chain jspsych_data begin
+		@select(prolific_pid, version, time_elapsed, trialphase)
+		@filter(!(occursin(prolific_pid, "simulate")))
+		@filter(trialphase == "vigour_trial")
+		@group_by(prolific_pid, version)
+		@mutate(dur = [missing, ~ diff(time_elapsed)...])
+		@summarize(dur_min = minimum(skipmissing(dur)),
+					dur_max = maximum(skipmissing(dur)))
+		@ungroup
+		@filter(ismissing(version))
+	end
+	@chain jspsych_data begin
+		@filter(prolific_pid == "6658c0f7eacd7bcadeef8a6c")
+		@filter(trialphase == "vigour_trial")
+		@select(prolific_pid, time_elapsed, trial_duration, trial_presses, trial_number, response_time)
+		@mutate(dur = [missing, ~ diff(time_elapsed)...])
+	end
+end
+
 # ╔═╡ f47e6aba-00ea-460d-8310-5b24ed7fe336
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -176,5 +202,7 @@ quantile(skipmissing(summarize_participation(jspsych_data).vigour_bonus), [0, 0.
 # ╠═30aebcee-9138-46cf-8dd9-d03f93404517
 # ╠═8815162b-6592-44aa-8eb4-8c3d2e2cda59
 # ╠═3de841b9-ef50-4cfa-ab5b-dd472ca01d4b
+# ╟─431726e1-c06b-40b6-9183-107cc138a5d4
+# ╠═6ef2d203-d35e-4480-895f-cf1e553b469a
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336
