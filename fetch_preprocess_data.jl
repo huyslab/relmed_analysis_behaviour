@@ -147,7 +147,7 @@ function load_pilot4_data()
 
 		JLD2.@save datafile jspsych_data
 	else
-		JLD2.@load data file jspsych_data
+		JLD2.@load datafile jspsych_data
 	end
 
 	# Exctract PILT
@@ -157,17 +157,18 @@ function load_pilot4_data()
 	test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	# Exctract vigour
-	vigour_data = extract_vigour_data(jspsych_data) 
+	vigour_data = prepare_vigour_data(jspsych_data) 
 
-	# Split to PIT and vigour
-	pit_data = filter(x -> x.trialphase == "pit_trial", vigour_data)
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
 
-	filter!(x -> x.trialphase == "vigour_trial", vigour_data)
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Exctract reversal
 	reversal_data = prepare_reversal_data(jspsych_data)
 
-	return PLT_data, test_data, vigour_data, reversal_data, jspsych_data
+	return PLT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, reversal_data, jspsych_data
 end
 
 
@@ -193,7 +194,7 @@ function load_pilot2_data()
 	test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	### Vigour task here
-	vigour_data = extract_vigour_data(jspsych_data) |>
+	vigour_data = prepare_vigour_data(jspsych_data) |>
 		x -> exclude_vigour_trials(x, 66)
 
 	return PLT_data, test_data, vigour_data, jspsych_data
@@ -405,65 +406,122 @@ function safe_median(arr)
 	end
 end
 
-"""
-	extract_vigour_data(data::DataFrame) -> DataFrame
+function prepare_vigour_data(data::DataFrame)
+	# Define required columns for vigour data
+	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
+	required_columns = vcat(required_columns, names(data, r"(reward|presses)$"))
 
-Extracts and processes vigour-related data from the given DataFrame.
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(data))
+            insertcols!(data, col => missing)
+        end
+    end
 
-# Arguments
-- `data::DataFrame`: The input DataFrame containing the raw data.
-
-# Returns
-- `DataFrame`: A DataFrame with the following columns:
-  - `:prolific_id`: The prolific participant ID.
-  - `:record_id`: The record ID.
-  - `:exp_start_time`: The experiment start time.
-  - `:trial_number`: The trial number.
-  - Columns matching the regex pattern `(reward|presses)\$`.
-  - `:response_times`: Parsed response times from JSON.
-  - `:ratio`: The ratio extracted from `:timeline_variables`.
-  - `:magnitude`: The magnitude extracted from `:timeline_variables`.
-  - `:reward_per_press`: The reward per press calculated as `magnitude / ratio`.
-
-# Details
-# 1. Removes testing participants from the data.
-2. Selects relevant columns from the input DataFrame.
-3. Filters out rows where `:trial_number` is missing.
-4. Transforms JSON strings in `:response_time` and `:timeline_variables` to extract specific values.
-5. Removes the original `:response_time` and `:timeline_variables` columns from the final DataFrame.
-"""
-function extract_vigour_data(data::DataFrame)
-	# remove_testing!(data)
-	
+	# Prepare vigour data
 	vigour_data = data |>
-	x -> select(x, 
-		:prolific_pid => :prolific_id,
-		:record_id,
-        names(x, r"^version$"),
-		:exp_start_time,
-		:trialphase,
-		:trial_number,
-		:pit_trial_number,
-		:trial_duration,
-		names(x, r"(reward|presses)$"),
-		:response_time,
-        :timeline_variables
-	) |>
-	x -> subset(x, 
-        :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_trial", "pit_trial"])
-    ) |>
-	
-  x -> DataFrames.transform(x,
-		:response_time => ByRow(JSON.parse) => :response_times,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
-	) |>
-	x -> select(x, 
-		Not([:response_time, :timeline_variables])
-	)
+		x -> select(x, 
+			:prolific_pid => :prolific_id,
+			:record_id,
+			:version,
+			:exp_start_time,
+			:trialphase,
+			:trial_number,
+			:trial_duration,
+			names(x, r"(reward|presses)$"),
+			:response_time,
+			:timeline_variables
+		) |>
+		x -> subset(x, 
+	        [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
+	    ) |>
+	  	x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
 	return vigour_data
 end
+
+function prepare_post_vigour_test_data(data::DataFrame)
+	# Define required columns for vigour data
+	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :trialphase, :response]
+	required_columns = vcat(required_columns, names(data, r"(magnitude|ratio)$"))
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(data))
+            insertcols!(data, col => missing)
+        end
+    end
+
+	# Prepare post vigour test data
+	post_vigour_test_data = data |>
+		x -> select(x,
+			:prolific_pid => :prolific_id,
+		    :record_id,
+		    :version,
+		    :exp_start_time,
+		    :trialphase,
+		    :response,
+			:rt => :response_times,
+		    r"magnitude$",
+		    r"ratio$"
+		) |>
+		x -> subset(x, :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_test"])) |>
+		x -> groupby(x, [:prolific_id, :exp_start_time]) |>
+		x -> transform(x, :trialphase => (x -> 1:length(x)) => :trial_number)
+
+	return post_vigour_test_data
+end
+
+function prepare_PIT_data(data::DataFrame)
+	
+	# Define required columns for vigour data
+	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
+	required_columns = vcat(required_columns, names(data, r"(reward|presses)$"))
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(data))
+            insertcols!(data, col => missing)
+        end
+    end
+
+	# Prepare PIT data
+	PIT_data = data |>
+		x -> select(x, 
+			:prolific_pid => :prolific_id,
+			:record_id,
+			:version,
+			:exp_start_time,
+			:trialphase,
+			:pit_trial_number => :trial_number,
+			:trial_duration,
+			names(x, r"(reward|presses)$"),
+			:response_time,
+			:pit_coin => :coin,
+			:timeline_variables
+		) |>
+		x -> subset(x, 
+	        :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
+	    ) |>
+	  	x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
+	return PIT_data
+end
+
 
 """
 	exclude_vigour_trials(vigour_data::DataFrame) -> DataFrame
