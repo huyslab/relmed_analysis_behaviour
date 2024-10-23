@@ -113,7 +113,7 @@ function REDCap_data_to_df(jspsych_data, records)
 	return jspsych_data
 end
 
-remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"hy|haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
+remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"|haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
 
 # Filter PLT data
 function prepare_PLT_data(data::DataFrame)
