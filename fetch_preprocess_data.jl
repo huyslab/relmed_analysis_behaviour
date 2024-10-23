@@ -433,7 +433,7 @@ function prepare_vigour_data(data::DataFrame)
 			:timeline_variables
 		) |>
 		x -> subset(x, 
-	        :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_trial"])
+	        [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
 	    ) |>
 	  	x -> DataFrames.transform(x,
 			:response_time => ByRow(JSON.parse) => :response_times,
