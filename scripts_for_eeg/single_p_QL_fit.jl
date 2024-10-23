@@ -74,6 +74,8 @@ aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 begin
 	data = DataFrame(CSV.File(input_file))
 
+	is_multi_set_size = "n_pairs" in names(data) && maximum(data.n_pairs) > 1
+
 	# Renmae varaibels
 	for v in ["outcome_optimal", "outcome_suboptima"]
 		if v in names(data)
@@ -95,7 +97,7 @@ end
 
 # ╔═╡ 6b1937b9-30bb-44c6-8e00-ab284f3c1cc1
 # Sort by stimulus pair rather than block for naive fitting
-if "n_pairs" in names(data)
+if is_multi_set_size
 	@info "Treating each pair as an independent block"
 	forfit = let
 		remapped = copy(data)
@@ -263,7 +265,7 @@ begin
 	)
 
 	# Remap trial and block numbers
-	if "n_pairs" in names(data)
+	if is_multi_set_size
 		pre_nrow = nrow(Qs_df)
 		
 		Qs_df = leftjoin(
