@@ -522,65 +522,6 @@ function prepare_PIT_data(data::DataFrame)
 	return PIT_data
 end
 
-"""
-	extract_vigour_data(data::DataFrame) -> DataFrame
-
-Extracts and processes vigour-related data from the given DataFrame.
-
-# Arguments
-- `data::DataFrame`: The input DataFrame containing the raw data.
-
-# Returns
-- `DataFrame`: A DataFrame with the following columns:
-  - `:prolific_id`: The prolific participant ID.
-  - `:record_id`: The record ID.
-  - `:exp_start_time`: The experiment start time.
-  - `:trial_number`: The trial number.
-  - Columns matching the regex pattern `(reward|presses)\$`.
-  - `:response_times`: Parsed response times from JSON.
-  - `:ratio`: The ratio extracted from `:timeline_variables`.
-  - `:magnitude`: The magnitude extracted from `:timeline_variables`.
-  - `:reward_per_press`: The reward per press calculated as `magnitude / ratio`.
-
-# Details
-# 1. Removes testing participants from the data.
-2. Selects relevant columns from the input DataFrame.
-3. Filters out rows where `:trial_number` is missing.
-4. Transforms JSON strings in `:response_time` and `:timeline_variables` to extract specific values.
-5. Removes the original `:response_time` and `:timeline_variables` columns from the final DataFrame.
-"""
-function extract_vigour_data(data::DataFrame)
-	# remove_testing!(data)
-	
-	vigour_data = data |>
-	x -> select(x, 
-		:prolific_pid => :prolific_id,
-		:record_id,
-        names(x, r"^version$"),
-		:exp_start_time,
-		:trialphase,
-		:trial_number,
-		:pit_trial_number,
-		:trial_duration,
-		names(x, r"(reward|presses)$"),
-		:response_time,
-        :timeline_variables
-	) |>
-	x -> subset(x, 
-        :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_trial", "pit_trial"])
-    ) |>
-	
-  x -> DataFrames.transform(x,
-		:response_time => ByRow(JSON.parse) => :response_times,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
-		:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
-	) |>
-	x -> select(x, 
-		Not([:response_time, :timeline_variables])
-	)
-	return vigour_data
-end
 
 """
 	exclude_vigour_trials(vigour_data::DataFrame) -> DataFrame
