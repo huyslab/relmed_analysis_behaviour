@@ -157,17 +157,18 @@ function load_pilot4_data()
 	test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	# Exctract vigour
-	vigour_data = extract_vigour_data(jspsych_data) 
+	vigour_data = prepare_vigour_data(jspsych_data) 
 
-	# Split to PIT and vigour
-	pit_data = filter(x -> x.trialphase == "pit_trial", vigour_data)
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
 
-	filter!(x -> x.trialphase == "vigour_trial", vigour_data)
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Exctract reversal
 	reversal_data = prepare_reversal_data(jspsych_data)
 
-	return PLT_data, test_data, vigour_data, reversal_data, jspsych_data
+	return PLT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, reversal_data, jspsych_data
 end
 
 
