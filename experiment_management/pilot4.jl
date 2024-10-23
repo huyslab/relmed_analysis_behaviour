@@ -20,9 +20,6 @@ begin
 	nothing
 end
 
-# ╔═╡ 3b6194b2-7bd4-44da-8953-61d40cb846f7
-ENV["pilot4_REDCap_token"] = "AB17820DE0A0ED67444D9B246A760C46"
-
 # ╔═╡ eafd04fa-05ab-4f29-921a-63890e8c83a0
 function load_pilot4_data()
 	datafile = "data/pilot4.jld2"
@@ -35,7 +32,7 @@ function load_pilot4_data()
 
 		remove_testing!(jspsych_data)
 
-		# JLD2.@save datafile jspsych_data
+		JLD2.@save datafile jspsych_data
 	else
 		JLD2.@load data file jspsych_data
 	end
@@ -62,10 +59,115 @@ end
 
 
 # ╔═╡ 57ca3929-faa6-4a95-9e4d-6c1add13b121
-PLT_data, test_data, vigour_data, reversal_data, _ = load_pilot4_data()
+PLT_data, test_data, vigour_data, reversal_data, jspsych_data = load_pilot4_data()
+
+# ╔═╡ e65cf9b8-efd0-4d72-975a-7fb1e5772659
+filter(x -> x.prolific_pid == "6658b98a00f23f1985eb8f07", PLT_data).block |> (x -> length(unique(filter(y -> isa(y, Int64), x))))
+
+# ╔═╡ e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
+"""
+    extract_debrief_responses(data::DataFrame) -> DataFrame
+
+Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
+
+# Returns
+- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
+"""
+function extract_debrief_responses(data::DataFrame)
+	# Select trials
+	debrief = filter(x -> !ismissing(x.trialphase) && 
+		occursin(r"(acceptability|debrief)(?!.*instructions)", x.trialphase), data)
+
+	# Select variables
+	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
+
+	# Long to wide
+	debrief = unstack(
+		debrief,
+		[:prolific_pid, :exp_start_time],
+		:trialphase,
+		:response
+	)
+
+	# Parse JSON and make into DataFrame
+	debrief_colnames = filter(x -> occursin(r"acceptability|debrief", x), names(debrief))
+	expanded = [
+		DataFrame([JSON.parse(row[col]) for row in eachrow(debrief)]) 
+			for col in debrief_colnames
+		]
+
+	expanded = hcat(expanded...)
+
+	# hcat together
+	return hcat(debrief[!, Not(debrief_colnames)], expanded)
+end
+
+# ╔═╡ e6ce2ef5-0bcb-45b7-a40b-0ebceff1a4c2
+"""
+    summarize_participation(data::DataFrame) -> DataFrame
+
+Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
+
+This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
+
+# Returns
+- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
+"""
+function summarize_participation(data::DataFrame)
+
+	function extract_PILT_bonus(outcome)
+
+		if all(ismissing.(outcome)) # Return missing if participant didn't complete
+			return missing
+		else # Parse JSON
+			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
+			bonus = JSON.parse(bonus)[1] 
+			return bonus
+		end
+
+	end
+	
+	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time]),
+		:trialphase => (x -> "experiment_end_message" in x) => :finished,
+		:trialphase => (x -> "kick-out" in x) => :kick_out,
+		:outcomes => extract_PILT_bonus => :PILT_bonus,
+		:vigour_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :vigour_bonus,
+		:PIT_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :PIT_bonus,
+		[:trial_type, :block] => ((t, b) -> sum((t .== "PLT") .& (typeof.(b) .== Int64))) => :n_trial_PLT,
+		:total_presses => (x -> length(filter(y -> !ismissing(y), x))) => :n_trial_vigour,
+		[:block, :trial_type] => ((x, t) -> length(unique(filter(y -> isa(y, Int64), x[t .== "PLT"])))) => :n_blocks_PLT,
+		:n_warnings => maximum => :n_warnings
+	)
+
+	participants.total_bonus = participants.vigour_bonus .+ participants.PILT_bonus 
+		.+ participants.PIT_bonus
+
+	debrief = extract_debrief_responses(data)
+
+	participants = leftjoin(participants, debrief, 
+		on = [:prolific_pid, :exp_start_time])
+
+	return participants
+end
+
+# ╔═╡ 5d616c03-85db-4c54-baba-92d288479113
+p_sum = summarize_participation(jspsych_data)
+
+# ╔═╡ c54a801b-8cbf-409a-b345-ef4b949bfe26
+filter(x -> x.prolific_pid == "6715013670bed7e4e955f109", p_sum)
 
 # ╔═╡ Cell order:
 # ╠═baba7ea8-9069-11ef-2bba-89fb74ddc46b
-# ╠═3b6194b2-7bd4-44da-8953-61d40cb846f7
 # ╠═eafd04fa-05ab-4f29-921a-63890e8c83a0
 # ╠═57ca3929-faa6-4a95-9e4d-6c1add13b121
+# ╠═5d616c03-85db-4c54-baba-92d288479113
+# ╠═c54a801b-8cbf-409a-b345-ef4b949bfe26
+# ╠═e65cf9b8-efd0-4d72-975a-7fb1e5772659
+# ╠═e6ce2ef5-0bcb-45b7-a40b-0ebceff1a4c2
+# ╠═e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
