@@ -113,7 +113,7 @@ function REDCap_data_to_df(jspsych_data, records)
 	return jspsych_data
 end
 
-remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"hy|haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
+remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
 
 # Filter PLT data
 function prepare_PLT_data(data::DataFrame)
@@ -133,6 +133,43 @@ function prepare_PLT_data(data::DataFrame)
 	return PLT_data
 
 end
+
+function load_pilot4_data()
+	datafile = "data/pilot4.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile)
+		jspsych_json, records = get_REDCap_data("pilot4"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load data file jspsych_data
+	end
+
+	# Exctract PILT
+	PLT_data = prepare_PLT_data(jspsych_data)
+
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = extract_vigour_data(jspsych_data) 
+
+	# Split to PIT and vigour
+	pit_data = filter(x -> x.trialphase == "pit_trial", vigour_data)
+
+	filter!(x -> x.trialphase == "vigour_trial", vigour_data)
+
+	# Exctract reversal
+	reversal_data = prepare_reversal_data(jspsych_data)
+
+	return PLT_data, test_data, vigour_data, reversal_data, jspsych_data
+end
+
 
 function load_pilot2_data()
 	datafile = "data/pilot2.jld2"
