@@ -52,7 +52,7 @@ function load_pilot3_data()
 	end
 
 	### Vigour task here
-	vigour_data = extract_vigour_data(jspsych_data) |>
+	vigour_data = prepare_vigour_data(jspsych_data) |>
 		x -> exclude_vigour_trials(x, 36)
 	return vigour_data, jspsych_data
 end

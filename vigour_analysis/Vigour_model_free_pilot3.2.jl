@@ -56,25 +56,12 @@ function load_pilot3_data()
 	complete_jspsych_data = semijoin(jspsych_data, complete_sub, on = :prolific_pid)
 	
 	### Vigour task here
-	vigour_data = extract_vigour_data(complete_jspsych_data) |>
+	vigour_data = prepare_vigour_data(complete_jspsych_data) |>
 		x -> exclude_vigour_trials(x, 36)
 
     ### Vigour test data
-    begin
-	vigour_test_data = @chain complete_jspsych_data begin
-		@select(prolific_id = prolific_pid,
-                record_id,
-				version,
-                exp_start_time,
-                trialphase, 
-                response, 
-                ends_with("magnitude"), ends_with("ratio"))
-		@filter(trialphase === "vigour_test")
-		@group_by(prolific_id, exp_start_time)
-		@mutate(test_trial_number = row_number())
-		@ungroup
-	end
-end
+		vigour_test_data = prepare_post_vigour_test_data(complete_jspsych_data)
+	
 	return vigour_data, vigour_test_data, complete_jspsych_data
 end
 
