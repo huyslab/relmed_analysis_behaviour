@@ -60,7 +60,7 @@ end
 
 
 # ╔═╡ 57ca3929-faa6-4a95-9e4d-6c1add13b121
-PLT_data, test_data, vigour_data, pit_data, reversal_data, jspsych_data = load_pilot4_data()
+PLT_data, test_data, vigour_data, post_vigour_test_data, pit_data, reversal_data, jspsych_data = load_pilot4_data()
 
 # ╔═╡ Cell order:
 # ╠═baba7ea8-9069-11ef-2bba-89fb74ddc46b
