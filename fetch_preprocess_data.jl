@@ -147,7 +147,7 @@ function load_pilot4_data()
 
 		JLD2.@save datafile jspsych_data
 	else
-		JLD2.@load data file jspsych_data
+		JLD2.@load datafile jspsych_data
 	end
 
 	# Exctract PILT
