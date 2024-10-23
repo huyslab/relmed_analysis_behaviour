@@ -37,7 +37,10 @@ md"""
 PLT_data, test_data, vigour_data, jspsych_data = load_pilot2_data();
 
 # ╔═╡ 9afd25b7-0b29-4b78-b81f-45831b417dfb
+# ╠═╡ disabled = true
+#=╠═╡
 CSV.write("data/pilot2_vigour_data.csv", vigour_data)
+  ╠═╡ =#
 
 # ╔═╡ 392006ba-b905-4a51-a02e-796e19fbc24a
 @chain vigour_data begin
