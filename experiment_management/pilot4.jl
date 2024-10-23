@@ -20,9 +20,6 @@ begin
 	nothing
 end
 
-# ╔═╡ 3b6194b2-7bd4-44da-8953-61d40cb846f7
-ENV["pilot4_REDCap_token"] = "AB17820DE0A0ED67444D9B246A760C46"
-
 # ╔═╡ eafd04fa-05ab-4f29-921a-63890e8c83a0
 function load_pilot4_data()
 	datafile = "data/pilot4.jld2"
