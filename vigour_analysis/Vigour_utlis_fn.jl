@@ -67,17 +67,20 @@ The x-axis and y-axis labels can be customized using `xlab` and `ylab`. If these
 
 The function returns the generated plot figure.
 """
-function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, combine::Bool=false)
+function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
     grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [x_var], y_var, grp_var)
 
+	# Set up the legend title
+    grplab_text = ismissing(grplab) ? uppercasefirst(join(split(string(grp_var), r"\P{L}+"), " ")) : grplab
+	
     # Define mapping based on whether grp_var is provided
     individual_mapping = grp_var === nothing ?
                          mapping(x_var, :mean_y, group=:prolific_id) :
-                         mapping(x_var, :mean_y, color=grp_var, group=:prolific_id)
+                         mapping(x_var, :mean_y, color=grp_var => grplab_text, group=:prolific_id)
 
     average_mapping = grp_var === nothing ?
                       mapping(x_var, :avg_y) :
-                      mapping(x_var, :avg_y, color=grp_var)
+                      mapping(x_var, :avg_y, color=grp_var => grplab_text)
 
     # Create the plot for individual participants
     individual_plot = data(grouped_data) *
@@ -96,7 +99,7 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_p
         average_plot = data(avg_w_data) *
                        average_mapping * (
                            visual(Errorbars, whiskerwidth=4) *
-                           mapping(:se_y, color=grp_var) +
+                           mapping(:se_y, color=grp_var => grplab_text) +
                            visual(ScatterLines, linewidth=2))
     end
 
@@ -110,12 +113,12 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_p
     ylab_text = ismissing(ylab) ? uppercasefirst(join(split(string(y_var), r"\P{L}+"), " ")) : ylab
 
     if combine
-        axis = (
+        axis = (;
             xlabel=xlab_text,
             ylabel=ylab_text,
         )
         final_plot = individual_plot + average_plot
-        fig = draw(final_plot; axis)
+        fig = draw(final_plot; axis=axis)
     else
         # Draw the plot
         fig_patch = fig[1, 1] = GridLayout()
