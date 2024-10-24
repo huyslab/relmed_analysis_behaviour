@@ -474,7 +474,7 @@ function prepare_post_vigour_test_data(data::DataFrame)
 		) |>
 		x -> subset(x, :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_test"])) |>
 		x -> groupby(x, [:prolific_id, :exp_start_time]) |>
-		x -> transform(x, :trialphase => (x -> 1:length(x)) => :trial_number)
+		x -> DataFrames.transform(x, :trialphase => (x -> 1:length(x)) => :trial_number)
 
 	return post_vigour_test_data
 end
