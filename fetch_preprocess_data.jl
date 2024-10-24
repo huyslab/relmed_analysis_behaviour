@@ -220,6 +220,30 @@ function load_pilot1_data()
     return PLT_data
 end
 
+function exclude_double_takers!(df::DataFrame)
+	# Find double takes
+	double_takers = unique(df[!, [:prolific_pid, :session, 
+		:exp_start_time]])
+
+	# Find earliert session
+	double_takers.date = DateTime.(double_takers.exp_start_time, 
+		"yyyy-mm-dd_HH:MM:SS")
+
+	DataFrames.DataFrames.transform!(
+		groupby(double_takers, [:prolific_pid, :session]),
+		:session => length => :n,
+		:date => minimum => :first_date
+	)
+
+	filter!(x -> (x.n > 1) & (x.date != x.first_date), double_takers)
+
+	# Exclude extra sessions
+	df = antijoin(df, double_takers,
+		on = [:prolific_pid, :session, 
+		:exp_start_time]
+	)
+end
+
 # Exclude unfinished and double sessions
 function exclude_PLT_sessions(PLT_data::DataFrame)
 	# Find non-finishers
@@ -236,27 +260,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame)
 		on = [:prolific_pid, :session, 
 		:exp_start_time, :condition])
 
-	# Find double takes
-	double_takers = unique(PLT_data_clean[!, [:prolific_pid, :session, 
-		:exp_start_time, :condition]])
-
-	# Find earliert session
-	double_takers.date = DateTime.(double_takers.exp_start_time, 
-		"yyyy-mm-dd_HH:MM:SS")
-
-	DataFrames.DataFrames.transform!(
-		groupby(double_takers, [:prolific_pid, :session]),
-		:condition => length => :n,
-		:date => minimum => :first_date
-	)
-
-	filter!(x -> (x.n > 1) & (x.date != x.first_date), double_takers)
-
-	# Exclude extra sessions
-	PLT_data_clean = antijoin(PLT_data_clean, double_takers,
-		on = [:prolific_pid, :session, 
-		:exp_start_time, :condition]
-	)
+	exclude_double_takers!(PLT_data_clean)
 
 	return PLT_data_clean
 
@@ -593,4 +597,27 @@ function prepare_reversal_data(data::DataFrame)
 	sort!(reversal_data, [:prolific_pid, :session, :block, :trial])
 
 	return reversal_data
+end
+
+function exclude_reversal_sessions(
+	reversal_data::DataFrame;
+	required_n_trials::Int64 = 200
+)
+	non_finishers = combine(
+		groupby(reversal_data, [:prolific_pid, :session, 
+		:exp_start_time]),
+		:trial => length => :n_trials
+	)
+
+	filter!(x -> x.n_trials < required_n_trials,  non_finishers)
+
+	# Exclude non-finishers
+	reversal_data_clean = antijoin(reversal_data, non_finishers,
+		on = [:prolific_pid, :session, 
+		:exp_start_time])
+
+
+	exclude_double_takers!(reversal_data_clean)
+
+	return reversal_data_clean
 end
