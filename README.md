@@ -13,7 +13,7 @@ The code runs on a Docker container. To lauch the docker container, first you ne
 Then run the following command in the Mac terminal:
 
 ```
-docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.11ma
+docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12ma
 ```
 
 Copy the URL for Jupyter in the resulting ouptut, navigate to it in your browser. Launch a Pluto.jl instance from Jupyter to view the Pluto notebooks in the repository.
