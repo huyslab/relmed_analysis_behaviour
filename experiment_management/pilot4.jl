@@ -20,87 +20,16 @@ begin
 	nothing
 end
 
-# ╔═╡ eafd04fa-05ab-4f29-921a-63890e8c83a0
-function load_pilot4_data()
-	datafile = "data/pilot4.jld2"
-
-	# Load data or download from REDCap
-	if !isfile(datafile)
-		jspsych_json, records = get_REDCap_data("pilot4"; file_field = "file_data")
-	
-		jspsych_data = REDCap_data_to_df(jspsych_json, records)
-
-		remove_testing!(jspsych_data)
-
-		JLD2.@save datafile jspsych_data
-	else
-		JLD2.@load data file jspsych_data
-	end
-
-	# Exctract PILT
-	PLT_data = prepare_PLT_data(jspsych_data)
-
-	# Extract post-PILT test
-	test_data = prepare_post_PILT_test_data(jspsych_data)
-
-	# Exctract vigour
-	vigour_data = extract_vigour_data(jspsych_data) 
-
-	# Split to PIT and vigour
-	pit_data = filter(x -> x.trialphase == "pit_trial", vigour_data)
-
-	filter!(x -> x.trialphase == "vigour_trial", vigour_data)
-
-	# Exctract reversal
-	reversal_data = prepare_reversal_data(jspsych_data)
-
-	return PLT_data, test_data, vigour_data, reversal_data, jspsych_data
-end
-
-
 # ╔═╡ 57ca3929-faa6-4a95-9e4d-6c1add13b121
 PLT_data, test_data, vigour_data, reversal_data, jspsych_data = load_pilot4_data()
 
-# ╔═╡ e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
-"""
-    extract_debrief_responses(data::DataFrame) -> DataFrame
+# ╔═╡ 5d616c03-85db-4c54-baba-92d288479113
+p_sum = summarize_participation(jspsych_data)
 
-Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
-
-# Returns
-- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
-"""
-function extract_debrief_responses(data::DataFrame)
-	# Select trials
-	debrief = filter(x -> !ismissing(x.trialphase) && 
-		occursin(r"(acceptability|debrief)(?!.*pre)", x.trialphase), data)
-
-
-	# Select variables
-	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
-
-	# Long to wide
-	debrief = unstack(
-		debrief,
-		[:prolific_pid, :exp_start_time],
-		:trialphase,
-		:response
-	)
-
-	# Parse JSON and make into DataFrame
-	debrief_colnames = ["acceptability_pilt", "acceptability_vigour", "debrief_vigour", "acceptability_reversal", "debrief_reversal", "debrief_instructions"]
-	expanded = [
-		DataFrame([JSON.parse(row[col]) for row in eachrow(debrief)]) 
-			for col in debrief_colnames
-		]
-
-	expanded = hcat(expanded...)
-
-	# hcat together
-	return hcat(debrief[!, Not(debrief_colnames)], expanded)
+# ╔═╡ 2b4c69cb-a277-4c01-bb2e-10ce494118d7
+for r in eachrow(p_sum)
+	println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
+	println(sum(filter(x -> !ismissing(x.total_bonus), p_sum).total_bonus))
 end
 
 # ╔═╡ e6ce2ef5-0bcb-45b7-a40b-0ebceff1a4c2
@@ -154,18 +83,50 @@ function summarize_participation(data::DataFrame)
 	return participants
 end
 
-# ╔═╡ 5d616c03-85db-4c54-baba-92d288479113
-p_sum = summarize_participation(jspsych_data)
+# ╔═╡ e3ed2dd8-db2a-4725-9f78-ad338f8e0cfc
+"""
+    extract_debrief_responses(data::DataFrame) -> DataFrame
 
-# ╔═╡ 2b4c69cb-a277-4c01-bb2e-10ce494118d7
-for r in eachrow(p_sum)
-	println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
-	println(sum(filter(x -> !ismissing(x.total_bonus), p_sum).total_bonus))
+Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
+
+# Returns
+- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
+"""
+function extract_debrief_responses(data::DataFrame)
+	# Select trials
+	debrief = filter(x -> !ismissing(x.trialphase) && 
+		occursin(r"(acceptability|debrief)(?!.*pre)", x.trialphase), data)
+
+
+	# Select variables
+	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
+
+	# Long to wide
+	debrief = unstack(
+		debrief,
+		[:prolific_pid, :exp_start_time],
+		:trialphase,
+		:response
+	)
+
+	# Parse JSON and make into DataFrame
+	debrief_colnames = ["acceptability_pilt", "acceptability_vigour", "debrief_vigour", "acceptability_reversal", "debrief_reversal", "debrief_instructions"]
+	expanded = [
+		DataFrame([JSON.parse(row[col]) for row in eachrow(debrief)]) 
+			for col in debrief_colnames
+		]
+
+	expanded = hcat(expanded...)
+
+	# hcat together
+	return hcat(debrief[!, Not(debrief_colnames)], expanded)
 end
 
 # ╔═╡ Cell order:
 # ╠═baba7ea8-9069-11ef-2bba-89fb74ddc46b
-# ╠═eafd04fa-05ab-4f29-921a-63890e8c83a0
 # ╠═57ca3929-faa6-4a95-9e4d-6c1add13b121
 # ╠═5d616c03-85db-4c54-baba-92d288479113
 # ╠═2b4c69cb-a277-4c01-bb2e-10ce494118d7
