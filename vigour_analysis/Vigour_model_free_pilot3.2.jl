@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
@@ -193,6 +193,28 @@ begin
 			x -> combine(x, :n_presses => mean => :n_presses)
 end
 
+# ╔═╡ a6f79793-358f-410f-bba2-de8b2a721420
+let
+	first_four_df = @chain vigour_data begin
+		@filter(trial_number <= 4)
+		@filter(version === "3.2")
+	end
+	fig = Figure()
+	axis = (;
+		xlabel="Trial number",
+		ylabel="Press/sec",
+		ygridvisible=true,
+		yminorgridvisible=true,
+		width=600,
+		height=450
+	)
+	p = data(first_four_df) *
+		mapping(:trial_number, :press_per_sec, color = :reward_per_press, col = :version) *
+		visual(RainClouds)
+	fig = draw(p, scales(Color = (; colormap = :blues)); axis=axis, colorbar=(;label = "Reawrd/press", height = 200))
+	fig
+end
+
 # ╔═╡ 366287ba-7c26-497c-aada-ec8a131ad22e
 sort(unique(vigour_data.reward_per_press))
 
@@ -200,7 +222,7 @@ sort(unique(vigour_data.reward_per_press))
 [1/16, 1/8, 2/16, 2/8, 5/16, 5/8, 1/1, 2/1, 5/1]
 
 # ╔═╡ 00f78d00-ca54-408a-a4a6-ad755566052a
-plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=false)
+plot_presses_vs_var(@filter(vigour_data, trial_number != 0); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ 89d68509-bcf0-44aa-9ddc-a685131ce146
 plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Reward/press", combine=true)
@@ -769,6 +791,7 @@ end
 # ╠═2391eb75-db59-4156-99ae-abb8f1508037
 # ╟─b9f4babc-8da0-40f2-b0d2-95f915989faf
 # ╠═fd68ab0d-ca1b-437b-8c55-24f900a0628d
+# ╠═a6f79793-358f-410f-bba2-de8b2a721420
 # ╠═366287ba-7c26-497c-aada-ec8a131ad22e
 # ╠═1281426b-2f18-42d1-b6f2-a72bde6381e8
 # ╠═00f78d00-ca54-408a-a4a6-ad755566052a
