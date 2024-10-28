@@ -30,9 +30,9 @@ RUN apt-get update --yes && \
     vim && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install R
+# Install R and necessary tools
 RUN mamba install --yes \
-     'r-base' && \
+     'r-base' 'r-essentials' && \
      mamba clean --all -f -y && \
      fix-permissions "${CONDA_DIR}" && \
      fix-permissions "/home/${NB_USER}"
@@ -70,9 +70,9 @@ RUN apt-get update --yes && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 
-# Run script installing cmdstand
+# Run script installing cmdstan
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
-RUN ["Rscript", "install_cmdstan.R"] && \
+RUN /opt/conda/bin/Rscript install_cmdstan.R && \
     fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home

@@ -17,5 +17,5 @@ options(Ncpus = 12)
 # install.packages("devtools")
 # library(devtools)
 Sys.setenv(DOWNLOAD_STATIC_LIBV8 = 1)
-install.packages(c("data.table", "rstan", "brms", "brms", "ggplot2", "cowplot",
-                   "GGally","psych", "GPArotation", "tidyverse", "qs"))
+install.packages(c("data.table", "rstan", "brms", "brms", "ggplot2", "cowplot", "GGally","psych", "GPArotation", "tidyverse", "qs", "emmeans"))
+install.packages("afex")
