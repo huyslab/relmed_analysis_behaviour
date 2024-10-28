@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.19.43
 
 using Markdown
 using InteractiveUtils
@@ -21,11 +21,11 @@ begin
 end
 
 # ╔═╡ eafd04fa-05ab-4f29-921a-63890e8c83a0
-function load_pilot4x_data()
+function load_pilot4x_data(; force_download = false)
 	datafile = "data/pilot4.x.jld2"
 
 	# Load data or download from REDCap
-	if !isfile(datafile) || true
+	if !isfile(datafile) || force_download
 		jspsych_json, records = get_REDCap_data("pilot4.x"; file_field = "file_data")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records)
