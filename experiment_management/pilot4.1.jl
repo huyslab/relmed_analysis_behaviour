@@ -334,6 +334,13 @@ end
 # ╔═╡ 4e0246af-545d-410b-9c32-c4f43d441194
 p_sum = summarize_participation(jspsych_data)
 
+# ╔═╡ fd38388f-7a09-4281-b473-38c5547116af
+for r in eachrow(p_sum)
+	if !ismissing(r.PILT_bonus)
+		println("$(r.prolific_pid), $(r.PILT_bonus)")
+	end
+end
+
 # ╔═╡ 6654d1dc-b8b1-4794-81b5-57c92814e020
 
 
@@ -341,6 +348,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╠═d1b4ae5e-952a-11ef-24af-bb7226096cd5
 # ╠═6dc7628c-5230-4562-a452-be9c61238b00
 # ╠═4e0246af-545d-410b-9c32-c4f43d441194
+# ╠═fd38388f-7a09-4281-b473-38c5547116af
 # ╠═518161d7-137e-4e63-9961-b365c0adead2
 # ╠═91475e7f-b52a-48e4-a72d-4298b3544bf4
 # ╠═b6661ceb-bf2c-46a1-bd47-91e945e1530a
