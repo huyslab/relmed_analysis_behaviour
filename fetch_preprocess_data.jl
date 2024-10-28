@@ -263,9 +263,20 @@ function exclude_double_takers!(df::DataFrame)
 	double_takers = unique(df[!, [:prolific_pid, :session, 
 		:exp_start_time]])
 
+	# Function to parse date with multiple formats (WorldClock API format and jsPsych format)
+	function parse_date(date_str)
+		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.sssZ"]
+			try
+				return DateTime(date_str, fmt)
+			catch
+				# Ignore and try the next format
+			end
+		end
+		error("Date format not recognized: $date_str")
+	end
+
 	# Find earliert session
-	double_takers.date = DateTime.(double_takers.exp_start_time, 
-		"yyyy-mm-dd_HH:MM:SS")
+	double_takers.date = parse_date.(double_takers.exp_start_time)
 
 	DataFrames.DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
@@ -283,20 +294,20 @@ function exclude_double_takers!(df::DataFrame)
 end
 
 # Exclude unfinished and double sessions
-function exclude_PLT_sessions(PLT_data::DataFrame)
+function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24)
 	# Find non-finishers
 	non_finishers = combine(groupby(PLT_data,
 		[:prolific_pid, :session, 
-		:exp_start_time, :condition]),
+		:exp_start_time]),
 		:block => (x -> length(unique(x))) => :n_blocks
 	)
 
-	filter!(x -> x.n_blocks < 24, non_finishers)
+	filter!(x -> x.n_blocks < required_n_blocks, non_finishers)
 
 	# Exclude non-finishers
 	PLT_data_clean = antijoin(PLT_data, non_finishers,
 		on = [:prolific_pid, :session, 
-		:exp_start_time, :condition])
+		:exp_start_time])
 
 	exclude_double_takers!(PLT_data_clean)
 
