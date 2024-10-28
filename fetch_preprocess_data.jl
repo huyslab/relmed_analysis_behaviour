@@ -172,6 +172,44 @@ function load_pilot4x_data(; force_download = false)
 end
 
 
+function load_pilot4x_data(; force_download = false)
+	datafile = "data/pilot4.x.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot4.x"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Exctract PILT
+	PLT_data = prepare_PLT_data(jspsych_data)
+
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	reversal_data = prepare_reversal_data(jspsych_data)
+
+	return PLT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, reversal_data, jspsych_data
+end
+
+
 function load_pilot4_data()
 	datafile = "data/pilot4.jld2"
 
@@ -282,21 +320,56 @@ function exclude_double_takers!(df::DataFrame)
 	)
 end
 
+function exclude_double_takers!(df::DataFrame)
+	# Find double takes
+	double_takers = unique(df[!, [:prolific_pid, :session, 
+		:exp_start_time]])
+
+	# Function to parse date with multiple formats (WorldClock API format and jsPsych format)
+	function parse_date(date_str)
+		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.sssZ"]
+			try
+				return DateTime(date_str, fmt)
+			catch
+				# Ignore and try the next format
+			end
+		end
+		error("Date format not recognized: $date_str")
+	end
+
+	# Find earliert session
+	double_takers.date = parse_date.(double_takers.exp_start_time)
+
+	DataFrames.DataFrames.transform!(
+		groupby(double_takers, [:prolific_pid, :session]),
+		:session => length => :n,
+		:date => minimum => :first_date
+	)
+
+	filter!(x -> (x.n > 1) & (x.date != x.first_date), double_takers)
+
+	# Exclude extra sessions
+	df = antijoin(df, double_takers,
+		on = [:prolific_pid, :session, 
+		:exp_start_time]
+	)
+end
+
 # Exclude unfinished and double sessions
-function exclude_PLT_sessions(PLT_data::DataFrame)
+function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24)
 	# Find non-finishers
 	non_finishers = combine(groupby(PLT_data,
 		[:prolific_pid, :session, 
-		:exp_start_time, :condition]),
+		:exp_start_time]),
 		:block => (x -> length(unique(x))) => :n_blocks
 	)
 
-	filter!(x -> x.n_blocks < 24, non_finishers)
+	filter!(x -> x.n_blocks < required_n_blocks, non_finishers)
 
 	# Exclude non-finishers
 	PLT_data_clean = antijoin(PLT_data, non_finishers,
 		on = [:prolific_pid, :session, 
-		:exp_start_time, :condition])
+		:exp_start_time])
 
 	exclude_double_takers!(PLT_data_clean)
 

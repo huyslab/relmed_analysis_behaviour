@@ -344,6 +344,8 @@ function plot_group_accuracy!(
 
 		dropmissing!(gdat)
 
+		sort!(gdat, :trial)
+
 		g_p_dat = filter(:group => (x -> x == g), p_data)
 
         # Plot line
