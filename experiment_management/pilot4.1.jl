@@ -216,11 +216,10 @@ let
 		group = :n_pairs,
 		PILT_data_clean,
 		legend = Dict(i => "$i" for i in sort(unique(PILT_data_clean.n_pairs))),
-		legend_title = "Set size",
-		error_band = false
+		legend_title = "Set size"
 	)
 
-	ax.xticks = [1, 10, 20, 30]
+	ax.xticks = [1, 7, 14, 21, 28, 35, 42]
 
 	f
 
@@ -334,6 +333,9 @@ end
 # ╔═╡ 4e0246af-545d-410b-9c32-c4f43d441194
 p_sum = summarize_participation(jspsych_data)
 
+# ╔═╡ 8f94f16b-31ea-48a6-9ede-c6e9ae4f818f
+filter(x -> x.prolific_pid == "60bf34a4880eb3d65aac9745", p_sum)
+
 # ╔═╡ fd38388f-7a09-4281-b473-38c5547116af
 for r in eachrow(p_sum)
 	if !ismissing(r.PILT_bonus)
@@ -348,6 +350,7 @@ end
 # ╠═d1b4ae5e-952a-11ef-24af-bb7226096cd5
 # ╠═6dc7628c-5230-4562-a452-be9c61238b00
 # ╠═4e0246af-545d-410b-9c32-c4f43d441194
+# ╠═8f94f16b-31ea-48a6-9ede-c6e9ae4f818f
 # ╠═fd38388f-7a09-4281-b473-38c5547116af
 # ╠═518161d7-137e-4e63-9961-b365c0adead2
 # ╠═91475e7f-b52a-48e4-a72d-4298b3544bf4
