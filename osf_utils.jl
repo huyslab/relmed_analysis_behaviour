@@ -34,7 +34,7 @@ Uploads a file to the specified folder in an Open Science Framework (OSF) projec
 - `force::Bool`: Optional. If `true` (default), the file will be uploaded even if it exists, replacing the existing file.
 
 # Returns
-- Logs the filename, folder, and OSF file ID upon successful upload or update.
+- Logs the syntax to add the image to the wiki.
 
 # Notes
 The function requires exactly one view-only link on the project to proceed with the upload.
@@ -62,14 +62,8 @@ function upload_to_osf(
 		force = true
 	)
 
-	# Get file url
-	url = OSF.url(osf_file)
+	url = JSON.parse(String(resp.body))["data"]["links"]["download"]
 
-	# Get file id
-	file_id = split(string(url), "/")[end-1]
-
-	@info """Saved $filename to "$osf_folder", id is $file_id"""
-
-	return 
+	@info """For wiki: ![image]($url =75%x)"""
 
 end
