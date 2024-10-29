@@ -76,7 +76,7 @@ end
 
 # ╔═╡ 8c78ccca-2666-4255-8a48-7c0c7f82573e
 # Plot PILT accuracy curve
-resp = let
+let
 
 	f = Figure()
 
