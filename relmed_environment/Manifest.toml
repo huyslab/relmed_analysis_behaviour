@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "5944ed272922bce6cf777ca184fb6fd3bdb0033c"
+project_hash = "6359dcdb90af7e91efbdb1779733fe3f4c1d8ee1"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "eea5d80188827b35333801ef97a40c2ed653b081"
@@ -2127,6 +2127,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "ad31332567b189f508a3ea8957a2640b1147ab00"
 uuid = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 version = "1.1.23+1"
+
+[[deps.OpenScienceFramework]]
+deps = ["Downloads", "HTTP", "JSON3", "Parameters", "Pkg", "StructTypes"]
+git-tree-sha1 = "718b289e2271a40a38879f46bf5eebc6b229a745"
+uuid = "ca34efa3-7b06-4646-a985-ce0937c3739e"
+version = "0.2.8"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
