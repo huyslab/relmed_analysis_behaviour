@@ -61,6 +61,7 @@ begin
 	filter!(x -> x.version == "4.1", pilot_4_1)
 	pilot_4_1 = exclude_PLT_sessions(pilot_4_1, required_n_blocks = 18)
 	filter!(x -> x.choice != "noresp", pilot_4_1)
+	nothing
 end
 
 # ╔═╡ 3c3149f8-c79a-459b-916a-bf7220ca848e
@@ -69,6 +70,7 @@ begin
 	filter!(x -> x.version == "4.0", pilot_4)
 	pilot_4 = exclude_PLT_sessions(pilot_4, required_n_blocks = 18)
 	filter!(x -> x.choice != "noresp", pilot_4)
+	nothing
 end
 
 # ╔═╡ e2d7c238-a6cc-4e8f-9e23-466955bbfd9d
