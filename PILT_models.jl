@@ -81,6 +81,19 @@ Defines a Turing model for single-participant Q-learning in a reinforcement lear
 
 end
 
+function check_PILT_data(
+	data::DataFrame;
+	columns::Dict
+)
+
+	@assert all(.![eltype(col) isa Union && Missing in Base.uniontypes(eltype(col)) for col in values(columns)]) "Missing values allowed in DataFrame columns"
+
+	@assert issorted(data[!, columns["block"]]) "Data not sorted by block number"
+
+	@assert all(combine(groupby(data, columns["block"]), columns["trial"] => issorted => :ok).ok) "Data not sorted by trial number"
+
+end
+
 """
     unpack_single_p_QL(data::AbstractDataFrame; columns::Dict{String, Symbol} = default_columns) -> NamedTuple
 
@@ -115,16 +128,12 @@ function unpack_single_p_QL(
 	)
 )
 
-	# Drop missing data
-	tdata = dropmissing(data[!, collect(values(columns))])
-
-	# Sort
-	sort!(tdata, [columns["block"], columns["trial"]])
+	check_PILT_data(data; columns)
 
 	return (;
-		block = tdata[!, columns["block"]],
-		choice = tdata[!, columns["choice"]],
-		outcomes = hcat(tdata[!, columns["feedback_suboptimal"]], tdata[!, columns["feedback_optimal"]])
+		block = data[!, columns["block"]],
+		choice = data[!, columns["choice"]],
+		outcomes = hcat(data[!, columns["feedback_suboptimal"]], data[!, columns["feedback_optimal"]])
 	)
 end
 
@@ -271,16 +280,12 @@ function unpack_running_average(
 	)
 )
 
-	# Drop missing data
-	tdata = dropmissing(data[!, collect(values(columns))])
-
-	# Sort
-	sort!(tdata, [columns["block"], columns["trial"]])
+	check_PILT_data(data; columns)
 
 	return (;
-		block = tdata[!, columns["block"]],
-		trial = tdata[!, columns["trial"]],
-		choice = tdata[!, columns["choice"]],
-		outcomes = hcat(tdata[!, columns["feedback_suboptimal"]], tdata[!, columns["feedback_optimal"]])
+		block = data[!, columns["block"]],
+		trial = data[!, columns["trial"]],
+		choice = data[!, columns["choice"]],
+		outcomes = hcat(data[!, columns["feedback_suboptimal"]], data[!, columns["feedback_optimal"]])
 	)
 end
