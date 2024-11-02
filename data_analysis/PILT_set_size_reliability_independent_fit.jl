@@ -22,7 +22,7 @@ begin
 	include("osf_utils.jl")
 	include("model_utils.jl")
 	include("PILT_models.jl")
-	nothing
+	Turing.setprogress!(false)
 end
 
 # ╔═╡ d3bc3151-4b95-4644-a72e-6ad6f94a06b9
@@ -82,11 +82,80 @@ remap_columns = Dict(
 	"choice" => :isOptimal
 )
 
+# ╔═╡ 444e4a45-3c23-415a-84c5-9b1aeb8d8757
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4_1;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4.1",
+	model_name = "Q_learning"
+)
+  ╠═╡ =#
+
+# ╔═╡ eb0db6b9-b5d9-449c-8881-ef4e7ebabfbe
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4_1;
+	model = single_p_QL_recip,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4.1",
+	model_name = "Q_learning_recip"
+)
+  ╠═╡ =#
+
+# ╔═╡ ac8a775d-d73b-4b8b-bc76-85c70ef12b5b
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4",
+	model_name = "Q_learning"
+)
+  ╠═╡ =#
+
+# ╔═╡ c9f8f5f9-7807-48ba-b1a6-485ebf27f436
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4",
+	model_name = "Q_learning_recip"
+)
+  ╠═╡ =#
+
 # ╔═╡ fbdc0f7c-a416-487d-9a87-3067bf3cbf53
 # Auxillary variables
 function prepare_data(
 	PILT_data_clean::DataFrame
 )
+	
 	# Make sure sorted
 	sort!(PILT_data_clean, [:prolific_pid, :block, :trial])
 
@@ -116,7 +185,172 @@ function prepare_data(
 		fill(2, nrow(PILT_data_clean))
 	)
 
+	# Disallow missing values
+	disallowmissing!(PILT_data_clean, [:isOptimal, :feedback_optimal, :feedback_optimal, :appearance, :stimulus_pair_id])
+
+	# Sort for fit
+	sort!(PILT_data_clean, [:prolific_pid, :stimulus_pair_id, :appearance])
+
+
 	return PILT_data_clean
+
+end
+
+# ╔═╡ 9804d9b8-124e-4b2e-bd1d-f1bf33ef2274
+fit = let
+
+	fit = optimize_multiple(
+			prepare_data(pilot_4_1);
+			model = single_p_QL,
+			unpack_function = df -> unpack_single_p_QL(df; columns = remap_columns),
+		    priors = Dict(
+				:ρ => truncated(Normal(0., 5.), lower = 0.),
+				:a => Normal(0., 2.)
+			),
+			grouping_col = :prolific_pid
+	)
+
+end
+
+# ╔═╡ 2ab6b9f6-955b-404b-aff4-1f601adc187b
+function sample_predictive(
+	parameters::NamedTuple;
+	model::Function,
+	task::NamedTuple,
+	n_samples::Int64 = 1,
+	random_seed::Int64 = 0
+)
+
+	# Load task into model
+	task_model = model(; 
+		task...
+	)
+
+	# Condition on fitted values
+	cond_model = condition(task_model, parameters)
+
+	# Sample given values
+	pp = sample(
+		Xoshiro(random_seed),
+		cond_model,
+		Prior(),
+		n_samples
+	)
+
+	# Collect and return
+	pp = collect(transpose(Array(pp[:, :, 1])))
+
+	if n_samples == 1
+		pp = vec(pp)
+	end
+	
+	return pp
+end
+
+# ╔═╡ f97c696f-3022-409e-bd9d-361c00494702
+function sample_predictive_multiple(
+	fits::DataFrame;
+	model::Function,
+	task::DataFrame,
+	task_unpack_function::Function,
+	task_unpack_columns::Dict,
+	dv_col::Symbol,
+	participant_col::Symbol = :prolific_pid,
+	n_samples::Int64 = 1,
+	random_seed::Int64 = 0
+)
+	
+	# Add dv column as missing values
+	dtask = insertcols(task, dv_col => missing)
+
+	# Convert to NamedTuple for model
+	task_tuple = task_unpack_function(
+		dtask;
+		columns = task_unpack_columns
+	)
+
+	pps = []
+
+	# Run over participants (or other grouping variable levels)
+	for p in unique(fits[!, participant_col])
+
+		# Extract parameter values
+		param_values = NamedTuple(only(fits[fits[!, participant_col] .== p, 
+			Not([participant_col, :lp])]))
+
+		# Sample
+		pp = sample_predictive(
+			param_values;
+			model = model,
+			task = task_tuple,
+			n_samples = n_samples,
+			random_seed = random_seed
+		)
+
+		# DV pairs for inserting into DataFrame
+		if n_samples == 1
+			dv_pairs = [dv_col => pp]
+		else
+			dv_pairs = [Symbol("$(string(dv_col))_$i") => pp[:, i] 
+				for i in size(pp, 2)
+			]
+		end
+
+		# Push DataFrame
+		push!(
+			pps,
+			insertcols(
+				task,
+				participant_col => p,
+				dv_pairs...
+			)
+		)
+
+	end
+
+	# Combine to single DataFrame
+	return vcat(pps...)
+
+end
+
+# ╔═╡ 638a2775-f918-4873-b03c-a015f08a88a2
+a = let
+	task = DataFrame(CSV.File("results/pilot4.1_pilt.csv"))
+	
+	# Add dv column as missing values
+	insertcols!(task, :choice => missing)
+
+	# Disallow missing
+	disallowmissing!(task, [:feedback_optimal, :feedback_optimal, :appearance, :cpair])
+
+	# Sort
+	sort!(task, [:cpair, :appearance])
+
+	task_tuple = unpack_single_p_QL(
+		task;
+		columns = Dict(
+				"block" => :cpair,
+				"trial" => :appearance,
+				"feedback_suboptimal" => :feedback_suboptimal,
+				"feedback_optimal" => :feedback_optimal,
+				"choice" => :choice
+			)
+	)
+
+	a = sample_predictive_multiple(
+		fit;
+		model = single_p_QL,
+		task = task,
+		task_unpack_function = unpack_single_p_QL,
+		task_unpack_columns = columns = Dict(
+			"block" => :cpair,
+			"trial" => :appearance,
+			"feedback_suboptimal" => :feedback_suboptimal,
+			"feedback_optimal" => :feedback_optimal,
+			"choice" => :isOptimal
+			),
+		dv_col = :isOptimal
+	) 
 
 end
 
@@ -414,62 +648,6 @@ function set_size_effect_reliability(
 	return f1, f2
 end
 
-# ╔═╡ 444e4a45-3c23-415a-84c5-9b1aeb8d8757
-set_size_effect_reliability(
-	pilot_4_1;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4.1",
-	model_name = "Q_learning"
-)
-
-# ╔═╡ eb0db6b9-b5d9-449c-8881-ef4e7ebabfbe
-set_size_effect_reliability(
-	pilot_4_1;
-	model = single_p_QL_recip,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4.1",
-	model_name = "Q_learning_recip"
-)
-
-# ╔═╡ ac8a775d-d73b-4b8b-bc76-85c70ef12b5b
-set_size_effect_reliability(
-	pilot_4;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4",
-	model_name = "Q_learning"
-)
-
-# ╔═╡ c9f8f5f9-7807-48ba-b1a6-485ebf27f436
-set_size_effect_reliability(
-	pilot_4;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4",
-	model_name = "Q_learning_recip"
-)
-
 # ╔═╡ Cell order:
 # ╠═ede40f7a-96cb-11ef-24e5-aba8853e00f7
 # ╠═d3bc3151-4b95-4644-a72e-6ad6f94a06b9
@@ -483,6 +661,10 @@ set_size_effect_reliability(
 # ╠═c9f8f5f9-7807-48ba-b1a6-485ebf27f436
 # ╠═b2d0789c-3e10-4c47-9ae1-2f6ad0633ec7
 # ╠═fbdc0f7c-a416-487d-9a87-3067bf3cbf53
+# ╠═9804d9b8-124e-4b2e-bd1d-f1bf33ef2274
+# ╠═638a2775-f918-4873-b03c-a015f08a88a2
+# ╠═f97c696f-3022-409e-bd9d-361c00494702
+# ╠═2ab6b9f6-955b-404b-aff4-1f601adc187b
 # ╠═d2c1e2fb-766e-4e88-a6c6-8deea007b2aa
 # ╠═f639f2c3-5382-4d5a-99fa-b8d8083e3d5c
 # ╠═ef149638-2d75-42dc-b337-5fadaf8e477d
