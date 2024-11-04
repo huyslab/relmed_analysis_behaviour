@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
@@ -38,8 +38,9 @@ begin
 	block_per_set = 8 # Including reward and punishment
 	base_blocks_per_set = 6 # Last two are extra for EEG quality
 	trials_per_pair = 10
+	additional_blocks = 12 # New addition Noveber 3rd
 
-	# Total number of blocks
+	# Total number of blocks (before additional)
 	n_total_blocks = length(set_sizes) * block_per_set
 
 	# Total number of pairs
@@ -47,6 +48,7 @@ begin
 
 	# Shaping protocol
 	n_confusing = vcat([0, 1, 1], fill(2, n_total_blocks - 3)) # Per block
+	additional_n_confusing = fill(2, additional_blocks)
 
 	# Initial Q value for simulation - average outcome
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
@@ -151,9 +153,44 @@ valence_set_size = let random_seed = 0
 	valence_set_size
 end
 
+# ╔═╡ b0ce20f4-a5a8-4ea1-8632-f6076b8bf583
+# Assign valence for additional blocks
+additional_valence = let random_seed = 1
+	
+	# # All combinations of set sizes and valence
+	@assert iseven(additional_blocks) # Requisite for code below
+
+	n_repetitions = div(additional_blocks, 2) # How many repetitions of each cell
+	additional_valence = DataFrame(
+		n_pairs = fill(1, additional_blocks),
+		valence = repeat([1, -1], inner = n_repetitions),
+		fifty_high = repeat([true, false], inner = n_repetitions ÷ 2) |> x -> vcat(x, reverse(x)),
+		super_block = repeat(1:n_repetitions, outer = 2)
+	)
+
+	# Shuffle valence
+	rng = Xoshiro(random_seed)
+	
+	DataFrames.transform!(
+		groupby(additional_valence, :super_block),
+		:super_block => (x -> shuffle(rng, 1:length(x))) => :order
+	)
+		
+	sort!(additional_valence, [:super_block, :order])
+
+	# Add n_confusing
+	additional_valence.n_confusing = additional_n_confusing
+
+	# Add block variable
+	additional_valence.block = (1:nrow(additional_valence)) .+ n_total_blocks
+
+	# Return
+	additional_valence
+end
+
 # ╔═╡ 2018073a-656d-4723-8384-07c9d533245f
 # Create feedback sequences per pair
-pair_sequences, common_per_pos, EV_per_pos = let random_seed = 321
+pair_sequences, common_per_pos, EV_per_pos, chosen_common, chosen_magn = let random_seed = 321
 	# Compute n_confusing per each pair
 	n_confusing_pair = vcat([fill(nc, np) 
 		for (nc, np) in zip(valence_set_size.n_confusing, valence_set_size.n_pairs)]...)
@@ -242,7 +279,7 @@ pair_sequences, common_per_pos, EV_per_pos = let random_seed = 321
 
 	select!(task, Not(:random_pair))
 
-	task, common_per_pos, EV_per_pos
+	task, common_per_pos, EV_per_pos, chosen_common, chosen_magn
 end
 
 # ╔═╡ 424aaf3d-f773-4ce3-a21c-eabd449e4105
@@ -346,6 +383,77 @@ feedback_sequence = let random_seed = 0
 
 end
 
+# ╔═╡ fd8e7d6f-6166-443d-8cba-bab02bd7482f
+# Create sequences additional blocks
+additional_sequences = let random_seed = 1
+	rng = Xoshiro(random_seed)
+
+	# Initialize DataFrame
+	additional = DataFrame(
+		block = repeat(additional_valence.block, inner = trials_per_pair),
+		trial = repeat(1:trials_per_pair, nrow(additional_valence))
+	)
+
+	# Join valence and fifty_high
+	additional = innerjoin(
+		additional,
+		additional_valence,
+		on = :block,
+		order = :left
+	)
+
+	# Create random sequences
+	DataFrames.transform!(
+		groupby(additional, :block),
+		:n_confusing => (x -> shuffle(rng, vcat(fill(false, x[1]), fill(true, trials_per_pair - x[1])))) => :feedback_common,
+		:fifty_high => (x -> shuffled_fill([0.5, x[1] ? 1. : 0.01], trials_per_pair; rng = rng)) => :variable_magnitude
+	)
+
+	# Compute low and high feedback
+	additional.feedback_high = ifelse.(
+		additional.valence .> 0,
+		ifelse.(
+			additional.fifty_high,
+			additional.variable_magnitude,
+			fill(1., nrow(additional))
+		),
+		ifelse.(
+			additional.fifty_high,
+			fill(-0.01, nrow(additional)),
+			.- additional.variable_magnitude
+		)
+	)
+
+	additional.feedback_low = ifelse.(
+		additional.valence .> 0,
+		ifelse.(
+			.!additional.fifty_high,
+			additional.variable_magnitude,
+			fill(0.01, nrow(additional))
+		),
+		ifelse.(
+			.!additional.fifty_high,
+			fill(-1, nrow(additional)),
+			.- additional.variable_magnitude
+		)
+	)
+
+	# Compute feedback optimal and suboptimal
+	additional.feedback_optimal = ifelse.(
+		additional.feedback_common,
+		additional.feedback_high,
+		additional.feedback_low
+	)
+
+	additional.feedback_suboptimal = ifelse.(
+		.!additional.feedback_common,
+		additional.feedback_high,
+		additional.feedback_low
+	)
+
+	additional
+end
+
 # ╔═╡ 56bf5285-75e3-46cc-8b35-389ae7281ce3
 # Assign stimulus images
 stimuli = let random_seed = 0
@@ -362,6 +470,36 @@ stimuli = let random_seed = 0
 	)
 
 	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+
+	stimuli
+end
+
+# ╔═╡ 90891ed9-4fd0-4c3c-be1d-078a453ac574
+# Assign stimulus images additional blocks
+additional_stimuli = let random_seed = 0
+
+	categories = shuffle(unique([replace(s, ".png" => "")[1:(end-1)] for s in 
+		readlines("generate_experimental_sequences/pilot4.1_stim_list.txt")]))
+
+	# Exclude used categories
+	used_stimuli = (x -> 
+		replace(x, ".png" => "")[1:(end-1)]).(vcat(stimuli.stimulus_A, 
+		stimuli.stimulus_B)) |> unique
+	remaining_categories = filter!(x -> x ∉ used_stimuli, categories)
+
+		# Assign stimulus pairs
+	additional_stimuli = assign_stimuli_and_optimality(;
+		n_phases = 1,
+		n_pairs = additional_valence.n_pairs,
+		categories = remaining_categories,
+		random_seed = random_seed
+	)
+
+	additional_stimuli.block .+= n_total_blocks
+
+	rename!(additional_stimuli, :phase => :session) # For compatibility with multi-phase sessions
+
+	additional_stimuli
 end
 
 # ╔═╡ bbdd062e-49e4-4a03-bb8f-9ad97b08288a
@@ -455,7 +593,94 @@ let
 	# Count losses to allocate coins in to safe for beginning of task
 	worst_loss = filter(x -> x.valence == -1, task) |> 
 		df -> ifelse.(
-			df.feedback_right < df.feedback_left, 
+			df.feedback_right .< df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+# ╔═╡ e94f8549-bd79-45d0-8f21-ddaad49fc993
+# Additional block: Add stimulus assignments to sequences DataFrame, and assign right / left
+additional = let random_seed = 0
+
+	# Join stimuli and sequences
+	additional = innerjoin(
+		additional_sequences,
+		additional_stimuli,
+		on = [:block],
+		order = :left
+	)
+
+	@assert nrow(additional) == nrow(additional_sequences) "Problem in join operation"
+
+	# Assign right / left
+	rng = Xoshiro(random_seed)
+
+	DataFrames.transform!(
+		groupby(additional, [:block]),
+		:block => 
+			(x -> shuffled_fill([true, false], length(x); random_seed = random_seed)) =>
+			:A_on_right
+	)
+
+	# Create stimulus_right and stimulus_left variables
+	additional.stimulus_right = ifelse.(
+		additional.A_on_right,
+		additional.stimulus_A,
+		additional.stimulus_B
+	)
+
+	additional.stimulus_left = ifelse.(
+		.!additional.A_on_right,
+		additional.stimulus_A,
+		additional.stimulus_B
+	)
+
+	# Create optimal_right variable
+	additional.optimal_right = (additional.A_on_right .& additional.optimal_A) .| (.!additional.A_on_right .& .!additional.optimal_A)
+
+	# Create feedback_right and feedback_left variables
+	additional.feedback_right = ifelse.(
+		additional.optimal_right,
+		additional.feedback_optimal,
+		additional.feedback_suboptimal
+	)
+
+	additional.feedback_left = ifelse.(
+		.!additional.optimal_right,
+		additional.feedback_optimal,
+		additional.feedback_suboptimal
+	)
+
+	additional
+end
+
+# ╔═╡ 6827d872-b4b3-4d14-b83a-b4ecb2136f52
+# Validate additiona DataFrame
+let
+	@assert issorted(additional.block) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(additional, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert all(sign.(additional.valence) == sign.(additional.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(additional.valence) == sign.(additional.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(additional[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(additional.feedback_common), digits = 2))"
+
+	@assert all((additional.variable_magnitude .== abs.(additional.feedback_right)) .| 
+		(additional.variable_magnitude .== abs.(additional.feedback_left))) ":variable_magnitude, which is used for sequnece optimization, doesn't match end result column :feedback_right no :feedback_left"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence == -1, additional) |> 
+		df -> ifelse.(
+			df.feedback_right .< df.feedback_left, 
 			df.feedback_right, 
 			df.feedback_left) |> 
 		countmap
@@ -468,6 +693,12 @@ end
 let
 	save_to_JSON(task, "results/eeg_pilot.json")
 	CSV.write("results/eeg_pilot.csv", task)
+end
+
+# ╔═╡ e437b867-f3ad-4580-854b-5017ac63a5b6
+let
+	save_to_JSON(additional, "results/eeg_pilot_additional.json")
+	CSV.write("results/eeg_pilot_additional.csv", additional)
 end
 
 # ╔═╡ 59bc1127-32b4-4c68-84e9-1892c10a6c45
@@ -539,6 +770,61 @@ let
 	)
 
 	save("results/eeg_trial_plan.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
+# ╔═╡ 76c36714-9a11-44fb-a114-71bbf991f24f
+# Visualize PILT seuqnce - additional
+let task = additional
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, :trial),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	# Plot
+	f = Figure(size = (700, 500))
+
+	ax_prob = Axis(
+		f[1,1][1,1],
+		xlabel = "Trial #",
+		ylabel = "Prop. confusing feedback"
+	)
+
+	scatter!(
+		ax_prob,
+		confusing_location.trial,
+		confusing_location.feedback_confusing
+	)
+
+
+	# Plot confusing trials by block
+	ax_heatmap = Axis(
+		f[1, 2],
+		xlabel = "Trial #",
+		ylabel = "Block",
+		yreversed = true,
+		subtitle = "Green - reward, yellow - punishment,\ndark - confusing"
+	)
+
+	heatmap!(
+		task.trial,
+		task.block,
+		ifelse.(
+			.!task.feedback_common,
+			fill(0., nrow(task)),
+			ifelse.(
+				task.valence .> 0,
+				fill(1., nrow(task)),
+				fill(2., nrow(task))
+			)
+		)
+	)
+
+	save("results/additional_eeg_trial_plan.png", f, pt_per_unit = 1)
 
 	f
 
@@ -824,6 +1110,37 @@ let
 	CSV.write("results/eeg_pilot_test.csv", test)
 end
 
+# ╔═╡ e3d5d18c-867b-49ea-a954-276a7f0855ee
+additional_test = let
+	# Find test sequence for main part
+	additional_test, apb, apv, anm = find_best_test_sequence(
+		insertcols(additional, :cpair => additional.block),
+		n_seeds = 10, # Number of random seeds to try
+		same_weight = 0.01 # Weight reducing the number of same magntiude pairs
+	) 
+
+
+	@info "Base: proportion of same block pairs: $apb"
+	@info "Base: proportion of same valence pairs: $apv"
+	@info "Base: number of same magnitude pairs: $anm"
+
+	# Create magnitude_pair variable
+	additional_test.magnitude_pair = [sort([r.magnitude_left, r.magnitude_right]) 
+		for r in eachrow(additional_test)]
+
+	additional_test.block .+= maximum(test.block)
+
+	additional_test[!, :session] .= 1
+
+	additional_test
+end
+
+# ╔═╡ f179bb13-9e04-4a70-8bb3-23c0861505c2
+let
+	save_to_JSON(additional_test, "results/eeg_pilot_test_additional.json")
+	CSV.write("results/eeg_pilot_test_additional.csv", additional_test)
+end
+
 # ╔═╡ 47379c5a-67c1-4f44-9e31-efa34a6a525a
 function test_squence_evaluate_magnitudes(test_pairs_wide::DataFrame)
 
@@ -879,16 +1196,25 @@ end
 # ╠═9a12e584-eff1-482a-b7cc-9daa5321d8de
 # ╟─0685f415-66b5-4ef5-aa4f-6bbdddf79c4a
 # ╠═4c09fe35-8015-43d8-a38f-2434318e74fe
+# ╠═b0ce20f4-a5a8-4ea1-8632-f6076b8bf583
 # ╠═2018073a-656d-4723-8384-07c9d533245f
 # ╠═424aaf3d-f773-4ce3-a21c-eabd449e4105
+# ╠═fd8e7d6f-6166-443d-8cba-bab02bd7482f
 # ╠═56bf5285-75e3-46cc-8b35-389ae7281ce3
+# ╠═90891ed9-4fd0-4c3c-be1d-078a453ac574
 # ╠═bbdd062e-49e4-4a03-bb8f-9ad97b08288a
 # ╠═263f4366-b6f4-47fd-b76a-fbeffcc07f14
+# ╠═e94f8549-bd79-45d0-8f21-ddaad49fc993
+# ╠═6827d872-b4b3-4d14-b83a-b4ecb2136f52
 # ╠═c68c334e-54f9-4410-92b1-91c0e78a2dc9
+# ╠═e437b867-f3ad-4580-854b-5017ac63a5b6
 # ╠═59bc1127-32b4-4c68-84e9-1892c10a6c45
+# ╠═76c36714-9a11-44fb-a114-71bbf991f24f
 # ╟─96f2d1b5-248b-4c43-8e87-fc727c9ea6f0
 # ╠═554b2477-682a-4eb8-9cd4-aae7036c36da
 # ╠═480c4439-969d-4370-968e-964daccfcf9c
+# ╠═e3d5d18c-867b-49ea-a954-276a7f0855ee
+# ╠═f179bb13-9e04-4a70-8bb3-23c0861505c2
 # ╠═6631654e-7368-4228-8694-df35c607b1a3
 # ╠═81754bac-950c-4f0e-a51b-14feab30e0e1
 # ╠═47379c5a-67c1-4f44-9e31-efa34a6a525a
