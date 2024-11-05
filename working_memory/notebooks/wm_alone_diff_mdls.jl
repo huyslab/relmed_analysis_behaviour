@@ -20,7 +20,7 @@ begin
 	Turing.setprogress!(false)
 	
 	include("$(pwd())/working_memory/simulate.jl")
-	include("$(pwd())/working_memory/RL+RLWM_models.jl")
+	include("$(pwd())/working_memory/RL+RLWM_models.jl")	
 	include("$(pwd())/working_memory/plotting_utils.jl")
 
 	# Set theme
@@ -52,8 +52,8 @@ md"
 # ╔═╡ 49da8a4e-3f5d-4ceb-b095-5a5f2305de0c
 begin
 	random_task = create_random_task(;
-	    #n_blocks = 18, n_trials = 10, n_confusing = 0, set_sizes = [2, 6, 14]
-		n_blocks = 18, n_trials = 10, n_confusing = 2, set_sizes = [2, 4, 6]
+	    n_blocks = 18, n_trials = 10, n_confusing = 0, set_sizes = [2, 6, 14]
+		#n_blocks = 18, n_trials = 10, n_confusing = 2, set_sizes = [2, 4, 6]
 	)
 	chce = fill(missing, nrow(random_task))
 	
@@ -378,9 +378,112 @@ let
 	f
 end
 
+# ╔═╡ 37753b04-73d8-4136-82ce-aab01bc4db34
+md"
+G) **Overall** capacity, reciprocal, **no averaging**
+"
+
+# ╔═╡ a9f10ec1-e712-471f-ab58-8c02f1b8ca48
+begin
+	prior_sample_wmg = simulate_from_prior(
+	    100;
+		model = WM_all_outc_pmst_sgd_sum_recip,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 2.), lower = 0.),
+			:C => truncated(Normal(5., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		fixed_struct = random_task, 
+		gq = true,
+		random_seed = 123
+	)
+	
+	f_wmg = optimization_calibration(
+		prior_sample_wmg,
+		optimize_multiple,
+		estimate = "MAP",
+		model = WM_all_outc_pmst_sgd_sum_recip,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 2.), lower = 0.),
+			:C => truncated(Normal(5., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C]
+	)
+
+	f_wmg
+end
+
+# ╔═╡ 3b279ca2-b398-49d5-b309-3b3d0dbd25d5
+let
+	f = plot_prior_predictive_by_valence(
+		prior_sample_wmg,
+		[:W_optimal, :W_suboptimal];
+		ylab = "W-value",
+		fig_size = (1000, 1000),
+		group = :set_size,
+		legend = true,
+		colors = Makie.colorschemes[:seaborn_pastel6]
+	)
+	f
+end
+
+# ╔═╡ 70f3cf79-455a-42a0-9843-e1c357d6ce37
+md"
+H) **Stimulus-specific** capacity, reciprocal, **no averaging**
+"
+
+# ╔═╡ 09b941b0-ccdf-4cdc-bf2a-df7091365936
+begin
+	prior_sample_wmh = simulate_from_prior(
+	    100;
+		model = WM_pmst_sgd_sum_recip,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 2.), lower = 0.),
+			:C => truncated(Normal(3., 2.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		fixed_struct = random_task, 
+		gq = true,
+		random_seed = 123
+	)
+	
+	f_wmh = optimization_calibration(
+		prior_sample_wmh,
+		optimize_multiple,
+		estimate = "MAP",
+		model = WM_pmst_sgd_sum_recip,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 2.), lower = 0.),
+			:C => truncated(Normal(3., 2.), lower = 1.)
+		),
+		parameters = [:ρ, :C]
+	)
+
+	f_wmh
+end
+
+# ╔═╡ 8d2dc096-827c-48ce-936d-171057950970
+let
+	f = plot_prior_predictive_by_valence(
+		prior_sample_wmh,
+		[:W_optimal, :W_suboptimal];
+		ylab = "W-value",
+		fig_size = (1000, 1000),
+		group = :set_size,
+		legend = true,
+		colors = Makie.colorschemes[:seaborn_pastel6]
+	)
+	f
+end
+
 # ╔═╡ fae2deee-fbba-4170-be1c-2256d1958555
 md"
 ### Can we implement this in a RLWM model?
+"
+
+# ╔═╡ c0d8fb59-ec34-4278-a16a-f2e91085e30f
+md"
+A) **With averaging**
 "
 
 # ╔═╡ 481d4882-48a4-479b-9b03-fb46f479748c
@@ -516,7 +619,14 @@ end
 # ╟─d25b5f86-7c30-44fa-8e73-9e9a68e2a2ed
 # ╠═8da91c18-eb34-4085-93be-4218c880e2aa
 # ╠═0aaa2631-c5a7-4ea1-ba49-ff3bb17f6049
+# ╟─37753b04-73d8-4136-82ce-aab01bc4db34
+# ╠═a9f10ec1-e712-471f-ab58-8c02f1b8ca48
+# ╠═3b279ca2-b398-49d5-b309-3b3d0dbd25d5
+# ╟─70f3cf79-455a-42a0-9843-e1c357d6ce37
+# ╠═09b941b0-ccdf-4cdc-bf2a-df7091365936
+# ╠═8d2dc096-827c-48ce-936d-171057950970
 # ╟─fae2deee-fbba-4170-be1c-2256d1958555
+# ╟─c0d8fb59-ec34-4278-a16a-f2e91085e30f
 # ╠═481d4882-48a4-479b-9b03-fb46f479748c
 # ╠═8522c9e0-e988-4f84-8d27-ce5bf40ed683
 # ╟─4313b8da-ee54-4f31-b0a8-6bbdbe7ced84

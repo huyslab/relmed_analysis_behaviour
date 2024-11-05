@@ -1249,7 +1249,7 @@ function plot_prior_predictive_by_valence(
 	group::Union{Symbol, Nothing} = nothing,
 	fig_size::Tuple{Int, Int} = (700, 1000),
 	colors = Makie.wong_colors(),
-	error_band::String = "PI"
+	error_band::String = "se"
 )
 	if isnothing(group)
 		prior_sample[!, :group] .= "1"
