@@ -38,7 +38,7 @@ Defines a Turing model for single-participant Q-learning in a reinforcement lear
 	block::Vector{Int64}, # Block number
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
-	initial_Q::Union{Nothing, Float64} = nothing, # Initial Q values,
+	initV::Union{Nothing, Float64} = nothing, # Initial Q values,
 	priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
@@ -46,8 +46,8 @@ Defines a Turing model for single-participant Q-learning in a reinforcement lear
 )
 
     # initial values
-    initial_Q = isnothing(initial_Q) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initial_Q
-    initV::AbstractArray{Float64} = fill(initial_Q, 1, 2)
+    initV = isnothing(initV) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initV
+    initial_Q::AbstractArray{Float64} = fill(initV, 1, 2)
 
 	# Priors on parameters
 	ρ ~ priors[:ρ]
@@ -57,7 +57,7 @@ Defines a Turing model for single-participant Q-learning in a reinforcement lear
 	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
 
 	# Initialize Q values, with sign depending on block valence
-	Qs = repeat(initV .* ρ, length(block)) .* sign.(outcomes[:, 1])
+	Qs = repeat(initial_Q .* ρ, length(block)) .* sign.(outcomes[:, 1])
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in 1:length(block)
@@ -180,7 +180,7 @@ A Q-learning model with reciprocal updating, built in Turing, for a two-choice t
 	block::Vector{Int64}, # Block number
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
-	initial_Q::Union{Nothing, Float64} = nothing, # Initial Q values,
+	initV::Union{Nothing, Float64} = nothing, # Initial Q values,
 	priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.),
         :a => Normal(0., 0.5)
@@ -188,8 +188,8 @@ A Q-learning model with reciprocal updating, built in Turing, for a two-choice t
 )
 
     # initial values
-    initial_Q = isnothing(initial_Q) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initial_Q
-    initV::AbstractArray{Float64} = fill(initial_Q, 1, 2)
+    initV = isnothing(initV) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initV
+    initial_Q::AbstractArray{Float64} = fill(initV, 1, 2)
 
 	# Priors on parameters
 	ρ ~ priors[:ρ]
@@ -199,7 +199,7 @@ A Q-learning model with reciprocal updating, built in Turing, for a two-choice t
 	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
 
 	# Initialize Q values, with sign depending on block valence
-	Qs = repeat(initV .* ρ, length(block)) .* sign.(outcomes[:, 1])
+	Qs = repeat(initial_Q .* ρ, length(block)) .* sign.(outcomes[:, 1])
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in 1:length(block)
@@ -228,21 +228,21 @@ end
 	trial::Vector{Int64}, # Trial number in block
 	outcomes::Matrix{Float64}, # Outcomes for options, second column optimal
 	choice, # Binary choice, coded true for stimulus A. Not typed so that it can be simulated
-	initial_Q::Union{Nothing, Float64} = nothing, # Initial Q values,
+	initV::Union{Nothing, Float64} = nothing, # Initial Q values,
 	priors::Dict = Dict(
         :ρ => truncated(Normal(0., 1.), lower = 0.)
     )
 )
 
     # initial values
-    initial_Q = isnothing(initial_Q) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initial_Q
-    initV::AbstractArray{Float64} = fill(initial_Q, 1, 2)
+    initV = isnothing(initV) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initV
+    initial_Q::AbstractArray{Float64} = fill(initV, 1, 2)
 
 	# Priors on parameters
 	ρ ~ priors[:ρ]
 
 	# Initialize Q values, with sign depending on block valence
-	Qs = repeat(initV .* ρ, length(block)) .* sign.(outcomes[:, 1])
+	Qs = repeat(initial_Q .* ρ, length(block)) .* sign.(outcomes[:, 1])
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in 1:length(block)
