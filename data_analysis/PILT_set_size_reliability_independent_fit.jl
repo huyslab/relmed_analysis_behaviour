@@ -82,74 +82,6 @@ remap_columns = Dict(
 	"choice" => :isOptimal
 )
 
-# ╔═╡ 444e4a45-3c23-415a-84c5-9b1aeb8d8757
-# ╠═╡ disabled = true
-#=╠═╡
-set_size_effect_reliability(
-	pilot_4_1;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4.1",
-	model_name = "Q_learning"
-)
-  ╠═╡ =#
-
-# ╔═╡ eb0db6b9-b5d9-449c-8881-ef4e7ebabfbe
-# ╠═╡ disabled = true
-#=╠═╡
-set_size_effect_reliability(
-	pilot_4_1;
-	model = single_p_QL_recip,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4.1",
-	model_name = "Q_learning_recip"
-)
-  ╠═╡ =#
-
-# ╔═╡ ac8a775d-d73b-4b8b-bc76-85c70ef12b5b
-# ╠═╡ disabled = true
-#=╠═╡
-set_size_effect_reliability(
-	pilot_4;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4",
-	model_name = "Q_learning"
-)
-  ╠═╡ =#
-
-# ╔═╡ c9f8f5f9-7807-48ba-b1a6-485ebf27f436
-# ╠═╡ disabled = true
-#=╠═╡
-set_size_effect_reliability(
-	pilot_4;
-	model = single_p_QL,
-	priors = Dict(
-		:ρ => truncated(Normal(0., 5.), lower = 0.),
-		:a => Normal(0., 2.)
-	),
-	unpack_function = unpack_single_p_QL,
-	remap_columns = remap_columns,
-	exp_name = "pilot_4",
-	model_name = "Q_learning_recip"
-)
-  ╠═╡ =#
-
 # ╔═╡ fbdc0f7c-a416-487d-9a87-3067bf3cbf53
 # Auxillary variables
 function prepare_data(
@@ -691,6 +623,74 @@ function set_size_effect_reliability(
 
 	return f1, f2
 end
+
+# ╔═╡ 444e4a45-3c23-415a-84c5-9b1aeb8d8757
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4_1;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4.1",
+	model_name = "Q_learning"
+)
+  ╠═╡ =#
+
+# ╔═╡ eb0db6b9-b5d9-449c-8881-ef4e7ebabfbe
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4_1;
+	model = single_p_QL_recip,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4.1",
+	model_name = "Q_learning_recip"
+)
+  ╠═╡ =#
+
+# ╔═╡ ac8a775d-d73b-4b8b-bc76-85c70ef12b5b
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4",
+	model_name = "Q_learning"
+)
+  ╠═╡ =#
+
+# ╔═╡ c9f8f5f9-7807-48ba-b1a6-485ebf27f436
+# ╠═╡ disabled = true
+#=╠═╡
+set_size_effect_reliability(
+	pilot_4;
+	model = single_p_QL,
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	),
+	unpack_function = unpack_single_p_QL,
+	remap_columns = remap_columns,
+	exp_name = "pilot_4",
+	model_name = "Q_learning_recip"
+)
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═ede40f7a-96cb-11ef-24e5-aba8853e00f7
