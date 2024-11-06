@@ -39,23 +39,15 @@ function assign_stimuli_and_optimality(;
 	# Compute how many repeating categories we will have
 	n_repeating = sum(min.(n_pairs[2:end], n_pairs[1:end-1]))
 
+	@info "Determined that $n_repeating pairs per phase will have a repating category, out of $(sum(n_pairs)) pairs."
+
+	rng = Xoshiro(random_seed)
+
 	# Assign whether repeating is optimal and shuffle
-	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
-		vcat(
-			fill(true, div(n_repeating, 2)),
-			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
-		)
-	)
+	repeating_optimal = vcat([shuffled_fill([true, false], n_repeating, rng = rng) for p in 1:n_phases]...)
 
 	# Assign whether categories that cannot repeat are optimal
-	rest_optimal = shuffle(
-		vcat(
-			fill(true, div(total_n_pairs - n_repeating, 2) + 
-				rem(total_n_pairs - n_repeating, 2)),
-			fill(false, div(total_n_pairs - n_repeating, 2))
-		)
-	)
+	rest_optimal = vcat([shuffled_fill([true, false], total_n_pairs - n_repeating, rng = rng) for p in 1:n_phases]...)
 
 	# Initialize vectors for stimuli. A is always novel, B may be repeating
 	stimulus_A = []
@@ -73,11 +65,13 @@ function assign_stimuli_and_optimality(;
 			)
 	
 			# Fill up stimulus_repeating with novel categories if not enough to repeat
-			for _ in 1:(p - n_repeating)
-				push!(
-					stimulus_B,
-					popfirst!(categories)
-				)
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						stimulus_B,
+						popfirst!(categories)
+					)
+				end
 			end
 			
 			# Choose novel categories for this block
@@ -96,11 +90,13 @@ function assign_stimuli_and_optimality(;
 				)
 			end
 
-			for _ in 1:(p - n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(rest_optimal)
-				)
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						optimal_B,
+						popfirst!(rest_optimal)
+					)
+				end
 			end
 		end
 	end
