@@ -212,6 +212,42 @@ fit = let
 
 end
 
+# ╔═╡ ed0190ca-bd4b-40e5-b1ba-f37156a19011
+function early_stop_block(
+	n_pairs::AbstractVector,
+	pair::AbstractVector,
+	isOptimal::AbstractVector; 
+	criterion::Int64 = 5
+)
+
+	n_trials = length(n_pairs)
+
+	np = n_pairs[1]
+	
+	# Initialize result vector
+	exclude = fill(false, n_trials)
+
+	# Consecutive optimal chioce counter
+	consecutive_optimal = fill(0, np)
+
+	for i in 1:n_trials
+
+		# Check condition
+		if i > 1
+			exclude[i] = 
+				exclude[i - 1] || # Already stopped
+				all(consecutive_optimal .>= criterion) # Criterion met on previous trial	
+		end
+
+		# Update counter
+		consecutive_optimal[pair[i]] = 
+			(isOptimal[i] == 1.) ? (consecutive_optimal[pair[i]] + 1) : 0
+
+	end
+
+	return exclude
+end
+
 # ╔═╡ 2ab6b9f6-955b-404b-aff4-1f601adc187b
 function sample_predictive(
 	parameters::NamedTuple;
@@ -314,7 +350,7 @@ function sample_predictive_multiple(
 end
 
 # ╔═╡ 638a2775-f918-4873-b03c-a015f08a88a2
-a = let
+ppc = let
 	task = DataFrame(CSV.File("results/pilot4.1_pilt.csv"))
 	
 	# Add dv column as missing values
@@ -337,7 +373,7 @@ a = let
 			)
 	)
 
-	a = sample_predictive_multiple(
+	ppc = sample_predictive_multiple(
 		fit;
 		model = single_p_QL,
 		task = task,
@@ -351,6 +387,14 @@ a = let
 			),
 		dv_col = :isOptimal
 	) 
+
+	# Apply early stopping
+	DataFrames.transform!(
+		groupby(ppc, [:prolific_pid, :cpair]),
+		[:n_pairs, :pair, :isOptimal] => early_stop_block => :early_stop_exclude
+	)
+
+	filter!(x -> !x.early_stop_exclude, ppc)
 
 end
 
@@ -663,6 +707,7 @@ end
 # ╠═fbdc0f7c-a416-487d-9a87-3067bf3cbf53
 # ╠═9804d9b8-124e-4b2e-bd1d-f1bf33ef2274
 # ╠═638a2775-f918-4873-b03c-a015f08a88a2
+# ╠═ed0190ca-bd4b-40e5-b1ba-f37156a19011
 # ╠═f97c696f-3022-409e-bd9d-361c00494702
 # ╠═2ab6b9f6-955b-404b-aff4-1f601adc187b
 # ╠═d2c1e2fb-766e-4e88-a6c6-8deea007b2aa
