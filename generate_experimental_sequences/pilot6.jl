@@ -53,6 +53,16 @@ begin
 	set_theme!(th)
 end
 
+# ╔═╡ 3a5cf6e9-1cee-4fd3-b0db-8fc02b7747fb
+categories = let
+	categories = (s -> replace(s, ".jpg" => "")[1:(end-1)]).(readdir("generate_experimental_sequences/pilot6_stims"))
+
+	# Keep only categories where we have two files exactly
+	keeps = filter(x -> last(x) == 2, countmap(categories))
+
+	filter(x -> x in keys(keeps), unique(categories))
+end
+
 # ╔═╡ ea917db6-ec27-454f-8b4e-9df65d65064b
 md"""## PILT"""
 
@@ -266,9 +276,9 @@ end
 # ╔═╡ e1b66454-7700-4d79-9df2-59e13bd031ee
 # Assign stimulus images
 PILT_stimuli = let random_seed = 0
-	# Load stimulus names
-	categories = shuffle(Xoshiro(random_seed), unique([replace(s, ".png" => "")[1:(end-1)] for s in 
-		readlines("generate_experimental_sequences/pilot6_stim_list.txt")]))
+
+	# Shuffle categories
+	shuffle!(Xoshiro(random_seed), categories)
 
 	# Assign stimulus pairs
 	stimuli = assign_stimuli_and_optimality(;
@@ -727,6 +737,9 @@ begin
 	# Full deterministic task
 	WM_n_confusing = fill(0, WM_n_total_blocks) # Per block
 
+	# For uniform shuffling of triplets in block
+	WM_triplet_mini_block_size = 2
+
 end
 
 # ╔═╡ 9f9cc1b2-50b3-4919-a785-31fe4a45be81
@@ -767,6 +780,319 @@ WM_valence_set_size = let random_seed = 2
 
 	# Return
 	valence_set_size
+end
+
+# ╔═╡ 29c4c572-4080-4264-a09c-86d1f416b956
+# # Create trial sequence
+WM_feedback_sequence = let random_seed = 1,
+	valence_set_size = WM_valence_set_size
+
+	rng = Xoshiro(random_seed)
+
+	# Create pair list
+	task = combine(
+		groupby(valence_set_size, 
+			[:block, :n_triplets, :valence, :n_confusing]),
+		:n_triplets => (x -> repeat(vcat([1:xi for xi in x]...), inner = WM_trials_per_triplet)) => :triplet
+	)
+
+	# Add cumulative pair variable
+	triplets = sort(unique(task[!, [:block, :triplet, :n_triplets, :valence]]), [:block, :triplet])
+	triplets.ctriplet = 1:nrow(triplets)
+	
+
+	# Join into task
+	task = innerjoin(
+		task,
+		triplets[!, Not(:valence, :n_triplets)],
+		on = [:block, :triplet],
+		order = :left
+	)
+
+	# Add apperance count variable
+	DataFrames.transform!(
+		groupby(task, [:block, :triplet]),
+		:block => (x -> 1:length(x)) => :appearance
+	)
+
+	sort!(task, [:block, :appearance, :triplet])
+
+	task.mini_block = (task.appearance .÷ WM_triplet_mini_block_size) .+ 1
+
+	# Shuffle pair appearance	
+	DataFrames.transform!(
+		groupby(task, [:block, :mini_block]),
+		:triplet => (x -> shuffle(rng, 1:length(x))) => :order_var
+	)
+
+	sort!(task, [:block, :mini_block, :order_var])
+
+	# Reorder apperance
+	DataFrames.transform!(
+		groupby(task, [:block, :triplet]),
+		:block => (x -> 1:length(x)) => :appearance
+	)
+
+	# Trial counter
+	DataFrames.transform!(
+		groupby(task, :block),
+		:block => (x -> 1:length(x)) => :trial
+	)
+
+	# Create deterministic sequence
+	task[!, :feedback_common] .= true
+
+	# Compute optimal and suboptimal feedback
+	task.feedback_optimal = ifelse.(
+		task.valence .> 0,
+		fill(1., nrow(task)),
+		fill(-0.01, nrow(task))
+	)
+
+	task.feedback_suboptimal = ifelse.(
+		task.valence .> 0,
+		fill(0.01, nrow(task)),
+		fill(-1, nrow(task)),
+	)
+
+	task
+
+end
+
+# ╔═╡ c9d4cb13-bdab-4c7c-87d8-6ba022f1c4fd
+function assign_triplet_stimuli_and_optimality(;
+	n_phases::Int64,
+	n_groups::Vector{Int64}, # Number of groups in each block. Assume same for all phases
+	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
+		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
+	random_seed::Int64 = 1
+	)
+
+	total_n_groups = sum(n_groups) # Number of pairs needed
+	
+	@assert rem(length(n_groups), 2) == 0 "Code only works for even number of blocks per sesion"
+
+	# Compute how many repeating categories we will have
+	n_repeating = sum(min.(n_groups[2:end], n_groups[1:end-1]))
+
+	@info "Determined that $n_repeating pairs per phase will have a repating category, out of $(sum(n_groups)) groups."
+
+	rng = Xoshiro(random_seed)
+
+	# Assign whether repeating is optimal and shuffle
+	repeating_optimal = vcat([shuffled_fill([true, false, false], n_repeating, rng = rng) for p in 1:n_phases]...)
+
+	# Assign whether categories that cannot repeat are optimal
+	rest_optimal = vcat([shuffled_fill([true, false, false], total_n_groups - n_repeating, rng = rng) for p in 1:n_phases]...)
+
+	# Initialize vectors for stimuli. A novel to be repeated, B just novel, C may be repeating
+	stimulus_A = []
+	stimulus_B = []
+	stimulus_C = []
+	optimal_C = []
+	
+	for j in 1:n_phases
+		for (i, p) in enumerate(n_groups)
+
+	
+			# Choose repeating categories for this block
+			n_repeating = ((i > 1) && minimum([p, n_groups[i - 1]])) * 1
+			append!(
+				stimulus_C,
+				stimulus_A[(end - n_repeating + 1):end]
+			)
+	
+			# Fill up stimulus_repeating with novel categories if not enough to repeat
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						stimulus_C,
+						popfirst!(categories)
+					)
+				end
+			end
+			
+			# Choose novel categories for this block
+			for _ in 1:p
+				push!(
+					stimulus_A,
+					popfirst!(categories)
+				)
+
+				push!(
+					stimulus_B,
+					popfirst!(categories)
+				)
+			end
+
+			# Populate who is optimal vector
+			for _ in 1:(n_repeating)
+				push!(
+					optimal_C,
+					popfirst!(repeating_optimal)
+				)
+			end
+
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						optimal_C,
+						popfirst!(rest_optimal)
+					)
+				end
+			end
+		end
+	end
+
+	stimulus_A = (x -> x * "1.png").(stimulus_A)
+	stimulus_B = (x -> x * "1.png").(stimulus_B)
+	stimulus_C = (x -> x * "2.png").(stimulus_C)
+
+	optimal_stimulus = ifelse.(
+		optimal_C,
+		"C",
+		"X"
+	)
+
+	optimal_stimulus[optimal_stimulus .== "X"] = shuffled_fill(["A","B"], sum(.!optimal_C), rng = rng)
+
+	return DataFrame(
+		phase = repeat(1:n_phases, inner = total_n_groups),
+		block = repeat(
+			vcat([fill(i, p) for (i, p) in enumerate(n_groups)]...), n_phases),
+		triplet = repeat(
+			vcat([1:p for p in n_groups]...), n_phases),
+		stimulus_A = stimulus_A,
+		stimulus_B = stimulus_B,
+		stimulus_C = stimulus_C,
+		optimal_stimulus = optimal_stimulus
+	)
+
+end
+
+
+# ╔═╡ 7185295b-0f6f-44cc-b5c4-6425cbff7e2f
+# Assign stimulus images
+WM_stimuli = let random_seed = 0
+
+	shuffle!(Xoshiro(random_seed), categories)
+
+	# Filter out used stimulus categories
+	remaining_categories = filter(x -> x ∉ unique((s -> replace(s, ".png" => "")[1:(end-1)]).(PILT_task.stimulus_left)), categories)
+
+	# Assign stimulus pairs
+	stimuli = assign_triplet_stimuli_and_optimality(;
+		n_phases = 2,
+		n_groups = WM_valence_set_size.n_triplets,
+		categories = remaining_categories,
+		random_seed = random_seed
+	)
+
+	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+end
+
+# ╔═╡ 1b612ce4-557c-450c-af2f-721c975970db
+# Add stimulus assignments to sequences DataFrame, and assign right / left
+WM_task = let random_seed = 0
+
+	# Join stimuli and sequences
+	task = innerjoin(
+		vcat(
+			insertcols(WM_feedback_sequence, 1, :session => 1), 
+			insertcols(WM_feedback_sequence, 1, :session => 2)
+		),
+		WM_stimuli,
+		on = [:session, :block, :triplet],
+		order = :left
+	)
+
+	@assert nrow(task) == nrow(WM_feedback_sequence) * 2 "Problem in join operation"
+
+	# Assign location, equal proportions within each pair
+	rng = Xoshiro(random_seed)
+
+	DataFrames.transform!(
+		groupby(task, [:block, :ctriplet]),
+		:block => 
+			(x -> shuffled_fill(collect(permutations(["A", "B", "C"])), length(x); random_seed = random_seed)) =>
+			:stimulus_locations
+	)
+
+	# Create stimulus_right, stimulus_middle, and stimulus_left variables
+	task.stimulus_left = [task[i, Symbol("stimulus_$(x[1])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
+	
+	task.stimulus_middle = [task[i, Symbol("stimulus_$(x[2])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
+
+	
+	task.stimulus_right = [task[i, Symbol("stimulus_$(x[3])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
+
+	# Create optimal_side variable
+	task.optimal_side = [["left", "middle", "right"][findfirst(task.stimulus_locations[i] .== x)] for (i,x) in enumerate(task.optimal_stimulus)]
+
+	# Create feedback_right, feedback_middle, feedback_left variables
+	task.feedback_left = ifelse.(
+		task.optimal_side .== "left",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_middle = ifelse.(
+		task.optimal_side .== "middle",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_right = ifelse.(
+		task.optimal_side .== "right",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task
+end
+
+# ╔═╡ 5f481788-392e-4467-bd49-ea10c2805fa0
+# Validate task DataFrame
+let task = WM_task
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert all(combine(groupby(task, [:session]), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	@assert all(combine(groupby(task, :ctriplet),
+		:appearance => maximum => :max_appear
+	).max_appear .== WM_trials_per_triplet) "Didn't find exactly $WM_trials_per_triplet apperances per pair"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence < 0, task) |> 
+		df -> ifelse.(
+			df.feedback_right .< df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+# ╔═╡ 3a2b86f4-389d-4e98-ab40-1d68b3006fd9
+let
+	save_to_JSON(WM_task, "results/pilot6_WM.json")
+	CSV.write("results/pilot6_WM.csv", WM_task)
 end
 
 # ╔═╡ db145989-72d6-4390-ae15-ccad606e36c1
@@ -953,6 +1279,7 @@ end
 # ╔═╡ Cell order:
 # ╠═99c994e4-9c36-11ef-2c8f-d5829be639eb
 # ╠═65ec8b8f-9eba-467b-bb19-9f0c72b8933e
+# ╠═3a5cf6e9-1cee-4fd3-b0db-8fc02b7747fb
 # ╟─ea917db6-ec27-454f-8b4e-9df65d65064b
 # ╠═381e61e2-7d51-4070-8ad1-ce9e63015eb6
 # ╠═687f5ae6-86c6-449f-86f5-5ed359e6d580
@@ -971,6 +1298,12 @@ end
 # ╟─663bb9a3-1a1e-4171-96bb-1c699b8dfb9c
 # ╠═c9861999-aa41-4fd3-8b15-afe380be0483
 # ╠═9f9cc1b2-50b3-4919-a785-31fe4a45be81
+# ╠═29c4c572-4080-4264-a09c-86d1f416b956
+# ╠═7185295b-0f6f-44cc-b5c4-6425cbff7e2f
+# ╠═1b612ce4-557c-450c-af2f-721c975970db
+# ╠═5f481788-392e-4467-bd49-ea10c2805fa0
+# ╠═3a2b86f4-389d-4e98-ab40-1d68b3006fd9
+# ╠═c9d4cb13-bdab-4c7c-87d8-6ba022f1c4fd
 # ╟─db145989-72d6-4390-ae15-ccad606e36c1
 # ╠═b2def05e-0044-4942-b8e5-38ac335cf25d
 # ╠═e34841e2-c400-4f99-a4b0-57bf6e38646a
