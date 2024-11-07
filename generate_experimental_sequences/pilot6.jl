@@ -710,6 +710,187 @@ let
 	CSV.write("results/pilot6_PILT_test.csv", PILT_test)
 end
 
+# ╔═╡ db145989-72d6-4390-ae15-ccad606e36c1
+md"""## Reversal task"""
+
+# ╔═╡ b2def05e-0044-4942-b8e5-38ac335cf25d
+# Reversal task parameters
+begin
+	rev_n_blocks = 30
+	rev_n_trials = 80
+	rev_prop_confusing = vcat([0, 0.1, 0.1, 0.2, 0.2], fill(0.3, rev_n_blocks - 5))
+	rev_criterion = vcat(
+		[8, 7, 6, 6, 5], 
+		shuffled_fill(
+			3:8, 
+			rev_n_blocks - 5; 
+			rng = Xoshiro(0)
+		)
+	)
+end
+
+# ╔═╡ e34841e2-c400-4f99-a4b0-57bf6e38646a
+function find_lcm_denominators(props::Vector{Float64})
+	# Convert to rational numbers
+	rational_props = rationalize.(props)
+	
+	# Extract denominators
+	denominators = [denominator(r) for r in rational_props]
+	
+	# Compute the LCM of all denominators
+	smallest_int = foldl(lcm, denominators)
+end
+
+# ╔═╡ 03fe7c82-fbfe-463c-8c45-21ad9b8886eb
+# Reversal task structure
+rev_feedback_optimal = let random_seed = 1
+
+	# Compute minimal mini block length to accomodate proportions
+	mini_block_length = find_lcm_denominators(rev_prop_confusing)
+	@info "Randomizing in miniblocks of $mini_block_length trials"
+
+	# Function to create high magnitude values for miniblock
+	mini_block_high_mag(p, rng) = shuffle(rng, vcat(
+		fill(1., round(Int64, mini_block_length * (1-p))),
+		fill(0.01, round(Int64, mini_block_length * p))
+	))
+
+	# Function to create high magntidue values for block
+	block_high_mag(p, rng) = 
+		vcat(
+			[mini_block_high_mag(p, rng) 
+				for _ in 1:(div(rev_n_trials, mini_block_length))]...)
+
+	# Set random seed
+	rng = Xoshiro(random_seed)
+
+	# Initialize
+	feedback_optimal = Vector{Vector{Float64}}()
+
+	# Make sure first sixs blocks don't start with confusing feedback on first trial
+	dist_diff = 11
+	while isempty(feedback_optimal) || 
+		!all([bl[1] != 0.01 for bl in feedback_optimal[1:6]]) || dist_diff > 2
+
+		# Assign blocks
+		feedback_optimal = [block_high_mag(p, rng) for p in rev_prop_confusing]
+
+		# Check distribution of confusing feedback
+		dist = (x -> permutedims(reshape(x, div(length(x), 10), 10), (2,1))).(feedback_optimal)
+
+		dist = vcat(dist...)
+
+		dist = vec(sum(dist .== 1., dims = 1))
+		dist_diff = maximum(abs.(diff(dist)))
+	end
+
+	# Function to compute feedback_suboptimal from feedback_optimal
+	inverter(x) = 1 ./ (100 * x)
+
+	# Create timeline variables
+	timeline = [[Dict(
+		:block => bl,
+		:trial => t,
+		:feedback_left => isodd(bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:feedback_right => iseven(bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:optimal_right => iseven(bl),
+		:criterion => rev_criterion[bl]
+	) for t in 1:rev_n_trials] for bl in 1:rev_n_blocks]
+	
+	# Convert to JSON String
+	json_string = JSON.json(timeline)
+
+	# Add JS variable assignment
+	json_string = "const reversal_json = '$json_string';"
+		
+	# Write the JSON string to the file
+	open("results/pilot6_reversal_sequence.js", "w") do file
+	    write(file, json_string)
+	end
+
+	feedback_optimal
+end
+
+# ╔═╡ 47947f68-6a0b-4a27-b58c-5b28a220dad5
+let
+
+	f = Figure(size = (700, 600))
+
+	mp1 = data(
+		DataFrame(
+			block = repeat(1:rev_n_blocks, 2),
+			prop = vcat(rev_prop_confusing, 1. .- rev_prop_confusing),
+			feedback_type = repeat(["Confusing", "Common"], inner = rev_n_blocks)
+		)
+	) * mapping(
+		:block => "Block", 
+		:prop => "Proportion of trials", 
+		color = :feedback_type => "", 
+		stack = :feedback_type) * visual(BarPlot)
+
+	plt1 = draw!(f[1,1], mp1, axis = (; yticks = [0., 0.5, 0.7, 0.8, 0.9, 1.]))
+
+	legend!(f[1,1], plt1, 
+		valign = 1.18,
+		tellheight = false, 
+		framevisible = false,
+		orientation = :horizontal,
+		labelsize = 14
+	)
+
+	rowgap!(f[1,1].layout, 0)
+
+	rev_confusing = DataFrame(
+		block = repeat(1:rev_n_blocks, inner = rev_n_trials),
+		trial = repeat(1:rev_n_trials, outer = rev_n_blocks),
+		feedback_common = vcat(rev_feedback_optimal...) .== 1.
+	)
+
+	mp2 = data(rev_confusing) * 
+		mapping(:trial => "Trial", :block => "Block", :feedback_common) *
+		visual(Heatmap)
+
+	draw!(f[1,2], mp2, 
+		axis = (; 
+			yreversed = true, 
+			yticks = [1, 10, 20, 30],
+			subtitle = "Confusing Feedback"
+		)
+	)
+
+	insertcols!(
+		rev_confusing,
+		:rel_trial => rev_confusing.trial .- div.(rev_confusing.trial, 10) .* 10 .+ 1
+	)
+	
+	mp3 = data(
+		combine(
+			groupby(rev_confusing, :rel_trial), 
+			:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+		)
+	) * mapping(
+		:rel_trial => "Trial", 
+		:feedback_confusing => "Prop. confusing feedback"
+	) * visual(ScatterLines)
+
+	draw!(f[2,1], mp3)
+
+	mp4 = mapping(1:rev_n_blocks => "Block", rev_criterion => "# optimal choices)") * visual(ScatterLines)
+
+	draw!(f[2,2], mp4, axis = (; 
+		yticks = 3:8, 
+		xticks = [1, 10, 20, 30], 
+		subtitle = "Reversal criterion")
+	)
+
+	save("results/pilot6_reversal_sequence.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
 # ╔═╡ Cell order:
 # ╠═99c994e4-9c36-11ef-2c8f-d5829be639eb
 # ╠═65ec8b8f-9eba-467b-bb19-9f0c72b8933e
@@ -728,3 +909,8 @@ end
 # ╠═edca0f2a-dba2-4882-944c-3b28e6c14a90
 # ╠═3268d6e0-9dd6-46b6-8234-c04bd63a48ef
 # ╠═160bb7c6-cdd4-4c42-87e6-6ccf987d3f7f
+# ╟─db145989-72d6-4390-ae15-ccad606e36c1
+# ╠═b2def05e-0044-4942-b8e5-38ac335cf25d
+# ╠═e34841e2-c400-4f99-a4b0-57bf6e38646a
+# ╠═03fe7c82-fbfe-463c-8c45-21ad9b8886eb
+# ╠═47947f68-6a0b-4a27-b58c-5b28a220dad5
