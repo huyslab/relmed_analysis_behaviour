@@ -92,10 +92,9 @@ PILT_block_attr = let random_seed = 3
 	
 	# # All combinations of set sizes and valence
 	block_attr = DataFrame(
-		session = repeat(1:2, inner = PILT_blocks_per_valence * 2),
-		block = repeat(1:PILT_total_blocks, outer = 2),
-		valence = repeat([1, -1], inner = PILT_blocks_per_valence, outer = 2),
-		fifty_high = repeat([true, false], outer = PILT_blocks_per_valence * 2)
+		block = repeat(1:PILT_total_blocks),
+		valence = repeat([1, -1], inner = PILT_blocks_per_valence),
+		fifty_high = repeat([true, false], outer = PILT_blocks_per_valence)
 	)
 
 	# Shuffle set size and valence, making sure valence is varied in first three blocks, and positive in the first
@@ -107,28 +106,22 @@ PILT_block_attr = let random_seed = 3
 	while first_three_same || first_block_punishement || too_many_repeats
 
 		DataFrames.transform!(
-			groupby(block_attr, :session),
+			block_attr,
 			:block => (x -> shuffle(rng, x)) => :block
 		)
 		
-		sort!(block_attr, [:session, :block])
+		sort!(block_attr, :block)
 
 		# Compute criterion variables
-		first_three_same = any(
-			allequal.(
-				[filter(x -> x.session == s, block_attr)[1:3, :valence] for s in 1:2]
-			)
-		)
+		first_three_same = allequal(block_attr[1:3, :valence])
 		
-		first_block_punishement = any(
-			[filter(x -> x.session == s, block_attr).valence[1] == -1 for s in 1:2]
-		)
+		first_block_punishement = block_attr.valence[1] == -1
 
-		too_many_repeats = any([has_consecutive_repeats(filter(x -> x.session == s, block_attr).valence) for s in 1:2])
+		too_many_repeats = has_consecutive_repeats(block_attr.valence)
 	end
 
 	# Add n_confusing
-	block_attr.n_confusing = repeat(PILT_n_confusing, 2)
+	block_attr.n_confusing = PILT_n_confusing
 
 	# Return
 	block_attr
@@ -204,6 +197,7 @@ PILT_sequences, common_per_pos, EV_per_pos =
 		:block => (x -> shuffle(rng, 1:length(x))) => :sequence
 	)
 
+
 	# Combine with block attributes
 	task = innerjoin(
 		task,
@@ -212,13 +206,14 @@ PILT_sequences, common_per_pos, EV_per_pos =
 		order = :left
 	)
 
+
 	@assert nrow(task) == length(vcat(vcat(chosen_common...)...)) "Problem with join operation"
-	@assert nrow(unique(task[!, [:session, :block]])) == PILT_total_blocks * 2 "Problem with join operation"
+	@assert nrow(unique(task[!, [:block]])) == PILT_total_blocks "Problem with join operation"
 		
 	@assert mean(task.fifty_high) == 0.5 "Proportion of blocks with 50 pence in high magnitude option expected to be 0.5"
 
 	# Sort by block
-	sort!(task, [:session, :block, :trial])
+	sort!(task, [:block, :trial])
 
 	# Remove auxillary variables
 	select!(task, Not([:sequence, :idx]))
@@ -296,13 +291,15 @@ PILT_task = let random_seed = 1
 
 	# Join stimuli and sequences
 	task = innerjoin(
-		PILT_sequences,
+		vcat(
+			insertcols(PILT_sequences, 1, :session => 1), 
+			insertcols(PILT_sequences, 1, :session => 2)),
 		PILT_stimuli,
 		on = [:session, :block],
 		order = :left
 	)
 
-	@assert nrow(task) == nrow(PILT_sequences) "Problem in join operation"
+	@assert nrow(task) == nrow(PILT_sequences) * 2 "Problem in join operation"
 
 	# Assign right / left, equal proportions within each pair
 	rng = Xoshiro(random_seed)
