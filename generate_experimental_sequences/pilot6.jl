@@ -710,6 +710,27 @@ let
 	CSV.write("results/pilot6_PILT_test.csv", PILT_test)
 end
 
+# ╔═╡ 663bb9a3-1a1e-4171-96bb-1c699b8dfb9c
+md"""## WM task"""
+
+# ╔═╡ c9861999-aa41-4fd3-8b15-afe380be0483
+# WM Parameters
+begin
+
+	WM_set_sizes = [1, 2, 4]
+	WM_blocks_per_set = [6, 6, 4] # Including reward and punishment
+	WM_trials_per_triplet = 10
+
+	# Total number of blocks
+	WM_n_total_blocks = sum(WM_blocks_per_set)
+
+	# Total number of triplets
+	WM_n_total_tiplets = sum(WM_set_sizes .* WM_blocks_per_set)
+
+
+
+end
+
 # ╔═╡ db145989-72d6-4390-ae15-ccad606e36c1
 md"""## Reversal task"""
 
@@ -909,6 +930,8 @@ end
 # ╠═edca0f2a-dba2-4882-944c-3b28e6c14a90
 # ╠═3268d6e0-9dd6-46b6-8234-c04bd63a48ef
 # ╠═160bb7c6-cdd4-4c42-87e6-6ccf987d3f7f
+# ╟─663bb9a3-1a1e-4171-96bb-1c699b8dfb9c
+# ╠═c9861999-aa41-4fd3-8b15-afe380be0483
 # ╟─db145989-72d6-4390-ae15-ccad606e36c1
 # ╠═b2def05e-0044-4942-b8e5-38ac335cf25d
 # ╠═e34841e2-c400-4f99-a4b0-57bf6e38646a
