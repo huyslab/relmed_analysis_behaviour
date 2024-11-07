@@ -369,15 +369,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
-
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
 
 		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+		choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
 
@@ -466,15 +460,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
 
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
 
@@ -564,15 +552,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
-
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
         alt_idx::Int64 = pri - choice[i]
@@ -1124,15 +1106,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
 
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
 
@@ -1220,15 +1196,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
-
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
 
@@ -1430,15 +1400,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
-
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
         alt_idx::Int64 = pri - choice[i]
@@ -1532,15 +1496,9 @@ end
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
         pri = 2 * data.pair[i]
-        # WM policy (softmax with directed and undirected noise)
-        π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
-
-        # done it this way because Bernoulli() is not numerically stable
-        # but the weights are defined by weighting the policy probabilities
-        logit_π = log(π / (1 - π))
-
-		# Choice
-		choice[i] ~ BernoulliLogit(logit_π)
+        
+        # Choice
+        choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
 		choice_idx::Int64 = choice[i] + pri - 1
         choice_1id::Int64 = choice[i] + 1
         alt_idx::Int64 = pri - choice[i]
