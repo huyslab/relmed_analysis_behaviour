@@ -60,7 +60,7 @@ md"""## PILT"""
 # PILT parameters
 begin
 	# PILT Parameters
-	PILT_blocks_per_valence = 8
+	PILT_blocks_per_valence = 10
 	PILT_trials_per_block = 10
 	
 	PILT_total_blocks = PILT_blocks_per_valence * 2
@@ -674,8 +674,8 @@ PILT_test = let task = PILT_task
 	for s in 1:2
 		test, pb, pv, nm = find_best_test_sequence(
 			filter(x -> x.session == s, task),
-			n_seeds = 10, # Number of random seeds to try
-			same_weight = 0.01 # Weight reducing the number of same magntiude pairs
+			n_seeds = 100, # Number of random seeds to try
+			same_weight = 1.1 # Weight reducing the number of same magntiude pairs
 		) 
 
 		# Add session variable
@@ -696,7 +696,7 @@ PILT_test = let task = PILT_task
 
 	@assert all([diff(collect(extrema(values(countmap(filter(x -> x.session == s, PILT_test).magnitude_pair)))))[1] == 1 for s in 1:2]) "Distribution across magnitude pairs could be more equal"
 
-	@assert all([length(unique(filter(x -> x.session == 2, PILT_test).magnitude_pair)) for s in 1:2] .== binomial(length(unique(PILT_test.magnitude_left)), 2)) "Not all magnitude pairs present"
+	@assert all([length(unique(filter(x -> x.session == 2, PILT_test).magnitude_pair)) for s in 1:2] .== binomial(length(unique(PILT_test.magnitude_left)), 2)) "Wrong number of magnitude paris"
 
 	PILT_test
 end
@@ -714,9 +714,9 @@ md"""## WM task"""
 # WM Parameters
 begin
 
-	WM_set_sizes = [1, 2, 4]
-	WM_blocks_per_set = [6, 6, 4] # Including reward and punishment
-	WM_trials_per_triplet = 10
+	WM_set_sizes = [1, 7]
+	WM_blocks_per_set = [6, 4] # Including reward and punishment
+	WM_trials_per_triplet = 7
 
 	# Total number of blocks
 	WM_n_total_blocks = sum(WM_blocks_per_set)
@@ -724,8 +724,49 @@ begin
 	# Total number of triplets
 	WM_n_total_tiplets = sum(WM_set_sizes .* WM_blocks_per_set)
 
+	# Full deterministic task
+	WM_n_confusing = fill(0, WM_n_total_blocks) # Per block
+
+end
+
+# ╔═╡ 9f9cc1b2-50b3-4919-a785-31fe4a45be81
+# Assign valence and set size per block
+WM_valence_set_size = let random_seed = 2
+	
+	# # All combinations of set sizes and valence
+	@assert all(iseven.(WM_blocks_per_set)) # Requisite for code below
+
+	valence_set_size = DataFrame(
+		n_triplets = vcat([fill(x, n) for (x, n) in zip(WM_set_sizes, WM_blocks_per_set)]...)
+	)
+		
+	valence_set_size.valence = collect(Iterators.take(Iterators.cycle([1, -1]), 
+		nrow(valence_set_size)))
+
+	# Shuffle set size and valence, making sure set size rises gradually and valence is positive in the first two blocks
+	rng = Xoshiro(random_seed)
+	
+	while (valence_set_size[1:length(WM_set_sizes), :n_triplets] != 
+		WM_set_sizes) ||
+		any(valence_set_size.valence[1:2] .== -1)
+
+		DataFrames.transform!(
+			valence_set_size,
+			:n_triplets => (x -> shuffle(rng, 1:length(x))) => :block
+		)
+		
+		sort!(valence_set_size, :block)
+	end
+
+	# Add n_confusing
+	valence_set_size.n_confusing = WM_n_confusing
 
 
+	# Order columns
+	select!(valence_set_size, :block, Not(:block))
+
+	# Return
+	valence_set_size
 end
 
 # ╔═╡ db145989-72d6-4390-ae15-ccad606e36c1
@@ -929,6 +970,7 @@ end
 # ╠═160bb7c6-cdd4-4c42-87e6-6ccf987d3f7f
 # ╟─663bb9a3-1a1e-4171-96bb-1c699b8dfb9c
 # ╠═c9861999-aa41-4fd3-8b15-afe380be0483
+# ╠═9f9cc1b2-50b3-4919-a785-31fe4a45be81
 # ╟─db145989-72d6-4390-ae15-ccad606e36c1
 # ╠═b2def05e-0044-4942-b8e5-38ac335cf25d
 # ╠═e34841e2-c400-4f99-a4b0-57bf6e38646a
