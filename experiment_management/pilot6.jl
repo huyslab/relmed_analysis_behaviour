@@ -20,6 +20,30 @@ begin
 	nothing
 end
 
+# ╔═╡ 0d120e19-28c2-4a98-b873-366615a5f784
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
+
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
@@ -29,6 +53,135 @@ begin
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
 		reversal_data, jspsych_data = load_pilot6_data()
 	
+end
+
+# ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
+md""" ## Sanity checks"""
+
+# ╔═╡ 5d487d8d-d494-45a7-af32-7494f1fb70f2
+md""" ### PILT"""
+
+# ╔═╡ 2ff04c44-5f86-4617-9a13-6d4228dff359
+let
+	@assert sort(unique(PILT_data.response)) == sort(["right", "left", "noresp"]) "Unexpected values in response"
+	
+	@assert all(PILT_data.chosen_feedback .== ifelse.(
+		PILT_data.response .== "right",
+		PILT_data.feedback_right,
+		ifelse.(
+			PILT_data.response .== "left",
+			PILT_data.feedback_left,
+			minimum.(hcat.(PILT_data.feedback_left, PILT_data.feedback_right))
+		)
+	)) "`chosen_feedback` doens't match feedback and choice"
+
+
+end
+
+# ╔═╡ d0a2ba1e-8413-48f8-8bbc-542f3555a296
+let
+	# Clean data
+	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
+	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
+
+	# Sumarrize by participant and trial
+	acc_curve = combine(
+		groupby(PILT_data_clean, [:prolific_pid, :trial]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize by trial
+	acc_curve_sum = combine(
+		groupby(acc_curve, :trial),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Plot
+	mp = (data(acc_curve) * mapping(
+		:trial => "Trial #",
+		:acc => "Prop. optimal choice",
+		group = :prolific_pid,
+		color = :prolific_pid
+	) * visual(Lines, linewidth = 1, alpha = 0.7)) +
+	(data(acc_curve_sum) * 
+	mapping(
+		:trial => "Trial #",
+		:acc => "Prop. optimal choice"
+	) * visual(Lines, linewidth = 4))
+	
+	
+	draw(mp)
+end
+
+# ╔═╡ 18956db1-4ad1-4881-a1e7-8362cf59f011
+md"""### WM"""
+
+# ╔═╡ 18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+let
+	@assert sort(unique(WM_data.response)) == sort(["right", "middle", "left", "noresp"]) "Unexpected values in response"
+	
+	@assert all(WM_data.chosen_feedback .== ifelse.(
+		WM_data.response .== "right",
+		WM_data.feedback_right,
+		ifelse.(
+			WM_data.response .== "left",
+			WM_data.feedback_left,
+			ifelse.(
+				WM_data.response .== "middle",
+				WM_data.feedback_middle,
+				minimum.(hcat.(WM_data.feedback_left, WM_data.feedback_right))
+			)
+		)
+	)) "`chosen_feedback` doens't match feedback and choice"
+
+
+end
+
+# ╔═╡ 17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+let
+	# Clean data
+	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 10)
+	WM_data_clean = filter(x -> x.response != "noresp", WM_data_clean)
+
+	# Sumarrize by participant, trial, n_groups
+	acc_curve = combine(
+		groupby(WM_data_clean, [:prolific_pid, :trial, :n_groups]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize by trial and n_groups
+	acc_curve_sum = combine(
+		groupby(acc_curve, [:trial, :n_groups]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	acc_curve_sum.lb = acc_curve_sum.acc .- acc_curve_sum.se
+	acc_curve_sum.ub = acc_curve_sum.acc .+ acc_curve_sum.se
+
+	# Sort
+	sort!(acc_curve_sum, [:n_groups, :trial])
+
+	# Plot
+	mp = (data(acc_curve_sum) * (
+		mapping(
+		:trial => "Trial #",
+		:lb,
+		:ub,
+		group = :n_groups => nonnumeric => "Set size",
+		color = :n_groups => nonnumeric => "Set size"
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+		:trial => "Trial #",
+		:acc => "Prop. optimal choice",
+		group = :n_groups => nonnumeric => "Set size",
+		color = :n_groups => nonnumeric => "Set size"
+	) * visual(Lines)))
+	
+	
+	draw(mp)
 end
 
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
@@ -173,9 +326,17 @@ end
 
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
+# ╠═0d120e19-28c2-4a98-b873-366615a5f784
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
 # ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+# ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
+# ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
+# ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
+# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
+# ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+# ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╠═91f6a95c-4f2e-4213-8be5-3ca57861ed15
