@@ -32,6 +32,19 @@ begin
 	
 end
 
+# ╔═╡ 4e0246af-545d-410b-9c32-c4f43d441194
+p_sum = summarize_participation(jspsych_data)
+
+# ╔═╡ 8f94f16b-31ea-48a6-9ede-c6e9ae4f818f
+filter(x -> x.prolific_pid == "60bf34a4880eb3d65aac9745", p_sum)
+
+# ╔═╡ fd38388f-7a09-4281-b473-38c5547116af
+for r in eachrow(p_sum)
+	if !ismissing(r.PILT_bonus)
+		println("$(r.prolific_pid), $(r.PILT_bonus)")
+	end
+end
+
 # ╔═╡ 91475e7f-b52a-48e4-a72d-4298b3544bf4
 begin
 	# Plot accuracy for a group, divided by condition / group
@@ -226,6 +239,51 @@ let
 
 end
 
+# ╔═╡ b6661ceb-bf2c-46a1-bd47-91e945e1530a
+"""
+    summarize_participation(data::DataFrame) -> DataFrame
+
+Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
+
+This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
+
+# Returns
+- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
+"""
+function summarize_participation(data::DataFrame)
+
+	function extract_PILT_bonus(outcome)
+
+		if all(ismissing.(outcome)) # Return missing if participant didn't complete
+			return missing
+		else # Parse JSON
+			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
+			bonus = JSON.parse(bonus)[1] 
+			return bonus
+		end
+
+	end
+	
+	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time]),
+		:trialphase => (x -> "experiment_end_message" in x) => :finished,
+		:trialphase => (x -> "kick-out" in x) => :kick_out,
+		:outcomes => extract_PILT_bonus => :PILT_bonus,
+		[:trial_type, :block] => ((t, b) -> sum((t .== "PLT") .& (typeof.(b) .== Int64))) => :n_trial_PLT,
+		[:block, :trial_type] => ((x, t) -> length(unique(filter(y -> isa(y, Int64), x[t .== "PLT"])))) => :n_blocks_PLT,
+		:n_warnings => maximum => :n_warnings
+	)
+
+	debrief = extract_debrief_responses(data)
+
+	participants = leftjoin(participants, debrief, 
+		on = [:prolific_pid, :exp_start_time])
+
+	return participants
+end
+
 # ╔═╡ 4055b14d-7db9-4231-84c6-7b82b7e17c03
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -283,64 +341,6 @@ function extract_debrief_responses(data::DataFrame)
 
 	# hcat together
 	return hcat(debrief[!, Not(debrief_colnames)], expanded)
-end
-
-# ╔═╡ b6661ceb-bf2c-46a1-bd47-91e945e1530a
-"""
-    summarize_participation(data::DataFrame) -> DataFrame
-
-Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
-
-This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
-
-# Returns
-- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
-"""
-function summarize_participation(data::DataFrame)
-
-	function extract_PILT_bonus(outcome)
-
-		if all(ismissing.(outcome)) # Return missing if participant didn't complete
-			return missing
-		else # Parse JSON
-			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
-			bonus = JSON.parse(bonus)[1] 
-			return bonus
-		end
-
-	end
-	
-	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time]),
-		:trialphase => (x -> "experiment_end_message" in x) => :finished,
-		:trialphase => (x -> "kick-out" in x) => :kick_out,
-		:outcomes => extract_PILT_bonus => :PILT_bonus,
-		[:trial_type, :block] => ((t, b) -> sum((t .== "PLT") .& (typeof.(b) .== Int64))) => :n_trial_PLT,
-		[:block, :trial_type] => ((x, t) -> length(unique(filter(y -> isa(y, Int64), x[t .== "PLT"])))) => :n_blocks_PLT,
-		:n_warnings => maximum => :n_warnings
-	)
-
-	debrief = extract_debrief_responses(data)
-
-	participants = leftjoin(participants, debrief, 
-		on = [:prolific_pid, :exp_start_time])
-
-	return participants
-end
-
-# ╔═╡ 4e0246af-545d-410b-9c32-c4f43d441194
-p_sum = summarize_participation(jspsych_data)
-
-# ╔═╡ 8f94f16b-31ea-48a6-9ede-c6e9ae4f818f
-filter(x -> x.prolific_pid == "60bf34a4880eb3d65aac9745", p_sum)
-
-# ╔═╡ fd38388f-7a09-4281-b473-38c5547116af
-for r in eachrow(p_sum)
-	if !ismissing(r.PILT_bonus)
-		println("$(r.prolific_pid), $(r.PILT_bonus)")
-	end
 end
 
 # ╔═╡ 6654d1dc-b8b1-4794-81b5-57c92814e020
