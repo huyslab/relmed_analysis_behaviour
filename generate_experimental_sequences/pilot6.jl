@@ -285,7 +285,8 @@ PILT_stimuli = let random_seed = 0
 		n_phases = 2,
 		n_pairs = fill(1, PILT_total_blocks),
 		categories = categories,
-		random_seed = random_seed
+		random_seed = random_seed,
+		ext = "jpg"
 	)
 
 	@info "Proportion of blocks on which the novel category is optimal : $(mean(stimuli.optimal_A))"
@@ -348,6 +349,19 @@ PILT_task = let random_seed = 1
 		.!task.optimal_right,
 		task.feedback_optimal,
 		task.feedback_suboptimal
+	)
+
+	# Add empty variables needed for experiment script
+	insertcols!(
+		task,
+		:n_stimuli => 2,
+		:n_groups => 1,
+		:stimulus_group => 1,
+		:stimulus_group_id => task.block,
+		:stimulus_middle => "",
+		:feedback_middle => "",
+		:optimal_side => "",
+		:present_pavlovian => true
 	)
 
 	task
@@ -944,9 +958,9 @@ function assign_triplet_stimuli_and_optimality(;
 		end
 	end
 
-	stimulus_A = (x -> x * "1.png").(stimulus_A)
-	stimulus_B = (x -> x * "1.png").(stimulus_B)
-	stimulus_C = (x -> x * "2.png").(stimulus_C)
+	stimulus_A = (x -> x * "1.jpg").(stimulus_A)
+	stimulus_B = (x -> x * "1.jpg").(stimulus_B)
+	stimulus_C = (x -> x * "2.jpg").(stimulus_C)
 
 	optimal_stimulus = ifelse.(
 		optimal_C,
@@ -978,7 +992,7 @@ WM_stimuli = let random_seed = 0
 	shuffle!(Xoshiro(random_seed), categories)
 
 	# Filter out used stimulus categories
-	remaining_categories = filter(x -> x ∉ unique((s -> replace(s, ".png" => "")[1:(end-1)]).(PILT_task.stimulus_left)), categories)
+	remaining_categories = filter(x -> x ∉ unique((s -> replace(s, ".jpg" => "")[1:(end-1)]).(PILT_task.stimulus_left)), categories)
 
 	# Assign stimulus pairs
 	stimuli = assign_triplet_stimuli_and_optimality(;
@@ -1051,6 +1065,22 @@ WM_task = let random_seed = 0
 		task.feedback_suboptimal
 	)
 
+	# Add variables needed for experiment code
+	insertcols!(
+		task,
+		:n_stimuli => 3,
+		:optimal_right => "",
+		:present_pavlovian => false
+	)
+
+	rename!(
+		task,
+		:n_triplets => :n_groups,
+		:triplet => :stimulus_group,
+		:ctriplet => :stimulus_group_id
+	)
+
+
 	task
 end
 
@@ -1073,7 +1103,7 @@ let task = WM_task
 
 	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
 
-	@assert all(combine(groupby(task, :ctriplet),
+	@assert all(combine(groupby(task, :stimulus_group_id),
 		:appearance => maximum => :max_appear
 	).max_appear .== WM_trials_per_triplet) "Didn't find exactly $WM_trials_per_triplet apperances per pair"
 
