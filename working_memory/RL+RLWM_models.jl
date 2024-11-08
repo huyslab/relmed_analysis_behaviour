@@ -564,7 +564,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -667,7 +668,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -897,7 +899,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 		δ = chce * ρ - Qs[i, choice_idx]
 
         # Update Qs and Ws and decay Ws
@@ -1018,7 +1021,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 		δ = chce * ρ - Qs[i, choice_idx]
 
         # Update Qs and Ws and decay Ws
@@ -1412,7 +1416,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -1508,7 +1513,8 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * [0.5, 1.0][mod(hash(i), 2) + 1]
+        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 # [0.5, 1.0][mod(hash(i), 2) + 1]
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])

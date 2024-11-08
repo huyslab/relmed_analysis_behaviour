@@ -332,9 +332,9 @@ end
 # end
 
 # Prepare pilot data for fititng with model
-function prepare_for_fit(data; pilot2::Bool = false)
+function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false)
 
-    data.condition .= pilot2 ? 1 : data.condition
+    data.condition .= pilot2 || pilot4 ? 1 : data.condition
 	forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
 
 	rename!(forfit, :isOptimal => :choice)
@@ -363,9 +363,13 @@ function prepare_for_fit(data; pilot2::Bool = false)
 	# Block as Int64
 	forfit.block = convert(Vector{Int64}, forfit.block)
 
-    if pilot2
+    if pilot2 || pilot4
         forfit.set_size = data.n_pairs .* 2
 	    forfit.pair = data.stimulus_pair
+        forfit = DataFrames.transform(
+            groupby(forfit, [:PID, :block, :pair]), eachindex => :trial;
+            ungroup=true
+        )
     end
 
 	return forfit, pids

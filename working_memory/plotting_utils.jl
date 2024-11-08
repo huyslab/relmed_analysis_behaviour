@@ -494,6 +494,7 @@ function plot_prior_accuracy!(
     f::GridPosition,
     data::Union{DataFrame, SubDataFrame};
     group::Symbol = :group,
+	group_lvls::Union{Symbol, Vector{Symbol}, Missing} = missing,
     pid_col::Symbol = :PID,
     acc_col::Symbol = :isOptimal,
     colors = Makie.wong_colors(),
@@ -552,7 +553,13 @@ function plot_prior_accuracy!(
 	# Set axis xticks
 	ax.xticks = range(1, round(Int64, maximum(sum_data.trial)), 4)
 
-    group_levels = unique(sum_data.group)
+    if ismissing(group_lvls)
+		group_levels = unique(tdata.group)
+	else
+		sslvls = sort(tdata, group_lvls)
+		group_levels = unique(sslvls.group)
+	end
+
     for (i,g) in enumerate(group_levels)
         gdat = filter(:group => (x -> x==g), sum_data)
 		g_p_dat = filter(:group => (x -> x == g), p_data)
@@ -593,7 +600,6 @@ function plot_prior_accuracy!(
 
 	# Legend
 	if legend
-		group_levels = unique(data[!, group])
 		elements = [PolyElement(color = colors[i]) for i in 1:length(group_levels)]
 		labels = [g for g in group_levels]
 		
