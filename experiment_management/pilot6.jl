@@ -164,8 +164,11 @@ let
 	# Sort
 	sort!(acc_curve_sum, [:n_groups, :trial])
 
-	# Plot
-	mp = (data(acc_curve_sum) * (
+	# Create figure
+	f = Figure(size = (700, 350))
+
+	# Create mapping
+	mp1 = (data(acc_curve_sum) * (
 		mapping(
 		:trial => "Trial #",
 		:lb,
@@ -180,8 +183,59 @@ let
 		color = :n_groups => nonnumeric => "Set size"
 	) * visual(Lines)))
 	
+	# Plot
+	plt1 = draw!(f[1,1], mp1)
+	legend!(f[0,1:2], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+
+	# Create appearance variable
+	sort!(WM_data_clean, [:prolific_pid, :session, :block, :trial])
 	
-	draw(mp)
+	transform!(
+		groupby(WM_data_clean, [:prolific_pid, :session, :block, :stimulus_group]),
+		:trial => (x -> 1:length(x)) => :appearance
+	)
+
+	# Summarize by appearance
+	app_curve = combine(
+		groupby(WM_data_clean, [:prolific_pid, :appearance, :n_groups]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize by apperance and n_groups
+	app_curve_sum = combine(
+		groupby(app_curve, [:appearance, :n_groups]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	app_curve_sum.lb = app_curve_sum.acc .- app_curve_sum.se
+	app_curve_sum.ub = app_curve_sum.acc .+ app_curve_sum.se
+
+	# Sort
+	sort!(app_curve_sum, [:n_groups, :appearance])
+
+	# Create mapping
+	mp2 = (data(app_curve_sum) * (
+		mapping(
+		:appearance => "Apperance #",
+		:lb,
+		:ub,
+		group = :n_groups => nonnumeric => "Set size",
+		color = :n_groups => nonnumeric => "Set size"
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+		:appearance => "Apperance #",
+		:acc => "Prop. optimal choice",
+		group = :n_groups => nonnumeric => "Set size",
+		color = :n_groups => nonnumeric => "Set size"
+	) * visual(Lines)))
+	
+	# Plot
+	plt2 = draw!(f[1,2], mp2)
+
+	f
 end
 
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
