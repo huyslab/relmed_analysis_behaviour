@@ -114,6 +114,65 @@ let
 	draw(mp)
 end
 
+# ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
+md"""### Post-PILT test"""
+
+# ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
+let
+	# Select post-PILT test
+	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
+
+	@assert sort(unique(test_data_clean.response)) == 
+	sort(["ArrowRight", "ArrowLeft"]) "Unexpected values in respones"
+
+	# Create magnitude high and low varaibles
+	test_data_clean.magnitude_high = maximum.(eachrow((hcat(
+		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+
+	test_data_clean.magnitude_low = minimum.(eachrow((hcat(
+		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+
+	# Create high_chosen variable
+	test_data_clean.high_chosen = ifelse.(
+		test_data_clean.right_chosen,
+		test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
+		test_data_clean.magnitude_left .== test_data_clean.magnitude_high
+	)
+
+	high_chosen_sum = combine(
+		groupby(test_data_clean, :prolific_pid),
+		:high_chosen => mean => :acc
+	)
+
+	@info "Proportion high magnitude chosen: 
+		$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
+
+	# Summarize by participant and magnitude
+	test_sum = combine(
+		groupby(test_data_clean, [:prolific_pid, :magnitude_low, :magnitude_high]),
+		:high_chosen => mean => :acc
+	)
+
+	test_sum_sum = combine(
+		groupby(test_sum, [:magnitude_low, :magnitude_high]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
+
+	mp = data(test_sum_sum) *
+	mapping(
+		:magnitude_high => nonnumeric => "High magntidue",
+		:acc => "Prop. chosen high",
+		:se,
+		layout = :magnitude_low => nonnumeric
+	) * (visual(Errorbars) + visual(ScatterLines))
+
+	draw(mp)
+
+end
+
 # ╔═╡ 18956db1-4ad1-4881-a1e7-8362cf59f011
 md"""### WM"""
 
@@ -240,9 +299,6 @@ end
 
 # ╔═╡ 1d1d6d79-5807-487f-8b03-efb7d0898ae8
 md"""### Reversal"""
-
-# ╔═╡ 9bf0b5be-95be-4462-a38d-428f54e63c15
-exclude_double_takers!(reversal_data)
 
 # ╔═╡ e902cd57-f724-4c26-9bb5-1d03443fb191
 let
@@ -480,11 +536,12 @@ end
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
 # ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
+# ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
-# ╠═9bf0b5be-95be-4462-a38d-428f54e63c15
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╠═91f6a95c-4f2e-4213-8be5-3ca57861ed15
