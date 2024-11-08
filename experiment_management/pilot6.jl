@@ -238,6 +238,97 @@ let
 	f
 end
 
+# ╔═╡ 1d1d6d79-5807-487f-8b03-efb7d0898ae8
+md"""### Reversal"""
+
+# ╔═╡ 9bf0b5be-95be-4462-a38d-428f54e63c15
+exclude_double_takers!(reversal_data)
+
+# ╔═╡ e902cd57-f724-4c26-9bb5-1d03443fb191
+let
+
+	# Clean data
+	reversal_data_clean = exclude_reversal_sessions(reversal_data; required_n_trials = 120)
+
+	filter!(x -> !isnothing(x.response_optimal), reversal_data_clean)
+
+	# Number trials leading to reversal
+	DataFrames.transform!(
+		groupby(reversal_data_clean, [:prolific_pid, :block]),
+		:trial => (x -> x .- maximum(x) .- 1) => :trial_pre_reversal
+	)
+
+	# Count number of block
+	DataFrames.transform!(
+		groupby(reversal_data_clean, :prolific_pid),
+		:block => (x -> maximum(x)) => :n_blocks
+	)
+
+
+	# Summarize accuracy pre reversal
+	sum_pre = combine(
+		groupby(
+			filter(x -> (x.trial_pre_reversal > -4) && 
+				(x.block < x.n_blocks) && (x.trial < 48), reversal_data_clean), 
+			[:prolific_pid, :trial_pre_reversal]
+		),
+		:response_optimal => mean => :acc
+	)
+
+	sum_pre = combine(
+		groupby(sum_pre, :trial_pre_reversal),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	rename!(sum_pre, :trial_pre_reversal => :trial)
+
+	# Summarize post reversal
+	sum_post = combine(
+		groupby(
+			filter(x -> x.trial < 10, reversal_data_clean),
+			[:prolific_pid, :trial]
+		),
+		:response_optimal => mean => :acc
+	)
+
+	sum_post = combine(
+		groupby(sum_post, :trial),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Concatenate pre and post
+	sum_pre_post = vcat(sum_pre, sum_post)
+
+	# Create group variable to break line plot
+	sum_pre_post.group = sign.(sum_pre_post.trial)
+
+	# Plot
+	mp = data(sum_pre_post) *
+		(
+			mapping(
+				:trial => "Trial relative to reversal",
+				:acc  => "Prop. optimal choice",
+				:se
+			) * visual(Errorbars) +
+			mapping(
+				:trial => "Trial relative to reversal",
+				:acc => "Prop. optimal choice"
+			) * 
+			visual(Scatter) +
+			mapping(
+				:trial => "Trial relative to reversal",
+				:acc => "Prop. optimal choice",
+				group = :group => nonnumeric 
+			) * 
+			visual(Lines)
+		) +
+		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
+
+	f = draw(mp; axis = (; xticks = -3:9))
+end
+
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -388,9 +479,12 @@ end
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
-# ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
+# ╠═9bf0b5be-95be-4462-a38d-428f54e63c15
+# ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╠═91f6a95c-4f2e-4213-8be5-3ca57861ed15
