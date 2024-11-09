@@ -353,7 +353,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24
 		on = [:prolific_pid, :session, 
 		:exp_start_time])
 
-	exclude_double_takers!(PLT_data_clean)
+	PLT_data_clean = exclude_double_takers!(PLT_data_clean)
 
 	return PLT_data_clean
 
@@ -710,7 +710,7 @@ function exclude_reversal_sessions(
 		:exp_start_time])
 
 
-	exclude_double_takers!(reversal_data_clean)
+	reversal_data_clean = exclude_double_takers!(reversal_data_clean)
 
 	return reversal_data_clean
 end
