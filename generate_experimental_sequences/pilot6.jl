@@ -74,7 +74,7 @@ begin
 	PILT_trials_per_block = 10
 	
 	PILT_total_blocks = PILT_blocks_per_valence * 2
-	PILT_n_confusing = vcat([0, 1, 1], fill(2, PILT_total_blocks - 3))
+	PILT_n_confusing = vcat([0, 0, 1, 1], fill(2, PILT_total_blocks ÷ 2 - 4)) # Per valence
 		
 	# Post-PILT test parameters
 	PILT_test_n_blocks = 2
@@ -98,7 +98,7 @@ end
 
 # ╔═╡ 31128edd-5d2d-49e9-8f65-842bb42639f9
 # Assign valence and set size per block
-PILT_block_attr = let random_seed = 3
+PILT_block_attr = let random_seed = 5
 	
 	# # All combinations of set sizes and valence
 	block_attr = DataFrame(
@@ -107,13 +107,16 @@ PILT_block_attr = let random_seed = 3
 		fifty_high = repeat([true, false], outer = PILT_blocks_per_valence)
 	)
 
-	# Shuffle set size and valence, making sure valence is varied in first three blocks, and positive in the first
+	# Shuffle set size and valence, making sure valence is varied, and positive in the first block and any time noise is introduced, and shaping doesn't extend too far into the task
 	rng = Xoshiro(random_seed)
 
 	first_three_same = true
 	first_block_punishement = true
 	too_many_repeats = true
-	while first_three_same || first_block_punishement || too_many_repeats
+	first_confusing_punishment = true
+	shaping_too_long = true
+	while first_three_same || first_block_punishement || too_many_repeats ||
+		first_confusing_punishment || shaping_too_long
 
 		DataFrames.transform!(
 			block_attr,
@@ -122,16 +125,26 @@ PILT_block_attr = let random_seed = 3
 		
 		sort!(block_attr, :block)
 
+		# Add n_confusing
+		DataFrames.transform!(
+			groupby(block_attr, :valence),
+			:block => (x -> PILT_n_confusing) => :n_confusing
+		)
+
 		# Compute criterion variables
 		first_three_same = allequal(block_attr[1:3, :valence])
 		
 		first_block_punishement = block_attr.valence[1] == -1
 
 		too_many_repeats = has_consecutive_repeats(block_attr.valence)
-	end
 
-	# Add n_confusing
-	block_attr.n_confusing = PILT_n_confusing
+		first_confusing_punishment = 
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 1)] == -1) |
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 2)] == -1)
+
+		shaping_too_long = 
+			!all(block_attr.n_confusing[11:end] .== maximum(PILT_n_confusing))
+	end
 
 	# Return
 	block_attr
@@ -140,7 +153,7 @@ end
 # ╔═╡ c7c5b78e-ad76-4877-8c80-af9151105544
 # Create feedback sequences per pair
 PILT_sequences, common_per_pos, EV_per_pos = 
-	let random_seed = 0
+	let random_seed = 2
 	
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
@@ -166,7 +179,7 @@ PILT_sequences, common_per_pos, EV_per_pos =
 		FIs = [x[1] for x in FI_seqs],
 		common_seqs = common_seqs,
 		magn_seqs = magn_seqs,
-		ω_FI = 0.1,
+		ω_FI = 0.08,
 		filename = "results/exp_sequences/pilot6_opt.jld2"
 	)
 
