@@ -4,7 +4,7 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ b9941a88-9176-11ef-273e-21e7ccc577d7
+# ╔═╡ 122f9972-95ea-11ef-366f-2dd3a1fe1ff0
 begin
 	cd("/home/jovyan/")
     import Pkg
@@ -14,14 +14,16 @@ begin
     Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing
 	using LogExpFunctions: logistic, logit
+	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
 	include("plotting_utils.jl")
 	include("stats_utils.jl")
+	include("osf_utils.jl")
 	nothing
 end
 
-# ╔═╡ be912151-01a2-4cc4-9075-0ecf3594c217
+# ╔═╡ bb220633-95e6-45b4-a4ac-3e725c6029dc
 begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
@@ -44,14 +46,22 @@ begin
 	set_theme!(th)
 end
 
-# ╔═╡ 6a851ca1-400f-4e89-808c-3da1e837d48b
+# ╔═╡ 571456f4-e2c8-436e-9c61-dffa2af8c778
+# Set up saving to OSF
 begin
-	PILT_data, _, _, _ = load_pilot4_data()
+	osf_folder = "Lab notebook images/PILT/"
+	proj = setup_osf("Task development")
+end
+
+# ╔═╡ 4014436c-b206-4832-b9aa-ce854e428a0f
+begin
+	PILT_data, _, _, _ = load_pilot4x_data()
+	filter!(x -> x.version == "4.1", PILT_data)
 	PILT_data = exclude_PLT_sessions(PILT_data, required_n_blocks = 18)
 	PILT_data_clean = filter(x -> x.choice != "noresp", PILT_data)
 end
 
-# ╔═╡ a949f606-2860-4129-bda4-041dcc095e15
+# ╔═╡ 20270f36-2a3f-4f64-9c1b-5509c69aeade
 # Auxillary variables
 begin
 	# Make sure sorted
@@ -64,7 +74,7 @@ begin
 	)
 end
 
-# ╔═╡ 80a5c7c9-f54b-40e5-bc49-5e4318520b00
+# ╔═╡ fd00327f-7529-4aa0-b81d-30a9e5821ea3
 # Plot PILT accuracy curve
 let
 
@@ -78,15 +88,22 @@ let
 		legend_title = "Set size"
 	)
 
-	ax.xticks = [1, 10, 20, 30]
+	ax.xticks = vcat([1], 7:7:49)
 
-	save("results/pilot4_acc_curve.png", f, pt_per_unit = 1)
+	filpath = "results/pilot4.1_acc_curve.png"
+	save(filpath, f, pt_per_unit = 1)
+
+	upload_to_osf(
+		filpath,
+		proj,
+		osf_folder
+	)
 
 	f
 
 end
 
-# ╔═╡ cd41d166-1299-4c82-b528-dd181b1f341d
+# ╔═╡ 540f5917-f14d-4d0b-8ec4-aa6f35fc819e
 function plot_specific_trials_diff_by_participant!(
 	f::GridPosition;
 	PILT_data::DataFrame,
@@ -117,43 +134,7 @@ function plot_specific_trials_diff_by_participant!(
 
 end
 
-# ╔═╡ bee3847c-fa5d-4344-b4ca-e7491c863722
-# Plot average accuracy by set-size
-let
-
-	f = Figure(size = (600, 350))
-	
-	# Plot average accuracy per set size and participant
-	acc_set_size = combine(
-		groupby(PILT_data_clean, [:prolific_pid, :n_pairs]),
-		:isOptimal => mean => :acc
-	)
-
-	# Plot
-	mp1 = data(acc_set_size) * mapping(
-		:n_pairs => nonnumeric => "Set size", 
-		:acc => "Proportion optimal choice", 
-		color = :n_pairs => nonnumeric) *
-		visual(RainClouds)
-
-	draw!(f[1,1], mp1)
-
-	# Plot with lines between participants
-	plot_specific_trials_diff_by_participant!(
-		f[1,2];
-		PILT_data = PILT_data_clean,
-		selection_col = :trial,
-		selection_values = 1:40,
-		x_levels = [1, 3, 5]
-	)
-
-
-	save("results/pilot4_acc_set_size.png", f, pt_per_unit = 1)
-
-	f
-end
-
-# ╔═╡ 51d4a3b8-f76e-4ac1-80fe-3ea11b5a67e8
+# ╔═╡ 7c6ca554-5af7-4861-a06c-70d5bddb272b
 function plot_specific_trials_reliability!(
 	f::GridPosition;
 	PILT_data::DataFrame,
@@ -240,50 +221,7 @@ function plot_specific_trials_reliability!(
 	end
 end
 
-# ╔═╡ 929549e1-acc7-4785-8015-17dd5ca6b51b
-# Plot overall accuracy reliability
-let
-
-	f = Figure(size = (700, 250))
-
-	plot_specific_trials_reliability!(
-		f[1,1];
-		PILT_data = PILT_data_clean,
-		selection_col = :trial,
-		selection_values = 1:40, # All
-		difference_function = df -> df.n_pairs_1 .- 
-			df.n_pairs_5,
-		subtitle = "Set size 1 - 5"
-	)
-
-	plot_specific_trials_reliability!(
-		f[1,2];
-		PILT_data = PILT_data_clean,
-		selection_col = :trial,
-		selection_values = 1:40, # All
-		difference_function = df -> df.n_pairs_3 .- 
-			df.n_pairs_5,
-		subtitle = "Set size 3 - 5"
-	)
-
-	plot_specific_trials_reliability!(
-		f[1,3];
-		PILT_data = PILT_data_clean,
-		selection_col = :trial,
-		selection_values = 1:40, # All
-		difference_function = df -> df.n_pairs_1 .- 
-			df.n_pairs_3,
-		subtitle = "Set size 1 - 3"
-	)
-
-	save("results/pilot4_acc_set_size_reliability.png", f, pt_per_unit = 1)
-
-
-	f
-
-end
-
-# ╔═╡ db24a086-cd2b-4306-bafd-2ab33d9063ce
+# ╔═╡ 84624920-b1d8-46a2-92c5-a6763fabc82d
 # Plot PILT accuracy curve reliability
 let
 
@@ -295,7 +233,7 @@ let
 		PILT_data = PILT_data_clean,
 		selection_col = :trial,
 		selection_values = 2:6,
-		x_levels = [1, 5],
+		x_levels = [1, 7],
 		subtitle = "Trials 2-6"
 	)
 	
@@ -305,8 +243,8 @@ let
 		selection_col = :trial,
 		selection_values = 2:6,
 		difference_function = df -> df.n_pairs_1 .- 
-			df.n_pairs_5,
-		subtitle = "Set size 1 - 5, trials 2-6"
+			df.n_pairs_7,
+		subtitle = "Set size 1 - 7, trials 2-6"
 	)
 
 	plot_specific_trials_diff_by_participant!(
@@ -333,7 +271,7 @@ let
 		PILT_data = PILT_data_clean,
 		selection_col = :trial,
 		selection_values = 9:15,
-		x_levels = [3, 5],
+		x_levels = [3, 7],
 		subtitle = "Trials 9-15"
 	)
 
@@ -343,21 +281,29 @@ let
 		selection_col = :trial,
 		selection_values = 9:15,
 		difference_function = df -> df.n_pairs_3 .- 
-			df.n_pairs_5,
-		subtitle = "Set size 3 - 5, trials 9-15"
+			df.n_pairs_7,
+		subtitle = "Set size 3 - 7, trials 9-15"
 	)
 
 	colsize!(f.layout, 1, Relative(0.4))
 	rowgap!(f.layout, 1, 40)
 	rowgap!(f.layout, 2, 40)
 
-	save("results/pilot4_acc_curve_reliability.png", f, pt_per_unit = 1)
+	# Save and push to OSF
+	filepath = "results/pilot4.1_acc_curve_reliability.png"
+	save(filepath, f, pt_per_unit = 1)
+
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
 
 	f
 
 end
 
-# ╔═╡ 6edf746f-3499-4429-b532-bf2c80dfb1f0
+# ╔═╡ 33ef055d-1d52-4c59-8423-1e1d8042bb74
 let
 	# Plot PILT accuracy curve by appearance
 
@@ -385,27 +331,34 @@ let
 		f[1,2];
 		PILT_data = PILT_data_clean,
 		selection_col = :appearance,
-		selection_values = 2:4,
+		selection_values = 2:3,
 		difference_function = (df -> df.n_pairs_1 .- 
-			df.n_pairs_5),
-		subtitle = "Set size 1 - 5, trials 2-4"
+			df.n_pairs_7),
+		subtitle = "Set size 1 - 7, trials 2-4"
 	)
 
-	save("results/pilot4_acc_curve_realigned.png", f, pt_per_unit = 1)
+	
+	filepath = "results/pilot4.1_acc_curve_realigned.png"
+	save(filepath, f, pt_per_unit = 1)
 
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
+	
 	f
 
 end
 
 # ╔═╡ Cell order:
-# ╠═b9941a88-9176-11ef-273e-21e7ccc577d7
-# ╠═be912151-01a2-4cc4-9075-0ecf3594c217
-# ╠═6a851ca1-400f-4e89-808c-3da1e837d48b
-# ╠═a949f606-2860-4129-bda4-041dcc095e15
-# ╠═bee3847c-fa5d-4344-b4ca-e7491c863722
-# ╠═929549e1-acc7-4785-8015-17dd5ca6b51b
-# ╠═80a5c7c9-f54b-40e5-bc49-5e4318520b00
-# ╠═db24a086-cd2b-4306-bafd-2ab33d9063ce
-# ╠═cd41d166-1299-4c82-b528-dd181b1f341d
-# ╠═51d4a3b8-f76e-4ac1-80fe-3ea11b5a67e8
-# ╠═6edf746f-3499-4429-b532-bf2c80dfb1f0
+# ╠═122f9972-95ea-11ef-366f-2dd3a1fe1ff0
+# ╠═bb220633-95e6-45b4-a4ac-3e725c6029dc
+# ╠═571456f4-e2c8-436e-9c61-dffa2af8c778
+# ╠═4014436c-b206-4832-b9aa-ce854e428a0f
+# ╠═20270f36-2a3f-4f64-9c1b-5509c69aeade
+# ╠═fd00327f-7529-4aa0-b81d-30a9e5821ea3
+# ╠═84624920-b1d8-46a2-92c5-a6763fabc82d
+# ╠═33ef055d-1d52-4c59-8423-1e1d8042bb74
+# ╠═540f5917-f14d-4d0b-8ec4-aa6f35fc819e
+# ╠═7c6ca554-5af7-4861-a06c-70d5bddb272b
