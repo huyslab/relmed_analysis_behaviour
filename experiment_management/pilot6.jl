@@ -51,8 +51,8 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data()
-	
+		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
+	nothing
 end
 
 # ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -122,8 +122,11 @@ let
 	# Select post-PILT test
 	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
 
-	@assert sort(unique(test_data_clean.response)) == 
-	sort(["ArrowRight", "ArrowLeft"]) "Unexpected values in respones"
+	@assert unique(test_data_clean.response) == 
+	["ArrowRight", "ArrowLeft", nothing] "Unexpected values in respones"
+
+	# Remove missing values
+	filter!(x -> !isnothing(x.response), test_data_clean)
 
 	# Create magnitude high and low varaibles
 	test_data_clean.magnitude_high = maximum.(eachrow((hcat(
@@ -251,7 +254,7 @@ let
 	sort!(WM_data_clean, [:prolific_pid, :session, :block, :trial])
 	
 	transform!(
-		groupby(WM_data_clean, [:prolific_pid, :session, :block, :stimulus_group]),
+		groupby(WM_data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
 		:trial => (x -> 1:length(x)) => :appearance
 	)
 
@@ -540,7 +543,7 @@ end
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
-# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
