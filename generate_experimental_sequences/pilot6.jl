@@ -1138,6 +1138,21 @@ let
 	CSV.write("results/pilot6_WM.csv", WM_task)
 end
 
+# ╔═╡ 9c324f0b-9d94-4623-9006-61518cb897fc
+let
+
+	used_categories = unique((s -> replace(s, ".jpg" => "")[1:(end-1)]).(unique(
+		vcat(
+			WM_task.stimulus_right,
+			PILT_task.stimulus_right
+		)
+	)))
+
+	filter(x -> x ∉ used_categories, categories)
+
+
+end
+
 # ╔═╡ db145989-72d6-4390-ae15-ccad606e36c1
 md"""## Reversal task"""
 
@@ -1346,6 +1361,7 @@ end
 # ╠═1b612ce4-557c-450c-af2f-721c975970db
 # ╠═5f481788-392e-4467-bd49-ea10c2805fa0
 # ╠═3a2b86f4-389d-4e98-ab40-1d68b3006fd9
+# ╠═9c324f0b-9d94-4623-9006-61518cb897fc
 # ╠═c9d4cb13-bdab-4c7c-87d8-6ba022f1c4fd
 # ╟─db145989-72d6-4390-ae15-ccad606e36c1
 # ╠═b2def05e-0044-4942-b8e5-38ac335cf25d
