@@ -530,6 +530,7 @@ function prepare_vigour_data(data::DataFrame)
 			:record_id,
 			:version,
 			:exp_start_time,
+			:session,
 			:trialphase,
 			:trial_number,
 			:trial_duration,
@@ -549,6 +550,7 @@ function prepare_vigour_data(data::DataFrame)
 		x -> select(x, 
 			Not([:response_time, :timeline_variables])
 		)
+		exclude_double_takers!(vigour_data)
 	return vigour_data
 end
 
@@ -568,6 +570,7 @@ function prepare_post_vigour_test_data(data::DataFrame)
 	post_vigour_test_data = data |>
 		x -> select(x,
 			:prolific_pid,
+			:session,
 		    :record_id,
 		    :version,
 		    :exp_start_time,
@@ -580,7 +583,7 @@ function prepare_post_vigour_test_data(data::DataFrame)
 		x -> subset(x, :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_test"])) |>
 		x -> groupby(x, [:prolific_pid, :exp_start_time]) |>
 		x -> DataFrames.transform(x, :trialphase => (x -> 1:length(x)) => :trial_number)
-
+	exclude_double_takers!(post_vigour_test_data)
 	return post_vigour_test_data
 end
 
@@ -601,6 +604,7 @@ function prepare_PIT_data(data::DataFrame)
 	PIT_data = data |>
 		x -> select(x, 
 			:prolific_pid,
+			:session,
 			:record_id,
 			:version,
 			:exp_start_time,
@@ -624,6 +628,7 @@ function prepare_PIT_data(data::DataFrame)
 		x -> select(x, 
 			Not([:response_time, :timeline_variables])
 		)
+		exclude_double_takers!(PIT_data)
 	return PIT_data
 end
 
