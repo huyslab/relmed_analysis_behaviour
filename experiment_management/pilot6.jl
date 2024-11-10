@@ -1,19 +1,17 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
-    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
-    #! format: on
 end
 
 # ╔═╡ 237a05f6-9e0e-11ef-2433-3bdaa51dbed4
@@ -57,50 +55,6 @@ begin
 	set_theme!(th)
 end
 
-# ╔═╡ fa149033-bed0-41c8-898b-18bcbd1e34d7
-function load_pilot6_data(; force_download = false)
-	datafile = "data/pilot6.jld2"
-
-	# Load data or download from REDCap
-	if !isfile(datafile) || force_download
-		jspsych_json, records = get_REDCap_data("pilot6"; file_field = "file_data")
-	
-		jspsych_data = REDCap_data_to_df(jspsych_json, records)
-
-		filter!(x -> x.version ∈ ["6.0", "6.01"], jspsych_data)
-
-		remove_testing!(jspsych_data)
-
-		JLD2.@save datafile jspsych_data
-	else
-		JLD2.@load datafile jspsych_data
-	end
-
-	# Exctract PILT
-	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
-
-	# Divide intwo WM and PILT
-	WM_data = filter(x -> x.n_stimuli == 3, PILT_data)
-	filter!(x -> x.n_stimuli == 2, PILT_data)
-
-	# Extract post-PILT test
-	test_data = prepare_post_PILT_test_data(jspsych_data)
-
-	# Exctract vigour
-	vigour_data = prepare_vigour_data(jspsych_data) 
-
-	# Extract post-vigour test
-	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
-
-	# Extract PIT
-	PIT_data = prepare_PIT_data(jspsych_data)
-
-	# Exctract reversal
-	reversal_data = prepare_reversal_data(jspsych_data)
-
-	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, reversal_data, jspsych_data
-end
-
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
@@ -108,7 +62,7 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
+		reversal_data, jspsych_data = load_pilot6_data(;)
 	nothing
 end
 
@@ -147,6 +101,8 @@ let
 		:response_optimal => mean => :acc
 	)
 
+	sort!(acc_curve, [:prolific_pid, :trial])
+
 	# Summarize by trial
 	acc_curve_sum = combine(
 		groupby(acc_curve, :trial),
@@ -168,19 +124,22 @@ let
 	) * visual(Lines, linewidth = 4))
 	
 	
-	draw(mp)
+	draw(mp; legend = (; show = false))
 end
 
 # ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
 md"""### Post-PILT test"""
+
+# ╔═╡ 6244dd22-7c58-4e87-84ed-004b076bc4cb
+test_data.response |> Set
 
 # ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
 let
 	# Select post-PILT test
 	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
 
-	@assert unique(test_data_clean.response) == 
-	["ArrowRight", "ArrowLeft", nothing] "Unexpected values in respones"
+	@assert Set(test_data_clean.response) == 
+	Set(["ArrowRight", "ArrowLeft", nothing]) "Unexpected values in respones: $(unique(test_data_clean.response))"
 
 	# Remove missing values
 	filter!(x -> !isnothing(x.response), test_data_clean)
@@ -682,7 +641,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
-		println(r.prolific_pid, ", ", r.total_bonus)
+		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
 
@@ -822,7 +781,6 @@ end
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
-# ╠═fa149033-bed0-41c8-898b-18bcbd1e34d7
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
@@ -830,8 +788,9 @@ end
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
+# ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
