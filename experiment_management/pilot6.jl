@@ -51,7 +51,7 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(; force_download=true)
+		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
 	nothing
 end
 
@@ -111,7 +111,7 @@ let
 	) * visual(Lines, linewidth = 4))
 	
 	
-	draw(mp; legend = (; show = false), axis = (; yticks = 0:0.25:1.))
+	draw(mp)
 end
 
 # ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
@@ -254,7 +254,7 @@ let
 	sort!(WM_data_clean, [:prolific_pid, :session, :block, :trial])
 	
 	transform!(
-		groupby(WM_data_clean, [:prolific_pid, :session, :block, :stimulus_group]),
+		groupby(WM_data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
 		:trial => (x -> 1:length(x)) => :appearance
 	)
 
@@ -299,43 +299,6 @@ let
 
 	f
 end
-
-# ╔═╡ d8c6b831-c942-4a2b-93ae-14bfcb7cc108
-function exclude_double_takers!(df::DataFrame)
-	# Find double takes
-	double_takers = unique(df[!, [:prolific_pid, :session, 
-		:exp_start_time]])
-
-	# Function to parse date with multiple formats (WorldClock API format and jsPsych format)
-	function parse_date(date_str)
-		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.sssZ"]
-			try
-				return DateTime(date_str, fmt)
-			catch
-				# Ignore and try the next format
-			end
-		end
-		error("Date format not recognized: $date_str")
-	end
-
-	# Find earliert session
-	double_takers.date = parse_date.(double_takers.exp_start_time)
-
-	DataFrames.DataFrames.transform!(
-		groupby(double_takers, [:prolific_pid, :session]),
-		:session => length => :n,
-		:date => minimum => :first_date
-	)
-
-	filter!(x -> (x.n > 1) & (x.date != x.first_date), double_takers)
-
-	# Exclude extra sessions
-	df = antijoin(df, double_takers,
-		on = [:prolific_pid, :session, 
-		:exp_start_time]
-	)
-end
-
 
 # ╔═╡ 1d1d6d79-5807-487f-8b03-efb7d0898ae8
 md"""### Reversal"""
@@ -561,7 +524,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
-		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
+		println(r.prolific_pid, ", ", r.total_bonus)
 	end
 end
 
@@ -575,13 +538,12 @@ end
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
-# ╠═d8c6b831-c942-4a2b-93ae-14bfcb7cc108
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
