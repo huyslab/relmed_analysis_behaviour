@@ -51,7 +51,7 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data()
+		reversal_data, jspsych_data = load_pilot6_data(; force_download=true)
 	nothing
 end
 
@@ -561,7 +561,7 @@ p_sum = summarize_participation(jspsych_data)
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
-		println(r.prolific_pid, ", ", r.total_bonus)
+		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
 
