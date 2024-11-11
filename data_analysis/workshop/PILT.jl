@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -271,9 +271,6 @@ let
 	
 end
 
-# ╔═╡ 9a12c81d-44b3-4c66-b7b2-df98eb420680
-PILT_data_clean
-
 # ╔═╡ a1f3d0c3-4595-49c3-9ba1-e1a55019836a
 # Auxillary variables
 function prepare_data(
@@ -309,6 +306,9 @@ function prepare_data(
 	return forfit
 
 end
+
+# ╔═╡ c0945fc4-79dc-4e5d-9168-8552a1702c49
+
 
 # ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
 function fit_by_factor(
@@ -357,7 +357,7 @@ end
 
 # ╔═╡ 4b9732c4-e74e-4775-8ff0-531be8576c30
 # Plot parameters by valence
-let
+a = let
 
 	# Tell fitting functions the column names
 	remap_columns = Dict(
@@ -369,7 +369,7 @@ let
 	)
 	
 	# Fit data
-	fit_by_factor(
+	fits = fit_by_factor(
 		prepare_data(PILT_data_clean);
 		model = single_p_QL,
 		factor = :valence,
@@ -381,7 +381,89 @@ let
 		remap_columns = remap_columns
 	)
 
+	# Perform t tests
+	pvals = []
+	for p in [:ρ, :a]
+	
+		ρ_wide = unstack(
+			fits,
+			:prolific_pid,
+			:valence,
+			p,
+			renamecols = (x -> "valence_$x")
+		) |> disallowmissing
 
+		ttest = OneSampleTTest(ρ_wide.valence_1, ρ_wide[!, Symbol("valence_-1")])
+
+		@info "$p: $ttest"
+		push!(pvals, 
+			pvalue(ttest)
+		)
+	end
+
+	# Translate p_value to stars
+	star_pval(p) = ["***", "**", "*", "ns."][findfirst(p .< [0.001, 0.01, 0.05, 1.])]
+
+	# Tranform a to α
+	fits.α = a2α.(fits.a)
+
+	# Labels for valence
+	fits.val_lables = CategoricalArray(
+		ifelse.(
+			fits.valence .> 0,
+			fill("Reward", nrow(fits)),
+			fill("Punishment", nrow(fits))
+		),
+		levels = ["Reward", "Punishment"]
+	)
+
+	# Plot
+	f1 = Figure()
+
+	for (i, (p, l)) in 
+		enumerate(zip([:ρ, :α], ["Reward sensitivity", "Learning rate"]))
+		
+		mp = data(fits) * 
+		(mapping(
+			:valence => (x -> sign.(x) .* (abs.(x) .- 0.2)) => "",
+			p => l,
+			group = :prolific_pid
+		) * visual(Lines, color = :grey, alpha = 0.5) +
+		mapping(
+			:valence => (x -> sign.(x) .* (abs.(x) .- 0.2)) => "",
+			p => l,
+			color = :valence => (x -> nonnumeric(sign.(x) .* (abs.(x) .- 0.2))) => "",
+			group = :prolific_pid
+		) * visual(Scatter) +
+		mapping(
+			:valence => (x -> sign.(x) .* (abs.(x) .+ 0.2)) => "",
+			p => l,
+			color = :valence => (x -> nonnumeric(sign.(x) .* (abs.(x) .- 0.2))) => "",
+		) * visual(BoxPlot, width = 0.5))
+	
+	
+		draw!(f1[1, i], mp,
+			scales(Color = (; palette = Makie.wong_colors()[[2,1]])); 
+			axis = (; 
+				xticks = ([-1, 1],  ["Punishment", "Reward"]), 
+				xreversed = true,
+				subtitle = star_pval(pvals[i])
+			)
+		)
+	end
+
+	# Save
+	filepath = "results/workshop/PILT_valence_parameters.png"
+
+	save(filepath, f1)
+
+	upload_to_osf(
+			filepath,
+			proj,
+			osf_folder
+	)
+
+	f1
 end
 
 # ╔═╡ Cell order:
@@ -392,7 +474,7 @@ end
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
 # ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
-# ╠═9a12c81d-44b3-4c66-b7b2-df98eb420680
 # ╠═4b9732c4-e74e-4775-8ff0-531be8576c30
 # ╠═a1f3d0c3-4595-49c3-9ba1-e1a55019836a
+# ╠═c0945fc4-79dc-4e5d-9168-8552a1702c49
 # ╠═d26f4afb-d734-40af-97aa-9604db2a335a
