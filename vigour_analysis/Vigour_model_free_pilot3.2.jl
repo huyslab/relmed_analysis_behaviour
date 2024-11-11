@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -13,8 +13,7 @@ begin
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
 	Pkg.add("MixedModels")
-	Pkg.add("TidierData")
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, TidierData, MixedModels, Printf, CategoricalArrays
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier, MixedModels, Printf, CategoricalArrays
 	include("fetch_preprocess_data.jl")
 	include("vigour_analysis/Vigour_utlis_fn.jl")
 	set_theme!(theme_minimal())
@@ -30,7 +29,7 @@ md"""
 ### From REDCap
 """
 
-# ╔═╡ 230df26d-e547-42d1-bb71-1bfa7a1dd25c
+# ╔═╡ 83858169-2022-4da9-8c28-a1685ffb51f3
 function load_pilot3_data()
 	datafile = "data/pilot3.1.jld2"
 	
@@ -82,7 +81,7 @@ end
 
 # ╔═╡ e8568096-8344-43cf-94fa-22219b3a7c7b
 begin
-	n_miss_df = combine(groupby(raw_vigour_data, [:prolific_id, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
+	n_miss_df = combine(groupby(raw_vigour_data, [:prolific_pid, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
 	many_miss = filter(x -> x.n_miss > 9, n_miss_df)
 end
 
@@ -96,7 +95,7 @@ begin
 	info_files = filter(x -> endswith(x, ".csv"), readdir(joinpath("data", "prolific_participant_info"); join = true))
 	info_data = @chain info_files begin
 		CSV.read(DataFrame, select = ["Participant id", "Age"])
-		@rename(prolific_id = var"Participant id", age = var"Age")
+		@rename(prolific_pid = var"Participant id", age = var"Age")
 		@filter(age != "CONSENT_REVOKED")
 		@mutate(age = as_float(age))
 	end
@@ -104,11 +103,11 @@ end
 
 # ╔═╡ 45d95aea-7751-4f37-9558-de4c55a0881e
 begin
-	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_id)
-	leftjoin!(vigour_data, info_data; on = :prolific_id)
+	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_pid)
+	leftjoin!(vigour_data, info_data; on = :prolific_pid)
 	# filter!(x -> !ismissing(x.age), vigour_data)
 	vigour_data_2 = @filter(vigour_data, version === "3.2")
-	vigour_test_data = antijoin(raw_vigour_test_data, many_miss; on = :prolific_id)
+	vigour_test_data = antijoin(raw_vigour_test_data, many_miss; on = :prolific_pid)
 	vigour_test_data_2 = @filter(vigour_test_data, version === "3.2")
 end
 
@@ -116,7 +115,7 @@ end
 combine(groupby(vigour_data, [:version]), :age => (x -> DataFrame([summarystats(x)])) => AsTable)
 
 # ╔═╡ 5ae2870a-408f-4aac-8f12-5af081a250d8
-@count(raw_vigour_data, prolific_id, exp_start_time, version) |>
+@count(raw_vigour_data, prolific_pid, exp_start_time, version) |>
 	x -> @count(x, version)
 
 # ╔═╡ bda488ea-faa3-4308-ac89-40b8481363bf
@@ -138,9 +137,9 @@ begin
 		# Group and calculate mean presses for each participant
 		grouped_data = vigour_data_2 |>
 			x -> transform(x, :response_times => ByRow(safe_mean) => :avg_rt) |>
-			x -> groupby(x, [:prolific_id, :reward_per_press]) |>
+			x -> groupby(x, [:prolific_pid, :reward_per_press]) |>
 			x -> combine(x, :avg_rt => mean => :avg_rt)
-		sort!(grouped_data, [:prolific_id, :reward_per_press])
+		sort!(grouped_data, [:prolific_pid, :reward_per_press])
 		
 		# Calculate the average across all participants
 		avg_data = combine(groupby(grouped_data, :reward_per_press), :avg_rt => (x -> median(skipmissing(x))) => :avg_rt)
@@ -150,7 +149,7 @@ begin
 		    mapping(
 		        :reward_per_press => "Reward/press",
 		        :avg_rt => "Response times (ms)",
-		        group = :prolific_id
+		        group = :prolific_pid
 		    ) * 
 		    visual(Lines, color = (:gray, 0.3), linewidth = 1)
 		
@@ -186,9 +185,9 @@ md"""
 
 # ╔═╡ fd68ab0d-ca1b-437b-8c55-24f900a0628d
 begin
-	groupby(vigour_data, Cols(:prolific_id, :version)) |>
+	groupby(vigour_data, Cols(:prolific_pid, :version)) |>
 			x -> combine(x, [:trial_presses, :trial_duration] => ((x, y) -> mean(x .* 1000 ./ y)) => :n_presses) |>
-			x -> sort(x, Cols(:prolific_id, :version)) |>
+			x -> sort(x, Cols(:prolific_pid, :version)) |>
 			x -> groupby(x, :version) |>
 			x -> combine(x, :n_presses => mean => :n_presses)
 end
@@ -245,7 +244,7 @@ CSV.write("data/pilot3.2_vigour_data.csv", vigour_data)
 # ╔═╡ 1066a576-c7bf-42cc-8097-607c663dcdac
 let
 	# Group and calculate mean presses for each participant
-	grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [:magnitude, :ratio], :press_per_sec, :version)
+	grouped_data, avg_w_data = avg_presses_w_fn(@filter(vigour_data, trial_number != 0), [:magnitude, :ratio], :press_per_sec, :version)
 	
 	# Create the plot for the average line
 	average_plot = data(avg_w_data) * 
@@ -308,11 +307,11 @@ end
 begin
 	missed_trial_df = @chain raw_vigour_data begin
 		@filter(trial_presses == 0)
-		@group_by(prolific_id, reward_per_press)
+		@group_by(prolific_pid, reward_per_press)
 		@summarize(n_miss = n())
 		@ungroup()
-		@mutate(short_id = last.(prolific_id, 5))
-		@arrange(prolific_id, reward_per_press)
+		@mutate(short_id = last.(prolific_pid, 5))
+		@arrange(prolific_pid, reward_per_press)
 	end
 	data(missed_trial_df) *
 		mapping(:reward_per_press, :n_miss, layout = :short_id) *
@@ -331,14 +330,14 @@ md"""
 """
 
 # ╔═╡ 08fe8e09-51e5-4d54-a0c2-7c6ac8269a00
-@count(vigour_data, prolific_id, version)
+@count(vigour_data, prolific_pid, version)
 
 # ╔═╡ b5c429ee-9f31-4815-98b3-2536952b6881
 begin
 	transform!(vigour_data, :trial_number => (x -> ifelse.(x .> maximum(x)/2, "second", "first")) => :half)
 	first_second_df = @chain vigour_data begin
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-		@group_by(prolific_id, version, half)
+		@group_by(prolific_pid, version, half)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = half, values_from = n_presses)
@@ -356,7 +355,7 @@ begin
 		mapping(:first, :second, color = :version) *
 		visual(Scatter) +
 		data(ρ_12_df) *
-		mapping(:x, :y, color = :version; text = :ρ_text => verbatim) *
+		mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
 		visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 		mapping(:intercept, :slope) *
@@ -371,7 +370,7 @@ end
 let
 	df = @chain vigour_data begin
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-		@group_by(prolific_id, version, half, magnitude, ratio)
+		@group_by(prolific_pid, version, half, magnitude, ratio)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = half, values_from = n_presses)
@@ -390,7 +389,7 @@ let
 			mapping(:first, :second, col = :magnitude, row = :ratio, color = :version) *
 			visual(Scatter, alpha = 0.3) +
 		data(version_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => verbatim, col = :magnitude, row = :ratio) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim, col = :magnitude, row = :ratio) *
 			visual(Makie.Text, fontsize = 12) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -401,7 +400,7 @@ end
 
 # ╔═╡ 50e8263e-a593-47d3-abc4-aceeeb68ba58
 ρ_by_conds = @chain vigour_data begin
-	@group_by(prolific_id, half, magnitude, ratio, version)
+	@group_by(prolific_pid, half, magnitude, ratio, version)
 	@summarize(n_presses = mean(skipmissing(trial_presses)))
 	@ungroup
 	@pivot_wider(names_from = half, values_from = n_presses)
@@ -421,7 +420,7 @@ begin
 	even_odd_df = @chain vigour_data begin
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@mutate(even = ifelse(trial_number % 2 === 0, "even", "odd"))
-		@group_by(prolific_id, even, version)
+		@group_by(prolific_pid, even, version)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = even, values_from = n_presses)
@@ -439,7 +438,7 @@ begin
 			mapping(:even, :odd, color = :version) *
 			visual(Scatter) +
 		data(ρ_01_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -470,12 +469,12 @@ begin
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(even = if_else(block % 2 === 0, "even", "odd"),
 				first = if_else(block <= 2, "first", "second"))
-		@arrange(prolific_id, version, reward_per_press)
-		@group_by(prolific_id, version)
+		@arrange(prolific_pid, version, reward_per_press)
+		@group_by(prolific_pid, version)
 		@filter(reward_per_press != median(reward_per_press))
 		@mutate(low_rpp = if_else(reward_per_press < median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
-		@group_by(prolific_id, version, even, low_rpp)
+		@group_by(prolific_pid, version, even, low_rpp)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = low_rpp, values_from = n_presses)
@@ -496,7 +495,7 @@ begin
 			mapping(:even, :odd, color = :version) *
 			visual(Scatter) +
 		data(ρ_rpp_diff_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -518,12 +517,12 @@ begin
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(even = if_else(block % 2 === 0, "even", "odd"),
 				first = if_else(block <= 2, "first", "second"))
-		@arrange(prolific_id, version, reward_per_press)
-		@group_by(prolific_id, version)
+		@arrange(prolific_pid, version, reward_per_press)
+		@group_by(prolific_pid, version)
 		@filter(reward_per_press != median(reward_per_press))
 		@mutate(low_rpp = if_else(reward_per_press < median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
-		@group_by(prolific_id, version, first, low_rpp)
+		@group_by(prolific_pid, version, first, low_rpp)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = low_rpp, values_from = n_presses)
@@ -544,7 +543,7 @@ begin
 			mapping(:first, :second, color = :version) *
 			visual(Scatter) +
 		data(ρ_rpp_diff_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -589,7 +588,7 @@ Since only RPP was balanced, perhaps it would be best to focus on and only on it
 begin
 	test_mixed_rpp = fit(GeneralizedLinearMixedModel,
 		@formula(chose_left ~ diff_rpp * version +
-		(diff_rpp | prolific_id)),
+		(diff_rpp | prolific_pid)),
 		diff_vigour_test_data, Binomial())
 end
 
@@ -599,7 +598,7 @@ diff_vigour_test_data
 # ╔═╡ 2f8f197a-77c1-48ac-b18a-d2e3a9006bfb
 begin
 	test_acc_df = @chain diff_vigour_test_data begin
-		@group_by(prolific_id, version)
+		@group_by(prolific_pid, version)
 		@select(diff_rpp, chose_left)
 		@mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
 		@mutate(acc = chose_left == truth)
@@ -618,7 +617,7 @@ end
 	@mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
 	@mutate(correct = chose_left == truth)
 	@mutate(easy = (left_ratio <= right_ratio && left_magnitude >= right_magnitude) || (left_ratio >= right_ratio && left_magnitude <= right_magnitude))
-	@group_by(prolific_id, easy)
+	@group_by(prolific_pid, easy)
 	@summarize(acc = mean(correct))
 	@ungroup
 	@mutate(easy = ifelse(easy, "Easy pairs", "Hard pairs"))
@@ -631,7 +630,7 @@ end
 	@mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
 	@mutate(correct = chose_left == truth)
 	@mutate(easy = (left_ratio <= right_ratio && left_magnitude >= right_magnitude) || (left_ratio >= right_ratio && left_magnitude <= right_magnitude))
-	@group_by(prolific_id, easy)
+	@group_by(prolific_pid, easy)
 	@summarize(acc = mean(correct))
 	@ungroup
 	@mutate(easy = ifelse(easy, "Easy pairs", "Hard pairs"))
@@ -669,7 +668,7 @@ begin
 		acc_text = string("Accuracy: ", round(acc; digits = 2)))
 	end
 	diff_rpp_range = LinRange(minimum(diff_vigour_test_data.diff_rpp), maximum(diff_vigour_test_data.diff_rpp), 100)
-	pred_effect_rpp = crossjoin(DataFrame.((pairs((;prolific_id="New",chose_left=0.5,diff_rpp=diff_rpp_range,version=["3.1", "3.2"]))...,))...)
+	pred_effect_rpp = crossjoin(DataFrame.((pairs((;prolific_pid="New",chose_left=0.5,diff_rpp=diff_rpp_range,version=["3.1", "3.2"]))...,))...)
 	pred_effect_rpp.pred = predict(test_mixed_rpp, pred_effect_rpp; new_re_levels=:population, type=:response)
 	rpp_pred_plot = 
 		data(diff_vigour_test_data) *
@@ -679,7 +678,7 @@ begin
 			mapping(:diff_rpp, :pred, color=:version => "Version") *
 			visual(Lines, color = :royalblue) +
 		data(avg_acc_version_df) *
-			mapping(:x, :y, color = :version => "Version"; text = :acc_text => verbatim) *
+			mapping(:x, :y, color = :version => "Version"; text = :acc_text => AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold)
 	draw(rpp_pred_plot;axis=(;xlabel="ΔRPP: Left−Right", ylabel="P(Choose left)"))
 end
@@ -693,7 +692,7 @@ md"""
 begin
 	test_mixed_mag = fit(GeneralizedLinearMixedModel,
 		@formula(chose_left ~ diff_mag +
-		(diff_mag | prolific_id)),
+		(diff_mag | prolific_pid)),
 		diff_vigour_test_data, Binomial())
 end
 
@@ -701,7 +700,7 @@ end
 begin
 	diff_mag_range = LinRange(minimum(diff_vigour_test_data.diff_mag), maximum(diff_vigour_test_data.diff_mag), 100)
 	pred_effect_mag = DataFrame(
-		prolific_id = "New",
+		prolific_pid = "New",
 		chose_left = 0.5,
 		diff_mag = diff_mag_range
 	)
@@ -726,7 +725,7 @@ md"""
 begin
 	test_mixed_fr_rel = fit(GeneralizedLinearMixedModel,
 		@formula(chose_left ~ diff_fr_rel_zscore +
-		(diff_fr_rel_zscore | prolific_id)),
+		(diff_fr_rel_zscore | prolific_pid)),
 		diff_vigour_test_data, Binomial())
 end
 
@@ -738,7 +737,7 @@ begin
 	diff_fr_range = std(diff_vigour_test_data.diff_fr_rel) * diff_fr_zscore_range .+ mean(diff_vigour_test_data.diff_fr_rel)
 
 	pred_effect_fr = DataFrame(
-		prolific_id = "New",
+		prolific_pid = "New",
 		chose_left = 0.5,
 		diff_fr_rel = diff_fr_range,
 		diff_fr_rel_zscore = diff_fr_zscore_range
@@ -767,7 +766,7 @@ md"""
 begin
 	test_mixed_combined = fit(GeneralizedLinearMixedModel,
 		@formula(chose_left ~ diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore +
-		(diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore | prolific_id)),
+		(diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore | prolific_pid)),
 		diff_vigour_test_data, Binomial())
 end
 
@@ -775,7 +774,7 @@ end
 # ╠═05c22183-d42d-4d27-8b21-33f6842e0291
 # ╟─33e63f0d-8b59-46a5-af57-b45eb4b8b531
 # ╟─be928c7e-363b-45cd-971b-4fad90335b06
-# ╠═230df26d-e547-42d1-bb71-1bfa7a1dd25c
+# ╠═83858169-2022-4da9-8c28-a1685ffb51f3
 # ╠═485584ee-2efc-4ed1-b58d-2a73ec9c8ae1
 # ╟─97257b1e-48dc-4be3-98c7-5872af7d3458
 # ╠═7eafecc7-81c4-4702-b0cf-6f591cacb6cd
