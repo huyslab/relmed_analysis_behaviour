@@ -117,14 +117,18 @@ let
 	# Plot whole data
 	f1 = Figure()
 	
-	draw!(f1, data(acc_curve_sum) * mp + matching)
+	draw!(f1, data(acc_curve_sum) * mp + matching;
+		axis = (; xautolimitmargin = (0, 0))
+	)
 
 	# Plot up to trial 5
 	f2 = Figure()
 	
 	draw!(
 		f2, 
-		data(filter(x -> x.trial <= 5, acc_curve_sum)) * mp)
+		data(filter(x -> x.trial <= 5, acc_curve_sum)) * mp;
+		axis = (; xautolimitmargin = (0, 0))
+	)
 
 
 	# Plot with matching level
@@ -134,7 +138,8 @@ let
 		f3, 
 		data(filter(x -> x.trial <= 5, acc_curve_sum)) * 
 		mp + 
-		matching
+		matching;
+		axis = (; xautolimitmargin = (0, 0))
 	)
 
 	# Link axes
@@ -145,13 +150,13 @@ let
 
 	save.(filepaths, [f1, f2, f3])
 
-	for fp in filepaths
-		upload_to_osf(
-			fp,
-			proj,
-			osf_folder
-		)
-	end
+	# for fp in filepaths
+	# 	upload_to_osf(
+	# 		fp,
+	# 		proj,
+	# 		osf_folder
+	# 	)
+	# end
 
 
 	f1, f2, f3
@@ -205,11 +210,11 @@ f1 = let
 	# Plot
 	f1 = Figure()
 	
-	draw!(f1, data(acc_curve_sum) * mp)
+	draw!(f1[1,1], data(acc_curve_sum) * mp; 
+		axis = (; xautolimitmargin = (0, 0)))
 
-	reorder_bands_lines!(f1)
+	reorder_bands_lines!(f1[1,1])
 	
-
 	f1
 	
 end
