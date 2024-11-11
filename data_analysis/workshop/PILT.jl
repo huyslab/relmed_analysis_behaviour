@@ -150,14 +150,13 @@ let
 
 	save.(filepaths, [f1, f2, f3])
 
-	# for fp in filepaths
-	# 	upload_to_osf(
-	# 		fp,
-	# 		proj,
-	# 		osf_folder
-	# 	)
-	# end
-
+	for fp in filepaths
+		upload_to_osf(
+			fp,
+			proj,
+			osf_folder
+		)
+	end
 
 	f1, f2, f3
 	
@@ -254,6 +253,19 @@ let
 	
 	# Link axes
 	linkaxes!(extract_axis(f1[1,1]), extract_axis(f2[1,1]))
+
+	# Save
+	filepaths = [joinpath("results/workshop", "PILT_acc_curve_valence_$k.png") for k in ["full", "partial"]]
+
+	save.(filepaths, [f1, f2])
+
+	for fp in filepaths
+		upload_to_osf(
+			fp,
+			proj,
+			osf_folder
+		)
+	end
 
 	f1, f2
 	
