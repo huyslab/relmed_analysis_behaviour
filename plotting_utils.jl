@@ -1,4 +1,27 @@
 # Functions for plotting data and simulations
+"""
+    extract_axis(f::Union{Figure, GridPosition})
+
+Extracts the axis from a given figure or grid position.
+
+# Arguments
+- `f`: A `Figure` or `GridPosition` object.
+
+# Returns
+- The first `Axis` found in the figure or grid position.
+"""
+function extract_axis(f::Union{Figure, GridPosition})
+
+	axis = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(axis, Axis)
+		return axis
+	else
+		return contents(axis)[1]
+	end
+	
+end
 
 """
 reorder_bands_lines!(f::Figure)
@@ -14,14 +37,7 @@ This function reorders the plots in the provided `Figure` such that bands and li
 function reorder_bands_lines!(f::GridPosition)
 
 	# Get plots
-	plots = contents(f)[1]
-
-	# Allow for plotting straight into plot, or to grid position
-	if isa(plots, Axis)
-		plots = plots.scene.plots
-	else
-		plots = contents(plots)[1].scene.plots
-	end
+	plots = extract_axis(f).scene.plots
 
 	n = length(plots)
 
