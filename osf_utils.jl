@@ -60,7 +60,7 @@ function upload_to_osf(
     current_hash = get_file_hash(filepath)
     
     # Load stored hash if it exists
-    if isfile(hash_path)
+    if isfile(hash_path) && !force
         stored_hash = read(hash_path, String)
         if stored_hash == current_hash
             println("File hasn't changed; skipping upload.")
