@@ -64,7 +64,7 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(;)
+		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
 	nothing
 end
 
@@ -600,7 +600,7 @@ function summarize_participation(data::DataFrame)
 		else # Parse JSON
 			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
 			bonus = JSON.parse(bonus)[1] 
-			return bonus
+			return maximum([0., bonus])
 		end
 
 	end
@@ -657,12 +657,15 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
-# ╔═╡ 104b7814-2a60-4fa7-88ad-d49d5c683262
-for r in eachrow(p_sum)
+# ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+for r in eachrow(filter(x -> occursin("2024-11-11", x.exp_start_time), p_sum))
 	if r.total_bonus > 0.
 		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
+
+# ╔═╡ 31792570-9a09-45df-90a6-287f1bd55929
+filter(x -> x.prolific_pid == "672de33cf02e758872666c9d", p_sum)
 
 # ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
 function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
@@ -799,7 +802,8 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-# ╠═104b7814-2a60-4fa7-88ad-d49d5c683262
+# ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+# ╠═31792570-9a09-45df-90a6-287f1bd55929
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
@@ -823,7 +827,7 @@ end
 # ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
 # ╟─8f6d8e98-6d73-4913-a02d-97525176549a
 # ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
-# ╟─dc957d66-1219-4a97-be46-c6c5c189c8ba
+# ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
