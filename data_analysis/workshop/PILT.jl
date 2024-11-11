@@ -71,6 +71,7 @@ PILT_data_clean = let
 end
 
 # ╔═╡ b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
+# Accuracy curveֿ
 let
 
 	# Sumarrize by participant and trial
@@ -153,7 +154,63 @@ let
 	end
 
 
-	# f1, f2, f3
+	f1, f2, f3
+	
+end
+
+# ╔═╡ 18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# Accuracy curveֿ by valence
+f1 = let
+
+	# Sumarrize by participant, valence, and trial
+	acc_curve = combine(
+		groupby(PILT_data_clean, [:prolific_pid, :valence, :trial]),
+		:response_optimal => mean => :acc
+	)
+
+	sort!(acc_curve, [:prolific_pid, :valence, :trial])
+
+	# Summarize by trial and valence
+	acc_curve_sum = combine(
+		groupby(acc_curve, [:valence, :trial]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	insertcols!(
+		acc_curve_sum,
+		:lb => acc_curve_sum.acc .- acc_curve_sum.se,
+		:ub => acc_curve_sum.acc .+ acc_curve_sum.se
+	)
+
+	# Create plot mapping
+	mp = (
+	# Error band
+		mapping(
+		:trial => "Trial #",
+		:lb => "Prop. optimal choice",
+		:ub => "Prop. optimal choice",
+		color = :valence => nonnumeric
+	) * visual(Band, alpha = 0.5) +
+	# Average line	
+		mapping(
+		:trial => "Trial #",
+		:acc => "Prop. optimal choice",
+		color = :valence => nonnumeric
+	) * visual(Lines, linewidth = 4)
+	)
+
+	# Fix order of layers
+	# Plot
+	f1 = Figure()
+	
+	draw!(f1, data(acc_curve_sum) * mp)
+
+	reorder_bands_lines!(f1)
+	
+
+	f1
 	
 end
 
@@ -164,3 +221,4 @@ end
 # ╠═14a292db-43d4-45d8-97a5-37ffc03bdc5c
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
 # ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
+# ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
