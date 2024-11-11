@@ -1,17 +1,19 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
+    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 237a05f6-9e0e-11ef-2433-3bdaa51dbed4
@@ -409,6 +411,13 @@ md"""
 ### Vigour
 """
 
+# ╔═╡ 7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+begin
+	filter!(x -> x.prolific_pid .!= "671139a20b977d78ec2ac1e0", vigour_data);
+	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
+	nothing;
+end
+
 # ╔═╡ 0312ce5f-be36-4d9b-aee3-04497f846537
 let
 	n_miss_df = @chain vigour_data begin
@@ -458,6 +467,13 @@ end
 md"""
 ### PIT
 """
+
+# ╔═╡ 43d5b727-9761-48e3-bbc6-89af0c4f3116
+begin
+	filter!(x -> x.prolific_pid .!= "671139a20b977d78ec2ac1e0", PIT_data);
+	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
+	nothing;
+end
 
 # ╔═╡ 89258a40-d4c6-4831-8cf3-d69d984c4f6e
 let
@@ -636,9 +652,12 @@ function summarize_participation(data::DataFrame)
 end
 
 # ╔═╡ c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-p_sum = summarize_participation(jspsych_data)
+begin
+	p_sum = summarize_participation(jspsych_data)
+	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
+end
 
-# ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+# ╔═╡ 104b7814-2a60-4fa7-88ad-d49d5c683262
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
 		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
@@ -673,7 +692,6 @@ end
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
 let
 	df = @chain PIT_data begin
-		# @filter(coin != 0)
 		@arrange(prolific_pid, magnitude, ratio)
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
 		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
@@ -760,19 +778,16 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 end
 
 # ╔═╡ 814aec54-eb08-4627-9022-19f41bcdac9f
-let
-	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
-	plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
-end
+plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
 let
 	common_rpp = unique(PIT_data.reward_per_press)
-	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
 	instrumental_data = @chain PIT_data begin
-		# @filter(coin==0)
+		@filter(coin==0)
 		@bind_rows(vigour_data)
 		@mutate(trialphase=categorical(trialphase, levels=["vigour_trial", "pit_trial"], ordered=true))
+		@mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
 		@filter(reward_per_press in !!common_rpp)
 	end
 	plot_presses_vs_var(instrumental_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
@@ -784,11 +799,11 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-# ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+# ╠═104b7814-2a60-4fa7-88ad-d49d5c683262
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
@@ -798,10 +813,12 @@ end
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
+# ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╟─814aec54-eb08-4627-9022-19f41bcdac9f
 # ╟─3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
+# ╟─43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╟─89258a40-d4c6-4831-8cf3-d69d984c4f6e
 # ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
 # ╟─8f6d8e98-6d73-4913-a02d-97525176549a
