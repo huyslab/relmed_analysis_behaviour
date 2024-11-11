@@ -21,8 +21,8 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Push changes to vigour
+        if: github.ref == 'refs/heads/main'
         run: |
-          if: github.ref == 'refs/heads/main' 
           git fetch origin 
           git checkout vigour
           git merge main --no-edit
