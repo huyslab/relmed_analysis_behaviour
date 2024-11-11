@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.46
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -29,6 +29,33 @@ end
 # ╔═╡ bed41c93-2f7e-4f2c-bec4-d5f5cd475e0f
 names(jspsych_data)
 
+# ╔═╡ e35effd6-5c62-48aa-8932-872c7af50d7b
+summarize_participation(jspsych_data)
+
+# ╔═╡ 99ca84c3-3df1-448d-b5b6-593328611aa1
+filter(x -> !ismissing(x.finished) && x.finished, summarize_participation(jspsych_data))
+
+# ╔═╡ f221ad44-920c-4b29-a48a-ba6aa529ab45
+begin
+	sub_list = CSV.read("/home/jovyan/data/prolific_participant_info/prolific_export_670aadfac3deeac9d40a5788.csv", DataFrame)
+	finished_df = filter(x -> !ismissing(x.finished) && x.finished && !ismissing(x.vigour_bonus), summarize_participation(jspsych_data)) |>
+	x -> select(x, :prolific_pid, :vigour_bonus) |>
+	x -> subset(x, :vigour_bonus => ByRow(x -> x > 0))
+	finished_df = semijoin(finished_df, sub_list, on = [:prolific_pid => Symbol("Participant id")])
+	for row in eachrow(finished_df)
+		println(join(row, ","))
+	end
+end
+
+# ╔═╡ 30aebcee-9138-46cf-8dd9-d03f93404517
+sum(finished_df.vigour_bonus) * (1 + 1/3 * 1.2)
+
+# ╔═╡ 8815162b-6592-44aa-8eb4-8c3d2e2cda59
+mean(skipmissing(summarize_participation(jspsych_data).vigour_bonus))
+
+# ╔═╡ 3de841b9-ef50-4cfa-ab5b-dd472ca01d4b
+quantile(skipmissing(summarize_participation(jspsych_data).vigour_bonus), [0, 0.25, 0.5, 0.75, 1])
+
 # ╔═╡ 431726e1-c06b-40b6-9183-107cc138a5d4
 md"""
 Check if there are timing issues
@@ -53,6 +80,54 @@ begin
 		@select(prolific_pid, time_elapsed, trial_duration, trial_presses, trial_number, response_time)
 		@mutate(dur = [missing, ~ diff(time_elapsed)...])
 	end
+end
+
+# ╔═╡ d203faab-d4ea-41b2-985b-33eb8397eecc
+"""
+    summarize_participation(data::DataFrame) -> DataFrame
+
+Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
+
+This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
+
+# Returns
+- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
+"""
+function summarize_participation(data::DataFrame)
+
+	function extract_PILT_bonus(outcome)
+
+		if all(ismissing.(outcome)) # Return missing if participant didn't complete
+			return missing
+		else # Parse JSON
+			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
+			bonus = JSON.parse(bonus)[1] 
+			return bonus
+		end
+
+	end
+	
+	participants = combine(groupby(data, [:prolific_pid, :record_id, :version, :exp_start_time]),
+		:trialphase => (x -> "experiment_end_message" in x) => :finished,
+		:trialphase => (x -> "kick-out" in x) => :kick_out,
+		# :outcomes => extract_PILT_bonus => :PILT_bonus,
+		:vigour_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :vigour_bonus,
+		# [:trial_type, :block] => ((t, b) -> sum((t .== "PLT") .& (typeof.(b) .== Int64))) => :n_trial_PLT,
+		:trialphase => (x -> sum(skipmissing(x .== "vigour_trial"))) => :n_trial_vigour,
+		:trialphase => (x -> sum(skipmissing(x .== "vigour_test"))) => :n_trial_vigour_test,
+		# :block => (x -> filter(y -> typeof(y) == Int64, x) |> unique |> length) => :n_blocks_PLT,
+		:n_warnings => maximum => :n_warnings
+	)
+
+	debrief = extract_debrief_responses(data)
+
+	participants = leftjoin(participants, debrief, 
+		on = [:prolific_pid, :exp_start_time])
+
+	return participants
 end
 
 # ╔═╡ f47e6aba-00ea-460d-8310-5b24ed7fe336
@@ -116,81 +191,6 @@ function extract_debrief_responses(data::DataFrame)
 	# hcat together
 	return hcat(debrief[!, Not([:debrief_likert, :debrief_text])], likert_expanded, text_expanded)
 end
-
-# ╔═╡ d203faab-d4ea-41b2-985b-33eb8397eecc
-"""
-    summarize_participation(data::DataFrame) -> DataFrame
-
-Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
-
-This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
-
-# Returns
-- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
-"""
-function summarize_participation(data::DataFrame)
-
-	function extract_PILT_bonus(outcome)
-
-		if all(ismissing.(outcome)) # Return missing if participant didn't complete
-			return missing
-		else # Parse JSON
-			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
-			bonus = JSON.parse(bonus)[1] 
-			return bonus
-		end
-
-	end
-	
-	participants = combine(groupby(data, [:prolific_pid, :record_id, :version, :exp_start_time]),
-		:trialphase => (x -> "experiment_end_message" in x) => :finished,
-		:trialphase => (x -> "kick-out" in x) => :kick_out,
-		# :outcomes => extract_PILT_bonus => :PILT_bonus,
-		:vigour_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :vigour_bonus,
-		# [:trial_type, :block] => ((t, b) -> sum((t .== "PLT") .& (typeof.(b) .== Int64))) => :n_trial_PLT,
-		:trialphase => (x -> sum(skipmissing(x .== "vigour_trial"))) => :n_trial_vigour,
-		:trialphase => (x -> sum(skipmissing(x .== "vigour_test"))) => :n_trial_vigour_test,
-		# :block => (x -> filter(y -> typeof(y) == Int64, x) |> unique |> length) => :n_blocks_PLT,
-		:n_warnings => maximum => :n_warnings
-	)
-
-	debrief = extract_debrief_responses(data)
-
-	participants = leftjoin(participants, debrief, 
-		on = [:prolific_pid, :exp_start_time])
-
-	return participants
-end
-
-# ╔═╡ e35effd6-5c62-48aa-8932-872c7af50d7b
-summarize_participation(jspsych_data)
-
-# ╔═╡ 99ca84c3-3df1-448d-b5b6-593328611aa1
-filter(x -> !ismissing(x.finished) && x.finished, summarize_participation(jspsych_data))
-
-# ╔═╡ f221ad44-920c-4b29-a48a-ba6aa529ab45
-begin
-	sub_list = CSV.read("/home/jovyan/data/prolific_participant_info/prolific_export_670aadfac3deeac9d40a5788.csv", DataFrame)
-	finished_df = filter(x -> !ismissing(x.finished) && x.finished && !ismissing(x.vigour_bonus), summarize_participation(jspsych_data)) |>
-	x -> select(x, :prolific_pid, :vigour_bonus) |>
-	x -> subset(x, :vigour_bonus => ByRow(x -> x > 0))
-	finished_df = semijoin(finished_df, sub_list, on = [:prolific_pid => Symbol("Participant id")])
-	for row in eachrow(finished_df)
-		println(join(row, ","))
-	end
-end
-
-# ╔═╡ 30aebcee-9138-46cf-8dd9-d03f93404517
-sum(finished_df.vigour_bonus) * (1 + 1/3 * 1.2)
-
-# ╔═╡ 8815162b-6592-44aa-8eb4-8c3d2e2cda59
-mean(skipmissing(summarize_participation(jspsych_data).vigour_bonus))
-
-# ╔═╡ 3de841b9-ef50-4cfa-ab5b-dd472ca01d4b
-quantile(skipmissing(summarize_participation(jspsych_data).vigour_bonus), [0, 0.25, 0.5, 0.75, 1])
 
 # ╔═╡ Cell order:
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
