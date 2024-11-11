@@ -57,50 +57,6 @@ begin
 	set_theme!(th)
 end
 
-# ╔═╡ fa149033-bed0-41c8-898b-18bcbd1e34d7
-function load_pilot6_data(; force_download = false)
-	datafile = "data/pilot6.jld2"
-
-	# Load data or download from REDCap
-	if !isfile(datafile) || force_download
-		jspsych_json, records = get_REDCap_data("pilot6"; file_field = "file_data")
-	
-		jspsych_data = REDCap_data_to_df(jspsych_json, records)
-
-		filter!(x -> x.version ∈ ["6.0", "6.01"], jspsych_data)
-
-		remove_testing!(jspsych_data)
-
-		JLD2.@save datafile jspsych_data
-	else
-		JLD2.@load datafile jspsych_data
-	end
-
-	# Exctract PILT
-	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
-
-	# Divide intwo WM and PILT
-	WM_data = filter(x -> x.n_stimuli == 3, PILT_data)
-	filter!(x -> x.n_stimuli == 2, PILT_data)
-
-	# Extract post-PILT test
-	test_data = prepare_post_PILT_test_data(jspsych_data)
-
-	# Exctract vigour
-	vigour_data = prepare_vigour_data(jspsych_data) 
-
-	# Extract post-vigour test
-	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
-
-	# Extract PIT
-	PIT_data = prepare_PIT_data(jspsych_data)
-
-	# Exctract reversal
-	reversal_data = prepare_reversal_data(jspsych_data)
-
-	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, reversal_data, jspsych_data
-end
-
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
@@ -705,7 +661,6 @@ end
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
 		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
-		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
 
@@ -841,7 +796,6 @@ end
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
-# ╠═fa149033-bed0-41c8-898b-18bcbd1e34d7
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
@@ -854,8 +808,6 @@ end
 # ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
-# ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
-# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
