@@ -165,7 +165,7 @@ end
 
 # ╔═╡ 18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
 # Accuracy curveֿ by valence
-f1 = let
+let
 
 	# Sumarrize by participant, valence, and trial
 	acc_curve = combine(
@@ -189,6 +189,16 @@ f1 = let
 		:ub => acc_curve_sum.acc .+ acc_curve_sum.se
 	)
 
+	# Labels for valence
+	acc_curve_sum.val_lables = CategoricalArray(
+		ifelse.(
+			acc_curve_sum.valence .> 0,
+			fill("Reward", nrow(acc_curve_sum)),
+			fill("Punishment", nrow(acc_curve_sum))
+		),
+		levels = ["Reward", "Punishment"]
+	)
+
 	# Create plot mapping
 	mp = (
 	# Error band
@@ -196,26 +206,56 @@ f1 = let
 		:trial => "Trial #",
 		:lb => "Prop. optimal choice",
 		:ub => "Prop. optimal choice",
-		color = :valence => nonnumeric
+		color = :val_lables => ""
 	) * visual(Band, alpha = 0.5) +
 	# Average line	
 		mapping(
 		:trial => "Trial #",
 		:acc => "Prop. optimal choice",
-		color = :valence => nonnumeric
+		color = :val_lables => ""
 	) * visual(Lines, linewidth = 4)
 	)
 
-	# Fix order of layers
-	# Plot
+	# Plot whole figure
 	f1 = Figure()
 	
-	draw!(f1[1,1], data(acc_curve_sum) * mp; 
+	plt1 = draw!(f1[1,1], data(acc_curve_sum) * mp; 
 		axis = (; xautolimitmargin = (0, 0)))
 
+	legend!(
+		f1[0,1], 
+		plt1,
+		tellwidth = false,
+		framevisible = false,
+		orientation = :horizontal
+	)
+
+	# Fix order of layers
 	reorder_bands_lines!(f1[1,1])
+
+	# Plot first five trials
+	f2 = Figure()
 	
-	f1
+	draw!(f2[1,1], data(filter(x -> x.trial <= 5, acc_curve_sum)) * mp; 
+		axis = (; xautolimitmargin = (0, 0)))
+
+	legend!(
+		f2[0,1], 
+		plt1,
+		tellwidth = false,
+		framevisible = false,
+		orientation = :horizontal
+	)
+
+
+	# Fix order of layers
+	reorder_bands_lines!(f2[1,1])
+
+	
+	# Link axes
+	linkaxes!(extract_axis(f1[1,1]), extract_axis(f2[1,1]))
+
+	f1, f2
 	
 end
 
