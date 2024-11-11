@@ -27,27 +27,6 @@ function get_file_hash(file_path::String)
     return bytes2hex(sha256(read(file_path)))
 end
 
-function upload_if_changed(file_path::String, upload_to_osf)
-    hash_path = file_path * ".hash"
-    
-    # Compute current hash of file
-    current_hash = get_file_hash(file_path)
-    
-    # Load stored hash if it exists
-    if isfile(hash_path)
-        stored_hash = read(hash_path, String)
-        if stored_hash == current_hash
-            println("File hasn't changed; skipping upload.")
-            return
-        end
-    end
-    
-    # Upload file and update stored hash
-    upload_to_osf(file_path)
-    write(hash_path, current_hash)
-    println("File uploaded and hash updated.")
-end
-
 """
     upload_to_osf(filepath::String, osf_project::OSF.Project, osf_folder::String; force::Bool = true)
 
@@ -78,7 +57,7 @@ function upload_to_osf(
     hash_path = filepath * ".hash"
     
     # Compute current hash of file
-    current_hash = get_file_hash(file_path)
+    current_hash = get_file_hash(filepath)
     
     # Load stored hash if it exists
     if isfile(hash_path)
