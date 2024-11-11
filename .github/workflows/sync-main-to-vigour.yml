@@ -1,0 +1,27 @@
+name: Sync Main to Vigour
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-main-to-vigour:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Push changes to vigour
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git fetch origin 
+          git checkout vigour
+          git merge main --no-edit
+          git push origin vigour
