@@ -24,11 +24,17 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
+	Pkg.add("MixedModels")
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier, Printf, CategoricalArrays
-	using MixedModels
 	include("fetch_preprocess_data.jl")
 	include("vigour_analysis/Vigour_utlis_fn.jl")
 	set_theme!(theme_minimal())
+end
+
+# ╔═╡ c5be4a4b-d800-4ba4-abde-c9607cefe261
+begin
+	Pkg.add("RCall")
+	using RCall
 end
 
 # ╔═╡ 33e63f0d-8b59-46a5-af57-b45eb4b8b531
@@ -41,39 +47,70 @@ md"""
 ### From REDCap
 """
 
-# ╔═╡ 02713d34-3f91-4a60-b499-93975cede337
-md"""
-Testing removed in `load_pilot4_data()`
-"""
+# ╔═╡ c04180f6-7b97-4441-859a-edefab57f272
+function load_pilot5_data(; force_download = false)
+	datafile = "data/pilot5.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot5"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Exctract PILT
+	PLT_data = prepare_PLT_data(jspsych_data)
+
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
+
+	return PLT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, jspsych_data
+end
 
 # ╔═╡ 485584ee-2efc-4ed1-b58d-2a73ec9c8ae1
-begin 
-	_, _, raw_vigour_data, raw_vigour_test_data, raw_pit_data, _, jspsych_data = load_pilot4x_data(force_download=true);
+begin
+	_, raw_test_data, raw_vigour_data, raw_vigour_test_data, raw_pit_data, jspsych_data = load_pilot5_data(force_download=true);
 	transform!(raw_vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
 	transform!(raw_pit_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
 
 	# Remove participants with wrong number of trials
 	rm_vigour_df = @chain raw_vigour_data begin
-		@count(prolific_pid)
+		@count(prolific_pid, exp_start_time)
 		@filter(n != 36)
 	end
-	raw_vigour_data = antijoin(raw_vigour_data, rm_vigour_df; on = :prolific_pid)
+	raw_vigour_data = antijoin(raw_vigour_data, rm_vigour_df; on = [:prolific_pid, :exp_start_time])
+	filter!(x -> x.version .=== "5.0", raw_vigour_data)
+
+	filter!(x -> x.version .=== "5.0", raw_vigour_test_data)
 
 	rm_pit_df = @chain raw_pit_data begin
-		@count(prolific_pid)
-		@filter(n != 72)
+		@count(prolific_pid, exp_start_time)
+		@filter(n != 36)
 	end
-	raw_pit_data = antijoin(raw_pit_data, rm_pit_df; on = :prolific_pid)
+	raw_pit_data = antijoin(raw_pit_data, rm_pit_df; on = [:prolific_pid, :exp_start_time])
+	filter!(x -> x.version .=== "5.0", raw_pit_data)
 end
 
-# ╔═╡ 1ae968e2-5f07-4296-a9ce-51a967a65f35
-# ╠═╡ disabled = true
-#=╠═╡
+# ╔═╡ afa23543-f1fb-4cf4-b884-753a4b988d29
 begin
-	CSV.write("data/pilot4.3_raw_pit_data.csv", raw_pit_data)
-	CSV.write("data/pilot4.3_raw_vigour_data.csv", raw_vigour_data)
+	CSV.write("data/pilot5_raw_pit_data.csv", raw_pit_data)
+	CSV.write("data/pilot5_raw_vigour_data.csv", raw_vigour_data)
 end
-  ╠═╡ =#
 
 # ╔═╡ e8568096-8344-43cf-94fa-22219b3a7c7b
 begin
@@ -86,12 +123,12 @@ md"""
 ### Read demographic data
 """
 
-# ╔═╡ bbfb783c-9127-41ad-9114-f3dd9753bf6a
+# ╔═╡ 51515262-32d8-4c9e-8a9c-9b4fd4eb4f09
 begin
 	info_files = filter(x -> endswith(x, ".csv"), readdir(joinpath("data", "prolific_participant_info"); join = true))
 	info_data = @chain info_files begin
-		CSV.read(DataFrame, select = ["Participant id", "Age", "Sex"])
-		@rename(prolific_pid = var"Participant id", age = var"Age", sex = var"Sex")
+		CSV.read(DataFrame, select = ["Participant id", "Age"])
+		@rename(prolific_pid = var"Participant id", age = var"Age")
 		@filter(age != "CONSENT_REVOKED")
 		@mutate(age = as_float(age))
 	end
@@ -100,26 +137,22 @@ end
 # ╔═╡ 45d95aea-7751-4f37-9558-de4c55a0881e
 begin
 	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_pid)
-	filter!(x -> x.version == "4.3", vigour_data)
 	leftjoin!(vigour_data, info_data; on = :prolific_pid)
-	# filter!(x -> x.trial_number != 1, vigour_data)
+	# filter!(x -> !ismissing(x.age), vigour_data)
     vigour_test_data = antijoin(raw_vigour_test_data, many_miss; on = :prolific_pid)
-	filter!(x -> x.version == "4.3", vigour_test_data)
 end
 
-# ╔═╡ bb74b333-521d-4dc1-8e06-4a53649fe199
-@distinct(vigour_data, prolific_pid, age) |>
-	x -> combine(x, :age => (x -> DataFrame([summarystats(x)])) => AsTable)
-
 # ╔═╡ 7fadad91-a4b1-4a44-9491-2d389303d405
-describe(vigour_data)
+describe(vigour_data, :detailed)
 
 # ╔═╡ 5ae2870a-408f-4aac-8f12-5af081a250d8
 @count(vigour_data, prolific_pid, exp_start_time, version) |>
 	x -> @count(x, version)
 
 # ╔═╡ bda488ea-faa3-4308-ac89-40b8481363bf
-filter(x -> x.trial_presses .== 0, vigour_data)
+filter(x -> x.trial_presses .== 0, raw_vigour_data) |>
+d -> filter(x -> x.ratio .== 1, d) |>
+d -> combine(groupby(d, :prolific_pid), :trial_number => length => :n_trial)
 
 # ╔═╡ ac1399c4-6a2f-446f-8687-059fa5da9473
 md"""
@@ -131,10 +164,14 @@ md"""
 ### Response time
 """
 
+# ╔═╡ 927d9997-958f-4536-8de1-2ae7798f9212
+vigour_data
+
 # ╔═╡ 2391eb75-db59-4156-99ae-abb8f1508037
 	let
 		# Group and calculate mean presses for each participant
 		grouped_data = vigour_data |>
+			x -> filter(y -> y.trial_number != 0, x) |>
 			x -> transform(x, :response_times => ByRow(safe_mean) => :avg_rt) |>
 			x -> groupby(x, [:prolific_pid, :reward_per_press]) |>
 			x -> combine(x, :avg_rt => mean => :avg_rt)
@@ -176,6 +213,26 @@ md"""
 		fig
 	end
 
+# ╔═╡ e2dee7b2-59d8-4822-996d-6193aa97952f
+@chain vigour_data begin
+	@filter(trial_presses > 0)
+	@group_by(prolific_pid, trial_number)
+	@summarize(response_times = first.(response_times))
+	@ungroup
+	@filter response_times < 1000
+	data(_) * mapping(:response_times) * AlgebraOfGraphics.density()
+	draw()
+end
+
+# ╔═╡ 6223e7bb-688f-48c7-9c8d-a66925afd905
+@chain vigour_data begin
+	@filter(trial_presses > 0)
+	@group_by(prolific_pid, trial_number)
+	@summarize(response_times = first.(response_times))
+	@ungroup
+	describe(:detailed; cols=:response_times)
+end
+
 # ╔═╡ b9f4babc-8da0-40f2-b0d2-95f915989faf
 md"""
 ### Number of key presses
@@ -201,7 +258,7 @@ let
 	@mutate(short_id = last.(prolific_pid, 5))
 	end
 	fig = Figure(size = (1200, 1200))
-	axis = (xlabel = "Fixed ratio", ylabel = "Press/sec")
+	axis = (xlabel = "Reward/press", ylabel = "Press/sec")
 	p = data(df) * mapping(:reward_per_press, :press_per_sec, layout = :short_id) * visual(ScatterLines; markersize = 5)
 	draw!(fig, p; axis=axis)
 	fig
@@ -227,9 +284,9 @@ let
 		height=450
 	)
 	p = data(first_four_df) *
-		mapping(:trial_number, :press_per_sec, color = :reward_per_press => nonnumeric => "Reward/press", col = :version) *
+		mapping(:trial_number, :press_per_sec, color = :reward_per_press => nonnumeric, col = :version) *
 		visual(RainClouds)
-	fig = draw(p; axis=axis)
+	fig = draw(p; axis=axis, colorbar=(;label = "Reawrd/press", height = 200))
 	fig
 end
 
@@ -243,7 +300,7 @@ sort(unique(vigour_data.reward_per_press))
 unique(vigour_data.trial_number[vigour_data.reward_per_press .== 1])
 
 # ╔═╡ 00f78d00-ca54-408a-a4a6-ad755566052a
-plot_presses_vs_var(@filter(vigour_data, trial_number != 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=true)
+plot_presses_vs_var(@filter(vigour_data, trial_number != 0); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ ef4c0f64-2f16-4700-8fc4-703a1b858c37
 plot_presses_vs_var(@filter(vigour_data, trial_number != 0); x_var=:ratio, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Fixed ratio", combine=false)
@@ -252,10 +309,7 @@ plot_presses_vs_var(@filter(vigour_data, trial_number != 0); x_var=:ratio, y_var
 plot_presses_vs_var(@filter(vigour_data, trial_number != 0); x_var=:magnitude, y_var=:press_per_sec, grp_var=:version, ylab="Press/sec", xlab = "Reward magnitude", combine=false)
 
 # ╔═╡ 14d72296-7392-4375-9748-a8ee84d34701
-# ╠═╡ disabled = true
-#=╠═╡
-CSV.write("data/pilot4_vigour_data.csv", vigour_data)
-  ╠═╡ =#
+CSV.write("data/pilot5_vigour_data.csv", vigour_data)
 
 # ╔═╡ 1066a576-c7bf-42cc-8097-607c663dcdac
 let
@@ -299,38 +353,40 @@ md"""
 """
 
 # ╔═╡ 302e4f7a-fd09-48c3-89ac-a80a63841ee7
-let
-	# Create the plot
-	plot = data(n_miss_df) * 
-		   mapping(:n_miss, ) * 
-		   histogram(bins=20)
-	
-	# Set up the axis
-	axis = (
-		title = "Some participants didn't respond in many trials",
-		xlabel = "# No-response trials",
-		ylabel = "Count (# participants)",
-		yticks = 0:10:50
-	)
-	
-	# Draw the plot
-	draw(plot; axis)
+begin
+	let
+		# Create the plot
+		plot = data(n_miss_df) * 
+		       mapping(:n_miss, ) * 
+		       histogram(bins=20)
+		
+		# Set up the axis
+		axis = (
+		    title = "Some participants didn't respond in many trials",
+		    xlabel = "# No-response trials",
+		    ylabel = "Count (# participants)",
+		    yticks = 0:10:50
+		)
+		
+		# Draw the plot
+		draw(plot; axis)
+	end
 end
 
 # ╔═╡ b0c1d8fb-8f95-4a40-b760-6584022867ce
 begin
 	missed_trial_df = @chain raw_vigour_data begin
 		@filter(trial_presses == 0)
-		@group_by(prolific_pid, reward_per_press)
+		@group_by(prolific_pid, ratio, magnitude)
 		@summarize(n_miss = n())
 		@ungroup()
 		@mutate(short_id = last.(prolific_pid, 5))
-		@arrange(prolific_pid, reward_per_press)
+		@arrange(prolific_pid, ratio, magnitude)
 	end
 	data(missed_trial_df) *
-		mapping(:reward_per_press, :n_miss, layout = :short_id) *
+		mapping(:ratio, :n_miss, dodge_x=:magnitude=>nonnumeric, color=:magnitude=>nonnumeric, layout = :short_id) *
 		visual(ScatterLines) |>
-	x -> draw(x)
+	x -> draw(x, scales(DodgeX = (; width = 2)))
 end
 
 # ╔═╡ 9a8d96d7-13bd-4f70-9344-6569dfa39ab6
@@ -344,12 +400,13 @@ md"""
 """
 
 # ╔═╡ 08fe8e09-51e5-4d54-a0c2-7c6ac8269a00
-@count(vigour_data, prolific_pid, version)
+@count(vigour_data, prolific_pid, exp_start_time, version)
 
 # ╔═╡ b5c429ee-9f31-4815-98b3-2536952b6881
 begin
 	transform!(vigour_data, :trial_number => (x -> ifelse.(x .> maximum(x)/2, "second", "first")) => :half)
 	first_second_df = @chain vigour_data begin
+		@filter(trial_number != 0)
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@group_by(prolific_pid, version, half)
 		@summarize(n_presses = mean(press_per_sec))
@@ -383,6 +440,7 @@ end
 # ╔═╡ 00d6678d-4e26-4fe6-9937-b1055f78cad5
 let
 	df = @chain vigour_data begin
+		@filter(trial_number != 0)
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@group_by(prolific_pid, version, half, magnitude, ratio)
 		@summarize(n_presses = mean(press_per_sec))
@@ -414,6 +472,7 @@ end
 
 # ╔═╡ 50e8263e-a593-47d3-abc4-aceeeb68ba58
 ρ_by_conds = @chain vigour_data begin
+	@filter(trial_number != 0)
 	@group_by(prolific_pid, half, magnitude, ratio, version)
 	@summarize(n_presses = mean(skipmissing(trial_presses)))
 	@ungroup
@@ -432,6 +491,7 @@ md"""
 # ╔═╡ 1adc75da-c6c4-4b11-81ff-227851a18076
 begin
 	even_odd_df = @chain vigour_data begin
+		@filter(trial_number != 0)
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@mutate(even = ifelse(trial_number % 2 === 0, "even", "odd"))
 		@group_by(prolific_pid, even, version)
@@ -479,14 +539,14 @@ Since the task by nature has four blocks, we could also have first-second and ev
 begin
 	let
 	rpp_dff_df = @chain vigour_data begin
-		@filter(trial_number != 1)
+		@filter(trial_number != 0)
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(even = if_else(block % 2 === 0, "even", "odd"),
 				first = if_else(block <= 2, "first", "second"))
 		@arrange(prolific_pid, version, reward_per_press)
 		@group_by(prolific_pid, version)
-		# @filter(reward_per_press ≉ median(reward_per_press))
+		# @filter(reward_per_press != median(reward_per_press))
 		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
 		@group_by(prolific_pid, version, even, low_rpp)
@@ -502,7 +562,7 @@ begin
 		@summarize(ρ = ~ cor(odd, even))
 		@mutate(ρ = (2 * ρ) / (1 + ρ))
 		@mutate(ρ_text = string("ρ: ", round(ρ; digits = 2)))
-		@mutate(x = -0.5, y = -3)
+		@mutate(x = -0.5, y = [-4])
 		@ungroup
 	end
 	rpp_diff_plot = 
@@ -528,14 +588,14 @@ md"""
 begin
 	let
 	rpp_dff_df = @chain vigour_data begin
-		@filter(trial_number != 1)
+		@filter(trial_number != 0)
 		@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(even = if_else(block % 2 === 0, "even", "odd"),
 				first = if_else(block <= 2, "first", "second"))
 		@arrange(prolific_pid, version, reward_per_press)
 		@group_by(prolific_pid, version)
-		# @filter(reward_per_press ≉ median(reward_per_press))
+		# @filter(reward_per_press != median(reward_per_press))
 		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
 		@group_by(prolific_pid, version, first, low_rpp)
@@ -551,7 +611,7 @@ begin
 		@summarize(ρ = ~ cor(first, second))
 		@mutate(ρ = (2 * ρ) / (1 + ρ))
 		@mutate(ρ_text = string("ρ: ", round(ρ; digits = 2)))
-		@mutate(x = -2, y = -3)
+		@mutate(x = -0.5, y = [-4])
 		@ungroup
 	end
 	rpp_diff_plot = 
@@ -587,14 +647,8 @@ begin
 	end
 end
 
-# ╔═╡ c295b8aa-c54b-4759-8cb2-ef9a49cdf378
-@count(vigour_test_data, prolific_pid)
-
 # ╔═╡ 223d7ed5-8621-4f6a-905e-cfbd27849686
-# ╠═╡ disabled = true
-#=╠═╡
-CSV.write("data/pilot4_vigour_test_data.csv", diff_vigour_test_data)
-  ╠═╡ =#
+CSV.write("data/pilot5_vigour_test_data.csv", diff_vigour_test_data)
 
 # ╔═╡ b3f76fad-a1c6-4fc0-afbf-7ce9736986e8
 md"""
@@ -674,11 +728,11 @@ begin
 		@group_by(version)
 		@summarize(acc = mean(acc))
 		@ungroup
-		@mutate(x = 2, y = 0.2,
+		@mutate(x = 2, y = [0.2],
 		acc_text = string("Accuracy: ", round(acc; digits = 2)))
 	end
 	diff_rpp_range = LinRange(minimum(diff_vigour_test_data.diff_rpp), maximum(diff_vigour_test_data.diff_rpp), 100)
-	pred_effect_rpp = crossjoin(DataFrame.((pairs((;prolific_pid="New",chose_left=0.5,diff_rpp=diff_rpp_range,version=["4.3"]))...,))...)
+	pred_effect_rpp = crossjoin(DataFrame.((pairs((;prolific_pid="New",chose_left=0.5,diff_rpp=diff_rpp_range,version=["5.0"]))...,))...)
 	pred_effect_rpp.pred = predict(test_mixed_rpp, pred_effect_rpp; new_re_levels=:population, type=:response)
 	rpp_pred_plot = 
 		data(diff_vigour_test_data) *
@@ -688,7 +742,7 @@ begin
 			mapping(:diff_rpp, :pred, color=:version => "Version") *
 			visual(Lines, color = :royalblue) +
 		data(avg_acc_version_df) *
-			mapping(:x, :y, color = :version => "Version"; text = :acc_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
+			mapping(:x, :y, color = :version => "Version"; text = :acc_text => AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold)
 	draw(rpp_pred_plot;axis=(;xlabel="ΔRPP: Left−Right", ylabel="P(Choose left)"))
 end
@@ -785,60 +839,40 @@ md"""
 ## PIT
 """
 
-# ╔═╡ b8667569-7b7a-4cb2-a5ef-3322d6330dc4
-begin
-	n_pit_miss_df = combine(groupby(raw_pit_data, [:prolific_pid, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
-	pit_many_miss = filter(x -> x.n_miss >= 9, n_pit_miss_df)
-end
-
-# ╔═╡ 59e15e38-aa23-45af-8472-e7923af9aaae
-begin
-	pit_data = antijoin(raw_pit_data, pit_many_miss; on = :prolific_pid)
-	filter!(x -> x.version == "4.3", pit_data)
-	pit_data = @mutate(pit_data,
-		block = (trial_number - 1) ÷ 18 + 1,
-		half = if_else(trial_number <= maximum(trial_number)/2, "first", "second")
-	)
-	pit_data = @mutate(pit_data, block = "block" * string(block))
-end
-
-# ╔═╡ d0fa2b8c-813a-4c9d-a80a-a5e5d09b61b8
-let
-	n_pit_miss_df = combine(groupby(raw_pit_data, [:prolific_pid, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
-	# Create the plot
-	plot = data(n_pit_miss_df) * 
-		   mapping(:n_miss, ) * 
-		   histogram(bins=20)
-	
-	# Set up the axis
-	axis = (
-		title = "Some participants didn't respond in many trials",
-		xlabel = "# No-response trials",
-		ylabel = "Count (# participants)",
-		yticks = 0:10:50
-	)
-	
-	# Draw the plot
-	draw(plot; axis)
-end
-
 # ╔═╡ 8625eba8-94e7-4b04-9050-7e5b122d6094
 md"""
 ### Keypresses in general
 """
 
+# ╔═╡ d9a12c28-0328-4316-bd65-c21e65519ef3
+begin
+	n_pit_miss_df = combine(groupby(raw_pit_data, [:prolific_pid, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
+	pit_many_miss = filter(x -> x.n_miss >= 36/4, n_pit_miss_df)
+end
+
+# ╔═╡ b2c135ea-44ed-4f84-b98c-7aa21186d4ea
+filter(x -> x.trial_presses .== 0, raw_pit_data) |>
+d -> filter(x -> x.ratio .== 1, d) |>
+d -> combine(groupby(d, :prolific_pid), :trial_number => length => :n_trial)
+
+# ╔═╡ b62c9843-4c4d-4c79-a066-c2186a594794
+pit_data = antijoin(raw_pit_data, pit_many_miss; on = :prolific_pid)
+
+# ╔═╡ ba409927-919e-42d6-ad2a-c8edf2a7ddea
+@count(pit_data, prolific_pid)
+
 # ╔═╡ 61d553b8-b365-47ea-b4cc-f21a2db9b7f9
-plot_presses_vs_var(pit_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:half, xlab="Reward/press", ylab = "Press/sec", combine=false)
+plot_presses_vs_var(pit_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:version, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ 74c61b1a-741b-4e89-8314-7559a43fa2c2
-sort(unique(pit_data.reward_per_press))
+unique(pit_data.reward_per_press)
 
 # ╔═╡ 78069573-8451-4411-b2e5-9908263b83e8
 let
 	common_rpp = unique(pit_data.reward_per_press)
 	p = @chain vigour_data begin
-		@filter(trial_number != 1)
-		@bind_rows(@filter(pit_data, block in ["block1", "block2"]))
+		@filter(trial_number != 0)
+		@bind_rows(pit_data)
 		@filter(reward_per_press in !!common_rpp)
 		plot_presses_vs_var(x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", grplab = "Task", combine=false)
 	end
@@ -850,66 +884,50 @@ md"""
 """
 
 # ╔═╡ 0b0faf93-858a-43f2-99e8-70fae15bda9e
-@chain pit_data begin
-	@mutate(coin = categorical(coin))
-	plot_presses_vs_var(x_var=:coin, y_var=:press_per_sec, grp_var=:half, xlab="Pavlovian stimuli (coin)", ylab = "Press/sec", combine=false)
+let
+	fig = @chain pit_data begin
+		@filter(coin != 0)
+		@mutate(coin = nonnumeric(coin))
+		plot_presses_vs_var(x_var=:coin=>nonnumeric, y_var=:press_per_sec, grp_var=:version, xlab="Pavlovian stimuli (coin)", ylab = "Press/sec", combine=false)
+	end
+	# xticks!(fig; xticklabels=["-1", "-0.5", "-0.01", "0.01", "0.5", "1"])
 end
 
 # ╔═╡ 9bb2610c-8611-465b-a46e-e4c81f7b98d5
 let
-	grouped_data, avg_w_data = avg_presses_w_fn(@filter(pit_data, trial_number != 0), [:half, :coin, :reward_per_press], :press_per_sec)
+	grouped_data, avg_w_data = avg_presses_w_fn(pit_data, [:coin, :reward_per_press], :press_per_sec)
 	p = data(avg_w_data) *
-	mapping(:coin, :avg_y, color=:half, col=:reward_per_press=>nonnumeric) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:reward_per_press=>nonnumeric) *
 	(
 	visual(Errorbars, whiskerwidth=4) *
 	mapping(:se_y) +
 	visual(ScatterLines, linewidth=2)
 	)
-	draw(p; axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150))
-end
-
-# ╔═╡ bb37a141-d52e-471a-845f-a810101ccb14
-let
-	df = @chain pit_data begin 
-			@filter(trial_number != 0)
-			@mutate(valence = ifelse(coin < 0, "negative", "positive"))
-		end
-	grouped_data, avg_w_data = avg_presses_w_fn(df,	[:coin, :valence, :reward_per_press], :press_per_sec)
-	p = data(avg_w_data) *
-	mapping(:reward_per_press, :avg_y, col=:valence=>nonnumeric, color=:coin=>nonnumeric) *
-	(
-	visual(Errorbars, whiskerwidth=4) *
-	mapping(:se_y) +
-	visual(ScatterLines, linewidth=2)
-	)
-	draw(p, scales(Color=(;palette=:PiYG_6)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=300, height=300))
+	draw(p; axis=(;xlabel="Coin", ylabel="Press/sec", width=150, height=150))
 end
 
 # ╔═╡ 3c541186-1087-4339-aba4-1834b636cecf
 let
 	df = @chain pit_data begin
-		@filter(block == "block1")
+		# @filter(coin != 0)
 		@arrange(prolific_pid, magnitude, ratio)
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
 	end
-	grouped_data, avg_w_data = avg_presses_w_fn(df, [:block, :coin, :pig], :press_per_sec)
+	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig], :press_per_sec)
 	p = data(avg_w_data) *
-	mapping(:coin, :avg_y, color=:block, col=:pig=>nonnumeric) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric) *
 	(
 	visual(Lines, linewidth=1, color=:gray) +
 	visual(Errorbars, whiskerwidth=4) *
-	mapping(:se_y) +
+	mapping(:se_y, color=:coin => nonnumeric) +
 	visual(Scatter) *
-	mapping(color=:block)
+	mapping(color=:coin => nonnumeric)
 	)
-	draw(p; axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150))
+	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150))
 end
 
 # ╔═╡ 18726a34-9b24-466a-8f70-6657afb8ceef
-# ╠═╡ disabled = true
-#=╠═╡
-CSV.write("data/pit_data.csv", pit_data)
-  ╠═╡ =#
+CSV.write("data/pilot5_pit_data.csv", pit_data)
 
 # ╔═╡ 1b81dc3c-4eef-42ac-a931-61b6ea2794c8
 # ╠═╡ show_logs = false
@@ -935,66 +953,29 @@ md"""
 # ╔═╡ 2f25f144-4b3f-4c2a-bcbb-89bba69bb2c0
 pit_data
 
-# ╔═╡ 52d2a9c3-6a8f-44f4-9707-ea97e444d5ec
+# ╔═╡ 7c471d3d-3146-4ed2-9bed-538d4d543d42
 begin
-	pav_fs_df = @chain pit_data begin
+	pav_12_df = @chain pit_data begin
+		@mutate(half = if_else(trial_number <= maximum(trial_number)/2, "first", "second"))
 		@group_by(prolific_pid, half, coin, reward_per_press)
 		@summarize(press_per_sec = mean(press_per_sec))
 		@summarize(press_per_sec = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = coin, values_from = press_per_sec)
-		@mutate(coin_diff = `1.0` - `-1.0`)
+		@mutate(coin_diff = `1.0` - `0.01`)
 		@select(prolific_pid, half, coin_diff)
 		@pivot_wider(names_from = half, values_from = coin_diff)
 	end
-	pav_ρ_fs_df = @chain pav_fs_df begin
-		@filter(!ismissing(first) && !ismissing(second))
+	pav_ρ_12_df = @chain pav_12_df begin
 		@summarize(ρ_12 = ~ cor(first, second))
 		# @mutate(ρ_12 = (2 * ρ_12) / (1 + ρ_12))
 		@mutate(ρ_text = string("ρ: ", round(ρ_12; digits = 2)))
-		@mutate(x = 0, y = [-1.5])
-		@ungroup
-	end
-	pav_ρ_fs_plot = 
-		data(pav_fs_df) *
-		mapping(:first, :second) *
-		visual(Scatter) +
-		data(pav_ρ_fs_df) *
-		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
-		visual(Makie.Text, fontsize = 16, font = :bold) +
-		data(DataFrame(intercept = 0, slope = 1)) *
-		mapping(:intercept, :slope) *
-		visual(ABLines, linestyle = :dash, color = :gray70)
-	draw(
-		pav_ρ_fs_plot;
-		axis=(;xlabel="1P - (-1P) in first half",ylabel="1P - (-1P) in second half")
-	)
-end
-
-# ╔═╡ 7c471d3d-3146-4ed2-9bed-538d4d543d42
-begin
-	pav_12_df = @chain pit_data begin
-		@filter(half == "first")
-		@group_by(prolific_pid, block, coin, reward_per_press)
-		@summarize(press_per_sec = mean(press_per_sec))
-		@summarize(press_per_sec = mean(press_per_sec))
-		@ungroup
-		@pivot_wider(names_from = coin, values_from = press_per_sec)
-		@mutate(coin_diff = `1.0` - `-1.0`)
-		@select(prolific_pid, block, coin_diff)
-		@pivot_wider(names_from = block, values_from = coin_diff)
-	end
-	pav_ρ_12_df = @chain pav_12_df begin
-		@filter(!ismissing(block1) && !ismissing(block2))
-		@summarize(ρ_12 = ~ cor(block1, block2))
-		# @mutate(ρ_12 = (2 * ρ_12) / (1 + ρ_12))
-		@mutate(ρ_text = string("ρ: ", round(ρ_12; digits = 2)))
-		@mutate(x = 0, y = [-1.5])
+		@mutate(x = 1, y = [-1.5])
 		@ungroup
 	end
 	pav_ρ_12_plot = 
 		data(pav_12_df) *
-		mapping(:block1, :block2) *
+		mapping(:first, :second) *
 		visual(Scatter) +
 		data(pav_ρ_12_df) *
 		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
@@ -1004,7 +985,7 @@ begin
 		visual(ABLines, linestyle = :dash, color = :gray70)
 	draw(
 		pav_ρ_12_plot;
-		axis=(;xlabel="1P - (-1P) in first half",ylabel="1P - (-1P) in second half")
+		axis=(;xlabel="First half",ylabel="Second half")
 	)
 end
 
@@ -1034,7 +1015,7 @@ begin
 		mapping(:first, :second) *
 		visual(Scatter) +
 		data(pav_avg_ρ_12_df) *
-		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
+		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.verbatim) *
 		visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 		mapping(:intercept, :slope) *
@@ -1046,29 +1027,111 @@ begin
 end
   ╠═╡ =#
 
+# ╔═╡ b38a77d4-1cfd-47fb-8a80-c0ded34c59ea
+md"""
+## Pavlovian test
+"""
+
+# ╔═╡ 00dd346d-1a9a-43b7-a287-0d323840c77d
+@chain raw_test_data begin
+	@filter(version == "5.0", block == 3)
+	@group_by(same_valence)
+	@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+	@ungroup()
+end
+
+# ╔═╡ d52de7bf-bb8e-41bf-bc4a-d3c3ae9f47b4
+@chain raw_test_data begin
+	@filter(version == "5.0", block == 1)
+	@group_by(same_valence)
+	@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+	@ungroup()
+end
+
+# ╔═╡ 910b9b44-876b-4fa3-85e9-93a787b33408
+@chain raw_test_data begin
+	@filter(version == "5.0", block == 3)
+	@group_by(prolific_pid, record_id, exp_start_time, same_valence)
+	@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+	@ungroup()
+end
+
+# ╔═╡ 2d41682f-980a-4118-9635-ab8457c02230
+@chain raw_test_data begin
+	@filter(version == "5.0", block == 3)
+	@group_by(prolific_pid, record_id, exp_start_time, same_valence)
+	@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+	@ungroup()
+	data(_) * mapping(:same_valence => nonnumeric, :acc, color=:same_valence) * visual(RainClouds)
+	draw
+end
+
 # ╔═╡ a3099b93-c5a5-4ac2-9ca6-b57647dbf708
 md"""
 ### Call R for help!
+"""
+
+# ╔═╡ 9026cd8b-5b99-40be-a93b-0d994db5397a
+R"""
+library(tidyverse)
+library(afex)
+library(emmeans)
+set_sum_contrasts()
+theme_set(theme_minimal())
+
+pit_data <- as_tibble($(pit_data))
+pit_fit <- pit_data %>% 
+    group_by(prolific_pid, reward_per_press, coin) %>%
+    summarize(press_per_sec = mean(press_per_sec)) %>%
+    ungroup() %>%
+    mutate(across(c(coin, reward_per_press), as.factor)) %>%
+    aov_4(press_per_sec ~ reward_per_press * coin + (reward_per_press + coin | prolific_pid), data = .)
+pit_fit
+"""
+
+# ╔═╡ 2118f30b-cc13-468d-a439-7fe25eba9a18
+R"""
+emmeans(pit_fit, pairwise ~ reward_per_press)
+"""
+
+# ╔═╡ 5675e782-3def-4857-86a2-01e091a5c108
+R"""
+emmeans(pit_fit, pairwise ~ coin)
+"""
+
+# ╔═╡ 71a4e5c5-70ad-4b48-b692-5cb17d5236ef
+R"""
+emmeans(pit_fit, pairwise ~ coin, lmer.df = "asymptotic") %>%
+    contrast(list(pun_vs_rew = c(-1/3, -1/3, -1/3, 1/3, 1/3, 1/3),
+				  sub_vs_opt = c(-1/2, 0, 1/2, -1/2, 0, 1/2)))
+"""
+
+# ╔═╡ 6aedc1bf-d9bb-40b1-a5ff-fdd864946880
+R"""
+emmeans(pit_fit, ~ coin + reward_per_press) %>%
+	joint_tests(by = "coin")
 """
 
 # ╔═╡ Cell order:
 # ╠═05c22183-d42d-4d27-8b21-33f6842e0291
 # ╟─33e63f0d-8b59-46a5-af57-b45eb4b8b531
 # ╟─be928c7e-363b-45cd-971b-4fad90335b06
-# ╟─02713d34-3f91-4a60-b499-93975cede337
+# ╠═c04180f6-7b97-4441-859a-edefab57f272
 # ╠═485584ee-2efc-4ed1-b58d-2a73ec9c8ae1
-# ╠═1ae968e2-5f07-4296-a9ce-51a967a65f35
+# ╠═afa23543-f1fb-4cf4-b884-753a4b988d29
 # ╠═e8568096-8344-43cf-94fa-22219b3a7c7b
 # ╟─cd445ddb-a22a-415c-8aae-6fc1eb84585b
-# ╠═bbfb783c-9127-41ad-9114-f3dd9753bf6a
+# ╠═51515262-32d8-4c9e-8a9c-9b4fd4eb4f09
 # ╠═45d95aea-7751-4f37-9558-de4c55a0881e
-# ╠═bb74b333-521d-4dc1-8e06-4a53649fe199
 # ╠═7fadad91-a4b1-4a44-9491-2d389303d405
 # ╠═5ae2870a-408f-4aac-8f12-5af081a250d8
 # ╠═bda488ea-faa3-4308-ac89-40b8481363bf
 # ╟─ac1399c4-6a2f-446f-8687-059fa5da9473
 # ╟─9cc0560b-5e3b-45bc-9ba8-605f8111840b
+# ╠═927d9997-958f-4536-8de1-2ae7798f9212
 # ╠═2391eb75-db59-4156-99ae-abb8f1508037
+# ╠═e2dee7b2-59d8-4822-996d-6193aa97952f
+# ╠═6223e7bb-688f-48c7-9c8d-a66925afd905
 # ╟─b9f4babc-8da0-40f2-b0d2-95f915989faf
 # ╠═fd68ab0d-ca1b-437b-8c55-24f900a0628d
 # ╠═9180c237-a966-4d0c-b92c-7c70eedabc1a
@@ -1100,7 +1163,6 @@ md"""
 # ╠═f07d048f-121b-4675-b9d0-edc0553b05fa
 # ╟─9a6438cc-d758-42a6-8c0b-36cb7dddacf9
 # ╠═096ffb0d-cddb-445a-8887-d27dcd16ea47
-# ╠═c295b8aa-c54b-4759-8cb2-ef9a49cdf378
 # ╠═223d7ed5-8621-4f6a-905e-cfbd27849686
 # ╟─b3f76fad-a1c6-4fc0-afbf-7ce9736986e8
 # ╠═7f3c680a-970b-483d-b3df-ed22b6dd8d81
@@ -1119,23 +1181,33 @@ md"""
 # ╟─6a8d4aac-7c87-476c-8259-116d4dcf24aa
 # ╠═385ecb85-ea97-45e4-8766-b99969ab12a0
 # ╟─837cb513-f4ed-4bb5-8f12-80a717a2dec4
-# ╠═b8667569-7b7a-4cb2-a5ef-3322d6330dc4
-# ╠═59e15e38-aa23-45af-8472-e7923af9aaae
-# ╠═d0fa2b8c-813a-4c9d-a80a-a5e5d09b61b8
 # ╟─8625eba8-94e7-4b04-9050-7e5b122d6094
+# ╠═d9a12c28-0328-4316-bd65-c21e65519ef3
+# ╠═b2c135ea-44ed-4f84-b98c-7aa21186d4ea
+# ╠═b62c9843-4c4d-4c79-a066-c2186a594794
+# ╠═ba409927-919e-42d6-ad2a-c8edf2a7ddea
 # ╠═61d553b8-b365-47ea-b4cc-f21a2db9b7f9
 # ╠═74c61b1a-741b-4e89-8314-7559a43fa2c2
 # ╠═78069573-8451-4411-b2e5-9908263b83e8
 # ╟─51918379-dc4d-418b-8bf1-d13e4cc18119
 # ╠═0b0faf93-858a-43f2-99e8-70fae15bda9e
 # ╠═9bb2610c-8611-465b-a46e-e4c81f7b98d5
-# ╠═bb37a141-d52e-471a-845f-a810101ccb14
 # ╠═3c541186-1087-4339-aba4-1834b636cecf
 # ╠═18726a34-9b24-466a-8f70-6657afb8ceef
 # ╠═1b81dc3c-4eef-42ac-a931-61b6ea2794c8
 # ╟─bcce8e35-588d-45c0-a13d-154def2a7b47
 # ╠═2f25f144-4b3f-4c2a-bcbb-89bba69bb2c0
-# ╠═52d2a9c3-6a8f-44f4-9707-ea97e444d5ec
 # ╠═7c471d3d-3146-4ed2-9bed-538d4d543d42
 # ╠═7f614961-a172-4ebf-a08b-1bb660702f05
+# ╟─b38a77d4-1cfd-47fb-8a80-c0ded34c59ea
+# ╠═00dd346d-1a9a-43b7-a287-0d323840c77d
+# ╠═d52de7bf-bb8e-41bf-bc4a-d3c3ae9f47b4
+# ╠═910b9b44-876b-4fa3-85e9-93a787b33408
+# ╠═2d41682f-980a-4118-9635-ab8457c02230
 # ╟─a3099b93-c5a5-4ac2-9ca6-b57647dbf708
+# ╠═c5be4a4b-d800-4ba4-abde-c9607cefe261
+# ╠═9026cd8b-5b99-40be-a93b-0d994db5397a
+# ╠═2118f30b-cc13-468d-a439-7fe25eba9a18
+# ╠═5675e782-3def-4857-86a2-01e091a5c108
+# ╠═71a4e5c5-70ad-4b48-b692-5cb17d5236ef
+# ╠═6aedc1bf-d9bb-40b1-a5ff-fdd864946880

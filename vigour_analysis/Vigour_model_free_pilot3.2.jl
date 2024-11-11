@@ -355,7 +355,7 @@ begin
 		mapping(:first, :second, color = :version) *
 		visual(Scatter) +
 		data(ρ_12_df) *
-		mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
+		mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
 		visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 		mapping(:intercept, :slope) *
@@ -389,7 +389,7 @@ let
 			mapping(:first, :second, col = :magnitude, row = :ratio, color = :version) *
 			visual(Scatter, alpha = 0.3) +
 		data(version_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim, col = :magnitude, row = :ratio) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim, col = :magnitude, row = :ratio) *
 			visual(Makie.Text, fontsize = 12) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -438,7 +438,7 @@ begin
 			mapping(:even, :odd, color = :version) *
 			visual(Scatter) +
 		data(ρ_01_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -495,7 +495,7 @@ begin
 			mapping(:even, :odd, color = :version) *
 			visual(Scatter) +
 		data(ρ_rpp_diff_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -543,7 +543,7 @@ begin
 			mapping(:first, :second, color = :version) *
 			visual(Scatter) +
 		data(ρ_rpp_diff_df) *
-			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.verbatim) *
+			mapping(:x, :y, color = :version; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold) +
 		data(DataFrame(intercept = 0, slope = 1)) *
 			mapping(:intercept, :slope) *
@@ -678,7 +678,7 @@ begin
 			mapping(:diff_rpp, :pred, color=:version => "Version") *
 			visual(Lines, color = :royalblue) +
 		data(avg_acc_version_df) *
-			mapping(:x, :y, color = :version => "Version"; text = :acc_text => AlgebraOfGraphics.verbatim) *
+			mapping(:x, :y, color = :version => "Version"; text = :acc_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
 			visual(Makie.Text, fontsize = 16, font = :bold)
 	draw(rpp_pred_plot;axis=(;xlabel="ΔRPP: Left−Right", ylabel="P(Choose left)"))
 end

@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, TidierData
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier
 	include("fetch_preprocess_data.jl")
 	include("vigour_analysis/Vigour_utlis_fn.jl")
 	set_theme!(theme_minimal())
@@ -62,15 +62,15 @@ raw_vigour_data, jspsych_data = load_pilot3_data();
 
 # ╔═╡ e8568096-8344-43cf-94fa-22219b3a7c7b
 begin
-	n_miss_df = combine(groupby(raw_vigour_data, :prolific_id), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
+	n_miss_df = combine(groupby(raw_vigour_data, :prolific_pid), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
 	many_miss = filter(x -> x.n_miss > 9, n_miss_df)
 end
 
 # ╔═╡ 45d95aea-7751-4f37-9558-de4c55a0881e
 begin
 	transform!(raw_vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
-	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_id);
-	@count(vigour_data, prolific_id)
+	vigour_data = antijoin(raw_vigour_data, many_miss; on = :prolific_pid);
+	@count(vigour_data, prolific_pid)
 end
 
 # ╔═╡ 2391eb75-db59-4156-99ae-abb8f1508037
@@ -79,9 +79,9 @@ begin
 		# Group and calculate mean presses for each participant
 		grouped_data = vigour_data |>
 			x -> transform(x, :response_times => ByRow(safe_median) => :avg_rt) |>
-			x -> groupby(x, [:prolific_id, :reward_per_press]) |>
+			x -> groupby(x, [:prolific_pid, :reward_per_press]) |>
 			x -> combine(x, :avg_rt => mean => :avg_rt)
-		sorted_data = sort(grouped_data, [:prolific_id, :reward_per_press])
+		sorted_data = sort(grouped_data, [:prolific_pid, :reward_per_press])
 		
 		# Calculate the average across all participants
 		avg_data = combine(groupby(sorted_data, :reward_per_press), :avg_rt => (x -> median(skipmissing(x))) => :avg_rt)
@@ -91,7 +91,7 @@ begin
 		    mapping(
 		        :reward_per_press => "Reward/press",
 		        :avg_rt => "Response times (ms)",
-		        group = :prolific_id
+		        group = :prolific_pid
 		    ) * 
 		    visual(Lines, color = (:gray, 0.3), linewidth = 1)
 		

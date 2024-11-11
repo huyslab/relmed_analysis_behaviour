@@ -44,7 +44,7 @@ CSV.write("data/pilot2_vigour_data.csv", vigour_data)
 
 # ╔═╡ 392006ba-b905-4a51-a02e-796e19fbc24a
 @chain vigour_data begin
-	@group_by(prolific_id, exp_start_time)
+	@group_by(prolific_pid, exp_start_time)
 	@summarize(n = n(), n_miss = sum(trial_presses .== 0))
 	@ungroup
 end
@@ -52,9 +52,9 @@ end
 # ╔═╡ eab61744-af48-4789-ba2f-a92d73527962
 begin
 	let
-	# Assume `data` is a DataFrame with columns `prolific_id` and `trial_presses`
-	# Group by prolific_id and calculate the number of misses
-	grouped_data = combine(groupby(vigour_data, :prolific_id), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
+	# Assume `data` is a DataFrame with columns `prolific_pid` and `trial_presses`
+	# Group by prolific_pid and calculate the number of misses
+	grouped_data = combine(groupby(vigour_data, :prolific_pid), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
 
 	# Plot the histogram of the number of misses
 	fig = data(grouped_data) *

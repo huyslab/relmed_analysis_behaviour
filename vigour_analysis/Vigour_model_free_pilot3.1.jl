@@ -12,9 +12,7 @@ begin
   Pkg.activate("relmed_environment")
   # instantiate, i.e. make sure that all packages are downloaded
   Pkg.instantiate()
-  Pkg.add("MixedModels")
-  Pkg.add("TidierData")
-  using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, TidierData, MixedModels, Printf
+  using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier, MixedModels, Printf
   include("fetch_preprocess_data.jl")
   set_theme!(theme_minimal()) # set the theme for the plots
 end
@@ -75,20 +73,20 @@ end
 
 # ╔═╡ e8568096-8344-43cf-94fa-22219b3a7c7b
 begin
-  n_miss_df = combine(groupby(raw_vigour_data, [:prolific_id, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
+  n_miss_df = combine(groupby(raw_vigour_data, [:prolific_pid, :version]), :trial_presses => (x -> sum(x .== 0)) => :n_miss)
   many_miss = filter(x -> x.n_miss > 9, n_miss_df)
 end
 
 # ╔═╡ 45d95aea-7751-4f37-9558-de4c55a0881e
 begin
-  vigour_data = antijoin(raw_vigour_data, many_miss; on=:prolific_id) |>
+  vigour_data = antijoin(raw_vigour_data, many_miss; on=:prolific_pid) |>
                 x -> @filter(x, version === "3.1")
-  vigour_test_data = antijoin(raw_vigour_test_data, many_miss; on=:prolific_id) |>
+  vigour_test_data = antijoin(raw_vigour_test_data, many_miss; on=:prolific_pid) |>
                      x -> @filter(x, version === "3.1")
 end
 
 # ╔═╡ 5ae2870a-408f-4aac-8f12-5af081a250d8
-@count(raw_vigour_data, prolific_id, exp_start_time, version) |>
+@count(raw_vigour_data, prolific_pid, exp_start_time, version) |>
 x -> @count(x, version)
 
 # ╔═╡ bda488ea-faa3-4308-ac89-40b8481363bf
@@ -110,9 +108,9 @@ begin
     # Group and calculate mean presses for each participant
     grouped_data = vigour_data |>
                    x -> transform(x, :response_times => ByRow(safe_mean) => :avg_rt) |>
-                        x -> groupby(x, [:prolific_id, :reward_per_press]) |>
+                        x -> groupby(x, [:prolific_pid, :reward_per_press]) |>
                              x -> combine(x, :avg_rt => median => :avg_rt)
-    sort!(grouped_data, [:prolific_id, :reward_per_press])
+    sort!(grouped_data, [:prolific_pid, :reward_per_press])
 
     # Calculate the average across all participants
     avg_data = combine(groupby(grouped_data, :reward_per_press), :avg_rt => (x -> median(skipmissing(x))) => :avg_rt)
@@ -122,7 +120,7 @@ begin
                       mapping(
                         :reward_per_press => "Reward/press",
                         :avg_rt => "Response times (ms)",
-                        group=:prolific_id
+                        group=:prolific_pid
                       ) *
                       visual(Lines, color=(:gray, 0.3), linewidth=1)
 
@@ -160,13 +158,13 @@ md"""
 begin
   function avg_presses_w_fn(vigour_data::DataFrame, var::Vector{Symbol})
     # Group and calculate mean presses for each participant
-    grouped_data = groupby(vigour_data, Cols(:prolific_id, var)) |>
+    grouped_data = groupby(vigour_data, Cols(:prolific_pid, var)) |>
                    x -> combine(x, [:trial_presses, :trial_duration] => ((x, y) -> mean(x .* 1000 ./ y)) => :n_presses) |>
-                        x -> sort(x, Cols(:prolific_id, var))
+                        x -> sort(x, Cols(:prolific_pid, var))
 
     # Calculate the average across all participants
     avg_w_data = @chain grouped_data begin
-      @group_by(prolific_id)
+      @group_by(prolific_pid)
       @mutate(sub_mean = mean(n_presses))
       @ungroup
       @mutate(grand_mean = mean(n_presses))
@@ -175,7 +173,7 @@ begin
       @summarize(
         n = n(),
         avg_n_presses = mean(n_presses),
-        se_n_presses = std(n_presses_w) / sqrt(length(prolific_id)))
+        se_n_presses = std(n_presses_w) / sqrt(length(prolific_pid)))
       @ungroup
     end
     return grouped_data, avg_w_data
@@ -188,7 +186,7 @@ begin
                       mapping(
                         var,
                         :n_presses,
-                        group=:prolific_id
+                        group=:prolific_pid
                       ) *
                       visual(Lines, color=(:gray, 0.3), linewidth=1)
 
@@ -254,12 +252,12 @@ begin
     # Group and calculate mean presses for each participant
     vigour_data.half = vigour_data.trial_number .> (maximum(vigour_data.trial_number) / 2)
 
-    # grouped_data = combine(groupby(vigour_data, [:prolific_id, :magnitude, :ratio]), :trial_presses => mean => :n_presses)
-    # sort!(grouped_data, [:prolific_id, :magnitude, :ratio])
+    # grouped_data = combine(groupby(vigour_data, [:prolific_pid, :magnitude, :ratio]), :trial_presses => mean => :n_presses)
+    # sort!(grouped_data, [:prolific_pid, :magnitude, :ratio])
 
     # # Calculate the average across all participants
     # avg_w_data = @chain grouped_data begin
-    # 	@group_by(prolific_id)
+    # 	@group_by(prolific_pid)
     # 	@mutate(sub_mean = mean(n_presses))
     # 	@ungroup
     # 	@mutate(grand_mean = mean(n_presses))
@@ -268,7 +266,7 @@ begin
     # 	@summarize(
     # 		n = n(),
     # 		avg_n_presses = mean(n_presses),
-    # 		se_n_presses = std(n_presses_w)/sqrt(length(prolific_id)))
+    # 		se_n_presses = std(n_presses_w)/sqrt(length(prolific_pid)))
     # 	@ungroup
     # end
 
@@ -310,7 +308,7 @@ end
 begin
   presses_mixed = fit(LinearMixedModel,
     @formula(trial_presses ~ magnitude * ratio +
-                             (magnitude * ratio | prolific_id)),
+                             (magnitude * ratio | prolific_pid)),
     vigour_data)
 end
 
@@ -344,11 +342,11 @@ end
 begin
   missed_trial_df = @chain raw_vigour_data begin
     @filter(trial_presses == 0)
-    @group_by(prolific_id, reward_per_press)
+    @group_by(prolific_pid, reward_per_press)
     @summarize(n_miss = n())
     @ungroup()
-    @mutate(short_id = last.(prolific_id, 5))
-    @arrange(prolific_id, reward_per_press)
+    @mutate(short_id = last.(prolific_pid, 5))
+    @arrange(prolific_pid, reward_per_press)
   end
   data(missed_trial_df) *
   mapping(:reward_per_press, :n_miss, layout=:short_id) *
@@ -367,13 +365,13 @@ md"""
 """
 
 # ╔═╡ 08fe8e09-51e5-4d54-a0c2-7c6ac8269a00
-@count(vigour_data, prolific_id)
+@count(vigour_data, prolific_pid)
 
 # ╔═╡ b5c429ee-9f31-4815-98b3-2536952b6881
 begin
   first_second_df = @chain vigour_data begin
     @mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-    @group_by(prolific_id, half)
+    @group_by(prolific_pid, half)
     @summarize(n_presses = mean(press_per_sec))
     @ungroup
     @pivot_wider(names_from = half, values_from = n_presses)
@@ -401,7 +399,7 @@ begin
   let
     df = @chain vigour_data begin
       @mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-      @group_by(prolific_id, half, magnitude, ratio)
+      @group_by(prolific_pid, half, magnitude, ratio)
       @summarize(n_presses = mean(press_per_sec))
       @ungroup
       @pivot_wider(names_from = half, values_from = n_presses)
@@ -422,7 +420,7 @@ end
 # ╔═╡ 50e8263e-a593-47d3-abc4-aceeeb68ba58
 ρ_by_conds = @chain vigour_data begin
   @mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-  @group_by(prolific_id, half, magnitude, ratio)
+  @group_by(prolific_pid, half, magnitude, ratio)
   @summarize(n_presses = mean(skipmissing(press_per_sec)))
   @ungroup
   @pivot_wider(names_from = half, values_from = n_presses)
@@ -443,7 +441,7 @@ begin
   even_odd_df = @chain vigour_data begin
     @mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
     @mutate(even = trial_number % 2 === 0)
-    @group_by(prolific_id, even)
+    @group_by(prolific_pid, even)
     @summarize(n_presses = mean(press_per_sec))
     @ungroup
     @pivot_wider(names_from = even, values_from = n_presses)
@@ -475,14 +473,14 @@ md"""
 begin
   rpp_dff_df = @chain vigour_data begin
     @mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
-    @arrange(prolific_id, reward_per_press)
-    @group_by(prolific_id)
+    @arrange(prolific_pid, reward_per_press)
+    @group_by(prolific_pid)
     @filter(reward_per_press != median(reward_per_press))
     @mutate(low_rpp = reward_per_press < median(reward_per_press),
       trial_number = row_number())
     @mutate(even = trial_number % 2 === 0)
     @ungroup
-    @group_by(prolific_id, even, low_rpp)
+    @group_by(prolific_pid, even, low_rpp)
     @summarize(n_presses = mean(press_per_sec))
     @ungroup
     @pivot_wider(names_from = low_rpp, values_from = n_presses)
@@ -548,7 +546,7 @@ Since only RPP was balanced, perhaps it would be best to focus on and only on it
 begin
   test_mixed_rpp = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_rpp +
-                          (diff_rpp | prolific_id)),
+                          (diff_rpp | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
@@ -558,7 +556,7 @@ diff_vigour_test_data
 # ╔═╡ 2f8f197a-77c1-48ac-b18a-d2e3a9006bfb
 begin
   test_acc_df = @chain diff_vigour_test_data begin
-    @group_by(prolific_id)
+    @group_by(prolific_pid)
     @select(diff_rpp, chose_left)
     @mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
     @mutate(acc = chose_left == truth)
@@ -576,7 +574,7 @@ end
   @mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
   @mutate(correct = chose_left == truth)
   @mutate(easy = (left_ratio <= right_ratio && left_magnitude >= right_magnitude) || (left_ratio >= right_ratio && left_magnitude <= right_magnitude))
-  @group_by(prolific_id, easy)
+  @group_by(prolific_pid, easy)
   @summarize(acc = mean(correct))
   @ungroup
   @mutate(easy = ifelse(easy, "Easy pairs", "Hard pairs"))
@@ -589,7 +587,7 @@ end
   @mutate(chose_left = chose_left * 2 - 1, truth = sign(diff_rpp))
   @mutate(correct = chose_left == truth)
   @mutate(easy = (left_ratio <= right_ratio && left_magnitude >= right_magnitude) || (left_ratio >= right_ratio && left_magnitude <= right_magnitude))
-  @group_by(prolific_id, easy)
+  @group_by(prolific_pid, easy)
   @summarize(acc = mean(correct))
   @ungroup
   @mutate(easy = ifelse(easy, "Easy pairs", "Hard pairs"))
@@ -621,7 +619,7 @@ end
 begin
   diff_rpp_range = LinRange(minimum(diff_vigour_test_data.diff_rpp), maximum(diff_vigour_test_data.diff_rpp), 100)
   pred_effect_rpp = DataFrame(
-    prolific_id="New",
+    prolific_pid="New",
     chose_left=0.5,
     diff_rpp=diff_rpp_range
   )
@@ -645,7 +643,7 @@ md"""
 begin
   test_mixed_mag = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_mag +
-                          (diff_mag | prolific_id)),
+                          (diff_mag | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
@@ -653,7 +651,7 @@ end
 begin
   diff_mag_range = LinRange(minimum(diff_vigour_test_data.diff_mag), maximum(diff_vigour_test_data.diff_mag), 100)
   pred_effect_mag = DataFrame(
-    prolific_id="New",
+    prolific_pid="New",
     chose_left=0.5,
     diff_mag=diff_mag_range
   )
@@ -678,7 +676,7 @@ md"""
 begin
   test_mixed_fr_abs = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_fr_abs_zscore +
-                          (diff_fr_abs_zscore | prolific_id)),
+                          (diff_fr_abs_zscore | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
@@ -690,7 +688,7 @@ begin
     diff_fr_range = std(diff_vigour_test_data.diff_fr_abs) * diff_fr_zscore_range .+ mean(diff_vigour_test_data.diff_fr_abs)
 
     pred_effect_fr = DataFrame(
-      prolific_id="New",
+      prolific_pid="New",
       chose_left=0.5,
       diff_fr_abs=diff_fr_range,
       diff_fr_abs_zscore=diff_fr_zscore_range
@@ -714,7 +712,7 @@ end
 begin
   test_mixed_fr_rel = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_fr_rel_zscore +
-                          (diff_fr_rel_zscore | prolific_id)),
+                          (diff_fr_rel_zscore | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
@@ -726,7 +724,7 @@ begin
     diff_fr_range = std(diff_vigour_test_data.diff_fr_rel) * diff_fr_zscore_range .+ mean(diff_vigour_test_data.diff_fr_rel)
 
     pred_effect_fr = DataFrame(
-      prolific_id="New",
+      prolific_pid="New",
       chose_left=0.5,
       diff_fr_rel=diff_fr_range,
       diff_fr_rel_zscore=diff_fr_zscore_range
@@ -755,7 +753,7 @@ md"""
 begin
   test_mixed_1 = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore +
-                          (diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore | prolific_id)),
+                          (diff_mag_zscore + diff_fr_rel_zscore + diff_rpp_zscore | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
@@ -764,7 +762,7 @@ end
 begin
   test_mixed_2 = fit(GeneralizedLinearMixedModel,
     @formula(chose_left ~ diff_mag_zscore + diff_fr_abs_zscore + diff_rpp_zscore +
-                          (diff_mag_zscore + diff_fr_abs_zscore + diff_rpp_zscore | prolific_id)),
+                          (diff_mag_zscore + diff_fr_abs_zscore + diff_rpp_zscore | prolific_pid)),
     diff_vigour_test_data, Binomial())
 end
 
