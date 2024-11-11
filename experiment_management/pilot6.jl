@@ -179,8 +179,8 @@ let
 	# Select post-PILT test
 	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
 
-	@assert unique(test_data_clean.response) == 
-	["ArrowRight", "ArrowLeft", nothing] "Unexpected values in respones"
+	@assert issetequal(unique(test_data_clean.response), 
+	["ArrowRight", "ArrowLeft", nothing]) "Unexpected values in respones"
 
 	# Remove missing values
 	filter!(x -> !isnothing(x.response), test_data_clean)
@@ -852,15 +852,15 @@ end
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
-# ╠═7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+# ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╟─814aec54-eb08-4627-9022-19f41bcdac9f
 # ╟─3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
-# ╠═43d5b727-9761-48e3-bbc6-89af0c4f3116
+# ╟─43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╟─89258a40-d4c6-4831-8cf3-d69d984c4f6e
 # ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
-# ╠═8f6d8e98-6d73-4913-a02d-97525176549a
+# ╟─8f6d8e98-6d73-4913-a02d-97525176549a
 # ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
 # ╟─dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
