@@ -819,11 +819,11 @@ plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
 let
 	common_rpp = unique(PIT_data.reward_per_press)
-	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec)
 	instrumental_data = @chain PIT_data begin
-		# @filter(coin==0)
+		@filter(coin==0)
 		@bind_rows(vigour_data)
 		@mutate(trialphase=categorical(trialphase, levels=["vigour_trial", "pit_trial"], ordered=true))
+		@mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
 		@filter(reward_per_press in !!common_rpp)
 	end
 	plot_presses_vs_var(instrumental_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
