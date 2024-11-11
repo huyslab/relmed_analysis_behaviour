@@ -691,12 +691,15 @@ function summarize_participation(data::DataFrame)
 end
 
 # ╔═╡ c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+begin
 	p_sum = summarize_participation(jspsych_data)
+	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
+end
 
-# ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
+# ╔═╡ 104b7814-2a60-4fa7-88ad-d49d5c683262
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
-		println(r.prolific_pid, ", ", r.total_bonus)
+		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
 
