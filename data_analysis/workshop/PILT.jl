@@ -359,7 +359,7 @@ end
 # Plot parameters by valence
 let
 
-	# Tell fitting functions the column naims
+	# Tell fitting functions the column names
 	remap_columns = Dict(
 		"block" => :block,
 		"trial" => :trial,
