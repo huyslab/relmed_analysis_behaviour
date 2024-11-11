@@ -48,7 +48,8 @@ function upload_to_osf(
 	filepath::String,
 	osf_project::OSF.Project,
 	osf_folder::String;
-	force::Bool = true
+	update::Bool = true, # Whether to update existing file on osf
+    force::Bool = false # Whether to force save regardless of version change
 )
 
 	# Extract filename
@@ -81,7 +82,7 @@ function upload_to_osf(
 	resp = cp(
 		filepath, 
 		osf_file, 
-		force = true
+		force = update
 	)
 
 	url = JSON.parse(String(resp.body))["data"]["links"]["download"]
