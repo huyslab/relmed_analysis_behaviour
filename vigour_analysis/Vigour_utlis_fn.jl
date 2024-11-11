@@ -67,8 +67,9 @@ The x-axis and y-axis labels can be customized using `xlab` and `ylab`. If these
 
 The function returns the generated plot figure.
 """
-function plot_presses_vs_var(vigour_data::DataFrame; x_var::Symbol=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
-    grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [x_var], y_var, grp_var)
+function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{Symbol, typeof(AlgebraOfGraphics.nonnumeric)}}=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
+    plain_x_var = isa(x_var, Pair) ? x_var.first : x_var
+    grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [plain_x_var], y_var, grp_var)
 
 	# Set up the legend title
     grplab_text = ismissing(grplab) ? uppercasefirst(join(split(string(grp_var), r"\P{L}+"), " ")) : grplab
