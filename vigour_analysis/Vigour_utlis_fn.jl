@@ -21,14 +21,14 @@ Calculate the average number of presses weighted by participant for a given data
 """
 function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
     # Define grouping columns
-    group_cols = grp_var === nothing ? [:prolific_id, x_var...] : [:prolific_id, grp_var, x_var...]
+    group_cols = grp_var === nothing ? [:prolific_pid, x_var...] : [:prolific_pid, grp_var, x_var...]
     # Group and calculate mean presses for each participant
     grouped_data = groupby(vigour_data, Cols(group_cols...)) |>
                    x -> combine(x, y_var => mean => :mean_y) |>
                         x -> sort(x, Cols(group_cols...))
     # Calculate the average across all participants
     avg_w_data = @chain grouped_data begin
-        @group_by(prolific_id)
+        @group_by(prolific_pid)
         @mutate(sub_mean = mean(mean_y))
         @ungroup
         @mutate(grand_mean = mean(mean_y))
@@ -37,7 +37,7 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
         @summarize(
             n = n(),
             avg_y = mean(mean_y),
-            se_y = std(mean_y_w) / sqrt(length(prolific_id)))
+            se_y = std(mean_y_w) / sqrt(length(prolific_pid)))
         @ungroup
     end
     return grouped_data, avg_w_data
@@ -76,8 +76,8 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 	
     # Define mapping based on whether grp_var is provided
     individual_mapping = grp_var === nothing ?
-                         mapping(x_var, :mean_y, group=:prolific_id) :
-                         mapping(x_var, :mean_y, color=grp_var => grplab_text, group=:prolific_id)
+                         mapping(x_var, :mean_y, group=:prolific_pid) :
+                         mapping(x_var, :mean_y, color=grp_var => grplab_text, group=:prolific_pid)
 
     average_mapping = grp_var === nothing ?
                       mapping(x_var, :avg_y) :
