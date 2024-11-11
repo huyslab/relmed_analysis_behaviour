@@ -313,10 +313,10 @@ function exclude_double_takers!(df::DataFrame)
 	function parse_date(date_str)
 		# If date_str ends with "Z", replace it with "+00:00" for proper parsing
 		if endswith(date_str, "Z")
-			date_str = replace(date_str, "Z" => "+00:00")
+			date_str = replace(date_str, "Z" => "")
 		end
 		
-		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.ssszzzz"]
+		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.ssszzzz", "yyyy-mm-ddTHH:MM:SS"]
 			try
 				return DateTime(date_str, fmt)
 			catch
