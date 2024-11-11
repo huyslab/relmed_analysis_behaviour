@@ -22,6 +22,11 @@ function setup_osf(project_title::String)
 		title = project_title)
 end
 
+
+function get_file_hash(file_path::String)
+    return bytes2hex(sha256(read(file_path)))
+end
+
 """
     upload_to_osf(filepath::String, osf_project::OSF.Project, osf_folder::String; force::Bool = true)
 
@@ -48,6 +53,23 @@ function upload_to_osf(
 
 	# Extract filename
 	filename = basename(filepath)
+
+    hash_path = filepath * ".hash"
+    
+    # Compute current hash of file
+    current_hash = get_file_hash(filepath)
+    
+    # Load stored hash if it exists
+    if isfile(hash_path) && !force
+        stored_hash = read(hash_path, String)
+        if stored_hash == current_hash
+            println("File hasn't changed; skipping upload.")
+            return
+        end
+    end
+    
+    # Upload file and update stored hash
+    write(hash_path, current_hash)
 
 	# Check that there is a view only link
 	@assert length(OSF.view_only_links(osf_project)) == 1 "Project needs exactly 1 view-only link for this to work"

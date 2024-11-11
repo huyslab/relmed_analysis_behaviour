@@ -134,7 +134,7 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 end
 
-function load_pilot6_data(; force_download = false)
+function load_pilot6_data(; force_download = false, return_version = "6.01")
 	datafile = "data/pilot6.jld2"
 
 	# Load data or download from REDCap
@@ -143,7 +143,7 @@ function load_pilot6_data(; force_download = false)
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records)
 
-		filter!(x -> x.version == "6.0", jspsych_data)
+		filter!(x -> x.version ∈ ["6.0", "6.01"], jspsych_data)
 
 		remove_testing!(jspsych_data)
 
@@ -151,6 +151,9 @@ function load_pilot6_data(; force_download = false)
 	else
 		JLD2.@load datafile jspsych_data
 	end
+
+	# Subset version for return
+	filter!(x -> x.version == return_version, jspsych_data)
 
 	# Exctract PILT
 	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
@@ -176,7 +179,6 @@ function load_pilot6_data(; force_download = false)
 
 	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, reversal_data, jspsych_data
 end
-
 
 function load_pilot4x_data(; force_download = false)
 	datafile = "data/pilot4.x.jld2"
@@ -309,13 +311,19 @@ function exclude_double_takers!(df::DataFrame)
 
 	# Function to parse date with multiple formats (WorldClock API format and jsPsych format)
 	function parse_date(date_str)
-		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.sssz", "yyyy-mm-ddTHH:MM:SS.sssZ"]
+		# If date_str ends with "Z", replace it with "+00:00" for proper parsing
+		if endswith(date_str, "Z")
+			date_str = replace(date_str, "Z" => "")
+		end
+		
+		for fmt in ["yyyy-mm-dd_HH:MM:SS", "yyyy-mm-ddTHH:MM:SS.ssszzzz", "yyyy-mm-ddTHH:MM:SS"]
 			try
 				return DateTime(date_str, fmt)
 			catch
 				# Ignore and try the next format
 			end
 		end
+		
 		error("Date format not recognized: $date_str")
 	end
 
@@ -642,7 +650,7 @@ This function processes the given `vigour_data` DataFrame to exclude certain tri
 function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 	# Find non-finishers
 	non_finishers = combine(groupby(vigour_data,
-		[:prolific_id, :exp_start_time]),
+		[:prolific_pid, :exp_start_time]),
 		:trial_number => (x -> length(unique(x))) => :n_trials
 	)
 
@@ -650,17 +658,17 @@ function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 
 	# Exclude non-finishers
 	vigour_data_clean = antijoin(vigour_data, non_finishers,
-		on = [:prolific_id, :exp_start_time])
+		on = [:prolific_pid, :exp_start_time])
 
 	# Find double takes
-	double_takers = unique(vigour_data_clean[!, [:prolific_id, :exp_start_time]])
+	double_takers = unique(vigour_data_clean[!, [:prolific_pid, :exp_start_time]])
 
 	# Find earliert session
 	double_takers.date = DateTime.(double_takers.exp_start_time, 
 		"yyyy-mm-dd_HH:MM:SS")
 
 	DataFrames.transform!(
-		groupby(double_takers, [:prolific_id]),
+		groupby(double_takers, [:prolific_pid]),
 		:date => minimum => :first_date
 	)
 
@@ -668,7 +676,7 @@ function exclude_vigour_trials(vigour_data::DataFrame, n_trials::Int)
 
 	# Exclude extra trials from multiple participants
 	vigour_data_clean = antijoin(vigour_data_clean, double_takers,
-		on = [:prolific_id, :exp_start_time]
+		on = [:prolific_pid, :exp_start_time]
 	)
 
 	return vigour_data_clean

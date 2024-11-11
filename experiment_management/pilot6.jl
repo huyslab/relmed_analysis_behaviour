@@ -108,7 +108,7 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
+		reversal_data, jspsych_data = load_pilot6_data(;)
 	nothing
 end
 
@@ -147,6 +147,8 @@ let
 		:response_optimal => mean => :acc
 	)
 
+	sort!(acc_curve, [:prolific_pid, :trial])
+
 	# Summarize by trial
 	acc_curve_sum = combine(
 		groupby(acc_curve, :trial),
@@ -168,19 +170,22 @@ let
 	) * visual(Lines, linewidth = 4))
 	
 	
-	draw(mp)
+	draw(mp; legend = (; show = false))
 end
 
 # ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
 md"""### Post-PILT test"""
+
+# ╔═╡ 6244dd22-7c58-4e87-84ed-004b076bc4cb
+test_data.response |> Set
 
 # ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
 let
 	# Select post-PILT test
 	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
 
-	@assert issetequal(unique(test_data_clean.response), 
-	["ArrowRight", "ArrowLeft", nothing]) "Unexpected values in respones"
+	@assert Set(test_data_clean.response) == 
+	Set(["ArrowRight", "ArrowLeft", nothing]) "Unexpected values in respones: $(unique(test_data_clean.response))"
 
 	# Remove missing values
 	filter!(x -> !isnothing(x.response), test_data_clean)
@@ -700,6 +705,7 @@ end
 for r in eachrow(p_sum)
 	if r.total_bonus > 0.
 		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
+		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
 end
 
@@ -845,8 +851,11 @@ end
 # ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
 # ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
+# ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
+# ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8

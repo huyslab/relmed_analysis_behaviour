@@ -1,5 +1,42 @@
 # Functions for plotting data and simulations
 
+"""
+reorder_bands_lines!(f::Figure)
+
+Reorders a bands and lines plot such that the band and line for each subgroup are plotted sequentially.
+
+# Arguments
+- `f::Figure`: The figure containing the plots to be reordered.
+
+# Description
+This function reorders the plots in the provided `Figure` such that bands and lines for each subgroup are plotted one after the other. It assumes that the plots are initially ordered with bands followed by lines for each subgroup, and it reorders them by adjusting their z-values to ensure the desired sequential order.
+"""
+function reorder_bands_lines!(f::GridPosition)
+
+	# Get plots
+	plots = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(plots, Axis)
+		plots = plots.scene.plots
+	else
+		plots = contents(plots)[1].scene.plots
+	end
+
+	n = length(plots)
+
+	@assert allequal(typeof.(plots[1:(n ÷ 2)])) && allequal(typeof.(plots[(n ÷ 2 + 1):n])) "Expecting plots to be ordered by type"
+
+	# Reorder bands and lines
+	new_idx = vcat(1:2:n, 2:2:n)
+
+	# Apply reordering via z-value
+	for (i, p) in enumerate(plots)
+		translate!(p, 0, 0, new_idx[i])
+	end
+
+end
+
 # Plot unit line
 unit_line!(ax; color = :grey, linestyle = :dash, linewidth = 2) = ablines!(
 	0., 
