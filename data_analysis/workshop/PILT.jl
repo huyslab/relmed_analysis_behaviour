@@ -271,6 +271,45 @@ let
 	
 end
 
+# ╔═╡ 9a12c81d-44b3-4c66-b7b2-df98eb420680
+PILT_data_clean
+
+# ╔═╡ a1f3d0c3-4595-49c3-9ba1-e1a55019836a
+# Auxillary variables
+function prepare_data(
+	PILT_data_clean::DataFrame
+)
+	
+	# Make sure sorted
+	forfit = sort(PILT_data_clean, [:prolific_pid, :block, :trial])
+
+	# Make sure block is Int64
+	forfit.block = Int.(forfit.block)
+
+	# Create feedback_optimal and feedback_suboptimal
+	forfit.feedback_optimal = ifelse.(
+		forfit.optimal_right .== 1,
+		forfit.feedback_right,
+		forfit.feedback_left
+	)
+
+	forfit.feedback_suboptimal = ifelse.(
+		forfit.optimal_right .== 0,
+		forfit.feedback_right,
+		forfit.feedback_left
+	)
+
+	# Split for reliability
+	forfit.half = ifelse.(
+		forfit.block .< median(unique(forfit.block)),
+		fill(1, nrow(forfit)),
+		fill(2, nrow(forfit))
+	)
+
+	return forfit
+
+end
+
 # ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
 function fit_by_factor(
 	PILT_data_clean::DataFrame;
@@ -316,6 +355,35 @@ function fit_by_factor(
 
 end
 
+# ╔═╡ 4b9732c4-e74e-4775-8ff0-531be8576c30
+# Plot parameters by valence
+let
+
+	# Tell fitting functions the column naims
+	remap_columns = Dict(
+		"block" => :block,
+		"trial" => :trial,
+		"feedback_optimal" => :feedback_optimal,
+		"feedback_suboptimal" => :feedback_suboptimal,
+		"choice" => :response_optimal
+	)
+	
+	# Fit data
+	fit_by_factor(
+		prepare_data(PILT_data_clean);
+		model = single_p_QL,
+		factor = :valence,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = remap_columns
+	)
+
+
+end
+
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
 # ╠═82ef300e-536f-40ce-9cde-72056e6f4b5e
@@ -324,4 +392,7 @@ end
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
 # ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# ╠═9a12c81d-44b3-4c66-b7b2-df98eb420680
+# ╠═4b9732c4-e74e-4775-8ff0-531be8576c30
+# ╠═a1f3d0c3-4595-49c3-9ba1-e1a55019836a
 # ╠═d26f4afb-d734-40af-97aa-9604db2a335a
