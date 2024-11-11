@@ -271,6 +271,51 @@ let
 	
 end
 
+# ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
+function fit_by_factor(
+	PILT_data_clean::DataFrame;
+	model::Function,
+	factor::Symbol,
+	priors::Dict,
+	unpack_function::Function,
+	remap_columns::Dict
+)
+
+	fits = []
+
+	levels = sort(unique(PILT_data_clean[!, factor]))
+
+	for l in levels
+
+		# Subset data
+		gdf = filter(x -> x[factor] == l, PILT_data_clean)
+
+		# Fit data
+		fit = optimize_multiple(
+			gdf;
+			model = model,
+			unpack_function = df -> unpack_function(df; columns = remap_columns),
+		    priors = priors,
+			grouping_col = :prolific_pid,
+			n_starts = 10
+		)
+
+		# Add factor variable
+		insertcols!(fit, factor => l)
+
+		push!(fits, fit)
+	end
+
+	# Combine to single DataFrame
+	fits = vcat(fits...)
+
+	# Sort
+	sort!(fits, [factor, :prolific_pid])
+
+	return fits
+
+end
+
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
 # ╠═82ef300e-536f-40ce-9cde-72056e6f4b5e
@@ -279,3 +324,4 @@ end
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
 # ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# ╠═d26f4afb-d734-40af-97aa-9604db2a335a
