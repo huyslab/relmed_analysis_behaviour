@@ -11,10 +11,17 @@ Reorders a bands and lines plot such that the band and line for each subgroup ar
 # Description
 This function reorders the plots in the provided `Figure` such that bands and lines for each subgroup are plotted one after the other. It assumes that the plots are initially ordered with bands followed by lines for each subgroup, and it reorders them by adjusting their z-values to ensure the desired sequential order.
 """
-function reorder_bands_lines!(f::Figure)
+function reorder_bands_lines!(f::GridPosition)
 
 	# Get plots
-	plots = contents(f[1,1])[1].scene.plots
+	plots = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(plots, Axis)
+		plots = plots.scene.plots
+	else
+		plots = contents(plots)[1].scene.plots
+	end
 
 	n = length(plots)
 
