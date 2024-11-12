@@ -615,6 +615,101 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ c8a9802b-a1db-47d8-9719-89f1eadd11f7
+# Fit by valence and half
+fits_splithalf_valence = let
+	# Prepare data for fit
+	forfit = prepare_data(PILT_data_clean)
+
+	# Split half by valence
+	DataFrames.transform!(
+		groupby(forfit, [:prolific_pid, :session, :valence]),
+		:cblock => (x -> ifelse.(
+			x .< median(unique(x)), 
+			fill(1, length(x)), 
+			fill(2, length(x))
+		)) => :half
+	)
+
+	@assert nrow(unique(forfit[!, [:cblock, :valence, :half]])) == maximum(forfit.cblock) "Problem with splitting to two halves"
+
+	# Sort for fitting
+	sort!(forfit, [:prolific_pid, :cblock, :trial])
+
+	fits = fit_by_factor(
+		forfit;
+		model = single_p_QL,
+		factor = [:half, :valence],
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = pilt_columns
+	)
+end
+
+# ╔═╡ f8e79974-c3a2-46f6-a760-f558733d9226
+# Plot valence splithalf
+let 
+
+	fs = []
+	# Run over sessions and parameters
+	for (s, fits) in fits_splithalf
+
+		for (p, st, tf) in zip(
+			[:a, :ρ], 
+			["learning rate", "reward Sensitivity"],
+			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+		)
+			# Long to wide
+			fp = unstack(
+				fits_splithalf_valence,
+				[:prolific_pid, :half],
+				:valence,
+				p,
+				renamecols = x -> "$(p)_$x"
+			)
+		
+			# Compute difference
+			fp.diff = fp[!, Symbol("$(p)_1")] .- fp[!, Symbol("$(p)_-1")]
+		
+			# Long to wide again
+			fp = unstack(
+				fp,
+				:prolific_pid,
+				:half,
+				:diff,
+				renamecols = x -> "$(diff)_$x"
+			) 
+		
+			# Plot
+			f = Figure()
+			
+			workshop_reliability_scatter!(
+				f[1, 1];
+				df = fp,
+				xcol = Symbol("$(diff)_1"),
+				ycol = Symbol("$(diff)_2"),
+				xlabel = "First half",
+				ylabel = "Second half",
+				subtitle = "Session $s $st difference"
+			)
+
+			# Save
+			filepath = "results/workshop/PILT_sess$(s)_$(string(p))_valence_diff_split_half.png"
+			save(filepath, f)
+
+			# Push for plotting in notebook
+			push!(fs, f)
+	
+		end
+	end
+
+	fs
+
+end
+
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
 # ╠═82ef300e-536f-40ce-9cde-72056e6f4b5e
@@ -631,5 +726,7 @@ end
 # ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
 # ╠═47046875-475e-4ff1-b626-7bc285f0aac7
 # ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
+# ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7
+# ╠═f8e79974-c3a2-46f6-a760-f558733d9226
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
 # ╠═d26f4afb-d734-40af-97aa-9604db2a335a
