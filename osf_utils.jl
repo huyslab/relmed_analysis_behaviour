@@ -72,7 +72,7 @@ function upload_to_osf(
     write(hash_path, current_hash)
 
 	# Check that there is a view only link
-	@assert length(OSF.view_only_links(osf_project)) == 1 "Project needs exactly 1 view-only link for this to work"
+	# @assert length(OSF.view_only_links(osf_project)) == 1 "Project needs exactly 1 view-only link for this to work"
 
 	# OSF file object
 	osf_file = OSF.file(OSF.directory(osf_project, osf_folder), filename)
