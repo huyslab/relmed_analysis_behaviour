@@ -284,6 +284,54 @@ pilt_columns = Dict(
 	"choice" => :response_optimal
 )
 
+# ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest of parameters
+let
+	fs = []
+
+	# Run over parameters
+	for (p, st, tf) in zip(
+		[:a, :ρ], 
+		["Learning rate", "Reward Sensitivity"],
+		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+	)
+
+		f = Figure()
+
+		# Long to wide
+		this_retest = unstack(
+			fits_retest,
+			:prolific_pid,
+			:session,
+			p,
+			renamecols = (x -> "$(p)_$x")
+		)
+
+		# Plot
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = this_retest,
+			xcol = Symbol("$(p)_1"),
+			ycol = Symbol("$(p)_2"),
+			xlabel = "First session",
+			ylabel = "Second session",
+			subtitle = st,
+			tickformat = tf
+		)
+
+		# Save
+		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
+		save(filepath, f)
+
+		# Push for plotting in notebook
+		push!(fs, f)
+	end
+	fs
+end
+  ╠═╡ =#
+
 # ╔═╡ 7b1a8fcf-66f5-4c5a-a991-e3007819675c
 # Prepare data for fit
 function prepare_data(
@@ -323,69 +371,10 @@ function prepare_data(
 
 end
 
-# ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
-function fit_by_factor(
-	PILT_data_clean::DataFrame;
-	model::Function,
-	factor::Union{Symbol, Vector{Symbol}},
-	priors::Dict,
-	unpack_function::Function,
-	remap_columns::Dict
-)
-
-	fits = []
-
-	# For backwards comaptibility
-	if isa(factor, Symbol)
-		factor = [factor]
-	end
-
-	# Levels to run over
-	levels = unique(PILT_data_clean[!, factor])
-
-	for l in eachrow(levels)
-
-		# Select data
-		levels_dict = Dict(col => l[col] for col in names(levels))
-
-		gdf = filter(x -> all(x[col] == levels_dict[col] 
-			for col in keys(levels_dict)), PILT_data_clean)
-
-		# Subset data
-		gdf = filter(x -> x[factor] == l, PILT_data_clean)
-
-		# Fit data
-		fit = optimize_multiple(
-			gdf;
-			model = model,
-			unpack_function = df -> unpack_function(df; columns = remap_columns),
-		    priors = priors,
-			grouping_col = :prolific_pid,
-			n_starts = 10
-		)
-
-		# Add factor variables
-		factor_pairs = [col => gdf[!, col][1] for col in factor]
-
-		insertcols!(fit, 1, factor_pairs...)
-
-		push!(fits, fit)
-	end
-
-	# Combine to single DataFrame
-	fits = vcat(fits...)
-
-	# Sort
-	sort!(fits, vcat(factor, [:prolific_pid]))
-
-	return fits
-
-end
-
 # ╔═╡ a5b29872-3854-4566-887f-35d6e53479f6
 fits_by_valence = let	
 	# Fit data
-	fits = fit_by_factor(
+	fits = optimize_multiple_by_factor(
 		prepare_data(PILT_data_clean);
 		model = single_p_QL,
 		factor = :valence,
@@ -489,7 +478,7 @@ end
 # ╔═╡ d4ee7c24-5d83-4e07-acca-13006ae4278a
 # Fit by halves
 fits_splithalf = let	
-	fits = Dict(s => fit_by_factor(
+	fits = Dict(s => optimize_multiple_by_factor(
 		prepare_data(filter(x -> x.session == s, PILT_data_clean));
 		model = single_p_QL,
 		factor = :half,
@@ -554,7 +543,7 @@ end
 # ╔═╡ 47046875-475e-4ff1-b626-7bc285f0aac7
 # Fit by session
 fits_retest = let	
-	fits = fit_by_factor(
+	fits = optimize_multiple_by_factor(
 		prepare_data(PILT_data_clean);
 		model = single_p_QL,
 		factor = :session,
@@ -566,54 +555,6 @@ fits_retest = let
 		remap_columns = pilt_columns
 	)
 end
-
-# ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest of parameters
-let
-	fs = []
-
-	# Run over parameters
-	for (p, st, tf) in zip(
-		[:a, :ρ], 
-		["Learning rate", "Reward Sensitivity"],
-		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
-	)
-
-		f = Figure()
-
-		# Long to wide
-		this_retest = unstack(
-			fits_retest,
-			:prolific_pid,
-			:session,
-			p,
-			renamecols = (x -> "$(p)_$x")
-		)
-
-		# Plot
-		workshop_reliability_scatter!(
-			f[1, 1];
-			df = this_retest,
-			xcol = Symbol("$(p)_1"),
-			ycol = Symbol("$(p)_2"),
-			xlabel = "First session",
-			ylabel = "Second session",
-			subtitle = st,
-			tickformat = tf
-		)
-
-		# Save
-		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
-		save(filepath, f)
-
-		# Push for plotting in notebook
-		push!(fs, f)
-	end
-	fs
-end
-  ╠═╡ =#
 
 # ╔═╡ c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # Fit by valence and half
@@ -636,7 +577,7 @@ fits_splithalf_valence = let
 	# Sort for fitting
 	sort!(forfit, [:prolific_pid, :cblock, :trial])
 
-	fits = fit_by_factor(
+	fits = optimize_multiple_by_factor(
 		forfit;
 		model = single_p_QL,
 		factor = [:half, :valence],
@@ -729,4 +670,3 @@ end
 # ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # ╠═f8e79974-c3a2-46f6-a760-f558733d9226
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
-# ╠═d26f4afb-d734-40af-97aa-9604db2a335a
