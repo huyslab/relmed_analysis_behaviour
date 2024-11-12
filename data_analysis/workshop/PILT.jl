@@ -327,7 +327,7 @@ end
 function fit_by_factor(
 	PILT_data_clean::DataFrame;
 	model::Function,
-	factor::Symbol,
+	factor::Union{Symbol, Vector{Symbol}},
 	priors::Dict,
 	unpack_function::Function,
 	remap_columns::Dict
@@ -335,9 +335,21 @@ function fit_by_factor(
 
 	fits = []
 
-	levels = sort(unique(PILT_data_clean[!, factor]))
+	# For backwards comaptibility
+	if isa(factor, Symbol)
+		factor = [factor]
+	end
 
-	for l in levels
+	# Levels to run over
+	levels = unique(PILT_data_clean[!, factor])
+
+	for l in eachrow(levels)
+
+		# Select data
+		levels_dict = Dict(col => l[col] for col in names(levels))
+
+		gdf = filter(x -> all(x[col] == levels_dict[col] 
+			for col in keys(levels_dict)), PILT_data_clean)
 
 		# Subset data
 		gdf = filter(x -> x[factor] == l, PILT_data_clean)
@@ -352,8 +364,10 @@ function fit_by_factor(
 			n_starts = 10
 		)
 
-		# Add factor variable
-		insertcols!(fit, factor => l)
+		# Add factor variables
+		factor_pairs = [col => gdf[!, col][1] for col in factor]
+
+		insertcols!(fit, 1, factor_pairs...)
 
 		push!(fits, fit)
 	end
@@ -362,7 +376,7 @@ function fit_by_factor(
 	fits = vcat(fits...)
 
 	# Sort
-	sort!(fits, [factor, :prolific_pid])
+	sort!(fits, vcat(factor, [:prolific_pid]))
 
 	return fits
 
@@ -489,6 +503,7 @@ fits_splithalf = let
 end
 
 # ╔═╡ ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
+# Split half reliability of parameters
 let
 	fs = []
 
@@ -555,6 +570,7 @@ end
 # ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
 # ╠═╡ disabled = true
 #=╠═╡
+# Test retest of parameters
 let
 	fs = []
 
