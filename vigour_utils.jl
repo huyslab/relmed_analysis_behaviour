@@ -86,7 +86,7 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
     # Create the plot for individual participants
     individual_plot = data(grouped_data) *
                       individual_mapping *
-                      visual(Lines, alpha=0.15, linewidth=1)
+                      visual(Lines, alpha=0.1, linewidth=1)
 
     # Create the plot for the average line
     if grp_var === nothing
@@ -105,15 +105,15 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
     end
 
     # Combine the plots
-    fig = Figure(
-        size=(12.2, 7.6) .* 144 ./ 2.54, # 144 points per inch, then cm
-    )
 
     # Set up the axis
     xlab_text = ismissing(xlab) ? uppercasefirst(join(split(string(x_var), r"\P{L}+"), " ")) : xlab
     ylab_text = ismissing(ylab) ? uppercasefirst(join(split(string(y_var), r"\P{L}+"), " ")) : ylab
 
     if combine
+        fig = Figure(
+            size=(8, 6) .* 144 ./ 2.54, # 144 points per inch, then cm
+        )
         axis = (;
             xlabel=xlab_text,
             ylabel=ylab_text,
@@ -121,6 +121,9 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
         final_plot = individual_plot + average_plot
         fig = draw(final_plot; axis=axis)
     else
+        fig = Figure(
+            size=(12, 6) .* 144 ./ 2.54, # 144 points per inch, then cm
+        )
         # Draw the plot
         fig_patch = fig[1, 1] = GridLayout()
         ax_left = Axis(fig_patch[1, 1], ylabel=ylab_text)
