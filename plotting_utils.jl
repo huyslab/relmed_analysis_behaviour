@@ -37,6 +37,72 @@ function reorder_bands_lines!(f::GridPosition)
 
 end
 
+"""
+Creates a scatter plot with a regression line and a unit line on a given grid position.
+
+# Arguments
+- `f::GridPosition`: The grid position to draw the plot on.
+- `df::AbstractDataFrame`: The data frame containing the data to be plotted.
+- `xlabel::String`: Label for the x-axis.
+- `ylabel::String`: Label for the y-axis.
+- `xcol::Symbol = :x`: The column symbol for x-axis values in `df`.
+- `ycol::Symbol = :y`: The column symbol for y-axis values in `df`.
+- `subtitle::String = ""`: Subtitle for the plot.
+- `tickformat::Union{Function, Makie.Automatic} = Makie.automatic`: Format for axis ticks.
+
+# Functionality
+The function computes the Spearman-Brown corrected correlation between `xcol` and `ycol` and displays it on the plot if positive. It then generates a scatter plot with a regression line and a dashed unit line at a 45-degree angle, which represents perfect reliability.
+
+# Notes
+- Requires the Makie library for plotting.
+- Displays the correlation (`r`) value as an annotation on the plot.
+
+"""
+function workshop_reliability_scatter!(
+	f::GridPosition;
+	df::AbstractDataFrame,
+	xlabel::String,
+	ylabel::String,
+	xcol::Symbol = :x,
+	ycol::Symbol = :y,
+	subtitle::String = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic
+)	
+
+	# Compute Spearman-Brown-corrected correlation
+	r = spearman_brown(cor(df[!, xcol], df[!, ycol])) 
+	r_text = string("r = ", round(r; digits = 2))
+
+	# Plot
+	mp = data(df) *
+			mapping(xcol, ycol) *
+			(visual(Scatter) + linear()) +
+		mapping([0], [1]) *
+			visual(ABLines, linestyle = :dash, color = :gray70)
+	
+	draw!(f, mp; axis=(;
+		xlabel = xlabel, 
+		ylabel = ylabel, 
+		xtickformat = tickformat,
+		ytickformat = tickformat,
+		subtitle = subtitle
+	))
+
+	if r > 0
+		Label(
+			f,
+			r_text,
+			fontsize = 16,
+			font = :bold,
+			halign = 0.975,
+			valign = 0.025,
+			tellheight = false,
+			tellwidth = false
+		)
+	end
+
+end
+
 # Plot unit line
 unit_line!(ax; color = :grey, linestyle = :dash, linewidth = 2) = ablines!(
 	0., 
