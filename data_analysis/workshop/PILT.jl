@@ -323,6 +323,9 @@ function prepare_data(
 
 end
 
+# ╔═╡ 647b3b59-c71b-42ad-a786-468f5c529448
+typeof(Makie.automatic)
+
 # ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
 function fit_by_factor(
 	PILT_data_clean::DataFrame;
@@ -472,6 +475,86 @@ let fits = fits_by_valence
 	f1
 end
 
+# ╔═╡ d4ee7c24-5d83-4e07-acca-13006ae4278a
+# Fit by halves
+fits_splithalf = let	
+	fits = Dict(s => fit_by_factor(
+		prepare_data(filter(x -> x.session == s, PILT_data_clean));
+		model = single_p_QL,
+		factor = :half,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = pilt_columns
+	) for s in unique(PILT_data_clean.session))
+end
+
+# ╔═╡ ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
+let
+	fs = []
+
+	# Run over sessions and parameters
+	for (s, fits) in fits_splithalf
+
+		for (p, st, tf) in zip(
+			[:a, :ρ], 
+			["learning rate", "reward Sensitivity"],
+			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+		)
+
+			f = Figure()
+
+			# Long to wide
+			splithalf = unstack(
+				fits_splithalf[s],
+				:prolific_pid,
+				:half,
+				p,
+				renamecols = (x -> "$(p)_$x")
+			)
+
+			# Plot
+			workshop_reliability_scatter!(
+				f[1, 1];
+				df = splithalf,
+				xcol = Symbol("$(p)_1"),
+				ycol = Symbol("$(p)_2"),
+				xlabel = "First half",
+				ylabel = "Second half",
+				subtitle = "Session $s $st",
+				tickformat = tf
+			)
+
+			# Save
+			filepath = "results/workshop/PILT_sess$(s)_$(string(p))_split_half.png"
+			save(filepath, f)
+
+			# Push for plotting in notebook
+			push!(fs, f)
+		end
+	end
+
+	fs
+end
+
+# ╔═╡ 47046875-475e-4ff1-b626-7bc285f0aac7
+# Fit by session
+fits_retest = let	
+	fits = fit_by_factor(
+		prepare_data(PILT_data_clean);
+		model = single_p_QL,
+		factor = :session,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = pilt_columns
+	)
+end
+
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
 # ╠═82ef300e-536f-40ce-9cde-72056e6f4b5e
@@ -484,5 +567,9 @@ end
 # ╠═c40ea9ef-0d50-4889-a28a-778a14b0dec7
 # ╠═a5b29872-3854-4566-887f-35d6e53479f6
 # ╠═4b9732c4-e74e-4775-8ff0-531be8576c30
+# ╠═d4ee7c24-5d83-4e07-acca-13006ae4278a
+# ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
+# ╠═47046875-475e-4ff1-b626-7bc285f0aac7
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
+# ╠═647b3b59-c71b-42ad-a786-468f5c529448
 # ╠═d26f4afb-d734-40af-97aa-9604db2a335a
