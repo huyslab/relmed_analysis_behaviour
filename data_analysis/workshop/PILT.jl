@@ -323,9 +323,6 @@ function prepare_data(
 
 end
 
-# ╔═╡ 647b3b59-c71b-42ad-a786-468f5c529448
-typeof(Makie.automatic)
-
 # ╔═╡ d26f4afb-d734-40af-97aa-9604db2a335a
 function fit_by_factor(
 	PILT_data_clean::DataFrame;
@@ -555,6 +552,53 @@ fits_retest = let
 	)
 end
 
+# ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
+# ╠═╡ disabled = true
+#=╠═╡
+let
+	fs = []
+
+	# Run over parameters
+	for (p, st, tf) in zip(
+		[:a, :ρ], 
+		["Learning rate", "Reward Sensitivity"],
+		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+	)
+
+		f = Figure()
+
+		# Long to wide
+		this_retest = unstack(
+			fits_retest,
+			:prolific_pid,
+			:session,
+			p,
+			renamecols = (x -> "$(p)_$x")
+		)
+
+		# Plot
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = this_retest,
+			xcol = Symbol("$(p)_1"),
+			ycol = Symbol("$(p)_2"),
+			xlabel = "First session",
+			ylabel = "Second session",
+			subtitle = st,
+			tickformat = tf
+		)
+
+		# Save
+		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
+		save(filepath, f)
+
+		# Push for plotting in notebook
+		push!(fs, f)
+	end
+	fs
+end
+  ╠═╡ =#
+
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
 # ╠═82ef300e-536f-40ce-9cde-72056e6f4b5e
@@ -570,6 +614,6 @@ end
 # ╠═d4ee7c24-5d83-4e07-acca-13006ae4278a
 # ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
 # ╠═47046875-475e-4ff1-b626-7bc285f0aac7
+# ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
-# ╠═647b3b59-c71b-42ad-a786-468f5c529448
 # ╠═d26f4afb-d734-40af-97aa-9604db2a335a
