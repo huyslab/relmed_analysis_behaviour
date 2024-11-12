@@ -129,6 +129,94 @@ function optimize_multiple(
 	return sort(DataFrame(ests), grouping_col)
 end
 
+"""
+    optimize_multiple_by_factor(
+        df::DataFrame;
+        model::Function,
+        factor::Union{Symbol, Vector{Symbol}},
+        priors::Dict,
+        unpack_function::Function,
+        remap_columns::Dict
+    ) -> DataFrame
+
+Estimate the posterior mode or maximum likelihood estimate (MLE) for a dataset, after splitting 
+by one or more factors. The function fits a specified model to each subset of data grouped by 
+levels of the specified factor(s), allowing for tailored analyses across groups within the data.
+
+# Arguments
+- `df::DataFrame`: The data to be analyzed.
+- `model::Function`: The model function to fit to each subset of the data.
+- `factor::Union{Symbol, Vector{Symbol}}`: A single column or list of columns to split the data by.
+- `priors::Dict`: A dictionary of prior values to pass to the model function.
+- `unpack_function::Function`: A function to prepare the data for the model, accepting `df` and `columns` arguments.
+- `remap_columns::Dict`: A dictionary to map column names for the unpack function.
+
+# Returns
+- A `DataFrame` containing the fit results for each factor level combination, with factor levels 
+  and grouping information added to the output.
+
+# Notes
+Each subset of `df` (split by factor levels) is optimized separately using `optimize_multiple`.
+The results are combined and sorted by the specified factor(s) and `:prolific_pid`.
+"""
+function optimize_multiple_by_factor(
+	df::DataFrame;
+	model::Function,
+	factor::Union{Symbol, Vector{Symbol}},
+	priors::Dict,
+	unpack_function::Function,
+	remap_columns::Dict
+)
+
+	fits = []
+
+	# For backwards comaptibility
+	if isa(factor, Symbol)
+		factor = [factor]
+	end
+
+	# Levels to run over
+	levels = unique(df[!, factor])
+
+	for l in eachrow(levels)
+
+		# Select data
+		levels_dict = Dict(col => l[col] for col in names(levels))
+
+		gdf = filter(x -> all(x[col] == levels_dict[col] 
+			for col in keys(levels_dict)), df)
+
+		# Subset data
+		gdf = filter(x -> x[factor] == l, df)
+
+		# Fit data
+		fit = optimize_multiple(
+			gdf;
+			model = model,
+			unpack_function = df -> unpack_function(df; columns = remap_columns),
+		    priors = priors,
+			grouping_col = :prolific_pid,
+			n_starts = 10
+		)
+
+		# Add factor variables
+		factor_pairs = [col => gdf[!, col][1] for col in factor]
+
+		insertcols!(fit, 1, factor_pairs...)
+
+		push!(fits, fit)
+	end
+
+	# Combine to single DataFrame
+	fits = vcat(fits...)
+
+	# Sort
+	sort!(fits, vcat(factor, [:prolific_pid]))
+
+	return fits
+
+end
+
 
 ## Fisher Information functions -----------------------------------------------------------------
 
