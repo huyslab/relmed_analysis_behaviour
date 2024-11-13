@@ -496,9 +496,9 @@ reversal_columns = Dict(
 )
 
 # ╔═╡ f65ada7d-2f82-4cdd-9cb0-04a2105b1187
-QL_splithalf = let	 s= "1"
-	fits =  optimize_multiple_by_factor(
-		reversal_data_clean;
+QL_splithalf = let
+	fits =  Dict(s => optimize_multiple_by_factor(
+		filter(x -> x.session == s, reversal_data_clean);
 		model = single_p_QL,
 		factor = :half,
 		priors = Dict(
@@ -507,8 +507,121 @@ QL_splithalf = let	 s= "1"
 		),
 		unpack_function = unpack_single_p_QL,
 		remap_columns = reversal_columns
-		) 
+		) for s in unique(reversal_data_clean.session))
 end
+
+# ╔═╡ b239a169-b284-4d7d-98a4-8f15961ebad7
+# Split half reliability of Q learning model
+let
+	fs = []
+
+	# Run over sessions and parameters
+	for (s, fits) in QL_splithalf
+
+		for (p, st, tf) in zip(
+			[:a, :ρ], 
+			["learning rate", "reward sensitivity"],
+			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+		)
+
+			f = Figure()
+
+			# Long to wide
+			splithalf = unstack(
+				QL_splithalf[s],
+				:prolific_pid,
+				:half,
+				p,
+				renamecols = (x -> "$(p)_$x")
+			)
+
+			# Plot
+			workshop_reliability_scatter!(
+				f[1, 1];
+				df = splithalf,
+				xcol = Symbol("$(p)_1"),
+				ycol = Symbol("$(p)_2"),
+				xlabel = "First half",
+				ylabel = "Second half",
+				subtitle = "Session $s $st",
+				tickformat = tf
+			)
+
+			# Save
+			filepath = "results/workshop/reversal_sess$(s)_QL_$(string(p))_split_half.png"
+			save(filepath, f)
+
+			# Push for plotting in notebook
+			push!(fs, f)
+		end
+	end
+
+	fs
+end
+
+# ╔═╡ 34dcb1f1-3171-4a2d-a4f4-e9d880052d4f
+# Fit by session
+QL_retest = let	
+	fits = optimize_multiple_by_factor(
+		reversal_data_clean;
+		model = single_p_QL,
+		factor = :session,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = reversal_columns
+	)
+end
+
+# ╔═╡ 91fa774d-38d5-44ec-bc08-8b71dae24b9b
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest of QL parameters
+let
+	fs = []
+
+	# Run over parameters
+	for (p, st, tf) in zip(
+		[:a, :ρ], 
+		["Learning rate", "Reward Sensitivity"],
+		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+	)
+
+		f = Figure()
+
+		# Long to wide
+		this_retest = unstack(
+			QL_retest,
+			:prolific_pid,
+			:session,
+			p,
+			renamecols = (x -> "$(p)_$x")
+		)
+
+		# Plot
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = this_retest,
+			xcol = Symbol("$(p)_1"),
+			ycol = Symbol("$(p)_2"),
+			xlabel = "First session",
+			ylabel = "Second session",
+			subtitle = st,
+			tickformat = tf
+		)
+
+		# Save
+		filepath = "results/workshop/reversal_QL_$(string(p))_test_retest.png"
+		save(filepath, f)
+
+		# Push for plotting in notebook
+		push!(fs, f)
+	end
+	fs
+end
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═32109870-a1ae-11ef-3dca-57321e58b0e8
@@ -524,3 +637,6 @@ end
 # ╠═6521764f-80cb-4c0a-90bb-09a40fe15136
 # ╠═0cc9cab2-53e5-4049-8523-4f4bb4dfb5bb
 # ╠═f65ada7d-2f82-4cdd-9cb0-04a2105b1187
+# ╠═b239a169-b284-4d7d-98a4-8f15961ebad7
+# ╠═34dcb1f1-3171-4a2d-a4f4-e9d880052d4f
+# ╠═91fa774d-38d5-44ec-bc08-8b71dae24b9b
