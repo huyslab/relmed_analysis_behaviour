@@ -580,7 +580,7 @@ fits_splithalf_valence = let
 	fits = optimize_multiple_by_factor(
 		forfit;
 		model = single_p_QL,
-		factor = [:half, :valence],
+		factor = [:session, :half, :valence],
 		priors = Dict(
 			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a => Normal(0., 2.)
@@ -596,16 +596,16 @@ let
 
 	fs = []
 	# Run over sessions and parameters
-	for (s, fits) in fits_splithalf
+	for s in sort(unique(fits_splithalf_valence.session))
 
 		for (p, st, tf) in zip(
 			[:a, :ρ], 
-			["learning rate", "reward Sensitivity"],
+			["learning rate", "reward sensitivity"],
 			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 		)
 			# Long to wide
 			fp = unstack(
-				fits_splithalf_valence,
+				filter(x -> x.session == s, fits_splithalf_valence),
 				[:prolific_pid, :half],
 				:valence,
 				p,
@@ -634,7 +634,7 @@ let
 				ycol = Symbol("$(diff)_2"),
 				xlabel = "First half",
 				ylabel = "Second half",
-				subtitle = "Session $s $st difference"
+				subtitle = "Session $s $st reward - punishment"
 			)
 
 			# Save
@@ -650,6 +650,87 @@ let
 	fs
 
 end
+
+# ╔═╡ ac8a4d61-ba61-4635-96fa-4e6ee9769e5e
+# Fit by valence and session
+fits_retest_valence = let
+	# Prepare data for fit
+	forfit = prepare_data(PILT_data_clean)
+
+	# Sort for fitting
+	sort!(forfit, [:prolific_pid, :cblock, :trial])
+
+	fits = optimize_multiple_by_factor(
+		forfit;
+		model = single_p_QL,
+		factor = [:session, :valence],
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = pilt_columns
+	)
+end
+
+# ╔═╡ 6f48c845-c2ec-4fd9-ad5b-eb5d7ba49a45
+# ╠═╡ disabled = true
+#=╠═╡
+# Plot valence splithalf
+let 
+
+	fs = []
+	for (p, st, tf) in zip(
+		[:a, :ρ], 
+		["Learning rate", "Reward sensitivity"],
+		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+	)
+		# Long to wide
+		fp = unstack(
+			fits_retest_valence,
+			[:prolific_pid, :session],
+			:valence,
+			p,
+			renamecols = x -> "$(p)_$x"
+		)
+	
+		# Compute difference
+		fp.diff = fp[!, Symbol("$(p)_1")] .- fp[!, Symbol("$(p)_-1")]
+	
+		# Long to wide again
+		fp = unstack(
+			fp,
+			:prolific_pid,
+			:session,
+			:diff,
+			renamecols = x -> "$(diff)_$x"
+		) 
+	
+		# Plot
+		f = Figure()
+		
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = fp,
+			xcol = Symbol("$(diff)_1"),
+			ycol = Symbol("$(diff)_2"),
+			xlabel = "Session 1",
+			ylabel = "Session 2",
+			subtitle = "$st reward - punishment"
+		)
+
+		# Save
+		filepath = "results/workshop/PILT_sess$(s)_$(string(p))_valence_diff_test_retest.png"
+		save(filepath, f)
+
+		# Push for plotting in notebook
+		push!(fs, f)
+
+	end
+	fs
+
+end
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
@@ -669,4 +750,6 @@ end
 # ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
 # ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # ╠═f8e79974-c3a2-46f6-a760-f558733d9226
+# ╠═ac8a4d61-ba61-4635-96fa-4e6ee9769e5e
+# ╠═6f48c845-c2ec-4fd9-ad5b-eb5d7ba49a45
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
