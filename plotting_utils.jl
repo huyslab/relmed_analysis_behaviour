@@ -71,7 +71,7 @@ function workshop_reliability_scatter!(
 
 	# Compute Spearman-Brown-corrected correlation
 	r = spearman_brown(cor(df[!, xcol], df[!, ycol])) 
-	r_text = string("r = ", round(r; digits = 2))
+	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
 
 	# Plot
 	mp = data(df) *
