@@ -81,6 +81,8 @@ reversal_data_clean = let
 	filter!(x -> !isnothing(x.response_optimal), reversal_data_clean)
 
 	# Auxillary variables --------------------------
+	# Make session into Int64
+	reversal_data_clean.session = parse.(Int, reversal_data_clean.session)
 		
 	# Number trials leading to reversal
 	DataFrames.transform!(
@@ -100,6 +102,24 @@ reversal_data_clean = let
 		fill(1, nrow(reversal_data_clean)),
 		fill(2, nrow(reversal_data_clean))
 	)
+
+	# Create feedback_optimal and feedback_suboptimal
+	reversal_data_clean.feedback_optimal = ifelse.(
+		reversal_data_clean.optimal_right .== 1,
+		reversal_data_clean.feedback_right,
+		reversal_data_clean.feedback_left
+	)
+
+	reversal_data_clean.feedback_suboptimal = ifelse.(
+		reversal_data_clean.optimal_right .== 0,
+		reversal_data_clean.feedback_right,
+		reversal_data_clean.feedback_left
+	)
+
+	@assert all(combine(
+		groupby(reversal_data_clean, [:prolific_pid, :session]),
+		:ctrial => issorted => :trial_sorted
+	).trial_sorted)
 
 	reversal_data_clean
 	
@@ -255,11 +275,11 @@ let
 	
 		save(filepath, f)
 	
-		upload_to_osf(
-			filepath,
-			proj,
-			osf_folder
-		)
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
 
 		# Push for notebook plotting
 		push!(fs, f)
@@ -465,6 +485,31 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ 0cc9cab2-53e5-4049-8523-4f4bb4dfb5bb
+# Tell fitting functions the column names
+reversal_columns = Dict(
+	"block" => :session,
+	"trial" => :ctrial,
+	"feedback_optimal" => :feedback_optimal,
+	"feedback_suboptimal" => :feedback_suboptimal,
+	"choice" => :response_optimal
+)
+
+# ╔═╡ f65ada7d-2f82-4cdd-9cb0-04a2105b1187
+QL_splithalf = let	 s= "1"
+	fits =  optimize_multiple_by_factor(
+		reversal_data_clean;
+		model = single_p_QL,
+		factor = :half,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a => Normal(0., 2.)
+		),
+		unpack_function = unpack_single_p_QL,
+		remap_columns = reversal_columns
+		) 
+end
+
 # ╔═╡ Cell order:
 # ╠═32109870-a1ae-11ef-3dca-57321e58b0e8
 # ╠═d79c72d4-adda-4cde-bc46-d4be516261ea
@@ -477,3 +522,5 @@ end
 # ╠═b14b4021-7a41-4066-b38b-be70776eebb4
 # ╠═d5996434-7bdc-4aa1-95f9-5e9223a6b08d
 # ╠═6521764f-80cb-4c0a-90bb-09a40fe15136
+# ╠═0cc9cab2-53e5-4049-8523-4f4bb4dfb5bb
+# ╠═f65ada7d-2f82-4cdd-9cb0-04a2105b1187
