@@ -501,7 +501,7 @@ let
 
 		for (p, st, tf) in zip(
 			[:a, :ρ], 
-			["learning rate", "reward Sensitivity"],
+			["learning rate", "reward sensitivity"],
 			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 		)
 
