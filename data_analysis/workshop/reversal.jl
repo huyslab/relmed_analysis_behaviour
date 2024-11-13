@@ -499,7 +499,7 @@ reversal_columns = Dict(
 QL_splithalf = let
 	fits =  Dict(s => optimize_multiple_by_factor(
 		filter(x -> x.session == s, reversal_data_clean);
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = :half,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 5.), lower = 0.),
@@ -564,7 +564,7 @@ end
 QL_retest = let	
 	fits = optimize_multiple_by_factor(
 		reversal_data_clean;
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 5.), lower = 0.),
@@ -623,6 +623,74 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ f9008604-bdff-48e9-a3f0-058c4380a230
+# Fit logitic to reversal recover for export
+recovery_coef_export = let
+	# Summarize post reversal
+	sum_post = combine(
+		groupby(
+			filter(x -> (x.trial in 1:4), reversal_data_clean),
+			[:prolific_pid, :trial]
+		),
+		:response_optimal => mean => :acc,
+		:response_optimal => length => :n
+	)
+
+	# Zscore trial
+	sum_post.trial_s = (sum_post.trial .- mean(1:4)) ./ std(1:4)
+
+	# GLM fit function
+	glm_coef(dat) = coef(glm(@formula(acc ~ trial_s), dat, Binomial(), LogitLink(), wts = dat.n))[2]
+
+	# Fit per participant and half
+	post_coef = combine(
+		groupby(sum_post, :prolific_pid),
+		AsTable([:acc, :trial_s, :n]) => glm_coef => :reversal_recovery_logistic_β
+	)
+
+end
+
+# ╔═╡ e585fc0d-0775-4430-abb3-62ea835bdc83
+# Fit QL for export
+recip_QL_export = let
+	fit = optimize_multiple(
+			reversal_data_clean;
+			model = single_p_QL_recip,
+			priors = Dict(
+				:ρ => truncated(Normal(0., 5.), lower = 0.),
+				:a => Normal(0., 2.)
+			),
+			unpack_function = df -> unpack_single_p_QL(df; columns = reversal_columns),
+			grouping_col = :prolific_pid,
+			n_starts = 10
+	)
+
+	rename!(
+		fit,
+		:a => :reversal_recip_QL_a,
+		:ρ => :reversal_recip_QL_ρ,
+		:lp => :reversal_recip_QL_lp
+	)
+
+end
+
+# ╔═╡ 9e24120b-a105-4c0b-a37b-c85e4faadf7c
+# Export params
+let
+	params = innerjoin(
+		recip_QL_export,
+		recovery_coef_export,
+		on = :prolific_pid
+	)
+
+	@assert (nrow(params) == nrow(recip_QL_export)) && 
+		(nrow(params) == nrow(recovery_coef_export))
+
+	CSV.write("results/workshop/reversal_params.csv")
+	
+
+end
+
 # ╔═╡ Cell order:
 # ╠═32109870-a1ae-11ef-3dca-57321e58b0e8
 # ╠═d79c72d4-adda-4cde-bc46-d4be516261ea
@@ -640,3 +708,6 @@ end
 # ╠═b239a169-b284-4d7d-98a4-8f15961ebad7
 # ╠═34dcb1f1-3171-4a2d-a4f4-e9d880052d4f
 # ╠═91fa774d-38d5-44ec-bc08-8b71dae24b9b
+# ╠═f9008604-bdff-48e9-a3f0-058c4380a230
+# ╠═e585fc0d-0775-4430-abb3-62ea835bdc83
+# ╠═9e24120b-a105-4c0b-a37b-c85e4faadf7c
