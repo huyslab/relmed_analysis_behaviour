@@ -249,7 +249,19 @@ let
 			ylabel = "Second half",
 			subtitle = "Session $s post reversal accuracy"
 		)
+
+		# Save
+		filepath = "results/workshop/reversal_sess$(s)_trials_2-4_splithalf.png"
 	
+		save(filepath, f)
+	
+		upload_to_osf(
+			filepath,
+			proj,
+			osf_folder
+		)
+
+		# Push for notebook plotting
 		push!(fs, f)
 
 	end
@@ -257,6 +269,62 @@ let
 	fs
 
 end
+
+# ╔═╡ b14b4021-7a41-4066-b38b-be70776eebb4
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest of mean, trials +2 - +4
+let
+
+	# Summarize post reversal
+	sum_post = combine(
+		groupby(
+			filter(x -> (x.trial in 2:4), reversal_data_clean),
+			[:prolific_pid, :session]
+		),
+		:response_optimal => mean => :acc
+	)
+
+	# Long to wide
+	sum_post = unstack(
+		sum_post,
+		:prolific_pid,
+		:session,
+		:acc,
+		renamecols = x -> "sess_$x"
+	)
+
+	# Plot
+	f = Figure()
+	
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = sum_post,
+		xcol = :sess_1,
+		ycol = :sess_2,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Post reversal accuracy"
+	)
+
+	# Save
+	filepath = "results/workshop/reversal_trials_2-4_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
+
+	# Push for notebook plotting
+	push!(fs, f)
+
+	fs
+
+end
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═32109870-a1ae-11ef-3dca-57321e58b0e8
@@ -267,3 +335,4 @@ end
 # ╠═4ba8c548-ff95-4796-91b6-0f5c1ac4847a
 # ╠═4292e779-332c-4e5b-adc8-63559c0f5cbb
 # ╠═518b2148-8d82-4135-96a8-5ce332c446a3
+# ╠═b14b4021-7a41-4066-b38b-be70776eebb4
