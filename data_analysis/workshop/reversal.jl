@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -326,6 +326,145 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ d5996434-7bdc-4aa1-95f9-5e9223a6b08d
+# Logistic regression to recovery from reversal - split half
+let
+
+	fs = []
+
+	for s in unique(reversal_data_clean.session)
+
+		# Summarize post reversal
+		sum_post = combine(
+			groupby(
+				filter(x -> (x.trial in 1:4), reversal_data_clean),
+				[:prolific_pid, :trial, :half]
+			),
+			:response_optimal => mean => :acc,
+			:response_optimal => length => :n
+		)
+	
+		# Zscore trial
+		sum_post.trial_s = (sum_post.trial .- mean(1:4)) ./ std(1:4)
+	
+		# GLM fit function
+		glm_coef(dat) = coef(glm(@formula(acc ~ trial_s), dat, Binomial(), LogitLink(), wts = dat.n))[2]
+	
+		# Fit per participant and half
+		post_coef = combine(
+			groupby(sum_post, [:prolific_pid, :half]),
+			AsTable([:acc, :trial_s, :n]) => glm_coef => :β
+		)
+	
+		# Long to wide
+		post_coef = unstack(
+			post_coef,
+			:prolific_pid,
+			:half,
+			:β,
+			renamecols = x -> "half_$x"
+		)
+	
+		# Plot
+		f = Figure()
+		
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = post_coef,
+			xcol = :half_1,
+			ycol = :half_2,
+			xlabel = "First half",
+			ylabel = "Second half",
+			subtitle = "Session $s post reversal recovery"
+		)
+
+			# Save
+		filepath = "results/workshop/reversal_sess$(s)_logistic_recovery_splithalf.png"
+	
+		save(filepath, f)
+	
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
+
+		# Push for notebook plotting
+		push!(fs, f)
+
+	end
+
+	fs
+
+
+end
+
+# ╔═╡ 6521764f-80cb-4c0a-90bb-09a40fe15136
+# ╠═╡ disabled = true
+#=╠═╡
+# Logistic regression to recovery from reversal - test retest
+let
+
+	# Summarize post reversal
+	sum_post = combine(
+		groupby(
+			filter(x -> (x.trial in 1:4), reversal_data_clean),
+			[:prolific_pid, :trial, :session]
+		),
+		:response_optimal => mean => :acc,
+		:response_optimal => length => :n
+	)
+
+	# Zscore trial
+	sum_post.trial_s = (sum_post.trial .- mean(1:4)) ./ std(1:4)
+
+	# GLM fit function
+	glm_coef(dat) = coef(glm(@formula(acc ~ trial_s), dat, Binomial(), LogitLink(), wts = dat.n))[2]
+
+	# Fit per participant and half
+	post_coef = combine(
+		groupby(sum_post, [:prolific_pid, :session]),
+		AsTable([:acc, :trial_s, :n]) => glm_coef => :β
+	)
+
+	# Long to wide
+	post_coef = unstack(
+		post_coef,
+		:prolific_pid,
+		:session,
+		:β,
+		renamecols = x -> "sess_$x"
+	)
+
+	# Plot
+	f = Figure()
+	
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = post_coef,
+		xcol = :sess_1,
+		ycol = :sess_2,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Post reversal recovery"
+	)
+
+		# Save
+	filepath = "results/workshop/reversal_logistic_recovery_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
+
+	f
+
+end
+  ╠═╡ =#
+
 # ╔═╡ Cell order:
 # ╠═32109870-a1ae-11ef-3dca-57321e58b0e8
 # ╠═d79c72d4-adda-4cde-bc46-d4be516261ea
@@ -336,3 +475,5 @@ end
 # ╠═4292e779-332c-4e5b-adc8-63559c0f5cbb
 # ╠═518b2148-8d82-4135-96a8-5ce332c446a3
 # ╠═b14b4021-7a41-4066-b38b-be70776eebb4
+# ╠═d5996434-7bdc-4aa1-95f9-5e9223a6b08d
+# ╠═6521764f-80cb-4c0a-90bb-09a40fe15136
