@@ -68,7 +68,97 @@ PILT_data_clean = let
 	# Clean data
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
+
+	# Auxillary variables ----------------
+	# Stimulus category
+	PILT_data_clean.category_right = 
+		(s -> replace(s, "imgs/PILT_stims/" => "", ".jpg" => "")[1:(end-1)]).(PILT_data_clean.stimulus_right)
+
+	PILT_data_clean.category_left = 
+		(s -> replace(s, "imgs/PILT_stims/" => "", ".jpg" => "")[1:(end-1)]).(PILT_data_clean.stimulus_left)
+
+	# Optimal category
+	PILT_data_clean.optimal_category = ifelse.(
+		PILT_data_clean.optimal_right .== 1,
+		PILT_data_clean.category_right,
+		PILT_data_clean.category_left
+	)
+
+	# Repeating category
+	categories = unique(PILT_data_clean[!, [:session, :block, :category_right, :category_left, :valence, :optimal_category]])
+
+	# Combine left and right
+	categories = stack(
+		categories,
+		[:category_right, :category_left],
+		[:session, :block, :valence, :optimal_category],
+		value_name = :category
+	)
+
+	# Keep unique
+	select!(categories, Not(:variable))
+
+	unique!(categories)
+
+	# Compute repeating
+	categories.repeating = vcat([false, false], [r.category in categories.category[categories.block .== (r.block - 1)] for r in eachrow(categories)[3:end]])
+
+	# Compute previous block valence
+	categories.previous_valence = vcat([missing, missing], [categories.valence[categories.block .== (r.block - 1)][1] for r in eachrow(categories)[3:end]])
+
+	# Compute repeating previously optimal
+	categories.repeating_previous_optimal = [(r.repeating ? (categories.optimal_category[categories.block .== (r.block - 1)][1] == r.category) : missing) for r in eachrow(categories)]
+	
+	# Join into data
+	n_rows_pre = nrow(PILT_data_clean)
+	PILT_data_clean = leftjoin(
+		PILT_data_clean,
+		rename(categories, 
+			:category => :category_right,
+			:repeating => :category_right_repeating,
+			:repeating_previous_optimal => :repeating_previous_optimal_right
+		),
+		on = [:session, :block, :category_right, :valence, :optimal_category],
+		order = :left
+	)
+
+	PILT_data_clean = leftjoin(
+		PILT_data_clean,
+		select(rename(categories, 
+			:category => :category_left,
+			:repeating => :category_left_repeating,
+			:repeating_previous_optimal => :repeating_previous_optimal_left
+		), Not(:previous_valence)),
+		on = [:session, :block, :category_left, :valence, :optimal_category],
+		order = :left
+	)
+
+	@assert nrow(PILT_data_clean) == n_rows_pre
+
+	# Unify into one repeating_previous_optimal variable
+	PILT_data_clean.repeating_previous_optimal = 
+		coalesce.(PILT_data_clean.repeating_previous_optimal_right,
+		PILT_data_clean.repeating_previous_optimal_left)
+
+	select!(PILT_data_clean, 
+		Not([:repeating_previous_optimal_left, :repeating_previous_optimal_right]))
+
+	# Repeating optimal
+	PILT_data_clean.repeating_optimal = ifelse.(
+		PILT_data_clean.category_right_repeating .|| PILT_data_clean.category_left_repeating,
+		ifelse.(
+			PILT_data_clean.category_right_repeating,
+			PILT_data_clean.optimal_right .== 1,
+			PILT_data_clean.optimal_right .== 0
+		),
+		fill(missing, nrow(PILT_data_clean))
+	)
+		
+	PILT_data_clean
 end
+
+# ╔═╡ 3cb8fb6f-7457-499d-9aad-47e0f2e8ec5c
+describe(PILT_data_clean)
 
 # ╔═╡ Cell order:
 # ╠═c4f778a8-a207-11ef-1db0-f57fc0a2a769
@@ -76,3 +166,4 @@ end
 # ╠═52ca98ce-1349-4d98-8e8b-8e8faa3aeba4
 # ╠═0f1cf0ad-3a49-4c8e-8b51-607b7237e02f
 # ╠═3b019f83-64f3-428a-96d6-42d9cc1969fd
+# ╠═3cb8fb6f-7457-499d-9aad-47e0f2e8ec5c
