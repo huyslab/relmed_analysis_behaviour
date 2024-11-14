@@ -1700,7 +1700,7 @@ a2α(a) = logistic(π/sqrt(3) * a)
 # Get data into correct format for the model -----------------------------------
 function unpack_data(data::DataFrame)
     # sort by block and trial
-    sort!(data, [:block, :trial])
+    DataFrames.sort!(data, [:block, :trial])
     data_tuple = (
         block = data.block, # length = number of trials
         valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks

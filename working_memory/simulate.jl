@@ -1,26 +1,55 @@
 # Simulating data and task structures for PILT tasks -------------------------------------------------------------------
-function task_vars_for_condition(condition::String)
+# 
+# Deprecated.
+# function task_vars_for_condition(condition::String)
+# 	# Load sequence from file
+# 	task = DataFrame(CSV.File("data/PLT_task_structure_$condition.csv"))
+
+# 	# Renumber block
+# 	task.block = task.block .+ (task.session .- 1) * maximum(task.block)
+
+# 	# Arrange feedback by optimal / suboptimal
+# 	task.feedback_optimal = 
+# 		ifelse.(task.optimal_A .== 1, task.feedback_A, task.feedback_B)
+
+# 	task.feedback_suboptimal = 
+# 		ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
+
+#     # currently assume one pair/triplet per block
+#     task.pair .= 1
+
+# 	# Arrange outcomes such as second column is optimal
+# 	# outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
+
+# 	return task
+
+# end
+
+function load_wm_structure_csv(taskname::String)
 	# Load sequence from file
-	task = DataFrame(CSV.File("data/PLT_task_structure_$condition.csv"))
+	task = DataFrame(CSV.File("data/$taskname.csv"))
 
 	# Renumber block
 	task.block = task.block .+ (task.session .- 1) * maximum(task.block)
 
-	# Arrange feedback by optimal / suboptimal
-	task.feedback_optimal = 
-		ifelse.(task.optimal_A .== 1, task.feedback_A, task.feedback_B)
+    # Rename stimulus group column to what is expected
+    DataFrames.rename!(
+        task, Dict(:stimulus_group => :pair, :feedback_suboptimal => :feedback_suboptimal1)
+    )
 
-	task.feedback_suboptimal = 
-		ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
+    # Renumber trial
+    DataFrames.transform!(
+        groupby(task, [:block, :pair]), eachindex => :trial; ungroup=true
+    )
 
-    # currently assume one pair per block
-    task.pair .= 1
+    # Get and second suboptimal column
+    task.feedback_suboptimal2 = task.feedback_suboptimal1
+    task.set_size = task.n_groups .* 3
 
-	# Arrange outcomes such as second column is optimal
-	# outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
-
-	return task
-
+	return task[
+        :, [:block, :trial, :pair, :valence, :feedback_optimal,
+        :feedback_suboptimal1, :feedback_suboptimal2, :set_size]
+    ]
 end
 
 function random_sequence(;
@@ -28,7 +57,8 @@ function random_sequence(;
 	suboptimal::Vector{Float64},
 	n_confusing::Int64,
 	n_trials::Int64,
-    n_pairs::Int64 = 1
+    n_pairs::Int64 = 1,
+    n_options::Int64 = 2
 )
     seq = Vector{Matrix{Float64}}(undef, n_pairs)
     for i in 1:n_pairs
@@ -38,25 +68,30 @@ function random_sequence(;
                 fill(false, n_confusing)
             )
         )
-        opt_seq = ifelse.(
-            common, 
-            shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))), 
-            shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials)))
-        )
-        subopt_seq = ifelse.(
-            common, 
-            shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials))),
-            shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials))),
-        )
-        seq[i] = hcat(subopt_seq, opt_seq, fill(i, n_trials))
+        # Generate the optimal sequence
+        opt_seq = shuffle(collect(Iterators.take(Iterators.cycle(optimal), n_trials)))
+        # Generate the suboptimal sequence(s)
+        subopt_seqs = [shuffle(collect(Iterators.take(Iterators.cycle(suboptimal), n_trials))) for _ in 1:(n_options - 1)]
+        
+        # Find indices where common is false
+        swap_indices = findall(.!common)    
+
+        # Swap the optimal outcome with the first suboptimal outcome at these indices
+        temp = opt_seq[swap_indices]
+        opt_seq[swap_indices] = subopt_seqs[1][swap_indices]
+        subopt_seqs[1][swap_indices] = temp
+
+        # Combine sequences into a matrix
+        seq[i] = hcat(subopt_seqs..., opt_seq, fill(i, n_trials))
     end
     seq = DataFrame(vcat(seq...)[shuffle(1:end), :], :auto)
-	return DataFrames.transform(groupby(seq, :x3), eachindex => :x4) |> Matrix
+	return DataFrames.transform(groupby(seq, names(seq)[end]), eachindex => Symbol("x$(n_options+2)")) |> Matrix
 end
 
 function random_outcomes_from_sequence(;
     n_blocks::Int64,
     set_sizes::Vector{Int64},
+    n_options::Int64 = 2,
     kwargs...
 )
 
@@ -65,7 +100,8 @@ return vcat(
         random_sequence(;
             optimal = mgnt[2], 
             suboptimal = mgnt[1],
-            n_pairs = set_sizes[i] ÷ 2,
+            n_pairs = set_sizes[i] ÷ n_options,
+            n_options = n_options,
             kwargs...
         )
         for (i, mgnt) in enumerate(
@@ -87,57 +123,67 @@ end
 
 function set_size_per_block(;
     set_sizes::Union{Int64, Vector{Int64}},
-    n_blocks::Int64
+    n_blocks::Int64,
+    n_options::Int64 = 2
 )
-    @assert all([s%2 == 0 for s in set_sizes]) "Set sizes must be even"
+    @assert all([s % n_options == 0 for s in set_sizes]) "Set sizes must be a multiple of the number of actions."
     if length(set_sizes) == n_blocks
         ssz = set_sizes
     elseif set_sizes isa Int64
         ssz = fill(set_sizes, n_blocks)
     else
-        ssz = sort(
-            vcat(
+        ssz = vcat(
+            set_sizes,
+            sample(
                 set_sizes,
-                sample(
-                    set_sizes,
-                    aweights(fill(1, length(set_sizes))),
-                    n_blocks - length(set_sizes),
-                    replace = true
-                )
+                aweights(fill(1, length(set_sizes))),
+                n_blocks - length(set_sizes) - 1,
+                replace = true
             )
         )
     end
-    return ssz
+    return vcat(minimum(set_sizes), ssz)
 end
 
 function create_random_task(;
     n_confusing::Int64,
 	n_trials::Int64,
 	n_blocks::Int64,
+    n_options::Int64 = 2, # number of options to choose from
     set_sizes::Union{Int64, Vector{Int64}} = 2
 )
 
-    set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
+    set_sizes_blk = set_size_per_block(
+        set_sizes = set_sizes, n_blocks = n_blocks, n_options = n_options
+    )
 	# Create task sequence
-	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * (set_sizes_blk[i] ÷ 2))]...)
+	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * (set_sizes_blk[i] ÷ n_options))]...)
 	outcomes = random_outcomes_from_sequence(
         n_confusing = n_confusing,
         n_trials = n_trials,
         n_blocks = n_blocks,
-        set_sizes = set_sizes_blk
+        set_sizes = set_sizes_blk,
+        n_options = n_options
     )
 	valence = sign.(outcomes[[findfirst(block .== i) for i in 1:n_blocks], 1])
-	trial = Int.(outcomes[:, 4])
+	trial = Int.(outcomes[:, n_options + 2])
 
 	df = DataFrame(
 		block = block,
 		trial = trial,
-        pair = Int.(outcomes[:, 3]),
+        pair = Int.(outcomes[:, n_options + 1]),
 		valence = valence[block],
-		feedback_optimal = outcomes[:, 2],
-		feedback_suboptimal = outcomes[:, 1],
-        set_size = set_sizes_blk[block]
+		feedback_optimal = outcomes[:, n_options]
 	)
+
+    if n_options > 2
+        for idx in 1:(n_options - 1)
+            df[!, "feedback_suboptimal$(idx)"] = outcomes[:, idx]
+        end
+    else
+        df[!, "feedback_suboptimal"] = outcomes[:, 1]
+    end
+    df[!, "set_size"] = set_sizes_blk[block]
 
 	return df
 end
@@ -152,7 +198,7 @@ function simulate_from_prior(
     condition::Union{String, Nothing} = nothing,
     fixed_struct::Union{DataFrame, Nothing} = nothing,
     structure::NamedTuple = (
-        n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2
+        n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2, n_options = 2
     ),
     repeats::Bool = false,
     gq::Bool = false,
@@ -213,8 +259,11 @@ function simulate_from_prior(
         end
     end
 
+    nsubopt::Int64 = (maximum(task_strct.set_size) / maximum(task_strct.pair)) - 1
+    subopt_col = nsubopt == 1 ? [:feedback_suboptimal] : [Symbol("feedback_suboptimal$i") for i in 1:nsubopt]
+
     sim_data = leftjoin(sim_data, 
-        task_strct[!, [:block, :trial, :pair, :feedback_optimal, :feedback_suboptimal]],
+        task_strct[!, [:block, :trial, :pair, :feedback_optimal, subopt_col...]],
         on = [:block, :trial, :pair]
     )
 
@@ -234,14 +283,26 @@ function simulate_from_prior(
         # loglik = [pt.loglike for pt in gq] |> vec
 
         if !any([isnothing(q) for q in Qs])
-            sim_data.Q_optimal = vcat([qs[:, 2] for qs in Qs]...)
-            sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
+            sim_data.Q_optimal = vcat([qs[:, end] for qs in Qs]...)
+            if nsubopt == 1
+                sim_data.Q_suboptimal = vcat([qs[:, 1] for qs in Qs]...)
+            else
+                for i in 1:nsubopt
+                    sim_data[!, "Q_suboptimal$i"] = vcat([qs[:, i] for qs in Qs]...)
+                end
+            end
         end
 
         if haskey(priors, :C)
             Ws = [pt.Ws for pt in gq] |> vec
-            sim_data.W_optimal = vcat([ws[:, 2] for ws in Ws]...)
-            sim_data.W_suboptimal = vcat([ws[:, 1] for ws in Ws]...)
+            sim_data.W_optimal = vcat([ws[:, end] for ws in Ws]...)
+            if nsubopt == 1
+                sim_data.W_suboptimal = vcat([ws[:, 1] for ws in Ws]...)
+            else
+                for i in 1:nsubopt
+                    sim_data[!, "W_suboptimal$i"] = vcat([ws[:, i] for ws in Ws]...)
+                end
+            end
         end
     end
     return sim_data
@@ -332,9 +393,9 @@ end
 # end
 
 # Prepare pilot data for fititng with model
-function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false)
-
+function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false, wm = false)
     data.condition .= pilot2 || pilot4 ? 1 : data.condition
+    data.choice .= wm ? data.choice .+= 1 : data.choice
 	forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
 
 	rename!(forfit, :isOptimal => :choice)

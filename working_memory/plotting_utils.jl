@@ -224,279 +224,13 @@ function reliability_scatter!(
 
 end
 
-
-# # Plot accuracy for a group, divided by condition / group
-# function plot_group_accuracy!(
-#     f::GridPosition,
-#     data::Union{DataFrame, SubDataFrame};
-#     group::Union{Symbol, Missing} = missing,
-#     pid_col::Symbol = :prolific_pid,
-#     acc_col::Symbol = :isOptimal,
-#     colors = Makie.wong_colors(),
-#     title::String = "",
-#     legend::Union{Dict, Missing} = missing,
-#     legend_title::String = "",
-#     backgroundcolor = :white,
-#     ylabel::Union{String, Makie.RichText}="Prop. optimal choice",
-#     levels::Union{AbstractVector, Missing} = missing,
-# 	error_band::Union{Bool, String} = "se",
-# 	linewidth::Float64 = 3.,
-# 	plw::Float64 = 1.
-# )
-
-# 	# Set up axis
-# 	ax = Axis(f[1,1],
-#         xlabel = "Trial #",
-#         ylabel = ylabel,
-#         xautolimitmargin = (0., 0.),
-#         backgroundcolor = backgroundcolor,
-#         title = title
-#     )
-
-# 	plot_group_accuracy!(
-# 		ax,
-# 		data;
-# 		group = group,
-# 		pid_col = pid_col,
-# 		acc_col = acc_col,
-# 		colors = colors,
-# 		title = title,
-# 		legend = legend,
-# 		legend_title = legend_title,
-# 		backgroundcolor = backgroundcolor,
-# 		ylabel = ylabel,
-# 		levels = levels,
-# 		error_band = error_band,
-# 		linewidth = linewidth,
-# 		plw = plw
-# 		)
-
-# 	# Legend
-# 	if !ismissing(legend)
-# 		group_levels = ismissing(levels) ? unique(data[!, group]) : levels
-# 		elements = [PolyElement(color = colors[i]) for i in 1:length(group_levels)]
-# 		labels = [legend[g] for g in group_levels]
-		
-# 		Legend(f[0,1],
-# 			elements,
-# 			labels,
-# 			legend_title,
-# 			framevisible = false,
-# 			tellwidth = false,
-# 			orientation = :horizontal,
-# 			titleposition = :left
-# 		)
-# 		# rowsize!(f.layout, 0, Relative(0.1))
-# 	end
-	
-
-# 	return ax
-
-# end
-
-# function plot_group_accuracy!(
-#     ax::Axis,
-#     data::Union{DataFrame, SubDataFrame};
-#     group::Union{Symbol, Missing} = missing,
-#     pid_col::Symbol = :prolific_pid,
-#     acc_col::Symbol = :isOptimal,
-#     colors = Makie.wong_colors(),
-#     title::String = "",
-#     legend::Union{Dict, Missing} = missing,
-#     legend_title::String = "",
-#     backgroundcolor = :white,
-#     ylabel::Union{String, Makie.RichText}="Prop. optimal choice",
-#     levels::Union{AbstractVector, Missing} = missing,
-# 	error_band::Union{String, Bool} = "se", # Whether and which type of error band to plot
-# 	linewidth::Float64 = 3.,
-# 	plw::Float64 = 1. # Line width for per participant traces
-# )
-
-#     # Default group value
-#     tdata = copy(data)
-#     if ismissing(group)
-#         tdata.group .= 1
-#         group = :group
-#     else
-#         tdata.group = tdata[!, group]
-#     end
-
-
-#     # Summarize into proportion of participants choosing optimal
-#     sum_data = combine(
-#         groupby(tdata, [pid_col, :group, :trial]),
-#         acc_col => mean => :acc
-#     )
-
-# 	# Unstack per participant data for Stim A
-# 	p_data = unstack(sum_data, [:group, :trial], 
-# 		pid_col,
-# 		:acc)
-
-#     sum_data = combine(
-#         groupby(sum_data, [:group, :trial]),
-#         :acc => mean => :acc,
-#         :acc => sem => :acc_sem,
-# 		:acc => lb => :acc_lb,
-# 		:acc => ub => :acc_ub,
-# 		:acc => llb => :acc_llb,
-# 		:acc => uub => :acc_uub
-#     )
-
-# 	# Set axis xticks
-# 	ax.xticks = range(1, round(Int64, maximum(sum_data.trial)), 4)
-
-#     group_levels = ismissing(levels) ? unique(sum_data.group) : levels
-#     for (i,g) in enumerate(group_levels)
-#         gdat = filter(:group => (x -> x==g), sum_data)
-
-# 		dropmissing!(gdat)
-
-# 		g_p_dat = filter(:group => (x -> x == g), p_data)
-
-#         # Plot line
-# 		mc = length(colors)
-
-# 		if typeof(error_band) == String
-# 			if error_band == "PI"
-# 				band!(ax,
-# 					gdat.trial,
-# 					gdat.acc_llb,
-# 					gdat.acc_uub,
-# 					color = (colors[rem(i - 1, mc) + 1], 0.1)
-# 				)
-# 			end 
-
-# 			if error_band in ["se", "PI"]
-# 				band!(ax,
-# 					gdat.trial,
-# 					error_band == "se" ? gdat.acc - gdat.acc_sem : gdat.acc_lb,
-# 					error_band == "se" ? gdat.acc + gdat.acc_sem : gdat.acc_ub,
-# 					color = (colors[rem(i - 1, mc) + 1], 0.3)
-# 				)
-# 			elseif error_band == "traces"
-# 				series!(ax, transpose(Matrix(g_p_dat[!, 3:end])), 
-# 					solid_color = (colors[rem(i - 1, mc) + 1], 0.1),
-# 					linewidth = plw)
-# 			end
-# 		end
-        
-#         lines!(ax, 
-#             gdat.trial, 
-#             gdat.acc, 
-#             color = colors[rem(i - 1, mc) + 1],
-#             linewidth = linewidth)
-#     end
-        
-# end
-
-
-# function plot_sim_group_q_values!(
-# 	f::GridPosition,
-# 	data::DataFrame;
-# 	traces = true,
-# 	legend = true,
-# 	colors = Makie.wong_colors(),
-# 	backgroundcolor = :white,
-# 	plw = 0.2
-# )
-
-# 	p_data = copy(data)
-
-# 	# Normalize by ρ
-# 	p_data.EV_A_s = p_data.EV_A ./ p_data.ρ
-# 	p_data.EV_B_s = p_data.EV_B ./ p_data.ρ
-
-# 	# Summarize into proportion of participants choosing optimal
-# 	p_data = combine(
-# 		groupby(p_data, [:group, :trial, :PID]),
-# 		:EV_A_s => mean => :EV_A,
-# 		:EV_B_s => mean => :EV_B
-# 	)
-
-# 	# Unstack per participant data for Stim A
-# 	p_data_A = unstack(p_data, [:group, :trial], 
-# 		:PID,
-# 		:EV_A)
-
-# 	# Unstack per participant data for Stim B
-# 	p_data_B = unstack(p_data, [:group, :trial], 
-# 		:PID,
-# 		:EV_B)
-
-# 	# Summarize per group
-# 	sum_data = combine(
-# 		groupby(p_data, [:group, :trial]),
-# 		:EV_A => mean => :EV_A,
-# 		:EV_B => mean => :EV_B
-# 	)
-
-
-# 	# Set up axis
-# 	ax = Axis(f,
-# 		xlabel = "Trial #",
-# 		ylabel = "Q value",
-# 		xautolimitmargin = (0., 0.),
-# 		yautolimitmargin = (0., 0.),
-# 		xticks = range(1, round(Int64, maximum(sum_data.trial)), 4),
-# 		backgroundcolor = backgroundcolor)
-
-# 	# Plot line
-# 	for g in unique(sum_data.group)
-
-# 		# Subset per group
-# 		gsum_dat = filter(:group => (x -> x == g), sum_data)
-# 		gp_dat_A = filter(:group => (x -> x == g), p_data_A)
-# 		gp_dat_B = filter(:group => (x -> x == g), p_data_B)
-
-
-# 		# Plot group means
-# 		lines!(ax, gsum_dat.trial, gsum_dat.EV_A, 
-# 			color = colors[g],
-# 			linewidth = 3)
-# 		lines!(ax, gsum_dat.trial, gsum_dat.EV_B, 
-# 			color = colors[g],
-# 			linestyle = :dash,
-# 			linewidth = 3)
-
-# 		# Plot per participant
-# 		series!(ax, transpose(Matrix(gp_dat_A[!, 3:end])), 
-# 			solid_color = (colors[g], 0.1),
-# 			linewidth = plw)
-
-# 		series!(ax, transpose(Matrix(gp_dat_B[!, 3:end])), 
-# 			solid_color = (colors[g], 0.1),
-# 			linewidth = plw,
-# 			linestyle = :dash)
-
-# 		if legend
-# 			# Add legend for solid and dashed lines
-# 			Legend(f,
-# 				[[LineElement(color = :black)],
-# 				[LineElement(color = :black,
-# 					linestyle = :dash)]],
-# 				[["Stimulus A"],
-# 				["Stimulus B"]],
-# 				tellheight = false,
-# 				tellwidth = false,
-# 				halign = :left,
-# 				valign = :top,
-# 				framevisible = false,
-# 				nbanks = 2)
-# 		end
-
-# 	end
-
-# 	return ax
-# end
-
 function plot_prior_accuracy!(
     f::GridPosition,
     data::Union{DataFrame, SubDataFrame};
     group::Symbol = :group,
 	group_lvls::Union{Symbol, Vector{Symbol}, Missing} = missing,
     pid_col::Symbol = :PID,
-    acc_col::Symbol = :isOptimal,
+	choice_val::Float64 = 1.,
     colors = Makie.wong_colors(),
     title::String = "",
     legend::Bool = false,
@@ -528,11 +262,15 @@ function plot_prior_accuracy!(
         tdata.group = string.(tdata[!, group])
     end
 
+	if !hasproperty(tdata, :isOptimal)
+		insertcols!(tdata, :isOptimal => tdata.choice .== choice_val)
+	end
+
 
     # Summarize into proportion of participants choosing optimal
     sum_data = combine(
         groupby(tdata, [pid_col, :group, :trial]),
-        acc_col => mean => :acc
+        :isOptimal => mean => :acc
     )
 
 	# Unstack per participant data for Stim A
@@ -556,7 +294,7 @@ function plot_prior_accuracy!(
     if ismissing(group_lvls)
 		group_levels = unique(tdata.group)
 	else
-		sslvls = sort(tdata, group_lvls)
+		sslvls = DataFrames.sort(tdata, group_lvls)
 		group_levels = unique(sslvls.group)
 	end
 
@@ -627,7 +365,7 @@ function plot_prior_expectations!(
 	f::GridPosition,
 	data::DataFrame;
 	colA::Symbol = :EV_A,
-	colB::Symbol = :EV_B,
+	colB::Union{Symbol, Vector{Symbol}} = :EV_B,
     norm::Symbol = :ρ,
 	ylab::String = "Q value",
 	ylims::Union{Tuple{Float64, Float64}, Nothing} = nothing,
@@ -641,37 +379,30 @@ function plot_prior_expectations!(
 	plw = 0.2
 )
 
-	p_data = copy(data)
+	# Setup
+    p_data = copy(data)
+    colB = typeof(colB) == Symbol ? [colB] : colB
+    col_names = [colA, colB...]
+    line_styles = [:solid, :dash, :dashdot][1:length(col_names)]
+    
+    # Normalize values
+    for (i, col) in enumerate(col_names)
+        p_data[!, "val$(i)_s"] = p_data[!, col] ./ p_data[!, norm]
+    end
 
-	# Normalize by ρ
-	p_data.valA_s = p_data[!, colA] ./ p_data[!, norm]
-	p_data.valB_s = p_data[!, colB] ./ p_data[!, norm]
+    # Group summaries
+    agg_cols = [Symbol("val$(i)_s") => mean => col for (i, col) in enumerate(col_names)]
+    p_data = combine(groupby(p_data, [group, :trial, :PID]), agg_cols...)
+    sum_data = combine(groupby(p_data, [group, :trial]), 
+        [col => mean => col for col in col_names]...)
 
-	# Summarize into proportion of participants choosing optimal
-	p_data = combine(
-		groupby(p_data, [group, :trial, :PID]),
-		:valA_s => mean => colA,
-		:valB_s => mean => colB
-	)
+    # Unstack data
+    p_data_dict = Dict(
+        Symbol(col) => unstack(p_data, [group, :trial], :PID, col) for col in col_names
+    )
 
-	# Unstack per participant data for Stim A
-	p_data_A = unstack(p_data, [group, :trial], 
-		:PID,
-		colA)
-
-	# Unstack per participant data for Stim B
-	p_data_B = unstack(p_data, [group, :trial], 
-		:PID,
-		colB)
-
-	# Summarize per group
-	sum_data = combine(
-		groupby(p_data, [group, :trial]),
-		colA => mean => colA,
-		colB => mean => colB
-	)
-
-	# Set up axis
+    # Plot
+    # Set up axis
 	ax = Axis(f,
 		xlabel = "Trial #",
 		ylabel = ylab,
@@ -681,34 +412,28 @@ function plot_prior_expectations!(
 		xticks = range(1, round(Int64, maximum(sum_data.trial)), 4),
 		backgroundcolor = backgroundcolor
 	)
+    
+    for (i, g) in enumerate(unique(sum_data[!, group]))
+        gsum_dat = filter(group => ==(g), sum_data)
+        
+        for (col, style) in zip(col_names, line_styles)
+            # Group means
+            lines!(
+				ax, gsum_dat.trial, gsum_dat[!, col], color=colors[i],
+				linestyle=style, linewidth=3
+			)
+            
+            # Individual data
+            gp_dat = filter(group => ==(g), p_data_dict[col])
+            series!(
+				ax,
+				transpose(Matrix(gp_dat[!, 3:end])), 
+				solid_color=(colors[i], 0.1),
+                linewidth=plw, linestyle=style
+			)
+        end
+    end
 
-	# Plot line
-	for (i, g) in enumerate(unique(sum_data[!, group]))
-
-		# Subset per group
-		gsum_dat = filter(group => (x -> x == g), sum_data)
-		gp_dat_A = filter(group => (x -> x == g), p_data_A)
-		gp_dat_B = filter(group => (x -> x == g), p_data_B)
-
-		# Plot group means
-		lines!(ax, gsum_dat.trial, gsum_dat[!, colA], 
-			color = colors[i],
-			linewidth = 3)
-		lines!(ax, gsum_dat.trial, gsum_dat[!, colB],
-			color = colors[i],
-			linestyle = :dash,
-			linewidth = 3)
-
-		# Plot per participant
-		series!(ax, transpose(Matrix(gp_dat_A[!, 3:end])), 
-			solid_color = (colors[i], 0.1),
-			linewidth = plw)
-
-		series!(ax, transpose(Matrix(gp_dat_B[!, 3:end])), 
-			solid_color = (colors[i], 0.1),
-			linewidth = plw,
-			linestyle = :dash)
-	end
     if legend
         group_levels = unique(data[!, group])
 		elements = [PolyElement(color = colors[i]) for i in 1:length(group_levels)]
@@ -734,8 +459,9 @@ end
 function plot_sim_q_value_acc!(
 	f::Union{Figure, GridLayout},
 	sim_dat::DataFrame;
-	colA::Union{Symbol, Tuple{Symbol, Symbol}} = :EV_A,
-	colB::Union{Symbol, Tuple{Symbol, Symbol}} = :EV_B,
+	choice_val::Float64 = 1.,
+	colA::Union{Symbol, Vector{Symbol}} = :EV_A,
+	colB::Union{Symbol, Vector{Symbol}} = :EV_B,
 	pid_col::Symbol = :PID,
     norm::Symbol = :ρ,
 	ylab::Union{String, Tuple{String, String}} = "Q value",
@@ -753,9 +479,9 @@ function plot_sim_q_value_acc!(
 )
 
     # Calculate accuracy
-    sim_dat.isOptimal = sim_dat.choice
+    sim_dat.isOptimal = sim_dat[!, :choice] .== choice_val
 
-	if typeof(colA) == Tuple{Symbol, Symbol}
+	if typeof(colA) == Vector{Symbol}
 		Q_A, Q_B = colA[1], colB[1]
 		W_A, W_B = colA[2], colB[2]
 		ylab, ylab2 = ylab[1], ylab[2]
@@ -794,7 +520,7 @@ function plot_sim_q_value_acc!(
 		plw = plw
 	)
 
-	if typeof(colA) == Tuple{Symbol, Symbol}
+	if typeof(colA) == Vector{Symbol}
 		ax_q2 = plot_prior_expectations!(
 			f[1, 2], sim_dat;
 			colA = W_A,
@@ -1245,6 +971,7 @@ end
 function plot_prior_predictive_by_valence(
 	prior_sample::DataFrame,
 	Q_cols::Vector{Symbol};
+	choice_val::Float64 = 1.,
 	W_cols::Union{Vector{Symbol}, Nothing} = nothing,
 	ylab::Union{String, Tuple{String, String}} = "Q value",
 	legend::Bool = false,
@@ -1257,14 +984,14 @@ function plot_prior_predictive_by_valence(
 	colors = Makie.wong_colors(),
 	error_band::String = "se"
 )
-	if isnothing(group)
-		prior_sample[!, :group] .= "1"
-	elseif !(:group in names(prior_sample))
-		prior_sample[!, :group] = string.(prior_sample[!, group])
+	prior_sample.group .= isnothing(group) ? "1" : prior_sample[!, group]
+	if prior_sample.group isa Array{<:Number,1}
+		DataFrames.sort!(prior_sample, [:trial, :valence, :group])
+		prior_sample.group .= string.(prior_sample.group)
 	end
 
-	colA = !isnothing(W_cols) ? (Q_cols[1], W_cols[1]) : Q_cols[1]
-	colB = !isnothing(W_cols) ? (Q_cols[2], W_cols[2]) : Q_cols[2]
+	colA = !isnothing(W_cols) ? [Q_cols[1], W_cols[1]] : Q_cols[1]
+	colB = !isnothing(W_cols) ? [Q_cols[2], W_cols[2]] : Q_cols[2:end]
 	
 	f = Figure(size = fig_size)
 
@@ -1273,6 +1000,7 @@ function plot_prior_predictive_by_valence(
 	ax_q, ax_acc = plot_sim_q_value_acc!(
 		g_all,
 		prior_sample;
+		choice_val = choice_val,
 		colA = colA,
 		colB = colB,
 		pid_col = pid_col,
@@ -1296,6 +1024,7 @@ function plot_prior_predictive_by_valence(
 	ax_qr, ax_accr = plot_sim_q_value_acc!(
 		g_reward,
 		filter(x -> x.valence > 0, prior_sample);
+		choice_val = choice_val,
 		colA = colA,
 		colB = colB,
 		pid_col = pid_col,
@@ -1319,6 +1048,7 @@ function plot_prior_predictive_by_valence(
 	ax_qp, ax_accp = plot_sim_q_value_acc!(
 		g_punishment,
 		filter(x -> x.valence < 0, prior_sample);
+		choice_val = choice_val,
 		colA = colA,
 		colB = colB,
 		pid_col = pid_col,
