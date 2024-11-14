@@ -67,7 +67,7 @@ The x-axis and y-axis labels can be customized using `xlab` and `ylab`. If these
 
 The function returns the generated plot figure.
 """
-function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{Symbol, typeof(AlgebraOfGraphics.nonnumeric)}}=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
+function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{Symbol, typeof(AlgebraOfGraphics.nonnumeric)}}=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, subtitle::String="", combine::Union{Bool,String}=false)
     plain_x_var = isa(x_var, Pair) ? x_var.first : x_var
     grouped_data, avg_w_data = avg_presses_w_fn(vigour_data, [plain_x_var], y_var, grp_var)
 
@@ -86,7 +86,7 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
     # Create the plot for individual participants
     individual_plot = data(grouped_data) *
                       individual_mapping *
-                      visual(Lines, alpha=0.1, linewidth=1)
+                      visual(Lines, alpha=0.05, linewidth=1)
 
     # Create the plot for the average line
     if grp_var === nothing
@@ -94,14 +94,14 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
                        average_mapping * (
                            visual(Errorbars, whiskerwidth=4) *
                            mapping(:se_y) +
-                           visual(ScatterLines, linewidth=2)) *
-                       visual(color=:dodgerblue)
+                           visual(ScatterLines, linewidth=2, markersize=10)) *
+                       visual(color=:dodgerblue2)
     else
         average_plot = data(avg_w_data) *
                        average_mapping * (
                            visual(Errorbars, whiskerwidth=4) *
                            mapping(:se_y, color=grp_var => grplab_text) +
-                           visual(ScatterLines, linewidth=2))
+                           visual(ScatterLines, linewidth=2, markersize=10))
     end
 
     # Combine the plots
@@ -110,16 +110,21 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
     xlab_text = ismissing(xlab) ? uppercasefirst(join(split(string(x_var), r"\P{L}+"), " ")) : xlab
     ylab_text = ismissing(ylab) ? uppercasefirst(join(split(string(y_var), r"\P{L}+"), " ")) : ylab
 
-    if combine
-        fig = Figure(
+    fig = Figure(
             size=(8, 6) .* 144 ./ 2.54, # 144 points per inch, then cm
         )
-        axis = (;
-            xlabel=xlab_text,
-            ylabel=ylab_text,
-        )
+    axis = (;
+        xlabel=xlab_text,
+        ylabel=ylab_text,
+        subtitle=subtitle
+    )
+    if combine == true
         final_plot = individual_plot + average_plot
-        fig = draw(final_plot; axis=axis)
+        f = draw!(fig[1,1], final_plot; axis=axis)
+        legend!(fig[1,2], f)
+    elseif combine == "average"
+        f = draw!(fig[1,1], average_plot; axis=axis)
+        legend!(fig[1,2], f)
     else
         fig = Figure(
             size=(12, 6) .* 144 ./ 2.54, # 144 points per inch, then cm
