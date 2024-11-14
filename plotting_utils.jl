@@ -1,5 +1,108 @@
 # Functions for plotting data and simulations
 
+"""
+reorder_bands_lines!(f::Figure)
+
+Reorders a bands and lines plot such that the band and line for each subgroup are plotted sequentially.
+
+# Arguments
+- `f::Figure`: The figure containing the plots to be reordered.
+
+# Description
+This function reorders the plots in the provided `Figure` such that bands and lines for each subgroup are plotted one after the other. It assumes that the plots are initially ordered with bands followed by lines for each subgroup, and it reorders them by adjusting their z-values to ensure the desired sequential order.
+"""
+function reorder_bands_lines!(f::GridPosition)
+
+	# Get plots
+	plots = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(plots, Axis)
+		plots = plots.scene.plots
+	else
+		plots = contents(plots)[1].scene.plots
+	end
+
+	n = length(plots)
+
+	@assert allequal(typeof.(plots[1:(n ÷ 2)])) && allequal(typeof.(plots[(n ÷ 2 + 1):n])) "Expecting plots to be ordered by type"
+
+	# Reorder bands and lines
+	new_idx = vcat(1:2:n, 2:2:n)
+
+	# Apply reordering via z-value
+	for (i, p) in enumerate(plots)
+		translate!(p, 0, 0, new_idx[i])
+	end
+
+end
+
+"""
+Creates a scatter plot with a regression line and a unit line on a given grid position.
+
+# Arguments
+- `f::GridPosition`: The grid position to draw the plot on.
+- `df::AbstractDataFrame`: The data frame containing the data to be plotted.
+- `xlabel::String`: Label for the x-axis.
+- `ylabel::String`: Label for the y-axis.
+- `xcol::Symbol = :x`: The column symbol for x-axis values in `df`.
+- `ycol::Symbol = :y`: The column symbol for y-axis values in `df`.
+- `subtitle::String = ""`: Subtitle for the plot.
+- `tickformat::Union{Function, Makie.Automatic} = Makie.automatic`: Format for axis ticks.
+
+# Functionality
+The function computes the Spearman-Brown corrected correlation between `xcol` and `ycol` and displays it on the plot if positive. It then generates a scatter plot with a regression line and a dashed unit line at a 45-degree angle, which represents perfect reliability.
+
+# Notes
+- Requires the Makie library for plotting.
+- Displays the correlation (`r`) value as an annotation on the plot.
+
+"""
+function workshop_reliability_scatter!(
+	f::GridPosition;
+	df::AbstractDataFrame,
+	xlabel::String,
+	ylabel::String,
+	xcol::Symbol = :x,
+	ycol::Symbol = :y,
+	subtitle::String = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic
+)	
+
+	# Compute Spearman-Brown-corrected correlation
+	r = spearman_brown(cor(df[!, xcol], df[!, ycol])) 
+	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
+
+	# Plot
+	mp = data(df) *
+			mapping(xcol, ycol) *
+			(visual(Scatter) + linear()) +
+		mapping([0], [1]) *
+			visual(ABLines, linestyle = :dash, color = :gray70)
+	
+	draw!(f, mp; axis=(;
+		xlabel = xlabel, 
+		ylabel = ylabel, 
+		xtickformat = tickformat,
+		ytickformat = tickformat,
+		subtitle = subtitle
+	))
+
+	if r > 0
+		Label(
+			f,
+			r_text,
+			fontsize = 16,
+			font = :bold,
+			halign = 0.975,
+			valign = 0.025,
+			tellheight = false,
+			tellwidth = false
+		)
+	end
+
+end
+
 # Plot unit line
 unit_line!(ax; color = :grey, linestyle = :dash, linewidth = 2) = ablines!(
 	0., 
