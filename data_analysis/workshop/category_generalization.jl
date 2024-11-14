@@ -30,21 +30,16 @@ begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
 	
-	th = Theme(
+	th = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 16,
 		Axis = (
-			xgridvisible = false,
-			ygridvisible = false,
-			rightspinevisible = false,
-			topspinevisible = false,
 			xticklabelsize = 14,
 			yticklabelsize = 14,
 			spinewidth = 1.5,
 			xtickwidth = 1.5,
 			ytickwidth = 1.5
-		)
-	)
+		)))
 	set_theme!(th)
 end
 
@@ -153,12 +148,84 @@ PILT_data_clean = let
 		),
 		fill(missing, nrow(PILT_data_clean))
 	)
+
+	# Repeating chosen
+	PILT_data_clean.repeating_chosen = ifelse.(
+		PILT_data_clean.category_right_repeating .|| PILT_data_clean.category_left_repeating,
+		ifelse.(
+			PILT_data_clean.category_right_repeating,
+			PILT_data_clean.response .== "right",
+			PILT_data_clean.response .== "left"
+		),
+		fill(missing, nrow(PILT_data_clean))
+	)
+
 		
 	PILT_data_clean
 end
 
 # ╔═╡ 3cb8fb6f-7457-499d-9aad-47e0f2e8ec5c
-describe(PILT_data_clean)
+let
+
+	# Summarize repeating_chosen on 1st trial by participant, previous valence, repeating_previous_optimal
+	repeat_sum = combine(
+		groupby(
+			filter(x -> !ismissing(x.repeating_chosen) && (x.trial == 1), PILT_data_clean), 
+			[:prolific_pid, :trial, :previous_valence, :repeating_previous_optimal]),
+		:repeating_chosen => mean => :repeating_chosen,
+		:repeating_chosen => length => :n
+	)
+
+	# Summarize repeating_chosen on 1st trial by previous valence, repeating_previous_optimal
+	repeat_sum = combine(
+		groupby(
+			repeat_sum, 
+			[:trial, :previous_valence, :repeating_previous_optimal]),
+		:repeating_chosen => mean => :repeating_chosen,
+		:repeating_chosen => sem => :se
+	)
+	
+
+	# Create mapping for plot
+	mp = data(repeat_sum) *
+	mapping(
+		:repeating_previous_optimal => "Repeating category on previous block",
+		:repeating_chosen => "Prop. repeating category chosen",
+		:se,
+		color = :previous_valence => nonnumeric => "Previous block"
+	) * (visual(Errorbars) +visual(Lines) + visual(Scatter)) +
+	mapping([0.5]) * visual(HLines, linestyle = :dash, color = :grey)
+
+	# Plot
+	f = Figure()
+
+	plt = draw!(f[1,1], mp, scales(
+		    X = (; categories = [false => "Suboptimal", true => "Optimal"]),
+			Color = (; categories = [
+				AlgebraOfGraphics.NonNumeric{Int64}(1) => "Reward", AlgebraOfGraphics.NonNumeric{Int64}(-1) => "Punishment"
+			])
+		);
+		axis = (; xautolimitmargin = (0.2, 0.2))
+	)
+
+	legend!(f[0,1], plt, tellwidth = false, orientation = :horizontal, titleposition = :left)
+
+	# Save plot
+	filepath = "results/workshop/generalization_PILT_1st_trial_optimality_valence.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+
+
+	f
+
+
+end
 
 # ╔═╡ Cell order:
 # ╠═c4f778a8-a207-11ef-1db0-f57fc0a2a769
