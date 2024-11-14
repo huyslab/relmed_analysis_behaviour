@@ -61,11 +61,11 @@ The function computes the Spearman-Brown corrected correlation between `xcol` an
 function workshop_reliability_scatter!(
 	f::GridPosition;
 	df::AbstractDataFrame,
-	xlabel::String,
-	ylabel::String,
+	xlabel::Union{String, LaTeXStrings.LaTeXString},
+	ylabel::Union{String, LaTeXStrings.LaTeXString},
 	xcol::Symbol = :x,
 	ycol::Symbol = :y,
-	subtitle::String = "",
+	subtitle::Union{String, LaTeXStrings.LaTeXString} = "",
 	tickformat::Union{Function, Makie.Automatic} = Makie.automatic
 )	
 
