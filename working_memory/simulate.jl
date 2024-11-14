@@ -393,30 +393,54 @@ end
 # end
 
 # Prepare pilot data for fititng with model
-function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false, wm = false)
-    data.condition .= pilot2 || pilot4 ? 1 : data.condition
-    data.choice .= wm ? data.choice .+= 1 : data.choice
-	forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
-
-	rename!(forfit, :isOptimal => :choice)
-
-	# Make sure block is numbered correctly
+function prepare_for_fit(data; pilot::Int64 = 1)
+    # Make sure block is numbered correctly
 	renumber_block(x) = indexin(x, sort(unique(x)))
-	DataFrames.transform!(
+    data.condition .= pilot >= 2 ? 1 : data.condition
+    if pilot < 6
+        # data.choice .= wm ? data.choice .+= 1 : data.choice
+        forfit = select(data, [:prolific_pid, :condition, :session, :block, :valence, :trial, :optimalRight, :outcomeLeft, :outcomeRight, :isOptimal])
+        rename!(forfit, :isOptimal => :choice)
+        # Arrange feedback by optimal / suboptimal
+        forfit.feedback_optimal = 
+            ifelse.(forfit.optimalRight .== 1, forfit.outcomeRight, forfit.outcomeLeft)
+
+        forfit.feedback_suboptimal = 
+            ifelse.(forfit.optimalRight .== 0, forfit.outcomeRight, forfit.outcomeLeft)
+    else
+        forfit = DataFrame(copy(data))
+        forfit.feedback_optimal = 
+            ifelse.(
+                forfit.optimal_side .== "middle",
+                forfit.feedback_middle,
+                ifelse.(
+                    forfit.optimal_side .== "left",
+                    forfit.feedback_left,
+                    forfit.feedback_right
+                )
+            )
+        
+        forfit.feedback_suboptimal1 = 
+            ifelse.(
+                forfit.optimal_side .== "middle",
+                forfit.feedback_left,
+                ifelse.(
+                    forfit.optimal_side .== "left",
+                    forfit.feedback_right,
+                    forfit.feedback_middle
+                )
+            )
+        
+        forfit.feedback_suboptimal2 = forfit.feedback_suboptimal1
+    end
+
+    DataFrames.transform!(
 		groupby(forfit, [:prolific_pid, :session]),
 		:block => renumber_block => :block
 	)
 
-	# Arrange feedback by optimal / suboptimal
-	forfit.feedback_optimal = 
-		ifelse.(forfit.optimalRight .== 1, forfit.outcomeRight, forfit.outcomeLeft)
-
-	forfit.feedback_suboptimal = 
-		ifelse.(forfit.optimalRight .== 0, forfit.outcomeRight, forfit.outcomeLeft)
-
 	# PID as number
 	pids = unique(forfit[!, [:prolific_pid, :condition]])
-
 	pids.PID = 1:nrow(pids)
 
 	forfit = innerjoin(forfit, pids[!, [:prolific_pid, :PID]], on = :prolific_pid)
@@ -424,9 +448,15 @@ function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false, wm = 
 	# Block as Int64
 	forfit.block = convert(Vector{Int64}, forfit.block)
 
-    if pilot2 || pilot4
-        forfit.set_size = data.n_pairs .* 2
-	    forfit.pair = data.stimulus_pair
+    if pilot >= 2
+        if pilot == 6
+            forfit.set_size = forfit.n_groups .* 3
+            forfit.pair = forfit.stimulus_group
+            forfit.isOptimal = forfit.response_optimal
+        else
+            forfit.set_size = forfit.n_groups .* 2
+            forfit.pair = forfit.stimulus_pair
+        end
         forfit = DataFrames.transform(
             groupby(forfit, [:PID, :block, :pair]), eachindex => :trial;
             ungroup=true

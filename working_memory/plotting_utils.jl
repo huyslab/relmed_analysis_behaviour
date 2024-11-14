@@ -255,12 +255,11 @@ function plot_prior_accuracy!(
 
 	# Default group value
     tdata = copy(data)
-    if ismissing(group)
-        tdata.group .= "1"
-        group = :group
-    else
-        tdata.group = string.(tdata[!, group])
-    end
+    tdata.group .= isnothing(group) ? "1" : tdata[!, group]
+	if tdata.group isa Array{<:Number,1}
+		DataFrames.sort!(tdata, [:trial, :valence, :group])
+		tdata.group .= string.(tdata.group)
+	end
 
 	if !hasproperty(tdata, :isOptimal)
 		insertcols!(tdata, :isOptimal => tdata.choice .== choice_val)
