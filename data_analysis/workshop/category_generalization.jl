@@ -53,9 +53,73 @@ end
 # ╔═╡ 0f1cf0ad-3a49-4c8e-8b51-607b7237e02f
 begin
 	# Load data
-	PILT_data, _, _, _, _, _,
+	PILT_data, _, _, _, _, WM_data,
 		_, _ = load_pilot6_data()
 	nothing
+end
+
+# ╔═╡ 31f77ce8-9a2a-4ea4-b1d7-f4f843870286
+WM_data_clean = let
+	
+	# Clean data
+	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 10)
+	WM_data_clean = filter(x -> x.response != "noresp", WM_data_clean)
+
+	# Auxillary variables ----------------
+	# Stimulus category
+	WM_data_clean.category_right = 
+		(s -> replace(s, "imgs/PILT_stims/" => "", ".jpg" => "")[1:(end-1)]).(WM_data_clean.stimulus_right)
+
+	WM_data_clean.category_left = 
+		(s -> replace(s, "imgs/PILT_stims/" => "", ".jpg" => "")[1:(end-1)]).(WM_data_clean.stimulus_left)
+
+	WM_data_clean.category_middle = 
+		(s -> replace(s, "imgs/PILT_stims/" => "", ".jpg" => "")[1:(end-1)]).(WM_data_clean.stimulus_middle)
+
+	# Optimal category
+	WM_data_clean.optimal_category = (r -> r[Symbol("category_$(r.optimal_side)")]).(eachrow(WM_data_clean))
+
+	# Repeating category
+	categories = unique(WM_data_clean[!, [:session, :block, :stimulus_group, :category_right, :category_left, :category_middle, :valence, :optimal_category]])
+
+	# Combine positions
+	categories = stack(
+		categories,
+		[:category_right, :category_left, :category_middle],
+		[:session, :block, :stimulus_group, :valence, :optimal_category],
+		value_name = :category
+	)
+
+	# Keep unique
+	select!(categories, Not(:variable))
+
+	unique!(categories)
+
+	# Compute repeating
+	repeating = []
+	for r in eachrow(categories)
+		if r.block == 1
+			push!(repeating, false)
+			continue
+		end
+
+		push!(
+			repeating,
+			r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
+		)
+	end
+
+	categories.repeating = repeating
+	categories
+	# categories.repeating = vcat([false, false], [r.category in categories.category[categories.block .== (r.block - 1)] for r in eachrow(filter(x -> x.block > 1, categories))])
+
+	# # Compute previous block valence
+	# categories.previous_valence = vcat([missing, missing], [categories.valence[categories.block .== (r.block - 1)][1] for r in eachrow(categories)[3:end]])
+
+	# # Compute repeating previously optimal
+	# categories.repeating_previous_optimal = [(r.repeating ? (categories.optimal_category[categories.block .== (r.block - 1)][1] == r.category) : missing) for r in eachrow(categories)]
+
+
 end
 
 # ╔═╡ 3b019f83-64f3-428a-96d6-42d9cc1969fd
@@ -96,7 +160,20 @@ PILT_data_clean = let
 	unique!(categories)
 
 	# Compute repeating
-	categories.repeating = vcat([false, false], [r.category in categories.category[categories.block .== (r.block - 1)] for r in eachrow(categories)[3:end]])
+	repeating = []
+	for r in eachrow(categories)
+		if r.block == 1
+			push!(repeating, false)
+			continue
+		end
+
+		push!(
+			repeating,
+			r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
+		)
+	end
+
+	categories.repeating = repeating
 
 	# Compute previous block valence
 	categories.previous_valence = vcat([missing, missing], [categories.valence[categories.block .== (r.block - 1)][1] for r in eachrow(categories)[3:end]])
@@ -379,6 +456,7 @@ end
 # ╠═d6f8130a-3527-4c89-aff2-0c0e64d494d9
 # ╠═52ca98ce-1349-4d98-8e8b-8e8faa3aeba4
 # ╠═0f1cf0ad-3a49-4c8e-8b51-607b7237e02f
+# ╠═31f77ce8-9a2a-4ea4-b1d7-f4f843870286
 # ╠═3b019f83-64f3-428a-96d6-42d9cc1969fd
 # ╠═3cb8fb6f-7457-499d-9aad-47e0f2e8ec5c
 # ╠═4f4995a7-0582-43d8-899d-0ed899d8fa73
