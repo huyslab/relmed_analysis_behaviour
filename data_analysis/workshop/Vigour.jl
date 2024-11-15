@@ -38,7 +38,7 @@ end
 begin
 	# Load data
 	_, _, raw_vigour_data, raw_post_vigour_test_data, _, _,
-		_, _ = load_pilot6_data(;force_download=false)
+		_, _ = load_pilot6_data()
 	nothing
 end
 
@@ -57,7 +57,7 @@ md"""
 
 # ╔═╡ de48ee97-d79a-46e4-85fb-08dd569bf7ef
 begin
-	unfinished_participant = @chain raw_vigour_data begin
+	vigour_unfinished = @chain raw_vigour_data begin
 		@count(prolific_pid, exp_start_time)
 		@mutate(most_common_n = ~mode(n))
 		@filter(n < most_common_n)
@@ -69,7 +69,7 @@ begin
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
 			magnitude = categorical(magnitude; levels = [1, 2, 5], ordered=true)
 		)
-		@anti_join(unfinished_participant)
+		@anti_join(vigour_unfinished)
 	end
 	nothing
 end
@@ -111,7 +111,7 @@ let
 	fig = @chain vigour_data begin
 		@filter(trial_number != 0)
 		@ungroup
-		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
+		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine="average")
 	end
 	
 	# Save
@@ -135,7 +135,7 @@ md"""
 # ╔═╡ e3faa2fc-c085-4fc1-80ef-307904a38f33
 let
 	# Group and calculate mean presses for each participant
-	grouped_data, avg_w_data = avg_presses_w_fn(@filter(vigour_data, trial_number != 0), [:magnitude, :ratio], :press_per_sec, :version)
+	grouped_data, avg_w_data = avg_presses_w_fn(@filter(vigour_data, trial_number != 0), [:magnitude, :ratio], :press_per_sec)
 	
 	# Create the plot for the average line
 	average_plot = data(avg_w_data) * 
@@ -187,94 +187,80 @@ md"""
 ### Motor-related
 """
 
-# ╔═╡ cf41f7dc-9d2c-4124-88fe-c25cc52373c3
+# ╔═╡ b9d78883-eb28-4984-af6b-afb76dd85349
 let
 	splithalf_df = @chain vigour_data begin
 		@mutate(half = ifelse(trial_number <= maximum(trial_number)/2, "x", "y"))
-		@group_by(prolific_pid, half)
+		@group_by(prolific_pid, session, half)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = half, values_from = n_presses)
 	end
-	ρ_df = @chain splithalf_df begin
-		@summarize(ρ_12 = ~ cor(x, y))
-		@mutate(ρ_12 = (2 * ρ_12) / (1 + ρ_12))
-		@mutate(ρ_text = string("ρ: ", round(ρ_12; digits = 2)))
-		@mutate(x = quantile((!!splithalf_df).x, 0.975), y = quantile((!!splithalf_df).y, 0.025))
-		@ungroup
-	end
-	splithalf_fig = 
-		data(splithalf_df) *
-		mapping(:x, :y) *
-		(visual(Scatter, alpha = 0.6) + linear()) +
-		data(ρ_df) *
-		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
-		visual(Makie.Text, fontsize = 16, font = :bold) +
-		data(DataFrame(intercept = 0, slope = 1)) *
-		mapping(:intercept, :slope) *
-		visual(ABLines, linestyle = :dash, color = :gray70)
 	
-	fig=draw(
-		splithalf_fig;
-		figure=(;size=(8, 6) .* 144 ./ 2.54),
-		axis=(;xlabel="Press/sec (Trial 1-18)",ylabel="Press/sec (Trial 19-36)")
-	)
-
-	# Save
-	filepaths = joinpath("results/workshop/vigour", "Vigour_splithalf_FirSec_motor.png")
-	save(filepaths, fig; px_per_unit = 4)
-
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=@filter(splithalf_df, session == !!s),
+			xlabel="Press/sec (Trial 1-18)",
+			ylabel="Press/sec (Trial 19-36)",
+			xcol=:x,
+			ycol=:y,
+			subtitle="Session $(s) Press Rate"
 		)
-	
-	fig
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_firstsecond.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
 end
 
 # ╔═╡ f188af11-d2a4-4e1c-9cc7-b63bc386ef57
 let
 	splithalf_df = @chain vigour_data begin
 		@mutate(half = ifelse(trial_number % 2 === 0, "x", "y"))
-		@group_by(prolific_pid, half)
+		@group_by(prolific_pid, session, half)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = half, values_from = n_presses)
 	end
-	ρ_df = @chain splithalf_df begin
-		@summarize(ρ_12 = ~ cor(x, y))
-		@mutate(ρ_12 = (2 * ρ_12) / (1 + ρ_12))
-		@mutate(ρ_text = string("ρ: ", round(ρ_12; digits = 2)))
-		@mutate(x = quantile((!!splithalf_df).x, 0.975), y = quantile((!!splithalf_df).y, 0.025))
-		@ungroup
-	end
-	splithalf_fig = 
-		data(splithalf_df) *
-		mapping(:x, :y) *
-		(visual(Scatter, alpha = 0.6) + linear()) +
-		data(ρ_df) *
-		mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
-		visual(Makie.Text, fontsize = 16, font = :bold) +
-		data(DataFrame(intercept = 0, slope = 1)) *
-		mapping(:intercept, :slope) *
-		visual(ABLines, linestyle = :dash, color = :gray70)
-	fig = draw(
-		splithalf_fig;
-		figure=(;size=(8, 6) .* 144 ./ 2.54),
-		axis=(;xlabel="Press/sec (Trial 2,4,6...)",ylabel="Press/sec (Trial 1,3,5...)")
-	)
-	# Save
-	filepaths = joinpath("results/workshop/vigour", "Vigour_splithalf_EvenOdd_motor.png")
-	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=@filter(splithalf_df, session == !!s),
+			xlabel="Press/sec (Trial 2,4,6...)",
+			ylabel="Press/sec (Trial 1,3,5...)",
+			xcol=:x,
+			ycol=:y,
+			subtitle="Session $(s) Press Rate"
 		)
-	
-	fig
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_evenodd.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
 end
 
 # ╔═╡ e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
@@ -288,11 +274,11 @@ let
 		@filter(trial_number != 0)
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(half = if_else(block % 2 === 0, "x", "y"))
-		@arrange(prolific_pid, reward_per_press)
-		@group_by(prolific_pid)
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
 		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
-		@group_by(prolific_pid, half, low_rpp)
+		@group_by(prolific_pid, session, half, low_rpp)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = low_rpp, values_from = n_presses)
@@ -300,38 +286,33 @@ let
 		@select(-ends_with("_rpp"))
 		@pivot_wider(names_from = half, values_from = low_to_high_diff)
 	end
-	ρ_rpp_diff_df = @chain rpp_dff_df begin
-		@summarize(ρ = ~ cor(x, y))
-		@mutate(ρ = (2 * ρ) / (1 + ρ))
-		@mutate(ρ_text = string("ρ: ", round(ρ; digits = 2)))
-		@mutate(x = quantile((!!rpp_dff_df).x, 0.975), y = quantile((!!rpp_dff_df).y, 0.025))	
-		@ungroup
-	end
-	rpp_diff_plot = 
-		data(rpp_dff_df) *
-			mapping(:x, :y) *
-			(visual(Scatter, alpha = 0.6) + linear()) +
-		data(ρ_rpp_diff_df) *
-			mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
-			visual(Makie.Text, fontsize = 16, font = :bold) +
-		data(DataFrame(intercept = 0, slope = 1)) *
-			mapping(:intercept, :slope) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	fig = draw(rpp_diff_plot; 
-		figure=(;size=(8, 6) .* 144 ./ 2.54),
-		axis=(;xlabel="ΔRPP in even blocks", ylabel="ΔRPP in odd blocks"))
 
-	# Save
-	filepaths = joinpath("results/workshop/vigour", "Vigour_splithalf_EvenOdd_reward.png")
-	save(filepaths, fig; px_per_unit = 4)
-
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=@filter(rpp_dff_df, session == !!s),
+			xlabel="ΔRPP in even blocks",
+			ylabel="ΔRPP in odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="Session $(s) Press Rate difference"
 		)
-	
-	fig
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_evenodd.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
 end
 
 # ╔═╡ 7b096527-2420-4e0d-9d72-8289a42a78fe
@@ -340,11 +321,11 @@ let
 		@filter(trial_number != 0)
 		@mutate(block = (trial_number - 1) ÷ 9 + 1)
 		@mutate(half = if_else(block <= 2, "x", "y"))
-		@arrange(prolific_pid, reward_per_press)
-		@group_by(prolific_pid)
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
 		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
 		@ungroup
-		@group_by(prolific_pid, half, low_rpp)
+		@group_by(prolific_pid, session, half, low_rpp)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = low_rpp, values_from = n_presses)
@@ -352,38 +333,43 @@ let
 		@select(-ends_with("_rpp"))
 		@pivot_wider(names_from = half, values_from = low_to_high_diff)
 	end
-	ρ_rpp_diff_df = @chain rpp_dff_df begin
-		@summarize(ρ = ~ cor(x, y))
-		@mutate(ρ = (2 * ρ) / (1 + ρ))
-		@mutate(ρ_text = string("ρ: ", round(ρ; digits = 2)))
-		@mutate(x = quantile((!!rpp_dff_df).x, 0.975), y = quantile((!!rpp_dff_df).y, 0.025))	
-		@ungroup
-	end
-	rpp_diff_plot = 
-		data(rpp_dff_df) *
-			mapping(:x, :y) *
-			(visual(Scatter, alpha = 0.6) + linear()) +
-		data(ρ_rpp_diff_df) *
-			mapping(:x, :y; text = :ρ_text => AlgebraOfGraphics.AlgebraOfGraphics.verbatim) *
-			visual(Makie.Text, fontsize = 16, font = :bold) +
-		data(DataFrame(intercept = 0, slope = 1)) *
-			mapping(:intercept, :slope) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	fig=draw(rpp_diff_plot; 
-		figure=(;size=(8, 6) .* 144 ./ 2.54),
-		axis=(;xlabel="ΔRPP in first two blocks", ylabel="ΔRPP in second two blocks"))
 
-	# Save
-	filepaths = joinpath("results/workshop/vigour", "Vigour_splithalf_FirSec_reward.png")
-	save(filepaths, fig; px_per_unit = 4)
-
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=@filter(rpp_dff_df, session == !!s),
+			xlabel="ΔRPP in blocks 1-2",
+			ylabel="ΔRPP in blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="Session $(s) Press Rate difference"
 		)
-	
-	fig
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_firstsecond.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ d6a73b37-2079-4ed1-ac49-e7c596fc0997
+md"""
+## Model of press rate
+"""
+
+# ╔═╡ cea80eac-27cd-4757-ba4b-498f1add5c4f
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ z_rpp), data, Poisson(), SqrtLink(); offset=log.(data.dur)))[2]
 end
 
 # ╔═╡ 7ad7369a-f063-4270-8859-2e23d6c4ea94
@@ -395,7 +381,7 @@ md"""
 # ╠═╡ show_logs = false
 let
     # 1. Identify and remove incomplete test data
-    unfinished_test_participant = @chain raw_post_vigour_test_data begin
+    vigour_test_unfinished = @chain raw_post_vigour_test_data begin
         @count(prolific_pid, exp_start_time)
         @mutate(most_common_n = ~mode(n))
         @filter(n < most_common_n)
@@ -404,7 +390,7 @@ let
     # 2. Clean and preprocess the data
     post_vigour_test_data = @chain raw_post_vigour_test_data begin
         @filter(prolific_pid != "671139a20b977d78ec2ac1e0")
-        @anti_join(unfinished_test_participant)
+        @anti_join(vigour_test_unfinished)
         @mutate(
             # Calculate difference in relative physical payment
             diff_rpp = (left_magnitude/left_ratio) - (right_magnitude/right_ratio),
@@ -468,33 +454,57 @@ let
         type=:response
     )
 
-    # 7. Create and display the plot
-    rpp_pred_plot = 
-        data(post_vigour_test_data) *
-            mapping(:diff_rpp, :chose_left) *
-            visual(Scatter, alpha = 0.025) +
-        data(pred_effect_rpp) *
-            mapping(:diff_rpp, :pred) *
-            visual(Lines, color = :royalblue) +
-        data(avg_acc_df) *
-            mapping(:x, :y; text = :acc_text => AlgebraOfGraphics.verbatim) *
-            visual(Makie.Text, fontsize = 16, font = :bold)
-    
-    fig = draw(rpp_pred_plot; 
-		figure=(;size=(8, 6) .* 144 ./ 2.54),
-		axis=(; xlabel="ΔRPP: Left−Right", ylabel="P(Choose left)"))
-
-	# Save
-	filepaths = joinpath("results/workshop/vigour", "Vigour_test_acc_by_reward_diff.png")
-	save(filepaths, fig; px_per_unit = 4)
-
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	# 7. Create and display the plot
+		fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	    rpp_pred_plot = 
+	        data(@filter(post_vigour_test_data, chose_left == 0)) *
+	            mapping(:chose_left, :diff_rpp) *
+	            visual(RainClouds;
+					markersize=0,
+					color=RGBAf(7/255, 68/255, 31/255, 0.5),
+					plot_boxplots = false,
+					cloud_width=0.2,
+					clouds=hist,
+					orientation = :horizontal) +
+			data(@filter(post_vigour_test_data, chose_left == 1)) *
+	            mapping(:chose_left, :diff_rpp) *
+	            visual(RainClouds;
+					markersize=0,
+					color=RGBAf(63/255, 2/255, 73/255, 0.5),
+					plot_boxplots = false,
+					side=:right,
+					cloud_width=0.2,
+					clouds=hist,
+					orientation = :horizontal) +
+	        data(pred_effect_rpp) *
+	            mapping(:diff_rpp, :pred) *
+	            visual(Lines)
+	    
+	    draw!(fig[1,1],
+			rpp_pred_plot; 
+			axis=(; xlabel="ΔRPP: Left option − Right option", ylabel="P(Choose left)"))
+		Label(
+			fig[1,1], 
+			"Accuracy = " * string(round(avg_acc_df[!, :acc]...; digits=2)),
+			fontsize = 16,
+			font = :bold,
+			halign = 0.975,
+			valign = 0.025,
+			tellheight = false,
+			tellwidth = false
+		);
 	
-	fig
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_test_acc_by_reward_diff.png")
+		save(filepaths, fig; px_per_unit = 4)
+	
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		fig
 end
 
 # ╔═╡ Cell order:
@@ -508,15 +518,17 @@ end
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
 # ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
-# ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
+# ╟─7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
 # ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
-# ╠═cf41f7dc-9d2c-4124-88fe-c25cc52373c3
-# ╠═f188af11-d2a4-4e1c-9cc7-b63bc386ef57
+# ╟─b9d78883-eb28-4984-af6b-afb76dd85349
+# ╟─f188af11-d2a4-4e1c-9cc7-b63bc386ef57
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
-# ╠═4fc4a680-0934-49de-a785-08cac3a8be3e
+# ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
 # ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
+# ╠═cea80eac-27cd-4757-ba4b-498f1add5c4f
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
-# ╠═c0ae5758-efef-42fa-9f46-1ec4e231c550
+# ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
