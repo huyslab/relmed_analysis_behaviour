@@ -95,30 +95,46 @@ WM_data_clean = let
 
 	unique!(categories)
 
-	# Compute repeating
+	sort!(categories, [:session, :block, :stimulus_group])
+
+	# Compute repeating, previous valence, repeating_previous_optimal
 	repeating = []
-	for r in eachrow(categories)
+	prev_valence = []
+	repeating_previous_optimal = []
+	for (i, r) in enumerate(eachrow(categories))
+
 		if r.block == 1
+			# Missing / default values for block 1
 			push!(repeating, false)
-			continue
+			push!(prev_valence, missing)
+		else
+			# Push whether reapting
+			push!(
+				repeating,
+				r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
+			)
+	
+			# Push previous valence
+			push!(
+				prev_valence,
+				filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).valence[1]
+			)
 		end
 
-		push!(
-			repeating,
-			r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
-		)
+		# Compute and push repeating_previously_optimal
+		if !repeating[i]
+			push!(repeating_previous_optimal, missing)
+		else
+			push!(
+				repeating_previous_optimal,
+				filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).optimal_category[1] == r.category
+			)
+		end
 	end
 
 	categories.repeating = repeating
-	categories
-	# categories.repeating = vcat([false, false], [r.category in categories.category[categories.block .== (r.block - 1)] for r in eachrow(filter(x -> x.block > 1, categories))])
-
-	# # Compute previous block valence
-	# categories.previous_valence = vcat([missing, missing], [categories.valence[categories.block .== (r.block - 1)][1] for r in eachrow(categories)[3:end]])
-
-	# # Compute repeating previously optimal
-	# categories.repeating_previous_optimal = [(r.repeating ? (categories.optimal_category[categories.block .== (r.block - 1)][1] == r.category) : missing) for r in eachrow(categories)]
-
+	categories.previous_valence = prev_valence
+	categories.repeating_previous_optimal = repeating_previous_optimal
 
 end
 
@@ -159,27 +175,44 @@ PILT_data_clean = let
 
 	unique!(categories)
 
-	# Compute repeating
+	# Compute repeating, previous valence, repeating_previous_optimal
 	repeating = []
-	for r in eachrow(categories)
+	prev_valence = []
+	repeating_previous_optimal = []
+	for (i, r) in enumerate(eachrow(categories))
+
 		if r.block == 1
+			# Missing / default values for block 1
 			push!(repeating, false)
-			continue
+			push!(prev_valence, missing)
+		else
+			# Push whether reapting
+			push!(
+				repeating,
+				r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
+			)
+	
+			# Push previous valence
+			push!(
+				prev_valence,
+				filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).valence[1]
+			)
 		end
 
-		push!(
-			repeating,
-			r.category in (filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).category)
-		)
+		# Compute and push repeating_previously_optimal
+		if !repeating[i]
+			push!(repeating_previous_optimal, missing)
+		else
+			push!(
+				repeating_previous_optimal,
+				filter(x -> (x.block .== (r.block - 1)) && (x.session == r.session), categories).optimal_category[1] == r.category
+			)
+		end
 	end
 
 	categories.repeating = repeating
-
-	# Compute previous block valence
-	categories.previous_valence = vcat([missing, missing], [categories.valence[categories.block .== (r.block - 1)][1] for r in eachrow(categories)[3:end]])
-
-	# Compute repeating previously optimal
-	categories.repeating_previous_optimal = [(r.repeating ? (categories.optimal_category[categories.block .== (r.block - 1)][1] == r.category) : missing) for r in eachrow(categories)]
+	categories.previous_valence = prev_valence
+	categories.repeating_previous_optimal = repeating_previous_optimal
 	
 	# Join into data
 	n_rows_pre = nrow(PILT_data_clean)
