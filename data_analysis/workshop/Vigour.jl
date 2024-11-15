@@ -14,7 +14,7 @@ begin
 	# instantiate, i.e. make sure that all packages are downloaded
 	Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA
-	using Tidier, GLM, MixedModels
+	using Tidier, GLM, MixedModels, PlutoUI, LaTeXStrings, ColorSchemes
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -26,6 +26,9 @@ begin
 	Turing.setprogress!(false)
 	nothing
 end
+
+# ╔═╡ 28b7224d-afb4-4474-b346-7ee353b6d3d3
+TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
 
 # ╔═╡ 4f9cd22a-c03f-4a95-b631-5bace22aa426
 # Set up saving to OSF
@@ -367,9 +370,297 @@ md"""
 ## Model of press rate
 """
 
+# ╔═╡ 6f11e67c-84b2-457d-9727-825e0631860b
+md"""
+### Press rate as a function of (log) reward rate
+"""
+
+# ╔═╡ 68985a71-98c4-485b-a800-643aea8b8a5e
+let
+	glm_predict(data) = predict(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)), data; offset=log.(data.dur))
+	
+	p = @chain vigour_data begin
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		groupby([:prolific_pid, :session])
+		DataFrames.transform(AsTable([:trial_presses, :reward_per_press, :dur]) => glm_predict => :pred)
+		@mutate(pred = pred/dur)
+		groupby(:reward_per_press)
+		combine([:press_per_sec, :pred] .=> mean; renamecols=false)
+		@pivot_longer(-reward_per_press)
+		@arrange(reward_per_press)
+		data(_) * (mapping(:reward_per_press, :value, color=:variable=>"", linestyle=:variable=>"") * visual(Lines))
+	end
+	fig = Figure(;size=(8, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p, scales(
+		Color=(;palette=reverse(ColorSchemes.Paired_10[1:2]),categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"]),
+		LineStyle=(;palette=[:solid,:dash],categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"])
+	);axis=(;xlabel="Reward/press", ylabel="Press/sec"))
+	legend!(fig[1,2], p
+		#; halign=0.95, valign=0.05, tellheight=false, tellwidth=false
+	)
+	fig
+end
+
 # ╔═╡ cea80eac-27cd-4757-ba4b-498f1add5c4f
 let
-	glm_coef(data) = coef(glm(@formula(trial_presses ~ z_rpp), data, Poisson(), SqrtLink(); offset=log.(data.dur)))[2]
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	rpp_beta_df = @chain vigour_data begin
+		@mutate(block = (trial_number - 1) ÷ 9 + 1)
+		@mutate(half = if_else(block % 2 === 0, "x", "y"))
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		groupby([:prolific_pid, :session, :half])
+		combine(AsTable([:trial_presses, :reward_per_press, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1])
+	end
+
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β0),
+			xlabel="Even blocks",
+			ylabel="Odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β0"
+		)
+		workshop_reliability_scatter!(
+			fig[1,2];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β1),
+			xlabel="Even blocks",
+			ylabel="Odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β1"
+		)
+		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Reward rate)")
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_evenodd.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ 81ab693c-431d-4b73-a148-84846e448f4d
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	rpp_beta_df = @chain vigour_data begin
+		@mutate(block = (trial_number - 1) ÷ 9 + 1)
+		@mutate(half = if_else(block <= 2, "x", "y"))
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		groupby([:prolific_pid, :session, :half])
+		combine(AsTable([:trial_presses, :reward_per_press, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1])
+	end
+
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β0),
+			xlabel="Blocks 1-2",
+			ylabel="Blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β0"
+		)
+		workshop_reliability_scatter!(
+			fig[1,2];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β1),
+			xlabel="Blocks 1-2",
+			ylabel="Blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β1"
+		)
+		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Reward rate)")
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_firstsecond.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ cc7e08b3-e245-4483-8cac-086a673a2861
+md"""
+### Press rate as a function of (log) fixed ratio and reward magnitude
+"""
+
+# ╔═╡ 42e2e827-253d-4881-bfc9-65d206e6201d
+let
+	glm_predict(data) = predict(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)), data; offset=log.(data.dur))
+	
+	p = @chain vigour_data begin
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		DataFrames.transform([:ratio, :magnitude] .=> ByRow(as_float), renamecols=false)
+		groupby([:prolific_pid, :session])
+		DataFrames.transform(AsTable([:trial_presses, :ratio, :magnitude, :dur]) => glm_predict => :pred)
+		@mutate(pred = pred/dur)
+		groupby(:reward_per_press)
+		combine([:press_per_sec, :pred] .=> mean; renamecols=false)
+		@pivot_longer(-reward_per_press)
+		@arrange(reward_per_press)
+		data(_) * (mapping(:reward_per_press, :value, color=:variable=>"", linestyle=:variable=>"") * visual(Lines))
+	end
+	fig = Figure(;size=(8, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p, scales(
+		Color=(;palette=reverse(ColorSchemes.Paired_10[1:2]),categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"]),
+		LineStyle=(;palette=[:solid,:dash],categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"])
+	);axis=(;xlabel="Reward/press", ylabel="Press/sec"))
+	legend!(fig[1,2], p
+		#; halign=0.95, valign=0.05, tellheight=false, tellwidth=false
+	)
+	fig
+end
+
+# ╔═╡ 5d98b42c-2e9a-4111-b2de-5c14d28d4c96
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	rpp_beta_df = @chain vigour_data begin
+		@mutate(block = (trial_number - 1) ÷ 9 + 1)
+		@mutate(half = if_else(block % 2 === 0, "x", "y"))
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		DataFrames.transform([:ratio, :magnitude] .=> ByRow(as_float), renamecols=false)
+		groupby([:prolific_pid, :session, :half])
+		combine(AsTable([:trial_presses, :ratio, :magnitude, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1, :β2])
+	end
+
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β0),
+			xlabel="Even blocks",
+			ylabel="Odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β0"
+		)
+		workshop_reliability_scatter!(
+			fig[1,2];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β1),
+			xlabel="Even blocks",
+			ylabel="Odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β1"
+		)
+		workshop_reliability_scatter!(
+			fig[1,3];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β2),
+			xlabel="Even blocks",
+			ylabel="Odd blocks",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β2"
+		)
+		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ cb9e5cb5-070c-427e-9895-2e27b0d3344e
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	rpp_beta_df = @chain vigour_data begin
+		@mutate(block = (trial_number - 1) ÷ 9 + 1)
+		@mutate(half = if_else(block <= 2, "x", "y"))
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		DataFrames.transform([:ratio, :magnitude] .=> ByRow(as_float), renamecols=false)
+		groupby([:prolific_pid, :session, :half])
+		combine(AsTable([:trial_presses, :ratio, :magnitude, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1, :β2])
+	end
+
+	figs = []
+	for s in unique(vigour_data.session)
+		fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+		workshop_reliability_scatter!(
+			fig[1,1];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β0),
+			xlabel="Blocks 1-2",
+			ylabel="Blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β0"
+		)
+		workshop_reliability_scatter!(
+			fig[1,2];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β1),
+			xlabel="Blocks 1-2",
+			ylabel="Blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β1"
+		)
+		workshop_reliability_scatter!(
+			fig[1,3];
+			df=unstack(@filter(rpp_beta_df, session == !!s),
+						[:prolific_pid, :session], :half, :β2),
+			xlabel="Blocks 1-2",
+			ylabel="Blocks 3-4",
+			xcol=:x,
+			ycol=:y,
+			subtitle="β2"
+		)
+		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+		
+		# Save
+		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
+		save(filepaths, fig; px_per_unit = 4)
+		
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+		
+		push!(figs, fig)
+	end
+	figs
 end
 
 # ╔═╡ 7ad7369a-f063-4270-8859-2e23d6c4ea94
@@ -509,6 +800,7 @@ end
 
 # ╔═╡ Cell order:
 # ╠═b41e7252-a075-11ef-039c-f532a7fb0a94
+# ╠═28b7224d-afb4-4474-b346-7ee353b6d3d3
 # ╠═4f9cd22a-c03f-4a95-b631-5bace22aa426
 # ╠═93bc3812-c620-4a8d-a312-de9fd0e55327
 # ╟─1f8ca836-f2f7-4965-bf07-5656cf6c4ec6
@@ -516,11 +808,11 @@ end
 # ╟─8255895b-a337-4c8a-a1a7-0983499f684e
 # ╠═de48ee97-d79a-46e4-85fb-08dd569bf7ef
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
-# ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
+# ╟─4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
 # ╟─7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
-# ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
+# ╟─e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
 # ╟─b9d78883-eb28-4984-af6b-afb76dd85349
@@ -529,6 +821,13 @@ end
 # ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
 # ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
+# ╟─6f11e67c-84b2-457d-9727-825e0631860b
+# ╟─68985a71-98c4-485b-a800-643aea8b8a5e
 # ╠═cea80eac-27cd-4757-ba4b-498f1add5c4f
+# ╠═81ab693c-431d-4b73-a148-84846e448f4d
+# ╟─cc7e08b3-e245-4483-8cac-086a673a2861
+# ╟─42e2e827-253d-4881-bfc9-65d206e6201d
+# ╠═5d98b42c-2e9a-4111-b2de-5c14d28d4c96
+# ╠═cb9e5cb5-070c-427e-9895-2e27b0d3344e
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
 # ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
