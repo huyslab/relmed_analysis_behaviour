@@ -66,11 +66,19 @@ function workshop_reliability_scatter!(
 	xcol::Symbol = :x,
 	ycol::Symbol = :y,
 	subtitle::AbstractString = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+	correct_r::Book = true # Whether to apply Spearman Brown
 )	
 
-	# Compute Spearman-Brown-corrected correlation
-	r = spearman_brown(cor(df[!, xcol], df[!, ycol])) 
+	# Compute correlation
+	r = cor(df[!, xcol], df[!, ycol])
+	
+	# Spearman-Brown correction
+	if correct_r
+		r = spearman_brown(r)
+	end
+
+	# Text
 	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
 
 	# Plot
