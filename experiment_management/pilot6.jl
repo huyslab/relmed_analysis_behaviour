@@ -513,10 +513,10 @@ let
 	@info "PIT acc for in the same valence: $(round(PIT_acc_df.acc[PIT_acc_df.same_valence.==true][1]; digits=2))"
 	@chain test_data begin
 		@filter(block == "pavlovian")
-		@group_by(prolific_pid, exp_start_time, same_valence)
+		@group_by(prolific_pid, exp_start_time, session, same_valence)
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
 		@ungroup
-		data(_) * mapping(:same_valence => nonnumeric => "Same valence", :acc => "PIT test accuracy", color=:same_valence => nonnumeric => "Same valence") * visual(RainClouds)
+		data(_) * mapping(:same_valence => nonnumeric => "Same valence", :acc => "PIT test accuracy", color=:same_valence => nonnumeric => "Same valence", col=:session) * visual(RainClouds)
 		draw()
 	end
 end
@@ -657,6 +657,9 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
+# ╔═╡ b2d073de-13cf-4cb2-926c-4bb5e18350d6
+filter(x -> x.prolific_pid == "672b60eb227e2b01fd1f88b5", p_sum)
+
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(filter(x -> occursin("2024-11-11", x.exp_start_time), p_sum))
 	if r.total_bonus > 0.
@@ -665,7 +668,14 @@ for r in eachrow(filter(x -> occursin("2024-11-11", x.exp_start_time), p_sum))
 end
 
 # ╔═╡ 31792570-9a09-45df-90a6-287f1bd55929
-filter(x -> x.prolific_pid == "672de33cf02e758872666c9d", p_sum)
+let
+	sess2_df = filter(x -> !ismissing(x.finished) & x.finished & (as_float(x.record_id) .<= 429), p_sum) |>
+	x -> filter(x -> !(x.prolific_pid in ["67128e3eb49c9092672386df", "67128269bf70ae794e30a0f4", "67161aa3685133a16660929d", "nov07"]), x)
+	
+	for r in eachrow(sess2_df)
+		println(r.prolific_pid, ", ")
+	end
+end
 
 # ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
 function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
@@ -695,13 +705,13 @@ end
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
 let
 	df = @chain PIT_data begin
-		@arrange(prolific_pid, magnitude, ratio)
+		@arrange(prolific_pid, session, magnitude, ratio)
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
 		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
 	end
-	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig], :press_per_sec)
+	grouped_data, avg_w_data = avg_presses_w_fn(df, [:session, :coin, :pig], :press_per_sec)
 	p = data(avg_w_data) *
-	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric, row=:session) *
 	(
 	visual(Lines, linewidth=1, color=:gray) +
 	visual(Errorbars, whiskerwidth=4) *
@@ -781,7 +791,7 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 end
 
 # ╔═╡ 814aec54-eb08-4627-9022-19f41bcdac9f
-plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
+plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
 let
@@ -793,7 +803,7 @@ let
 		@mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
 		@filter(reward_per_press in !!common_rpp)
 	end
-	plot_presses_vs_var(instrumental_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
+	plot_presses_vs_var(PIT_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
 
 # ╔═╡ Cell order:
@@ -802,6 +812,7 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+# ╠═b2d073de-13cf-4cb2-926c-4bb5e18350d6
 # ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 # ╠═31792570-9a09-45df-90a6-287f1bd55929
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -819,14 +830,14 @@ end
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
-# ╟─814aec54-eb08-4627-9022-19f41bcdac9f
+# ╠═814aec54-eb08-4627-9022-19f41bcdac9f
 # ╟─3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
 # ╟─43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╟─89258a40-d4c6-4831-8cf3-d69d984c4f6e
-# ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
-# ╟─8f6d8e98-6d73-4913-a02d-97525176549a
-# ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
+# ╠═a6794b95-fe5e-4010-b08b-f124bff94f9f
+# ╠═8f6d8e98-6d73-4913-a02d-97525176549a
+# ╠═ffd08086-f12c-4b8a-afb6-435c8729241e
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
