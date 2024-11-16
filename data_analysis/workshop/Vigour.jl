@@ -69,6 +69,7 @@ begin
 	end
 	vigour_data = @chain raw_vigour_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -1008,7 +1009,7 @@ end
 # ╟─b9d78883-eb28-4984-af6b-afb76dd85349
 # ╟─f188af11-d2a4-4e1c-9cc7-b63bc386ef57
 # ╟─9b8909ca-2804-45a4-9085-e6ed5e1f1c49
-# ╟─33a27773-b242-49b3-9318-59c15e9602f9
+# ╠═33a27773-b242-49b3-9318-59c15e9602f9
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
 # ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
 # ╟─7b096527-2420-4e0d-9d72-8289a42a78fe

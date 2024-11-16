@@ -85,6 +85,7 @@ begin
 	end
 	vigour_data = @chain raw_vigour_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -104,6 +105,7 @@ begin
 	end
 	PIT_data = @chain raw_PIT_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -812,8 +814,8 @@ end
 # ╠═4557a55b-30ca-4e2b-9822-27e1311d3767
 # ╟─457a29ba-d33c-4389-a883-6c5c6ac61954
 # ╟─b747d881-6515-49eb-8768-e1ed38104e36
-# ╟─1aceb591-9ed1-4a9a-849f-dac14802e5c0
-# ╟─cbde565b-7604-469b-b328-6c6bf84ceeeb
+# ╠═1aceb591-9ed1-4a9a-849f-dac14802e5c0
+# ╠═cbde565b-7604-469b-b328-6c6bf84ceeeb
 # ╟─96c684cf-bf21-468c-8480-98ffeb3cfbf8
 # ╟─7ca13679-ab22-4e7e-9a9e-573eefea9771
 # ╟─2c1c0339-a6c4-4e36-81bc-e672ab3b9ebf
