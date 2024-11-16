@@ -51,7 +51,9 @@ Set theme globally
 """
 
 # ╔═╡ 1c0196e9-de9a-4dfa-acb5-357c02821c5d
-set_theme!(theme_minimal());
+set_theme!(theme_minimal();
+		font = "Helvetica",
+		fontsize = 16);
 
 # ╔═╡ 8255895b-a337-4c8a-a1a7-0983499f684e
 md"""
@@ -266,6 +268,47 @@ let
 	figs
 end
 
+# ╔═╡ 9b8909ca-2804-45a4-9085-e6ed5e1f1c49
+md"""
+#### Test-retest
+"""
+
+# ╔═╡ 33a27773-b242-49b3-9318-59c15e9602f9
+# ╠═╡ disabled = true
+#=╠═╡
+let
+	retest_df = @chain vigour_data begin
+		@group_by(prolific_pid, session)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = session, values_from = n_presses)
+	end
+	
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate (Press/sec)"
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+  ╠═╡ =#
+
 # ╔═╡ e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
 md"""
 ### Reward rate sensitivity
@@ -364,6 +407,55 @@ let
 	end
 	figs
 end
+
+# ╔═╡ c02b47f4-3e96-4a09-a212-13671b8fad25
+md"""
+#### Test-retest
+"""
+
+# ╔═╡ 4d3da833-7333-442c-96ed-9e2fba0a4298
+# ╠═╡ disabled = true
+#=╠═╡
+let
+	retest_df = @chain vigour_data begin
+		@filter(trial_number != 0)
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = low_rpp, values_from = n_presses)
+		@mutate(low_to_high_diff = low_rpp - high_rpp)
+		@select(-ends_with("_rpp"))
+		@pivot_wider(names_from = session, values_from = low_to_high_diff)
+	end
+	
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate difference"
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rppdiff.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+  ╠═╡ =#
 
 # ╔═╡ d6a73b37-2079-4ed1-ac49-e7c596fc0997
 md"""
@@ -504,6 +596,58 @@ let
 	end
 	figs
 end
+
+# ╔═╡ e8c04ee8-a851-4409-9919-ec5227f96689
+md"""
+#### Test-retest
+"""
+
+# ╔═╡ 198f34e5-c89b-4667-82e0-50164fed3491
+# ╠═╡ disabled = true
+#=╠═╡
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	retest_df = @chain vigour_data begin
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		groupby([:prolific_pid, :session])
+		combine(AsTable([:trial_presses, :reward_per_press, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1])
+	end
+
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=unstack(retest_df, [:prolific_pid], :session, :β0),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="β0"
+	)
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=unstack(retest_df, [:prolific_pid], :session, :β1),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="β1"
+	)
+	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Reward rate)")
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rpp_beta.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+	
+	fig
+end
+  ╠═╡ =#
 
 # ╔═╡ cc7e08b3-e245-4483-8cac-086a673a2861
 md"""
@@ -663,6 +807,63 @@ let
 	figs
 end
 
+# ╔═╡ 0e33dab6-6824-4883-8c47-5dd69aa288df
+# ╠═╡ disabled = true
+#=╠═╡
+let
+	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+	retest_df = @chain vigour_data begin
+		DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+		DataFrames.transform([:ratio, :magnitude] .=> ByRow(as_float), renamecols=false)
+		groupby([:prolific_pid, :session])
+		combine(AsTable([:trial_presses, :ratio, :magnitude, :dur]) => (x -> [glm_coef(x)]) => [:β0, :β1, :β2])
+	end
+
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=unstack(retest_df, [:prolific_pid], :session, :β0),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="β0"
+	)
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=unstack(retest_df, [:prolific_pid], :session, :β1),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="β1"
+	)
+	workshop_reliability_scatter!(
+		fig[1,3;
+		df=unstack(retest_df, [:prolific_pid], :session, :β2),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="β2"
+	)
+	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+	
+	fig
+end
+  ╠═╡ =#
+
 # ╔═╡ 7ad7369a-f063-4270-8859-2e23d6c4ea94
 md"""
 ## Post-vigour test
@@ -808,26 +1009,33 @@ end
 # ╟─8255895b-a337-4c8a-a1a7-0983499f684e
 # ╠═de48ee97-d79a-46e4-85fb-08dd569bf7ef
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
-# ╟─4be713bc-4af3-4363-94f7-bc68c71609c2
+# ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
-# ╟─7e7959a7-d60c-4280-9ec9-269edfc3f2a4
+# ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
-# ╟─e3faa2fc-c085-4fc1-80ef-307904a38f33
+# ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
 # ╟─b9d78883-eb28-4984-af6b-afb76dd85349
 # ╟─f188af11-d2a4-4e1c-9cc7-b63bc386ef57
+# ╟─9b8909ca-2804-45a4-9085-e6ed5e1f1c49
+# ╟─33a27773-b242-49b3-9318-59c15e9602f9
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
 # ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
-# ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╠═7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╟─c02b47f4-3e96-4a09-a212-13671b8fad25
+# ╠═4d3da833-7333-442c-96ed-9e2fba0a4298
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
 # ╟─6f11e67c-84b2-457d-9727-825e0631860b
 # ╟─68985a71-98c4-485b-a800-643aea8b8a5e
-# ╠═cea80eac-27cd-4757-ba4b-498f1add5c4f
-# ╠═81ab693c-431d-4b73-a148-84846e448f4d
+# ╟─cea80eac-27cd-4757-ba4b-498f1add5c4f
+# ╟─81ab693c-431d-4b73-a148-84846e448f4d
+# ╟─e8c04ee8-a851-4409-9919-ec5227f96689
+# ╠═198f34e5-c89b-4667-82e0-50164fed3491
 # ╟─cc7e08b3-e245-4483-8cac-086a673a2861
 # ╟─42e2e827-253d-4881-bfc9-65d206e6201d
-# ╠═5d98b42c-2e9a-4111-b2de-5c14d28d4c96
+# ╟─5d98b42c-2e9a-4111-b2de-5c14d28d4c96
 # ╠═cb9e5cb5-070c-427e-9895-2e27b0d3344e
+# ╠═0e33dab6-6824-4883-8c47-5dd69aa288df
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
 # ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
