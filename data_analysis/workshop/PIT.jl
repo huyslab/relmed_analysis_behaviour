@@ -276,7 +276,7 @@ let
 		@mutate(valence = ifelse(magnitude_left * magnitude_right < 0, "Different", ifelse(magnitude_left > 0, "Positive", "Negative")))
 		@mutate(correct = (magnitude_right .> magnitude_left) .== right_chosen)
 		@filter(!ismissing(correct))
-		@group_by(prolific_pid, exp_start_time, valence)
+		@group_by(prolific_pid, session, valence)
 		@summarize(acc = mean(correct))
 		@ungroup
 		data(_) * mapping(:valence, :acc, color=:valence) * visual(RainClouds; clouds=hist, hist_bins = 20, plot_boxplots = false)
