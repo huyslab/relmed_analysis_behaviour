@@ -62,7 +62,9 @@ Set theme globally
 """
 
 # ╔═╡ 4557a55b-30ca-4e2b-9822-27e1311d3767
-set_theme!(theme_minimal());
+set_theme!(theme_minimal();
+		font = "Helvetica",
+		fontsize = 16);
 
 # ╔═╡ 457a29ba-d33c-4389-a883-6c5c6ac61954
 md"""
@@ -82,7 +84,8 @@ begin
 		@filter(n < most_common_n)
 	end
 	vigour_data = @chain raw_vigour_data begin
-		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5") # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -102,6 +105,7 @@ begin
 	end
 	PIT_data = @chain raw_PIT_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -218,8 +222,8 @@ let
 		visual(Scatter, markersize=10) *
 		mapping(color=:coin => nonnumeric => :"Coin value")
 	)
-	fig = Figure(;size=(12, 4) .* 144 ./ 2.54)
-	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", width=125, height=125, xticklabelrotation=pi/4))
+	fig = Figure(;size=(16, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
 	legend!(fig[1,2], p)
 
 	# Save
@@ -296,14 +300,15 @@ end
 # ╔═╡ 07321c17-5493-4d1b-a918-2129cab2b0e1
 let
 	acc_grp_df = @chain PIT_test_data begin
-		@group_by(prolific_pid)
+		@group_by(prolific_pid, session)
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+		@ungroup()
 	end
-	acc_quantile = quantile(acc_grp_df.acc, [0.05, 0.25, 0.5, 0.75])
-	@info "Acc at each quantile: $([@sprintf("%.1f%%", v * 100) for v in acc_quantile])"
-	acc_grp_df.acc_grp = cut(acc_grp_df.acc, acc_quantile; labels=["0% to 5%", "5% to 25%","25% to 50%","50% to 75%","75% to 100%"], extend=true)
+	# acc_quantile = quantile(acc_grp_df.acc, [0.25, 0.5, 0.75])
+	# @info "Acc at each quantile: $([@sprintf("%.1f%%", v * 100) for v in acc_quantile])"
+	acc_grp_df.acc_grp = cut(acc_grp_df.acc, [0.5, 0.75]; extend=true)
 
-	grouped_data, avg_w_data = avg_presses_w_fn(innerjoin(PIT_data, acc_grp_df, on=:prolific_pid), [:coin, :acc_grp], :press_per_sec)
+	grouped_data, avg_w_data = avg_presses_w_fn(innerjoin(PIT_data, acc_grp_df, on=[:prolific_pid,:session]), [:coin, :acc_grp], :press_per_sec)
 	
 	p = data(avg_w_data) *
 	mapping(:coin=>nonnumeric, :avg_y, col=:acc_grp) *
@@ -316,6 +321,7 @@ let
 	)
 	fig = Figure(;size=(12, 6) .* 144 ./ 2.54)
 	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
+	Label(fig[0,:], "Press Rates by Pavlovian Stimuli Across Test Accuracy", tellwidth = false)
 	# legend!(fig[1,2], p)
 	
 	# Save
@@ -327,6 +333,46 @@ let
 			proj,
 			osf_folder
 		)
+
+	fig
+end
+
+# ╔═╡ 45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
+let
+	acc_grp_df = @chain PIT_test_data begin
+		@group_by(prolific_pid, session)
+		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+		@ungroup
+	end
+	# acc_quantile = quantile(acc_grp_df.acc, [0.25, 0.5, 0.75])
+	# @info "Acc at each quantile: $([@sprintf("%.1f%%", v * 100) for v in acc_quantile])"
+	acc_grp_df.acc_grp = cut(acc_grp_df.acc, [0.5, 0.75]; extend=true)
+
+	grouped_data, avg_w_data = avg_presses_w_fn(@filter(innerjoin(PIT_data, acc_grp_df, on=[:prolific_pid, :session])), [:reward_per_press, :acc_grp], :press_per_sec)
+	
+	p = data(avg_w_data) *
+	mapping(:reward_per_press, :avg_y, col=:acc_grp) *
+	(
+		visual(Lines, linewidth=2, color=:gray75) +
+		visual(Errorbars, whiskerwidth=4) *
+		mapping(:se_y, color=:reward_per_press) +
+		visual(Scatter, markersize=10) *
+		mapping(color=:reward_per_press)
+	)
+	fig = Figure(;size=(12, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p; axis=(;xlabel="Reward/press", ylabel="Press/sec", xticklabelrotation=pi/4))
+	Label(fig[0,:], "Press Rates by Reward Rates Across Test Accuracy", tellwidth = false)
+	# legend!(fig[1,2], p)
+	
+	# # Save
+	# filepaths = joinpath("results/workshop/PIT", "PIT_press_by_rpp_acc.png")
+	# save(filepaths, fig; px_per_unit = 4)
+
+	# upload_to_osf(
+	# 		filepaths,
+	# 		proj,
+	# 		osf_folder
+	# 	)
 
 	fig
 end
@@ -425,16 +471,57 @@ let
 	figs
 end
 
+# ╔═╡ 71ce1bf7-8e80-42ff-bee7-0da4ac56ad69
+md"""
+#### Test-retest
+"""
+
+# ╔═╡ 420471d0-5b81-41c5-b79e-a50b338c7d06
+let
+	retest_df = @chain PIT_data begin
+		@filter(coin != 0)
+		@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(diff = pos - neg)
+		unstack([:prolific_pid], :session, :diff)
+		dropmissing()
+	end
+	
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Valence Difference"
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_valdiff.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+
 # ╔═╡ fbc4466c-1d20-4359-a893-72a255c903c6
 md"""
 ### Slope: sensitivity to Pavlovian stimuli
 """
 
-# ╔═╡ a5ab617d-1acb-4e12-b678-70748ea80403
-glm_coef(dat) = coef(lm(@formula(press_per_sec ~ coin), dat))[2]
-
 # ╔═╡ 22915221-f312-4b6d-8ae6-b0818e06c1a3
 let
+	glm_coef(dat) = coef(lm(@formula(press_per_sec ~ coin), dat))[2]
 	splithalf_df = @chain PIT_data begin
 		@mutate(half = ifelse(trial_number <= maximum(trial_number)/2, "x", "y"))
 		@filter(coin != 0)
@@ -468,7 +555,7 @@ let
 			ycol=:y,
 			subtitle=L"$\beta_{Neg}$"
 		)
-		Label(fig[0,:],"Session $(s)")
+		Label(fig[0,:],"Session $(s) Pavlovian Sensitivity within Valence")
 		# Save
 		filepaths = joinpath("results/workshop/PIT", "PIT_sess$(s)_slope_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
@@ -486,6 +573,7 @@ end
 
 # ╔═╡ 0691061e-d096-46e2-b035-a4ff0dda78a1
 let
+	glm_coef(dat) = coef(lm(@formula(press_per_sec ~ coin), dat))[2]
 	splithalf_df = @chain PIT_data begin
 		@mutate(half = ifelse(trial_number % 2 === 0, "x", "y"))
 		@filter(coin != 0)
@@ -519,7 +607,7 @@ let
 			ycol=:y,
 			subtitle=L"$\beta_{Neg}$"
 		)
-		Label(fig[0,:], "Session $(s)")		
+		Label(fig[0,:],"Session $(s) Pavlovian Sensitivity within Valence")
 		# Save
 		filepaths = joinpath("results/workshop/PIT", "PIT_sess$(s)_slope_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
@@ -533,6 +621,59 @@ let
 		push!(figs, fig)
 	end
 	figs
+end
+
+# ╔═╡ bd25c85d-7633-4c7f-a08e-611292241af6
+md"""
+#### Test-retest
+"""
+
+# ╔═╡ 416ca0a8-ab33-42fb-96a8-9d28d31d7c1a
+let
+	glm_coef(dat) = coef(lm(@formula(press_per_sec ~ coin), dat))[2]
+	retest_df = @chain PIT_data begin
+		@filter(coin != 0)
+		@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+		@group_by(valence)
+		@mutate(coin = (coin - mean(coin))/std(coin))
+		@ungroup
+		groupby([:prolific_pid, :session, :valence])
+		combine(AsTable([:press_per_sec, :coin]) => glm_coef => :β)
+		unstack([:prolific_pid, :valence], :session, :β)
+		dropmissing()
+	end
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=@filter(retest_df, valence == "pos"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle=L"$\beta_{Pos}$"
+	)
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=@filter(retest_df, valence == "neg"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle=L"$\beta_{Neg}$"
+	)
+	Label(fig[0,:], "Test-retest Pavlovian Sensitivity within Valence")
+	
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_slope.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
 end
 
 # ╔═╡ cbbff405-bcf0-4ea8-9683-81080f7b8a9e
@@ -627,6 +768,43 @@ let
 	figs
 end
 
+# ╔═╡ c8256d50-0537-4424-8528-03a5e95f2a08
+let
+	retest_df = @chain PIT_data begin
+		@mutate(valence = ifelse(coin == 0, "zero", ifelse(coin > 0, "pos", "neg")))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(asymm = pos + neg - 2 * zero)
+		unstack([:prolific_pid], :session, :asymm)
+		dropmissing()
+	end
+
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Valence Asymmetry"
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_asymm.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+		
+	fig
+end
+
 # ╔═╡ Cell order:
 # ╠═ad7f05f1-0e20-4b2a-9dc2-63c5da38bead
 # ╠═1afc3d98-3a97-466c-8079-0768e17af03b
@@ -636,27 +814,32 @@ end
 # ╠═4557a55b-30ca-4e2b-9822-27e1311d3767
 # ╟─457a29ba-d33c-4389-a883-6c5c6ac61954
 # ╟─b747d881-6515-49eb-8768-e1ed38104e36
-# ╟─1aceb591-9ed1-4a9a-849f-dac14802e5c0
-# ╟─cbde565b-7604-469b-b328-6c6bf84ceeeb
+# ╠═1aceb591-9ed1-4a9a-849f-dac14802e5c0
+# ╠═cbde565b-7604-469b-b328-6c6bf84ceeeb
 # ╟─96c684cf-bf21-468c-8480-98ffeb3cfbf8
 # ╟─7ca13679-ab22-4e7e-9a9e-573eefea9771
 # ╟─2c1c0339-a6c4-4e36-81bc-e672ab3b9ebf
 # ╟─c3dc5eda-1421-4770-a1d3-f08b8c6c2655
 # ╠═5c5f0ce8-c64b-413a-975d-22118f4e1852
-# ╟─1beaa9b1-73e9-407b-bf5f-a4091f00a17d
+# ╠═1beaa9b1-73e9-407b-bf5f-a4091f00a17d
 # ╟─95fd5935-19de-4a66-881e-77fa276a70af
 # ╟─7fa14255-9f46-466d-baa3-e6fc2eec3347
-# ╟─58ed1255-6f89-4f8a-b6d6-a8dee840dea2
-# ╟─07321c17-5493-4d1b-a918-2129cab2b0e1
+# ╠═58ed1255-6f89-4f8a-b6d6-a8dee840dea2
+# ╠═07321c17-5493-4d1b-a918-2129cab2b0e1
+# ╟─45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
 # ╟─8e046c5a-1454-4762-a93f-1555d7549931
 # ╟─b6c4383c-98f8-47d1-91e1-369bd9f27aae
 # ╟─8e103789-dc11-488f-8671-2222c0360fa3
 # ╟─8e36025a-fe92-4d1a-a7fa-c37918a16dbc
+# ╟─71ce1bf7-8e80-42ff-bee7-0da4ac56ad69
+# ╠═420471d0-5b81-41c5-b79e-a50b338c7d06
 # ╟─fbc4466c-1d20-4359-a893-72a255c903c6
-# ╠═a5ab617d-1acb-4e12-b678-70748ea80403
 # ╟─22915221-f312-4b6d-8ae6-b0818e06c1a3
 # ╟─0691061e-d096-46e2-b035-a4ff0dda78a1
+# ╟─bd25c85d-7633-4c7f-a08e-611292241af6
+# ╠═416ca0a8-ab33-42fb-96a8-9d28d31d7c1a
 # ╟─cbbff405-bcf0-4ea8-9683-81080f7b8a9e
 # ╟─8812e1f4-b2b9-4cda-a33a-a12ee278c99b
 # ╟─ec623a4a-c506-47b3-9c17-737fee355511
 # ╟─53979178-5e41-4ef1-82d5-c10193b642ef
+# ╠═c8256d50-0537-4424-8528-03a5e95f2a08
