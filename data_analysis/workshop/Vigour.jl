@@ -274,14 +274,13 @@ md"""
 """
 
 # ╔═╡ 33a27773-b242-49b3-9318-59c15e9602f9
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	retest_df = @chain vigour_data begin
 		@group_by(prolific_pid, session)
 		@summarize(n_presses = mean(press_per_sec))
 		@ungroup
 		@pivot_wider(names_from = session, values_from = n_presses)
+		@drop_missing
 	end
 	
 	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
@@ -299,15 +298,14 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	# upload_to_osf(
+	# 		filepaths,
+	# 		proj,
+	# 		osf_folder
+	# 	)
 
 	fig
 end
-  ╠═╡ =#
 
 # ╔═╡ e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
 md"""
@@ -414,8 +412,6 @@ md"""
 """
 
 # ╔═╡ 4d3da833-7333-442c-96ed-9e2fba0a4298
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	retest_df = @chain vigour_data begin
 		@filter(trial_number != 0)
@@ -430,6 +426,7 @@ let
 		@mutate(low_to_high_diff = low_rpp - high_rpp)
 		@select(-ends_with("_rpp"))
 		@pivot_wider(names_from = session, values_from = low_to_high_diff)
+		@drop_missing
 	end
 	
 	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
@@ -440,7 +437,7 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="Test-retest Press Rate difference"
+		subtitle="Test-retest Press Rate Difference"
 	)
 	
 	# Save
@@ -455,7 +452,6 @@ let
 
 	fig
 end
-  ╠═╡ =#
 
 # ╔═╡ d6a73b37-2079-4ed1-ac49-e7c596fc0997
 md"""
@@ -603,8 +599,6 @@ md"""
 """
 
 # ╔═╡ 198f34e5-c89b-4667-82e0-50164fed3491
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)))
 
@@ -617,7 +611,7 @@ let
 	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
 	workshop_reliability_scatter!(
 		fig[1,1];
-		df=unstack(retest_df, [:prolific_pid], :session, :β0),
+		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β0)),
 		xlabel="Session 1",
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
@@ -626,7 +620,7 @@ let
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
-		df=unstack(retest_df, [:prolific_pid], :session, :β1),
+		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β1)),
 		xlabel="Session 1",
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
@@ -647,7 +641,6 @@ let
 	
 	fig
 end
-  ╠═╡ =#
 
 # ╔═╡ cc7e08b3-e245-4483-8cac-086a673a2861
 md"""
@@ -808,8 +801,6 @@ let
 end
 
 # ╔═╡ 0e33dab6-6824-4883-8c47-5dd69aa288df
-# ╠═╡ disabled = true
-#=╠═╡
 let
 	glm_coef(data) = coef(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)))
 
@@ -823,7 +814,7 @@ let
 	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
 	workshop_reliability_scatter!(
 		fig[1,1];
-		df=unstack(retest_df, [:prolific_pid], :session, :β0),
+		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β0)),
 		xlabel="Session 1",
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
@@ -832,7 +823,7 @@ let
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
-		df=unstack(retest_df, [:prolific_pid], :session, :β1),
+		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β1)),
 		xlabel="Session 1",
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
@@ -840,8 +831,8 @@ let
 		subtitle="β1"
 	)
 	workshop_reliability_scatter!(
-		fig[1,3;
-		df=unstack(retest_df, [:prolific_pid], :session, :β2),
+		fig[1,3];
+		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β2)),
 		xlabel="Session 1",
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
@@ -862,7 +853,6 @@ let
 	
 	fig
 end
-  ╠═╡ =#
 
 # ╔═╡ 7ad7369a-f063-4270-8859-2e23d6c4ea94
 md"""
@@ -892,7 +882,7 @@ let
 
     # 3. Calculate accuracy metrics
     test_acc_df = @chain post_vigour_test_data begin
-        @group_by(prolific_pid)
+        @group_by(prolific_pid, session)
         @select(diff_rpp, chose_left)
         @mutate(
             chose_left = chose_left * 2 - 1,  # Convert to {-1, 1}
@@ -906,7 +896,6 @@ let
     # 4. Create accuracy summary for plotting
     avg_acc_df = @chain test_acc_df begin
         @summarize(acc = mean(acc))
-        @ungroup
         @mutate(
             x = maximum((!!post_vigour_test_data).diff_rpp) * 0.5,
             y = 0.5,
@@ -1013,7 +1002,7 @@ end
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
 # ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
-# ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
+# ╟─e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
 # ╟─b9d78883-eb28-4984-af6b-afb76dd85349
@@ -1022,7 +1011,7 @@ end
 # ╟─33a27773-b242-49b3-9318-59c15e9602f9
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
 # ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
-# ╠═7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
 # ╟─c02b47f4-3e96-4a09-a212-13671b8fad25
 # ╠═4d3da833-7333-442c-96ed-9e2fba0a4298
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
@@ -1035,7 +1024,7 @@ end
 # ╟─cc7e08b3-e245-4483-8cac-086a673a2861
 # ╟─42e2e827-253d-4881-bfc9-65d206e6201d
 # ╟─5d98b42c-2e9a-4111-b2de-5c14d28d4c96
-# ╠═cb9e5cb5-070c-427e-9895-2e27b0d3344e
+# ╟─cb9e5cb5-070c-427e-9895-2e27b0d3344e
 # ╠═0e33dab6-6824-4883-8c47-5dd69aa288df
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
 # ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
