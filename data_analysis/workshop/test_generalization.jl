@@ -61,8 +61,109 @@ begin
 	nothing
 end
 
-# ╔═╡ 044edab2-0e27-4a71-a60e-a78857a2290a
-available_marker_symbols()
+# ╔═╡ b9b974ab-fc93-4d99-ad51-c61675147709
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest EV
+let
+
+	# Fit by EV and group
+	mm_tests = [fit(
+		MixedModel, 
+		@formula(right_chosen ~ 1 + empirical_EV_diff + 
+			(1 + empirical_EV_diff | prolific_pid)), 
+		filter(x -> x.session == s, test_data_clean), 
+		Bernoulli()
+	) for s in unique(test_data_clean.session)]
+
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
+
+	ranefs = innerjoin(
+		ranefs[1],
+		ranefs[2],
+		on = :prolific_pid,
+		makeunique = true
+	)
+
+	# Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = ranefs,
+		xcol = :empirical_EV_diff,
+		ycol = :empirical_EV_diff_1,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "EV sensitivity",
+		correct_r = false
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_sess$(s)_EV_sensitivity_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+					
+	f
+end
+  ╠═╡ =#
+
+# ╔═╡ 6fae17be-871b-42b4-8c8a-b7f959cf4d01
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest optimality
+let
+
+	# Fit by EV and group
+	mm_tests = [fit(
+		MixedModel, 
+		@formula(right_chosen ~ 1 + empirical_EV_diff + optimality_diff +
+			(1 + empirical_EV_diff + optimality_diff | prolific_pid)), 
+		filter(x -> x.session == s, test_data_clean), 
+		Bernoulli()
+	) for s in unique(test_data_clean.session)]
+
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
+
+	ranefs = innerjoin(
+		ranefs[1],
+		ranefs[2],
+		on = :prolific_pid,
+		makeunique = true
+	)
+
+	# Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = ranefs,
+		xcol = :optimality_diff,
+		ycol = :optimality_diff_1,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Learning context bias",
+		correct_r = false
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_sess$(s)_optimality_bias_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+					
+	f
+end
+  ╠═╡ =#
 
 # ╔═╡ fcb0292e-8a86-40c7-a1da-b3f24fbbe492
 function compute_optimality(data::AbstractDataFrame)
@@ -303,58 +404,6 @@ let
 	fs
 end
 
-# ╔═╡ b9b974ab-fc93-4d99-ad51-c61675147709
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest EV
-let
-
-	# Fit by EV and group
-	mm_tests = [fit(
-		MixedModel, 
-		@formula(right_chosen ~ 1 + empirical_EV_diff + 
-			(1 + empirical_EV_diff | prolific_pid)), 
-		filter(x -> x.session == s, test_data_clean), 
-		Bernoulli()
-	) for s in unique(test_data_clean.session)]
-
-	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
-
-	ranefs = innerjoin(
-		ranefs[1],
-		ranefs[2],
-		on = :prolific_pid,
-		makeunique = true
-	)
-
-	# Plot
-	f = Figure()
-	workshop_reliability_scatter!(
-		f[1, 1];
-		df = ranefs,
-		xcol = :empirical_EV_diff,
-		ycol = :empirical_EV_diff_1,
-		xlabel = "Session 1",
-		ylabel = "Session 2",
-		subtitle = "EV sensitivity",
-		correct_r = false
-	)
-
-	# Save plot
-	filepath = "results/workshop/test_PILT_sess$(s)_EV_sensitivity_test_retest.png"
-
-	save(filepath, f)
-
-	# upload_to_osf(
-	# 		filepath,
-	# 		proj,
-	# 		osf_folder
-	# )
-					
-	f
-end
-  ╠═╡ =#
-
 # ╔═╡ a4792246-baac-4972-98c7-1c20d7079046
 # Splithalf optimality
 let
@@ -424,58 +473,6 @@ let
 		
 	fs
 end
-
-# ╔═╡ 6fae17be-871b-42b4-8c8a-b7f959cf4d01
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest optimality
-let
-
-	# Fit by EV and group
-	mm_tests = [fit(
-		MixedModel, 
-		@formula(right_chosen ~ 1 + empirical_EV_diff + optimality_diff +
-			(1 + empirical_EV_diff + optimality_diff | prolific_pid)), 
-		filter(x -> x.session == s, test_data_clean), 
-		Bernoulli()
-	) for s in unique(test_data_clean.session)]
-
-	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
-
-	ranefs = innerjoin(
-		ranefs[1],
-		ranefs[2],
-		on = :prolific_pid,
-		makeunique = true
-	)
-
-	# Plot
-	f = Figure()
-	workshop_reliability_scatter!(
-		f[1, 1];
-		df = ranefs,
-		xcol = :optimality_diff,
-		ycol = :optimality_diff_1,
-		xlabel = "Session 1",
-		ylabel = "Session 2",
-		subtitle = "Learning context bias",
-		correct_r = false
-	)
-
-	# Save plot
-	filepath = "results/workshop/test_PILT_sess$(s)_optimality_bias_test_retest.png"
-
-	save(filepath, f)
-
-	# upload_to_osf(
-	# 		filepath,
-	# 		proj,
-	# 		osf_folder
-	# )
-					
-	f
-end
-  ╠═╡ =#
 
 # ╔═╡ c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # Fit by EV
@@ -750,33 +747,21 @@ let
 		) * visual(Lines)
 
 	mp_hline = mapping([0.5]) * visual(HLines, linestyle = :dash, color = :grey)
-
-	# Set up legends
-	add_legend = (f, plt) -> legend!(
-		f[0,1],
-		plt,
-		tellwidth = false,
-		orientation = :horizontal,
-		titleposition = :left
-	)
-
 	
 	# Plot broken penny data
 	f1 = Figure()
 
-	plt = draw!(
+	plt1 = draw!(
 		f1[1,1], 
 		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data), 
 		scales(
 			Marker = (; palette = [:rect, :circle])
 		))
 
-	add_legend(f1, plt)
-
 	# Plot broken penny data and fit
 	f2 = Figure()
 
-	plt = draw!(
+	plt2 = draw!(
 		f2[1,1], 
 		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data + mp_fit), 
 		scales(
@@ -784,82 +769,48 @@ let
 			LineStyle = (; palette = [:dashdot, :dash])
 		))
 
-	add_legend(f2, plt)
-
 	# Plot broken penny data and fit and penny data
 	f3 = Figure()
 
-	plt = draw!(
+	plt3 = draw!(
 		f3[1,1], 
 		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data + mp_fit) + data(filter(x -> x.magnitude_penny == 0.01, test_sum_sum)) * (mp_data), 
 		scales(
 			Marker = (; palette = [:rect, :circle]),
 			LineStyle = (; palette = [:dashdot, :dash])
 		))
-
-	add_legend(f3, plt)
 	
 	f3
 
-end
+	# Plot everything
+	f4 = Figure()
 
-# ╔═╡ fcccb531-5d02-4391-b9f7-5c438da53da2
-let
-
-	fitted_vals = fitted(mm_EV_optimality)
-	fp = insertcols(
-		test_data_clean,
-		:simuated => ifelse.(
-			test_data_clean.magnitude_right .> test_data_clean.magnitude_left,
-			fitted_vals,
-			1. .- fitted_vals
-		)
+	plt4 = draw!(
+		f4[1,1], 
+		mp_hline + data(test_sum_sum) * (mp_data + mp_fit), 
+		scales(
+			Marker = (; palette = [:rect, :circle]),
+			LineStyle = (; palette = [:dashdot, :dash])
+		))
+	
+	# Set up legends
+	add_legend! = (f, plt) -> legend!(
+		f[0,1],
+		plt,
+		tellwidth = false,
+		orientation = :horizontal,
+		titleposition = :left
 	)
 
-	high_chosen_sum = combine(
-		groupby(fp, :prolific_pid),
-		:high_chosen => mean => :acc,
-		:simuated => mean => :sim_acc
-	)
+	add_legend!(f1, plt4)
+	add_legend!(f2, plt4)
+	add_legend!(f3, plt4)
+	add_legend!(f4, plt4)
+	
+	# Link axes
+	linkaxes!(extract_axis.([f1[1,1], f2[1,1], f3[1,1], f4[1,1]])...)
 
-	@info "Proportion high magnitude chosen: 
-		$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
-
-	@info "Simulated proportion high magnitude chosen: 
-		$(round(mean(high_chosen_sum.sim_acc), digits = 2)), SE=$(round(sem(high_chosen_sum.sim_acc), digits = 2))"
-
-	# Summarize by participant and magnitude
-	test_sum = combine(
-		groupby(fp, [:prolific_pid, :magnitude_low, :magnitude_high]),
-		:high_chosen => mean => :acc,
-		:simuated => mean => :sim_acc
-	)
-
-	test_sum_sum = combine(
-		groupby(test_sum, [:magnitude_low, :magnitude_high]),
-		:acc => mean => :acc,
-		:acc => sem => :se,
-		:sim_acc => mean => :sim_acc,
-	)
-
-	sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
-
-	mp = data(test_sum_sum) *
-	mapping(
-		:magnitude_high => nonnumeric => "High magntidue",
-		:acc => "Prop. chosen high",
-		:se,
-		layout = :magnitude_low => nonnumeric
-	) * (visual(Errorbars) + visual(Scatter)) +
-	data(test_sum_sum) * mapping(
-		:magnitude_high => nonnumeric => "High magntidue",
-		:sim_acc => "Prop. chosen high",
-		:se,
-		layout = :magnitude_low => nonnumeric
-	) * (visual(Lines, linewidth = 1, linestyle = :dash, color = :grey))
-
-	draw(mp; axis = (; xticklabelrotation = 45))
-
+	f1, f2, f3, f4
 
 end
 
@@ -879,6 +830,4 @@ end
 # ╠═c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # ╠═ea0f4939-d18f-4407-a13f-d5734cc608bb
 # ╠═c2d48fe0-d2a1-4c11-a5d7-95332dc78c70
-# ╠═044edab2-0e27-4a71-a60e-a78857a2290a
-# ╠═fcccb531-5d02-4391-b9f7-5c438da53da2
 # ╠═fcb0292e-8a86-40c7-a1da-b3f24fbbe492
