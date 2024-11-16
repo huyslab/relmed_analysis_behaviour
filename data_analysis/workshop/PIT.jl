@@ -498,7 +498,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="Test-retest Valence Difference"
+		subtitle="Test-retest Valence Difference",
+		correct_r=false
 	)
 	
 	# Save
@@ -650,7 +651,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle=L"$\beta_{Pos}$"
+		subtitle=L"$\beta_{Pos}$",
+		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
@@ -659,7 +661,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle=L"$\beta_{Neg}$"
+		subtitle=L"$\beta_{Neg}$",
+		correct_r=false
 	)
 	Label(fig[0,:], "Test-retest Pavlovian Sensitivity within Valence")
 	
@@ -789,7 +792,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="Test-retest Valence Asymmetry"
+		subtitle="Test-retest Valence Asymmetry",
+		correct_r=false
 	)
 	
 	# Save

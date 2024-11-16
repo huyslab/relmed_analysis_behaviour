@@ -292,7 +292,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="Test-retest Press Rate (Press/sec)"
+		subtitle="Test-retest Press Rate (Press/sec)",
+		correct_r=false
 	)
 	
 	# Save
@@ -438,7 +439,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="Test-retest Press Rate Difference"
+		subtitle="Test-retest Press Rate Difference",
+		correct_r=false
 	)
 	
 	# Save
@@ -617,7 +619,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="β0"
+		subtitle="β0",
+		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
@@ -626,7 +629,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="β1"
+		subtitle="β1",
+		correct_r=false
 	)
 	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Reward rate)")
 	
@@ -820,7 +824,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="β0"
+		subtitle="β0",
+		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
@@ -829,7 +834,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="β1"
+		subtitle="β1",
+		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[1,3];
@@ -838,7 +844,8 @@ let
 		ylabel="Session 2",
 		xcol=Symbol(string(1)),
 		ycol=Symbol(string(2)),
-		subtitle="β2"
+		subtitle="β2",
+		correct_r=false
 	)
 	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
 	
