@@ -102,6 +102,15 @@ test_data_clean = let
 	# Select post-PILT test
 	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
 
+	# Remove people who didn't finish
+	DataFrames.transform!(
+		groupby(test_data_clean, :prolific_pid),
+		:trial => length => :n_trials
+	)
+
+	filter!(x -> x.n_trials == 40, test_data_clean)
+
+
 	# Remove missing values
 	filter!(x -> !isnothing(x.response), test_data_clean)
 
@@ -209,18 +218,152 @@ test_data_clean = let
 
 	test_data_clean.magnitude_diff = test_data_clean.magnitude_right .- test_data_clean.magnitude_left
 
+	# Add even/odd variable
+	test_data_clean.evenodd = ifelse.(
+		iseven.(test_data_clean.trial),
+		"even",
+		"odd"
+	)
+
 	test_data_clean
 	
 
 end
 
-# ╔═╡ 0dfe4c5e-5b6c-4a24-af1f-64ca09118f54
-describe(test_data_clean)
+# ╔═╡ 027ff42b-324f-4989-8952-4d119831796a
+combine(
+	groupby(test_data_clean, :evenodd),
+	:trial => length
+)
+
+# ╔═╡ 33811ec9-f7c1-499d-9d9d-1a83951004a0
+# Splithalf 
+let
+
+	fs = []
+
+	for s in unique(test_data_clean.session)
+	
+		for (g, labs) in zip(
+			[:block, :evenodd],
+			[["First half", "Second half"], ["Even", "Odd"]]
+		)
+
+			# Select data
+			forfit = filter(x -> x.session == s, test_data_clean)
+	
+			insertcols!(
+				forfit,
+				:group => CategoricalArray(forfit[!, g])
+			)
+	
+			# Fit by EV and group
+			mm_tests = [fit(
+				MixedModel, 
+				@formula(right_chosen ~ 1 + empirical_EV_diff + 
+					(1 + empirical_EV_diff | prolific_pid)), 
+				filter(x -> x.group == gg, forfit), 
+				Bernoulli()
+			) for gg in unique(forfit.group)]
+	
+			ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
+	
+			ranefs = innerjoin(
+				ranefs[1],
+				ranefs[2],
+				on = :prolific_pid,
+				makeunique = true
+			)
+	
+			# Plot
+			f = Figure()
+			workshop_reliability_scatter!(
+				f[1, 1];
+				df = ranefs,
+				xcol = :empirical_EV_diff,
+				ycol = :empirical_EV_diff_1,
+				xlabel = labs[1],
+				ylabel = labs[2],
+				subtitle = "Session $s EV sensitivity"
+			)
+	
+			# Save plot
+			filepath = "results/workshop/test_PILT_sess$(s)_EV_sensitivity_splithalf_$(string(g)).png"
+		
+			save(filepath, f)
+		
+			# upload_to_osf(
+			# 		filepath,
+			# 		proj,
+			# 		osf_folder
+			# )
+	
+			push!(fs, f)
+			
+		end
+	end
+		
+	fs
+end
+
+# ╔═╡ b9b974ab-fc93-4d99-ad51-c61675147709
+# ╠═╡ disabled = true
+#=╠═╡
+# Test retest 
+let
+
+	# Fit by EV and group
+	mm_tests = [fit(
+		MixedModel, 
+		@formula(right_chosen ~ 1 + empirical_EV_diff + 
+			(1 + empirical_EV_diff | prolific_pid)), 
+		filter(x -> x.session == s, test_data_clean), 
+		Bernoulli()
+	) for s in unique(test_data_clean.session)]
+
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
+
+	ranefs = innerjoin(
+		ranefs[1],
+		ranefs[2],
+		on = :prolific_pid,
+		makeunique = true
+	)
+
+	# Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = ranefs,
+		xcol = :empirical_EV_diff,
+		ycol = :empirical_EV_diff_1,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "EV sensitivity"
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_sess$(s)_EV_sensitivity_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+					
+	f
+end
+  ╠═╡ =#
+
+# ╔═╡ 5bcb8ced-603a-461e-91ae-0347445c618e
+test_data_clean |> describe
 
 # ╔═╡ c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # Fit by EV
 mm_EV = let
-	mm_test = fit(MixedModel, @formula(right_chosen ~ 1 + empirical_EV_diff + (1 + empirical_EV_diff | prolific_pid)), test_data_clean, Bernoulli(), contrasts = Dict(:optimality_diff_cat => EffectsCoding(), :valence_diff_cat => EffectsCoding()))
+	mm_test = fit(MixedModel, @formula(right_chosen ~ 1 + empirical_EV_diff + (1 + empirical_EV_diff | prolific_pid)), test_data_clean, Bernoulli())
 
 end
 
@@ -281,6 +424,17 @@ let n_bins = 6
 			ylabel = "Prop. right chosen"
 		)
 	)
+
+	# Save
+	filepath = "results/workshop/test_PILT_EV.png"
+
+	save(filepath, f, pt_per_unit = 1)
+
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
 
 	f
 
@@ -385,6 +539,17 @@ let n_bins = 5
 
 	legend!(f[0, 1], plt, tellwdith = false, orientation = :horizontal, titleposition = :left)
 
+	filepath = "results/workshop/test_PILT_EV_optimality.png"
+
+	save(filepath, f, pt_per_unit = 1)
+
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
+
+
 	f
 end
 
@@ -454,10 +619,13 @@ end
 # ╠═ea6eb668-de64-4aa5-b3ea-8a5bc0475250
 # ╠═1a1eb012-16e2-4318-be51-89b2e6a3b55b
 # ╠═120babf5-f4c4-4c43-aab4-b3537111d15d
-# ╠═0dfe4c5e-5b6c-4a24-af1f-64ca09118f54
 # ╠═fcafa95b-8d34-4221-8bd3-22f5cc5bf16f
 # ╠═50f853c8-8e24-4bd8-bb66-9f25e92d0b4b
 # ╠═3d3c637f-6278-4f54-acbb-9ff06e8b459b
+# ╠═027ff42b-324f-4989-8952-4d119831796a
+# ╠═33811ec9-f7c1-499d-9d9d-1a83951004a0
+# ╠═b9b974ab-fc93-4d99-ad51-c61675147709
+# ╠═5bcb8ced-603a-461e-91ae-0347445c618e
 # ╠═c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # ╠═ea0f4939-d18f-4407-a13f-d5734cc608bb
 # ╠═fcccb531-5d02-4391-b9f7-5c438da53da2
