@@ -61,6 +61,9 @@ begin
 	nothing
 end
 
+# ╔═╡ 044edab2-0e27-4a71-a60e-a78857a2290a
+available_marker_symbols()
+
 # ╔═╡ fcb0292e-8a86-40c7-a1da-b3f24fbbe492
 function compute_optimality(data::AbstractDataFrame)
 	
@@ -667,10 +670,143 @@ let n_bins = 5
 	f
 end
 
+# ╔═╡ c2d48fe0-d2a1-4c11-a5d7-95332dc78c70
+let
+	# Get predicted values
+	fitted_vals = fitted(mm_EV_optimality)
+
+	# Combine into real data DataFrame
+	forplot = insertcols(
+		test_data_clean,
+		:simuated => ifelse.(
+			abs.(test_data_clean.magnitude_right) .== 0.01,
+			fitted_vals,
+			1. .- fitted_vals
+		)
+	)
+
+	# Choose only penny trial
+	forplot = filter(x -> sum(abs.([x.magnitude_low, x.magnitude_high]) .== 0.01) == 1, forplot
+	)
+
+	# Magnitude of penny choice
+	forplot.magnitude_penny = ifelse.(
+		abs.(forplot.magnitude_low) .== 0.01,
+		forplot.magnitude_low,
+		forplot.magnitude_high
+	)
+
+	# Magnitude of other choice
+	forplot.magnitude_other = ifelse.(
+		abs.(forplot.magnitude_low) .!= 0.01,
+		forplot.magnitude_low,
+		forplot.magnitude_high
+	)	
+
+	# Whether penny was chosen
+	forplot.penny_chosen = ifelse.(
+		abs.(forplot.magnitude_high) .== 0.01,
+		forplot.high_chosen,
+		.!forplot.high_chosen
+	)
+
+	# Summarize by participant and magnitudes
+	test_sum = combine(
+		groupby(forplot, [:prolific_pid, :magnitude_penny, :magnitude_other]),
+		:penny_chosen => mean => :penny_chosen,
+		:simuated => mean => :sim_penny_chosen
+	)
+
+	# Summarize by magnitudes
+	test_sum_sum = combine(
+		groupby(test_sum, [:magnitude_penny, :magnitude_other]),
+		:penny_chosen => mean => :penny_chosen,
+		:penny_chosen => sem => :se,
+		:sim_penny_chosen => mean => :sim_penny_chosen,
+	)
+
+	# Sort for plotting
+	sort!(test_sum_sum, [:magnitude_penny, :magnitude_other])
+
+	# Mapping
+	mp_data = mapping(
+			:magnitude_other => nonnumeric => "EV other choice",
+			:penny_chosen => "Prop. penny chosen",
+			:se,
+			color = :magnitude_penny => nonnumeric => "EV penny choice:"
+		) * visual(Errorbars) +
+		mapping(
+			:magnitude_other => nonnumeric => "EV other choice",
+			:penny_chosen => "Prop. penny chosen",
+			color = :magnitude_penny => nonnumeric => "EV penny choice:",
+			marker = :magnitude_penny => nonnumeric => "EV penny choice:"
+		) * visual(Scatter)
+
+	mp_fit = mapping(
+			:magnitude_other => nonnumeric => "EV other choice",
+			:sim_penny_chosen => "Prop. penny chosen",
+			color = :magnitude_penny => nonnumeric => "EV penny choice:",
+			linestyle = :magnitude_penny => nonnumeric => "EV penny choice:"
+		) * visual(Lines)
+
+	mp_hline = mapping([0.5]) * visual(HLines, linestyle = :dash, color = :grey)
+
+	# Set up legends
+	add_legend = (f, plt) -> legend!(
+		f[0,1],
+		plt,
+		tellwidth = false,
+		orientation = :horizontal,
+		titleposition = :left
+	)
+
+	
+	# Plot broken penny data
+	f1 = Figure()
+
+	plt = draw!(
+		f1[1,1], 
+		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data), 
+		scales(
+			Marker = (; palette = [:rect, :circle])
+		))
+
+	add_legend(f1, plt)
+
+	# Plot broken penny data and fit
+	f2 = Figure()
+
+	plt = draw!(
+		f2[1,1], 
+		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data + mp_fit), 
+		scales(
+			Marker = (; palette = [:rect, :circle]),
+			LineStyle = (; palette = [:dashdot, :dash])
+		))
+
+	add_legend(f2, plt)
+
+	# Plot broken penny data and fit and penny data
+	f3 = Figure()
+
+	plt = draw!(
+		f3[1,1], 
+		mp_hline + data(filter(x -> x.magnitude_penny == -0.01, test_sum_sum)) * (mp_data + mp_fit) + data(filter(x -> x.magnitude_penny == 0.01, test_sum_sum)) * (mp_data), 
+		scales(
+			Marker = (; palette = [:rect, :circle]),
+			LineStyle = (; palette = [:dashdot, :dash])
+		))
+
+	add_legend(f3, plt)
+	
+	f3
+
+end
+
 # ╔═╡ fcccb531-5d02-4391-b9f7-5c438da53da2
 let
 
-	fitted_vals = fitted(mm_test)
+	fitted_vals = fitted(mm_EV_optimality)
 	fp = insertcols(
 		test_data_clean,
 		:simuated => ifelse.(
@@ -714,13 +850,13 @@ let
 		:acc => "Prop. chosen high",
 		:se,
 		layout = :magnitude_low => nonnumeric
-	) * (visual(Errorbars) + visual(ScatterLines)) +
+	) * (visual(Errorbars) + visual(Scatter)) +
 	data(test_sum_sum) * mapping(
 		:magnitude_high => nonnumeric => "High magntidue",
 		:sim_acc => "Prop. chosen high",
 		:se,
 		layout = :magnitude_low => nonnumeric
-	) * (visual(Scatter, marker = :+))
+	) * (visual(Lines, linewidth = 1, linestyle = :dash, color = :grey))
 
 	draw(mp; axis = (; xticklabelrotation = 45))
 
@@ -742,5 +878,7 @@ end
 # ╠═6fae17be-871b-42b4-8c8a-b7f959cf4d01
 # ╠═c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # ╠═ea0f4939-d18f-4407-a13f-d5734cc608bb
+# ╠═c2d48fe0-d2a1-4c11-a5d7-95332dc78c70
+# ╠═044edab2-0e27-4a71-a60e-a78857a2290a
 # ╠═fcccb531-5d02-4391-b9f7-5c438da53da2
 # ╠═fcb0292e-8a86-40c7-a1da-b3f24fbbe492
