@@ -84,8 +84,8 @@ begin
 		@filter(n < most_common_n)
 	end
 	vigour_data = @chain raw_vigour_data begin
-		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
-		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
+		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
+		@filter(prolific_pid != "6721ec463c2f6789d5b777b5") # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
