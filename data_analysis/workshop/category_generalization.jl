@@ -441,6 +441,18 @@ let
 	)
 	
 	repeat_sum.diff = repeat_sum[!, Symbol("true")] .- repeat_sum[!, Symbol("false")]
+
+	# Save for correlation matrix
+	CSV.write(
+		"results/workshop/generalization_PILT_params.csv",
+		select(
+			repeat_sum,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:diff => :generalization_PILT_optimality_effect
+		)
+	)
+
 	
 	# Long to wide
 	repeat_sum = unstack(
@@ -451,7 +463,7 @@ let
 		renamecols = x -> "sess_$x"
 	)
 	
-	#Plot
+	# Plot
 	f = Figure()
 	workshop_reliability_scatter!(
 		f[1, 1];
@@ -478,6 +490,147 @@ let
 
 end
 
+# ╔═╡ dffb9490-15b3-46f3-9ad6-35dd95676998
+# Reliability of first trial in PILT - optimal reward - optimal punishment
+let  s = "2"
+	fs = []
+
+	# Run over sessions and parameters
+	for s in unique(PILT_data_clean.session)
+
+		# Select data and add half variable
+		first_trial = DataFrames.transform!(
+			filter(x -> !ismissing(x.repeating_chosen) && (x.trial == 1) && 
+				(x.session == s) && x.repeating_previous_optimal,
+				PILT_data_clean),
+			:block => (x -> ifelse.(
+				x .< (median(unique(x)) + 2),
+				fill(1, length(x)),
+				fill(2, length(x))
+			)) => :half
+		) 
+		
+		# Summarize repeating_chosen on 1st trial by participant, half, repeating_previous_optimal
+		repeat_sum = combine(
+			groupby(
+				first_trial, 
+				[:prolific_pid, :half, :previous_valence]),
+			:repeating_chosen => mean => :repeating_chosen
+		)
+	
+		# Long to wide
+		repeat_sum = unstack(
+			repeat_sum,
+			[:prolific_pid, :half],
+			:previous_valence,
+			:repeating_chosen
+		)
+	
+		repeat_sum.diff = repeat_sum[!, Symbol("1")] .- repeat_sum[!, Symbol("-1")]
+	
+		# Long to wide
+		repeat_sum = unstack(
+			repeat_sum,
+			[:prolific_pid],
+			:half,
+			:diff,
+			renamecols = x -> "half_$x"
+		)
+	
+		#Plot
+		f = Figure()
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = dropmissing(repeat_sum),
+			xcol = :half_1,
+			ycol = :half_2,
+			xlabel = "First half",
+			ylabel = "Second half",
+			subtitle = "Session $s reward - punishment generalization effect"
+		)
+
+		# Save plot
+		filepath = "results/workshop/generalization_PILT_sess$(s)_1st_trial_optimality_by_valence_splithalf.png"
+	
+		save(filepath, f)
+	
+		# upload_to_osf(
+		# 		filepath,
+		# 		proj,
+		# 		osf_folder
+		# )
+
+		push!(fs, f)
+	end
+
+	fs
+
+end
+
+# ╔═╡ e10aeb4a-1b33-40db-8ebb-3dbeb23a724e
+# Test-retest reliability of first trial in PILT - optimal reward - optimal punishment
+let
+	# Select data and add half variable
+	first_trial = DataFrames.transform!(
+		filter(x -> !ismissing(x.repeating_chosen) && (x.trial == 1) &&
+		x.repeating_previous_optimal,
+			PILT_data_clean)
+	) 
+	
+	# Summarize repeating_chosen on 1st trial by participant, half, repeating_previous_optimal
+	repeat_sum = combine(
+		groupby(
+			first_trial, 
+			[:prolific_pid, :session, :previous_valence]),
+		:repeating_chosen => mean => :repeating_chosen
+	)
+
+	# Long to wide
+	repeat_sum = unstack(
+		repeat_sum,
+		[:prolific_pid, :session],
+		:previous_valence,
+		:repeating_chosen
+	)
+	
+	repeat_sum.diff = repeat_sum[!, Symbol("1")] .- repeat_sum[!, Symbol("-1")]
+	
+	# Long to wide
+	repeat_sum = unstack(
+		repeat_sum,
+		[:prolific_pid],
+		:session,
+		:diff,
+		renamecols = x -> "sess_$x"
+	)
+	
+	#Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = dropmissing!(repeat_sum),
+		xcol = :sess_1,
+		ycol = :sess_2,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Choice of previous optimal stimuli reward - punishment"
+	)
+	
+	# # Save plot
+	# filepath = "results/workshop/generalization_PILT_1st_trial_optimality_test_retest.png"
+	
+	# save(filepath, f)
+	
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+
+	f
+
+end
+
 # ╔═╡ Cell order:
 # ╠═c4f778a8-a207-11ef-1db0-f57fc0a2a769
 # ╠═d6f8130a-3527-4c89-aff2-0c0e64d494d9
@@ -488,3 +641,5 @@ end
 # ╠═3cb8fb6f-7457-499d-9aad-47e0f2e8ec5c
 # ╠═4f4995a7-0582-43d8-899d-0ed899d8fa73
 # ╠═69fd4fa3-f5da-4d63-b132-e3b2903293dd
+# ╠═dffb9490-15b3-46f3-9ad6-35dd95676998
+# ╠═e10aeb4a-1b33-40db-8ebb-3dbeb23a724e
