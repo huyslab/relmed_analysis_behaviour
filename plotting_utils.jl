@@ -1,27 +1,48 @@
 # Functions for plotting data and simulations
-
 """
-reorder_bands_lines!(f::Figure)
+    extract_axis(f::GridPosition) -> Axis
 
-Reorders a bands and lines plot such that the band and line for each subgroup are plotted sequentially.
+Extracts the first `Axis` from the given `GridPosition`. If the first content of the 
+`GridPosition` is itself an `Axis`, it is returned directly. Otherwise, it recursively 
+extracts the first `Axis` from the nested contents.
 
 # Arguments
-- `f::Figure`: The figure containing the plots to be reordered.
+- `f::GridPosition`: The grid position from which to extract the axis.
+
+# Returns
+- `Axis`: The extracted axis object.
+"""
+function extract_axis(f::GridPosition)
+
+	# Get contents
+	axis = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(axis, Axis)
+		return axis
+	else
+		return contents(axis)[1]
+	end
+end
+
+"""
+    reorder_bands_lines!(f::GridPosition)
+
+Reorders a bands and lines plot within a `GridPosition` such that the band and line for each subgroup 
+are plotted sequentially.
+
+# Arguments
+- `f::GridPosition`: The grid position containing the plots to be reordered.
 
 # Description
-This function reorders the plots in the provided `Figure` such that bands and lines for each subgroup are plotted one after the other. It assumes that the plots are initially ordered with bands followed by lines for each subgroup, and it reorders them by adjusting their z-values to ensure the desired sequential order.
+This function reorders the plots in the provided `GridPosition` by adjusting their z-values, ensuring 
+that bands and lines for each subgroup are plotted in an alternating sequence. It assumes that the plots 
+are initially ordered with all bands followed by all lines (or vice versa) and validates this structure before reordering.
 """
 function reorder_bands_lines!(f::GridPosition)
 
 	# Get plots
-	plots = contents(f)[1]
-
-	# Allow for plotting straight into plot, or to grid position
-	if isa(plots, Axis)
-		plots = plots.scene.plots
-	else
-		plots = contents(plots)[1].scene.plots
-	end
+	plots = extract_axis(f).scene.plots
 
 	n = length(plots)
 
