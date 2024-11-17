@@ -426,6 +426,14 @@ begin
 	nothing;
 end
 
+# ╔═╡ 243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
+begin
+	@chain vigour_data begin
+		@filter(press_per_sec > 11)
+		@count(prolific_pid)
+	end
+end
+
 # ╔═╡ 0312ce5f-be36-4d9b-aee3-04497f846537
 let
 	n_miss_df = @chain vigour_data begin
@@ -832,9 +840,9 @@ end
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
-# ╠═d3a5d834-1c23-4882-adc9-c4d9571e7f71
 # ╠═7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
-# ╠═0312ce5f-be36-4d9b-aee3-04497f846537
+# ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
+# ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╠═814aec54-eb08-4627-9022-19f41bcdac9f
 # ╠═3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1

@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "d132e90a4e695b106b67082a89a7ad9c599845f2"
+project_hash = "b6720d319b6ca81f856b61fcc3d0fc06c66c4fe5"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "eea5d80188827b35333801ef97a40c2ed653b081"
@@ -289,9 +289,9 @@ version = "0.2.14"
 
 [[deps.BSplineKit]]
 deps = ["ArrayLayouts", "BandedMatrices", "FastGaussQuadrature", "ForwardDiff", "LinearAlgebra", "PrecompileTools", "Random", "Reexport", "SparseArrays", "Static", "StaticArrays", "StaticArraysCore"]
-git-tree-sha1 = "79dba2b0d60f225f4660075cb0e9b4da9960042a"
+git-tree-sha1 = "15ab25b14c48783b1b73f80b14883fce7050daea"
 uuid = "093aae92-e908-43d7-9660-e50ee39d5a0a"
-version = "0.17.6"
+version = "0.17.7"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
