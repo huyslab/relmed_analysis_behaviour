@@ -70,9 +70,6 @@ PILT_data_clean = let
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
 end
 
-# ╔═╡ c1f763df-382a-4320-a12b-9a6a981f213e
-
-
 # ╔═╡ b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # Accuracy curveֿ
 let
@@ -738,7 +735,6 @@ end
 # ╠═595c642e-32df-448e-81cc-6934e2152d70
 # ╠═14a292db-43d4-45d8-97a5-37ffc03bdc5c
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
-# ╠═c1f763df-382a-4320-a12b-9a6a981f213e
 # ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
 # ╠═c40ea9ef-0d50-4889-a28a-778a14b0dec7
