@@ -411,9 +411,17 @@ md"""
 ### Vigour
 """
 
+# ╔═╡ d3a5d834-1c23-4882-adc9-c4d9571e7f71
+begin
+	@chain vigour_data begin
+		@filter(press_per_sec > 11)
+		@count(prolific_pid)
+	end
+end
+
 # ╔═╡ 7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 begin
-	filter!(x -> x.prolific_pid .!= "671139a20b977d78ec2ac1e0", vigour_data);
+	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"]), vigour_data);
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
@@ -470,7 +478,7 @@ md"""
 
 # ╔═╡ 43d5b727-9761-48e3-bbc6-89af0c4f3116
 begin
-	filter!(x -> x.prolific_pid .!= "671139a20b977d78ec2ac1e0", PIT_data);
+	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"]), PIT_data);
 	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
@@ -657,9 +665,6 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
-# ╔═╡ b2d073de-13cf-4cb2-926c-4bb5e18350d6
-filter(x -> x.prolific_pid == "672b60eb227e2b01fd1f88b5", p_sum)
-
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(filter(x -> occursin("2024-11-11", x.exp_start_time), p_sum))
 	if r.total_bonus > 0.
@@ -812,7 +817,6 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-# ╠═b2d073de-13cf-4cb2-926c-4bb5e18350d6
 # ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 # ╠═31792570-9a09-45df-90a6-287f1bd55929
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -828,13 +832,14 @@ end
 # ╟─1d1d6d79-5807-487f-8b03-efb7d0898ae8
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
-# ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
-# ╟─0312ce5f-be36-4d9b-aee3-04497f846537
+# ╠═d3a5d834-1c23-4882-adc9-c4d9571e7f71
+# ╠═7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+# ╠═0312ce5f-be36-4d9b-aee3-04497f846537
 # ╠═814aec54-eb08-4627-9022-19f41bcdac9f
-# ╟─3d05e879-aa5c-4840-9f4f-ad35b8d9519a
+# ╠═3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
-# ╟─43d5b727-9761-48e3-bbc6-89af0c4f3116
-# ╟─89258a40-d4c6-4831-8cf3-d69d984c4f6e
+# ╠═43d5b727-9761-48e3-bbc6-89af0c4f3116
+# ╠═89258a40-d4c6-4831-8cf3-d69d984c4f6e
 # ╠═a6794b95-fe5e-4010-b08b-f124bff94f9f
 # ╠═8f6d8e98-6d73-4913-a02d-97525176549a
 # ╠═ffd08086-f12c-4b8a-afb6-435c8729241e
