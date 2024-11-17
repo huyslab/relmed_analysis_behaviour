@@ -402,11 +402,11 @@ let  s = "2"
 	
 		save(filepath, f)
 	
-		upload_to_osf(
-				filepath,
-				proj,
-				osf_folder
-		)
+		# upload_to_osf(
+		# 		filepath,
+		# 		proj,
+		# 		osf_folder
+		# )
 
 		push!(fs, f)
 	end
@@ -416,19 +416,12 @@ let  s = "2"
 end
 
 # ╔═╡ 69fd4fa3-f5da-4d63-b132-e3b2903293dd
-# ╠═╡ disabled = true
-#=╠═╡
 # Test-retest reliability of first trial in PILT
 let
 	# Select data and add half variable
 	first_trial = DataFrames.transform!(
 		filter(x -> !ismissing(x.repeating_chosen) && (x.trial == 1),
-			PILT_data_clean),
-		:block => (x -> ifelse.(
-			x .< (median(unique(x)) + 2),
-			fill(1, length(x)),
-			fill(2, length(x))
-		)) => :half
+			PILT_data_clean)
 	) 
 	
 	# Summarize repeating_chosen on 1st trial by participant, half, repeating_previous_optimal
@@ -441,10 +434,10 @@ let
 
 	# Long to wide
 	repeat_sum = unstack(
-	repeat_sum,
-	[:prolific_pid, :session],
-	:repeating_previous_optimal,
-	:repeating_chosen
+		repeat_sum,
+		[:prolific_pid, :session],
+		:repeating_previous_optimal,
+		:repeating_chosen
 	)
 	
 	repeat_sum.diff = repeat_sum[!, Symbol("true")] .- repeat_sum[!, Symbol("false")]
@@ -462,7 +455,7 @@ let
 	f = Figure()
 	workshop_reliability_scatter!(
 		f[1, 1];
-		df = repeat_sum,
+		df = dropmissing!(repeat_sum),
 		xcol = :sess_1,
 		ycol = :sess_2,
 		xlabel = "Session 1",
@@ -475,14 +468,15 @@ let
 	
 	save(filepath, f)
 	
-	# upload_to_osf(
-	# 		filepath,
-	# 		proj,
-	# 		osf_folder
-	# )
+	upload_to_osf(
+			filepath,
+			proj,
+			osf_folder
+	)
+
+	f
 
 end
-  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═c4f778a8-a207-11ef-1db0-f57fc0a2a769
