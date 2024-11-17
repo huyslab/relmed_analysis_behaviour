@@ -810,8 +810,56 @@ let
 	# Link axes
 	linkaxes!(extract_axis.([f1[1,1], f2[1,1], f3[1,1], f4[1,1]])...)
 
+	# Save
+	filepaths = ["results/workshop/test_PILT_pennies_$(f).png" 
+		for f in ["negative_data", "negative_all", "negative_all_positive_data", "all_all"]
+	]
+
+	for (fp, f) in zip(filepaths, [f1, f2, f3, f4])
+		
+		save(fp, f, pt_per_unit = 1)
+
+		upload_to_osf(
+			fp,
+			proj,
+			osf_folder
+		)
+	end
+
 	f1, f2, f3, f4
 
+end
+
+# ╔═╡ f59f5b19-b64a-474f-971e-bcbfca3f38f0
+# Compute percent chosen penny vs broken penny
+let
+
+	# Get predicted values
+	fitted_vals = fitted(mm_EV_optimality)
+
+	# Combine into real data DataFrame
+	forplot = insertcols(
+		test_data_clean,
+		:simuated => ifelse.(
+			test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
+			fitted_vals,
+			1. .- fitted_vals
+		)
+	)
+
+	# Choose only penny trial
+	forplot = filter(x -> all(abs.([x.magnitude_low, x.magnitude_high]) .== 0.01), forplot
+	)
+
+	# Summarize by participant and magnitudes
+	test_sum = combine(
+		groupby(forplot, :prolific_pid),
+		:high_chosen => mean => :high_chosen,
+		:simuated => mean => :sim_high_chosen
+	)
+
+	@info "Penny chosen %$(round(mean(test_sum.high_chosen) * 100, digits = 2)) of trials. Predicted: %$(round(mean(test_sum.sim_high_chosen) * 100, digits = 2))"
+	
 end
 
 # ╔═╡ Cell order:
@@ -830,4 +878,5 @@ end
 # ╠═c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # ╠═ea0f4939-d18f-4407-a13f-d5734cc608bb
 # ╠═c2d48fe0-d2a1-4c11-a5d7-95332dc78c70
+# ╠═f59f5b19-b64a-474f-971e-bcbfca3f38f0
 # ╠═fcb0292e-8a86-40c7-a1da-b3f24fbbe492
