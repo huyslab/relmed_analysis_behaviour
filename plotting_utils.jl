@@ -88,7 +88,7 @@ function workshop_reliability_scatter!(
 	ycol::Symbol = :y,
 	subtitle::String = "",
 	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Book = true # Whether to apply Spearman Brown
+	correct_r::Bool = true # Whether to apply Spearman Brown
 )	
 
 	# Compute correlation
