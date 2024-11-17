@@ -61,110 +61,6 @@ begin
 	nothing
 end
 
-# ╔═╡ b9b974ab-fc93-4d99-ad51-c61675147709
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest EV
-let
-
-	# Fit by EV and group
-	mm_tests = [fit(
-		MixedModel, 
-		@formula(right_chosen ~ 1 + empirical_EV_diff + 
-			(1 + empirical_EV_diff | prolific_pid)), 
-		filter(x -> x.session == s, test_data_clean), 
-		Bernoulli()
-	) for s in unique(test_data_clean.session)]
-
-	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
-
-	ranefs = innerjoin(
-		ranefs[1],
-		ranefs[2],
-		on = :prolific_pid,
-		makeunique = true
-	)
-
-	# Plot
-	f = Figure()
-	workshop_reliability_scatter!(
-		f[1, 1];
-		df = ranefs,
-		xcol = :empirical_EV_diff,
-		ycol = :empirical_EV_diff_1,
-		xlabel = "Session 1",
-		ylabel = "Session 2",
-		subtitle = "EV sensitivity",
-		correct_r = false
-	)
-
-	# Save plot
-	filepath = "results/workshop/test_PILT_sess$(s)_EV_sensitivity_test_retest.png"
-
-	save(filepath, f)
-
-	# upload_to_osf(
-	# 		filepath,
-	# 		proj,
-	# 		osf_folder
-	# )
-					
-	f
-end
-  ╠═╡ =#
-
-# ╔═╡ 6fae17be-871b-42b4-8c8a-b7f959cf4d01
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest optimality
-let
-
-	# Fit by EV and group
-	mm_tests = [fit(
-		MixedModel, 
-		@formula(right_chosen ~ 1 + empirical_EV_diff + optimality_diff +
-			(1 + empirical_EV_diff + optimality_diff | prolific_pid)), 
-		filter(x -> x.session == s, test_data_clean), 
-		Bernoulli()
-	) for s in unique(test_data_clean.session)]
-
-	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_tests)
-
-	ranefs = innerjoin(
-		ranefs[1],
-		ranefs[2],
-		on = :prolific_pid,
-		makeunique = true
-	)
-
-	# Plot
-	f = Figure()
-	workshop_reliability_scatter!(
-		f[1, 1];
-		df = ranefs,
-		xcol = :optimality_diff,
-		ycol = :optimality_diff_1,
-		xlabel = "Session 1",
-		ylabel = "Session 2",
-		subtitle = "Learning context bias",
-		correct_r = false
-	)
-
-	# Save plot
-	filepath = "results/workshop/test_PILT_sess$(s)_optimality_bias_test_retest.png"
-
-	save(filepath, f)
-
-	# upload_to_osf(
-	# 		filepath,
-	# 		proj,
-	# 		osf_folder
-	# )
-					
-	f
-end
-  ╠═╡ =#
-
 # ╔═╡ fcb0292e-8a86-40c7-a1da-b3f24fbbe492
 function compute_optimality(data::AbstractDataFrame)
 	
@@ -208,12 +104,11 @@ test_data_clean = let
 
 	# Remove people who didn't finish
 	DataFrames.transform!(
-		groupby(test_data_clean, :prolific_pid),
+		groupby(test_data_clean, [:session, :prolific_pid]),
 		:trial => length => :n_trials
 	)
 
 	filter!(x -> x.n_trials == 40, test_data_clean)
-
 
 	# Remove missing values
 	filter!(x -> !isnothing(x.response), test_data_clean)
@@ -325,8 +220,8 @@ test_data_clean = let
 	# Add even/odd variable
 	test_data_clean.evenodd = ifelse.(
 		iseven.(test_data_clean.trial),
-		"even",
-		"odd"
+		1,
+		2
 	)
 
 	test_data_clean
@@ -404,6 +299,60 @@ let
 	fs
 end
 
+# ╔═╡ 375bffca-9073-4a3d-8b68-b1474bb2591c
+# Fit EV sensitivity by session
+mm_EV_sess = let
+	# Fit by EV and group
+	mm_EV_sess = [fit(
+		MixedModel, 
+		@formula(right_chosen ~ 1 + empirical_EV_diff + 
+			(1 + empirical_EV_diff | prolific_pid)), 
+		filter(x -> x.session == s, test_data_clean), 
+		Bernoulli()
+	) for s in unique(test_data_clean.session)]
+
+end
+
+# ╔═╡ b9b974ab-fc93-4d99-ad51-c61675147709
+# Test retest EV
+let
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_EV_sess)
+
+	# Join for plotting
+	ranefs = innerjoin(
+		ranefs[1],
+		ranefs[2],
+		on = :prolific_pid,
+		makeunique = true
+	)
+
+	# Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = ranefs,
+		xcol = :empirical_EV_diff,
+		ycol = :empirical_EV_diff_1,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "EV sensitivity",
+		correct_r = false
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_EV_sensitivity_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+					
+	f
+end
+
 # ╔═╡ a4792246-baac-4972-98c7-1c20d7079046
 # Splithalf optimality
 let
@@ -472,6 +421,59 @@ let
 	end
 		
 	fs
+end
+
+# ╔═╡ 71471faf-8acc-48f9-8535-7ec9eaef0429
+# Fit EV and optimality by session
+mm_test_EV_optimality_sess = let
+	# Fit by EV and optimality
+	mm_tests = [fit(
+		MixedModel, 
+		@formula(right_chosen ~ 1 + empirical_EV_diff + optimality_diff +
+			(1 + empirical_EV_diff + optimality_diff | prolific_pid)), 
+		filter(x -> x.session == s, test_data_clean), 
+		Bernoulli()
+	) for s in unique(test_data_clean.session)]
+end
+
+# ╔═╡ 6fae17be-871b-42b4-8c8a-b7f959cf4d01
+# Test retest optimality
+let
+
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_test_EV_optimality_sess)
+
+	ranefs = innerjoin(
+		ranefs[1],
+		ranefs[2],
+		on = :prolific_pid,
+		makeunique = true
+	)
+
+	# Plot
+	f = Figure()
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = ranefs,
+		xcol = :optimality_diff,
+		ycol = :optimality_diff_1,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Learning context bias",
+		correct_r = false
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_optimality_bias_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+					
+	f
 end
 
 # ╔═╡ c54f34a1-c6bb-4236-a491-25e7a0b96da4
@@ -862,6 +864,246 @@ let
 	
 end
 
+# ╔═╡ f5268ffc-ccd3-4e5e-ba4d-ceb52467741f
+# Split half reliability of penny difference
+let
+
+	fs = []
+
+	for s in unique(test_data_clean.session)
+
+		for (sp, labs) in zip([:block, :evenodd], [["First half", "Second half"], ["Even trials", "Odd trials"]])
+	
+			pence = []
+			
+			for (p, n) in zip([0.01, -0.01], ["penny", "broken_penny"])
+		
+				# Select relevant trials
+				penny = filter(x -> 
+					(x.session == s) &&
+					(p in [x.magnitude_right, x.magnitude_left]), 
+					test_data_clean
+				)
+		
+				# Compute penny chosen
+				penny.penny_chosen = ifelse.(
+					penny.magnitude_right .== p,
+					penny.right_chosen,
+					.!penny.right_chosen
+				)
+		
+				# Summarize by participant
+				penny_sum = combine(
+					groupby(penny, [:prolific_pid, sp]),
+					:penny_chosen => mean => Symbol("$(n)_chosen")
+				)
+		
+				push!(pence, penny_sum)
+			end
+		
+			# Combine into single DataFrame
+			pence = innerjoin(
+				pence[1],
+				pence[2],
+				on = [:prolific_pid, sp]
+			)
+		
+			# Compute difference
+			pence.diff = pence.broken_penny_chosen .- pence.penny_chosen
+		
+			# Long to wide
+			pence = unstack(
+				pence,
+				:prolific_pid,
+				sp,
+				:diff,
+				renamecols = x -> "diff_$x"
+			)
+		
+			# Drop missing
+			dropmissing!(pence)
+		
+			# Plot
+			f = Figure()
+			
+			workshop_reliability_scatter!(
+				f[1, 1];
+				df = pence,
+				xcol = :diff_1,
+				ycol = :diff_2,
+				xlabel = labs[1],
+				ylabel = labs[2],
+				subtitle = "Session $s broken penny bias"
+			)
+
+			# Save plot
+			filepath = "results/workshop/test_PILT_sess$(s)_penny_bias_splithalf_$(string(sp)).png"
+		
+			save(filepath, f)
+		
+			# upload_to_osf(
+			# 		filepath,
+			# 		proj,
+			# 		osf_folder
+			# )
+		
+			push!(fs, f)
+	
+		end
+	end
+
+	fs
+
+
+end
+
+# ╔═╡ 511ce7ed-0a7f-4069-b309-897a087f5411
+# Test retest reliability of penny difference
+f_pence, pence = let
+	
+	pence = []
+	
+	for (p, n) in zip([0.01, -0.01], ["penny", "broken_penny"])
+
+		# Select relevant trials
+		penny = filter(x -> 
+			(p in [x.magnitude_right, x.magnitude_left]), 
+			test_data_clean
+		)
+
+		# Compute penny chosen
+		penny.penny_chosen = ifelse.(
+			penny.magnitude_right .== p,
+			penny.right_chosen,
+			.!penny.right_chosen
+		)
+
+		# Summarize by participant
+		penny_sum = combine(
+			groupby(penny, [:prolific_pid, :session]),
+			:penny_chosen => mean => Symbol("$(n)_chosen")
+		)
+
+		push!(pence, penny_sum)
+	end
+
+	# Combine into single DataFrame
+	pence = innerjoin(
+		pence[1],
+		pence[2],
+		on = [:prolific_pid, :session]
+	)
+
+	# Compute difference
+	pence.diff = pence.broken_penny_chosen .- pence.penny_chosen
+
+	# Long to wide
+	pence_wide = unstack(
+		pence,
+		:prolific_pid,
+		:session,
+		:diff,
+		renamecols = x -> "diff_$x"
+	)
+
+	# Drop missing
+	dropmissing!(pence_wide)
+
+	# Plot
+	f = Figure()
+	
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = pence_wide,
+		xcol = :diff_1,
+		ycol = :diff_2,
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Broken penny bias"
+	)
+
+	# Save plot
+	filepath = "results/workshop/test_PILT_penny_bias_test_retest.png"
+
+	save(filepath, f)
+
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+
+	f, pence
+
+end
+
+# ╔═╡ ca634214-2653-4622-bb89-d3e57233ba72
+# Exprot params for correlation matrix
+let
+
+	# EV sensitivity
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_EV_sess)
+	params = vcat(
+		DataFrames.select(
+			ranefs[1],
+			:prolific_pid,
+			:prolific_pid => (x -> fill(1, length(x))) => :session,
+			:empirical_EV_diff => :PILT_rest_EV_sensitivity,
+		),
+		DataFrames.select(
+			ranefs[2],
+			:prolific_pid,
+			:prolific_pid => (x -> fill(2, length(x))) => :session,
+			:empirical_EV_diff => :PILT_rest_EV_sensitivity
+		)
+	)
+
+	# Optimality bias
+	ranefs = (f -> DataFrame(raneftables(f).prolific_pid)).(mm_test_EV_optimality_sess)
+	opt_bias = vcat(
+		DataFrames.select(
+			ranefs[1],
+			:prolific_pid,
+			:prolific_pid => (x -> fill(1, length(x))) => :session,
+			:optimality_diff => :PILT_rest_learning_context_bias
+		),
+		DataFrames.select(
+			ranefs[2],
+			:prolific_pid,
+			:prolific_pid => (x -> fill(2, length(x))) => :session,
+			:empirical_EV_diff => :PILT_rest_learning_context_bias,
+		)
+	)
+
+	pre_join_nrow = nrow(params)
+	params = outerjoin(
+		params,
+		opt_bias,
+		on = [:prolific_pid, :session]
+	)
+
+	@assert nrow(params) == pre_join_nrow
+
+	# Broken penny bias
+	pre_join_nrow = nrow(params)
+	params = outerjoin(
+		params,
+		select(
+			pence,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:diff => :PILT_test_broken_penny_bias
+		),
+		on = [:prolific_pid, :session]
+	)
+	
+	@assert nrow(params) == pre_join_nrow
+
+	CSV.write("results/workshop/PILT_test_params.csv")
+
+
+end
+
 # ╔═╡ Cell order:
 # ╠═926b1c86-a34a-11ef-1787-03cf4275cddb
 # ╠═56cafcfb-90c3-4310-9b19-aac5ec231512
@@ -872,11 +1114,16 @@ end
 # ╠═50f853c8-8e24-4bd8-bb66-9f25e92d0b4b
 # ╠═3d3c637f-6278-4f54-acbb-9ff06e8b459b
 # ╠═33811ec9-f7c1-499d-9d9d-1a83951004a0
+# ╠═375bffca-9073-4a3d-8b68-b1474bb2591c
 # ╠═b9b974ab-fc93-4d99-ad51-c61675147709
 # ╠═a4792246-baac-4972-98c7-1c20d7079046
+# ╠═71471faf-8acc-48f9-8535-7ec9eaef0429
 # ╠═6fae17be-871b-42b4-8c8a-b7f959cf4d01
 # ╠═c54f34a1-c6bb-4236-a491-25e7a0b96da4
 # ╠═ea0f4939-d18f-4407-a13f-d5734cc608bb
 # ╠═c2d48fe0-d2a1-4c11-a5d7-95332dc78c70
 # ╠═f59f5b19-b64a-474f-971e-bcbfca3f38f0
+# ╠═f5268ffc-ccd3-4e5e-ba4d-ceb52467741f
+# ╠═511ce7ed-0a7f-4069-b309-897a087f5411
+# ╠═ca634214-2653-4622-bb89-d3e57233ba72
 # ╠═fcb0292e-8a86-40c7-a1da-b3f24fbbe492
