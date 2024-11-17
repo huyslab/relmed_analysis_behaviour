@@ -340,7 +340,7 @@ end
 
 # ╔═╡ 4f4995a7-0582-43d8-899d-0ed899d8fa73
 # Reliability of first trial in PILT
-let 
+let  s = "2"
 	fs = []
 
 	# Run over sessions and parameters
@@ -389,7 +389,7 @@ let
 		f = Figure()
 		workshop_reliability_scatter!(
 			f[1, 1];
-			df = repeat_sum,
+			df = dropmissing(repeat_sum),
 			xcol = :half_1,
 			ycol = :half_2,
 			xlabel = "First half",
@@ -402,16 +402,16 @@ let
 	
 		save(filepath, f)
 	
-		# upload_to_osf(
-		# 		filepath,
-		# 		proj,
-		# 		osf_folder
-		# )
+		upload_to_osf(
+				filepath,
+				proj,
+				osf_folder
+		)
 
 		push!(fs, f)
 	end
 
-	fs[1]
+	fs
 
 end
 
