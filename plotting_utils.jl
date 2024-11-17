@@ -64,8 +64,8 @@ Creates a scatter plot with a regression line and a unit line on a given grid po
 # Arguments
 - `f::GridPosition`: The grid position to draw the plot on.
 - `df::AbstractDataFrame`: The data frame containing the data to be plotted.
-- `xlabel::String`: Label for the x-axis.
-- `ylabel::String`: Label for the y-axis.
+- `xlabel::AbstractString`: Label for the x-axis.
+- `ylabel::AbstractString`: Label for the y-axis.
 - `xcol::Symbol = :x`: The column symbol for x-axis values in `df`.
 - `ycol::Symbol = :y`: The column symbol for y-axis values in `df`.
 - `subtitle::String = ""`: Subtitle for the plot.
@@ -82,11 +82,11 @@ The function computes the Spearman-Brown corrected correlation between `xcol` an
 function workshop_reliability_scatter!(
 	f::GridPosition;
 	df::AbstractDataFrame,
-	xlabel::String,
-	ylabel::String,
+	xlabel::AbstractString,
+	ylabel::AbstractString,
 	xcol::Symbol = :x,
 	ycol::Symbol = :y,
-	subtitle::String = "",
+	subtitle::AbstractString = "",
 	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
 	correct_r::Bool = true # Whether to apply Spearman Brown
 )	
