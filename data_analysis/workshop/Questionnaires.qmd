@@ -1,0 +1,393 @@
+---
+title: "Questionnaire analyses"
+author: "Haoyang"
+format:
+    html:
+        toc: true
+        embed-resources: true
+editor: visual
+---
+
+## Importing all the data
+
+This includes:
+
+1.  PILT
+2.  Vigour
+3.  PIT
+4.  WM
+5.  Reversal
+6.  Generalization
+7.  Questionnaires
+
+```{r}
+library(tidyverse)
+library(here)
+
+theme_set(theme_minimal(base_size = 11))
+
+# # PILT
+pilt <- read_csv(here("results", "workshop", "PILT_params.csv")) %>%
+    full_join(read_csv(here("results", "workshop", "PILT_test_params.csv")))
+
+# Vigour
+vigour <- read_csv(here("results", "workshop", "vigour_measures.csv"))
+
+# PIT
+pit <- read_csv(here("results", "workshop", "pit_measures.csv"))
+
+# # WM
+# wm <- read_csv(here("results", "workshop", "wm.csv"))
+
+# Reversal
+reversal <- read_csv(here("results", "workshop", "reversal_params.csv"))
+
+# Generalization
+generalization <- read_csv(here("results", "workshop", "generalization_PILT_params.csv"))
+
+# Questionnaire
+qn <- read_csv(here("data", "questionnaire_score_data.csv"))
+```
+
+Now join them all together
+
+```{r}
+full_df <- reduce(list(pilt, vigour, pit, reversal, generalization, qn), full_join) %>% 
+    arrange(prolific_pid, session)
+two_session_sub <- count(full_df, prolific_pid) %>% 
+    filter(n == 2)
+```
+
+## Questionnaires
+
+### Catch questions
+
+-   BADS: "I was able to lift my coffee cup or water glass when drinking."
+
+<!-- -->
+
+-   GAD: "Worrying about the 1974 Eurovision Song Contest"
+
+-   PVSS: "I wished to engage in enjoyable activities with people I'm close to" =\> "I <u>wanted</u> to participate in a fun activity with friends"
+
+-   PHQ: "Experiencing sadness or a sense of despair" =\> "Feeling down, depressed, or hopeless"
+
+```{r}
+qn %>% 
+    select(prolific_pid, session, ends_with("fail_catch")) %>% 
+    pivot_longer(ends_with("fail_catch"), names_to = "questionnaire", values_to = "failed", names_pattern = "(.+)_fail_catch") %>% 
+    mutate(questionnaire = str_to_upper(questionnaire)) %>% 
+    ggplot(aes(x = questionnaire, fill = failed)) +
+    geom_bar(position = position_fill(), width = 0.7) +
+    facet_grid(session ~ ., labeller = label_both) +
+    scale_x_discrete() +
+    scale_fill_brewer(type = "qual", palette = 3, labels = c("Pass", "Fail")) +
+    labs(x = "Questionnaire", y = "# Participant", fill = "Catch question")
+```
+
+### Test-retest reliability of questionnaires
+
+```{r}
+library(correlation)
+score_df <- qn %>% 
+    # mutate(WSAS_nojob = as.integer(WSAS_nojob)) %>% 
+    select(-exp_start_time, -ends_with("fail_catch"), -ends_with("_n", ignore.case = F)) %>% 
+    # semi_join(two_session_sub) %>% 
+    arrange(session, prolific_pid) %>% 
+    pivot_wider(names_from = session, values_from = phd_total:last_col(), names_prefix = "s")
+
+cor_obj <- correlation(
+    data = score_df %>% select(ends_with("s1")),
+    data2 = score_df %>% select(ends_with("s2"))
+    )
+cor_obj %>% 
+    filter(str_remove(Parameter1, "_s1") == str_remove(Parameter2, "_s2")) %>% 
+    arrange(r) %>% 
+    display()
+```
+
+### Between-questionnaire correlations
+
+#### Full scales
+
+```{r}
+q_q_corr_plot <- function(df,
+                          .session = NULL,
+                          only_total = F,
+                          fail_cutoff = 0,
+                          ...) {
+    
+    filtered_df <- df %>%
+        rowwise() %>%
+        filter(sum(c_across(ends_with("fail_catch"))) <= fail_cutoff) %>%
+        ungroup()
+    
+    if (is.null(.session)) {
+        df2 <- filtered_df %>%
+            select(-"WSAS_nojob") %>%
+            group_by(prolific_pid) %>%
+            summarize(across(everything(), mean)) %>%
+            ungroup()
+    } else {
+        df2 <- filtered_df %>%
+            filter(session == .session)
+    }
+    
+    df2 <- df2  %>% 
+        select(
+            -ends_with("_n", ignore.case = F),
+            -prolific_pid,
+            -session,
+            -exp_start_time,
+            -ends_with("fail_catch")
+        )
+    
+    if (only_total) {
+        q_df <- select(df2, ends_with("total"))
+    } else {
+        q_df <- select(df2,
+                       -matches("^(vigour|pit|pilt|reversal|wm|generalization)"))
+    }
+
+    corr_p_recipe <- q_df %>% 
+        correlation(., ...) %>%
+        cor_sort(hclust_method = "ward.D2") %>%
+        summary(redundant = T) %>%
+        visualisation_recipe()
+    stars <- str_extract(corr_p_recipe[["l2"]]$data$Text, "\\*+")
+    stars <- replace(stars, is.na(stars), "")
+    corr_p_recipe[["l2"]]$data$Text <- paste0(corr_p_recipe[["l2"]]$data$r %>% sprintf(fmt = "%#.2f"), stars)
+    corr_p_recipe %>%
+        plot() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+```
+
+::: {.panel-tabset}
+## Session 1
+
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+#| fig-dpi: 300
+
+q_q_corr_plot(full_df, 1, fail_cutoff = 2)
+```
+
+## Session 2
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+#| fig-dpi: 300
+
+q_q_corr_plot(full_df, 2, fail_cutoff = 2)
+```
+
+## Session combined
+```{r}
+#| fig-width: 15
+#| fig-height: 15
+#| fig-dpi: 300
+
+q_q_corr_plot(full_df, NULL, fail_cutoff = 2)
+```
+
+:::
+
+#### Total scores
+
+::: {.panel-tabset}
+## Session 1
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+q_q_corr_plot(full_df, 1, only_total = T, fail_cutoff = 2)
+```
+
+## Session 2
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+q_q_corr_plot(full_df, 2, only_total = T, fail_cutoff = 2)
+```
+
+## Session combined
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+
+q_q_corr_plot(full_df, NULL, only_total = T, fail_cutoff = 2)
+```
+:::
+
+## Task-questionnaire correlations
+
+```{r}
+task_q_corr_plot <- function(df,
+                             .session = NULL,
+                             .task = NULL,
+                             only_total = T,
+                             fail_cutoff = 0,
+                             ...) {
+    
+    filtered_df <- df %>%
+        rowwise() %>%
+        filter(sum(c_across(ends_with("fail_catch"))) <= fail_cutoff) %>%
+        ungroup()
+    
+    if (is.null(.session)) {
+        df2 <- filtered_df %>%
+            select(-"WSAS_nojob") %>% 
+            group_by(prolific_pid) %>%
+            summarize(across(everything(), mean)) %>%
+            ungroup()
+    } else {
+        df2 <- filtered_df %>%
+            filter(session == .session)
+    }
+    
+    df2 <- df2 %>%
+        select(
+            -ends_with("_n", ignore.case = F),
+            -prolific_pid,
+            -exp_start_time,
+            -session,
+            -ends_with("fail_catch")
+        )
+    
+    if (is.null(.task)) {
+        task_df <- select(df2,
+                          matches("^(vigour|pit|pilt|reversal|wm|generalization)"))
+    } else {
+        task_df <- select(df2, starts_with(.task))
+    }
+    
+    if (only_total) {
+        q_df <- select(df2, ends_with("total"))
+    } else {
+        q_df <- select(
+            df2,
+            -matches("^(vigour|pit|pilt|reversal|wm|generalization)")
+        )
+    }
+    
+    corr_df <- correlation(q_df, task_df, ...)
+    n_obs <- range(corr_df$n_Obs)
+    corr_p_recipe <- corr_df %>%
+        summary() %>%
+        visualisation_recipe()
+    stars <- str_extract(corr_p_recipe[["l2"]]$data$Text, "\\*+")
+    stars <- replace(stars, is.na(stars), "")
+    corr_p_recipe[["l2"]]$data$Text <- paste0(corr_p_recipe[["l2"]]$data$r %>% sprintf(fmt = "%#.2f"), stars)
+    corr_p <- corr_p_recipe %>%
+        plot() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        labs(caption = glue::glue("# Obs: [{n_obs[1]}, {n_obs[2]}]"))
+    print(corr_p)
+    invisible(corr_df)
+}
+```
+
+::: {.panel-tabset}
+## Session 1
+
+```{r}
+#| fig-width: 20
+#| fig-height: 8
+
+task_q_corr_plot(full_df, .session = 1, only_total = T, fail_cutoff = 2, p_adjust = "none") # or use display() for printint out correlation data frame
+```
+
+## Session 2
+```{r}
+#| fig-width: 20
+#| fig-height: 8
+
+task_q_corr_plot(full_df, .session = 2, only_total = T, fail_cutoff = 2, p_adjust = "none")
+```
+
+## Session combined
+```{r}
+#| fig-width: 20
+#| fig-height: 8
+#| fig-dpi: 300
+task_q_corr_plot(full_df, .session = NULL, only_total = T, fail_cutoff = 2, p_adjust = "none")
+```
+
+:::
+
+## Between-task correlations
+
+```{r}
+task_task_corr_plot <- function(df, .session, fail_cutoff = 0, ...) {
+    filtered_df <- df %>%
+        rowwise() %>%
+        filter(sum(c_across(ends_with("fail_catch"))) <= fail_cutoff) %>%
+        ungroup()
+    if (is.null(.session)) {
+        df2 <- filtered_df %>%
+            # semi_join(two_session_sub) %>% 
+            group_by(prolific_pid) %>%
+            summarize(across(everything(), mean)) %>%
+            ungroup() %>%
+            select(matches("^(vigour|pit|pilt|reversal|wm|generalization)"))
+        
+    } else {
+        df2 <- filtered_df %>%
+            filter(session == .session) %>%
+            select(matches("^(vigour|pit|pilt|reversal|wm|generalization)"))
+    }
+    corr_df <- correlation(df2, ...)
+    n_obs <- range(corr_df$n_Obs)
+    corr_p_recipe <- corr_df %>%
+        cor_sort(hclust_method = "ward.D2") %>% 
+        summary(redundant = T) %>%
+        visualisation_recipe()
+    stars <- str_extract(corr_p_recipe[["l2"]]$data$Text, "\\*+")
+    stars <- replace(stars, is.na(stars), "")
+    corr_p_recipe[["l2"]]$data$Text <- paste0(corr_p_recipe[["l2"]]$data$r %>% sprintf(fmt = "%#.2f"), stars)
+    corr_p <- corr_p_recipe %>%
+        plot() +
+        labs(caption = glue::glue("# Obs: [{n_obs[1]}, {n_obs[2]}]")) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    print(corr_p)
+    invisible(corr_df)
+}
+```
+
+::: {.panel-tabset}
+## Session 1
+
+```{r}
+#| fig-width: 20
+#| fig-height: 20
+#| fig-dpi: 300
+
+task_task_corr_plot(full_df, .session = 1, fail_cutoff = 2) %>% 
+    invisible() # or use display() for printint out correlation data frame
+```
+
+
+## Session 2
+```{r}
+#| fig-width: 20
+#| fig-height: 20
+#| fig-dpi: 300
+
+
+task_task_corr_plot(full_df, .session = 2, fail_cutoff = 2) %>% 
+    invisible() # or use display() for printint out correlation data frame
+```
+
+## Session combined
+```{r}
+#| fig-width: 20
+#| fig-height: 20
+#| fig-dpi: 300
+
+task_task_corr_plot(full_df, .session = NULL, fail_cutoff = 2) %>% 
+    invisible() # or use display() for printint out correlation data frame
+```
+:::
