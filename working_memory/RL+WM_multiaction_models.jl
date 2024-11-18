@@ -128,7 +128,7 @@ end
 		if (i != N) && (data.block[i] == data.block[i+1])
             Qs[i + 1, :] = Qs[i, :] # store previous Q
 			Qs[i + 1, choice_idx] += (data.set_size[data.block[i]] == bss ? α1 : α2) * δ
-            Qs[i + 1, alt_idx] .-= (data.set_size[data.block[i]] == bss ? α1 : α2) * δ
+            Qs[i + 1, alt_idx] .-= (data.set_size[data.block[i]] == bss ? α1 : α2) * δ / length(alt_idx)
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
@@ -268,7 +268,7 @@ end
 		if (i != N) && (data.block[i] == data.block[i+1])
             Qs[i + 1, :] = Qs[i, :] # store previous Q
 			Qs[i + 1, choice_idx] += (data.set_size[data.block[i]] == bss ? α1 : α2) * δ
-            Qs[i + 1, alt_idx] .-= (data.set_size[data.block[i]] == bss ? α1 : α2) * δ
+            Qs[i + 1, alt_idx] .-= (data.set_size[data.block[i]] == bss ? α1 : α2) * δ / length(alt_idx)
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
@@ -507,7 +507,7 @@ end
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in outcomes, premultiply by ρ and wt
-    unq_outc = unique(data.outcomes)
+    unq_outc = [unique(data.outcomes)..., 0.505, -0.505]
     outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
     outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
@@ -550,7 +550,7 @@ end
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
         # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 #  [0.5, 1.0][mod(hash(i), 2) + 1]
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 0.505 # average of 1.0 and 0.01
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -615,7 +615,7 @@ end
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
-    unq_outc = unique(data.outcomes)
+    unq_outc = [unique(data.outcomes)..., 0.505, -0.505]
     outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
     outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
@@ -657,8 +657,7 @@ end
 
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
-        # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 #  [0.5, 1.0][mod(hash(i), 2) + 1]
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 0.505 # average of 1.0 and 0.01
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -896,8 +895,6 @@ end
     ),
     initial::Union{Nothing, Float64} = nothing
 )
-
-    # initial values
     # initial values
     n_options = size(data.outcomes, 2)
     aao = sum([
@@ -918,7 +915,7 @@ end
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
-    unq_outc = unique(data.outcomes)
+    unq_outc = [unique(data.outcomes)..., 0.505, -0.505]
     outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
     outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
@@ -961,7 +958,7 @@ end
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
         # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 #  [0.5, 1.0][mod(hash(i), 2) + 1]
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 0.505 # average of 1.0 and 0.01
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -1025,7 +1022,7 @@ end
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
-    unq_outc = unique(data.outcomes)
+    unq_outc = [unique(data.outcomes)..., 0.505, -0.505]
     outc_wts = unq_outc * ρ .* wt' # matrix of outcome weights
     outc_key = Dict(o => i for (i, o) in enumerate(unq_outc)) # map outcomes to indices
 
@@ -1068,7 +1065,7 @@ end
 		# Prediction error
         chce = data.outcomes[i, choice_1id]
         # use pseudorandom number generator because optimizer doesn't like rand() (computes is hash(i) even or odd + 1)
-        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 1.0 #  [0.5, 1.0][mod(hash(i), 2) + 1]
+        alt = abs(chce) >= 0.5 ? val * 0.01 : val * 0.505 # average of 1.0 and 0.01
 
         # Update Qs and Ws and decay Ws
         if (i != N) && (data.block[i] == data.block[i+1])
@@ -1121,6 +1118,11 @@ function unpack_data(data::DataFrame)
     feedback_suboptimal = n_subopt == 1 ? 
         data.feedback_suboptimal :
         hcat([data[!, "feedback_suboptimal$i"] for i in 1:n_subopt]...)
+
+    # renumber blocks if necessary to start at 1
+    if minimum(data.block) != 1
+        data.block .-= minimum(data.block) - 1
+    end
 
     data_tuple = (
         block = data.block, # length = number of trials

@@ -331,7 +331,7 @@ function exclude_double_takers!(df::DataFrame)
 	# Find earliert session
 	double_takers.date = parse_date.(double_takers.exp_start_time)
 
-	DataFrames.DataFrames.transform!(
+	DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
 		:session => length => :n,
 		:date => minimum => :first_date
@@ -362,10 +362,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24
 		on = [:prolific_pid, :session, 
 		:exp_start_time])
 
-	exclude_double_takers!(PLT_data_clean)
-
-	return PLT_data_clean
-
+	return exclude_double_takers!(PLT_data_clean)
 end
 
 function exclude_PLT_trials(PLT_data::DataFrame)
