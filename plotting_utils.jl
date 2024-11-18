@@ -100,7 +100,7 @@ function workshop_reliability_scatter!(
 	end
 
 	# Text
-	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
+	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
 
 	# Plot
 	mp = data(df) *
