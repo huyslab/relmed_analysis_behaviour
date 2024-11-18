@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM, MixedModels
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -214,14 +214,14 @@ let
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 
-	f = Figure()
-	draw!(f[1,1], mp, scales(Color = (; colormap = :roma)); 
+	f1 = Figure()
+	draw!(f1[1,1], mp, scales(Color = (; colormap = :roma)); 
 		axis = (; xticks = -3:5, yticks = 0:0.25:1.))
 
 	# Save
 	filepath = "results/workshop/reversal_acc_curve.png"
 
-	save(filepath, f)
+	save(filepath, f1)
 
 	# upload_to_osf(
 	# 	filepath,
@@ -229,7 +229,8 @@ let
 	# 	osf_folder
 	# )
 
-	f
+	f1
+
 end
 
 # ╔═╡ 518b2148-8d82-4135-96a8-5ce332c446a3
@@ -646,7 +647,7 @@ let
 		on = [:prolific_pid, :session]
 	)
 
-	CSV.write("results/workshop/reversal_params.csv")
+	CSV.write("results/workshop/reversal_params.csv", params)
 	
 
 end
