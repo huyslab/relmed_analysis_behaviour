@@ -262,7 +262,7 @@ let
 		
 		workshop_reliability_scatter!(
 			f[1, 1];
-			df = sum_post,
+			df = dropmissing!(sum_post),
 			xcol = :half_1,
 			ycol = :half_2,
 			xlabel = "First half",
@@ -291,8 +291,6 @@ let
 end
 
 # ╔═╡ b14b4021-7a41-4066-b38b-be70776eebb4
-# ╠═╡ disabled = true
-#=╠═╡
 # Test retest of mean, trials +2 - +4
 let
 
@@ -319,12 +317,13 @@ let
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
-		df = sum_post,
+		df = dropmissing!(sum_post),
 		xcol = :sess_1,
 		ycol = :sess_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Post reversal accuracy"
+		subtitle = "Post reversal accuracy",
+		correct_r = false
 	)
 
 	# Save
@@ -332,19 +331,14 @@ let
 
 	save(filepath, f)
 
-	# upload_to_osf(
-	# 	filepath,
-	# 	proj,
-	# 	osf_folder
-	# )
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
 
-	# Push for notebook plotting
-	push!(fs, f)
-
-	fs
-
+	f
 end
-  ╠═╡ =#
 
 # ╔═╡ d5996434-7bdc-4aa1-95f9-5e9223a6b08d
 # Logistic regression to recovery from reversal - split half
@@ -403,11 +397,11 @@ let
 	
 		save(filepath, f)
 	
-		# upload_to_osf(
-		# 	filepath,
-		# 	proj,
-		# 	osf_folder
-		# )
+		upload_to_osf(
+			filepath,
+			proj,
+			osf_folder
+		)
 
 		# Push for notebook plotting
 		push!(fs, f)
@@ -420,8 +414,6 @@ let
 end
 
 # ╔═╡ 6521764f-80cb-4c0a-90bb-09a40fe15136
-# ╠═╡ disabled = true
-#=╠═╡
 # Logistic regression to recovery from reversal - test retest
 let
 
@@ -461,12 +453,13 @@ let
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
-		df = post_coef,
+		df = dropmissing!(post_coef),
 		xcol = :sess_1,
 		ycol = :sess_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Post reversal recovery"
+		subtitle = "Post reversal recovery",
+		correct_r = false
 	)
 
 		# Save
@@ -474,16 +467,15 @@ let
 
 	save(filepath, f)
 
-	# upload_to_osf(
-	# 	filepath,
-	# 	proj,
-	# 	osf_folder
-	# )
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
 
 	f
 
 end
-  ╠═╡ =#
 
 # ╔═╡ 0cc9cab2-53e5-4049-8523-4f4bb4dfb5bb
 # Tell fitting functions the column names
@@ -576,8 +568,6 @@ QL_retest = let
 end
 
 # ╔═╡ 91fa774d-38d5-44ec-bc08-8b71dae24b9b
-# ╠═╡ disabled = true
-#=╠═╡
 # Test retest of QL parameters
 let
 	fs = []
@@ -603,13 +593,14 @@ let
 		# Plot
 		workshop_reliability_scatter!(
 			f[1, 1];
-			df = this_retest,
+			df = dropmissing!(this_retest),
 			xcol = Symbol("$(p)_1"),
 			ycol = Symbol("$(p)_2"),
 			xlabel = "First session",
 			ylabel = "Second session",
 			subtitle = st,
-			tickformat = tf
+			tickformat = tf,
+			correct_r = false
 		)
 
 		# Save
@@ -621,7 +612,6 @@ let
 	end
 	fs
 end
-  ╠═╡ =#
 
 # ╔═╡ f9008604-bdff-48e9-a3f0-058c4380a230
 # Fit logitic to reversal recover for export
