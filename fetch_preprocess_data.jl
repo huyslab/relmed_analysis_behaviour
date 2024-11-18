@@ -113,7 +113,7 @@ function REDCap_data_to_df(jspsych_data, records)
 	return jspsych_data
 end
 
-remove_testing!(data::DataFrame) = filter!(x -> !occursin(r"haoyang|yaniv|tore|demo|simulate", x.prolific_pid), data)
+remove_testing!(data::DataFrame) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|demo|simulate|debug", x.prolific_pid)) && (length(x.prolific_pid) > 10), data)
 
 # Filter PLT data
 function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
@@ -151,6 +151,8 @@ function load_pilot6_data(; force_download = false, return_version = "6.01")
 	else
 		JLD2.@load datafile jspsych_data
 	end
+
+	remove_testing!(jspsych_data)
 
 	# Subset version for return
 	filter!(x -> x.version == return_version, jspsych_data)
