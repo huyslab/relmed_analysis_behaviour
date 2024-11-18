@@ -30,21 +30,17 @@ begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
 	
-	th = Theme(
+	th = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 16,
 		Axis = (
-			xgridvisible = false,
-			ygridvisible = false,
-			rightspinevisible = false,
-			topspinevisible = false,
 			xticklabelsize = 14,
 			yticklabelsize = 14,
 			spinewidth = 1.5,
 			xtickwidth = 1.5,
 			ytickwidth = 1.5
 		)
-	)
+	))
 	set_theme!(th)
 end
 
@@ -581,6 +577,12 @@ let
 			filepath = "results/workshop/PILT_sess$(s)_$(string(p))_split_half.png"
 			save(filepath, f)
 
+			# upload_to_osf(
+			# 	filepath,
+			# 	proj,
+			# 	osf_folder
+			# )
+
 			# Push for plotting in notebook
 			push!(fs, f)
 		end
@@ -645,10 +647,60 @@ let
 		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
 		save(filepath, f)
 
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
+
+
 		# Push for plotting in notebook
 		push!(fs, f)
 	end
 	fs
+end
+
+# ╔═╡ 2dab4a83-73db-4bb0-bc44-1418d7e4582a
+# Bivariate distribution of parameters
+let
+	
+	mp = data(fits_retest) *
+	mapping(
+		:a => "Leraning rate",
+		:ρ => "Reward sensitivity",
+		color = :session => "Session",
+	) * visual(Scatter)
+
+	f = Figure()
+
+	plt = draw!(
+		f[1,1], 
+		mp; 
+		axis = (; 
+		xtickformat = x -> string.(round.(a2α.(x), digits = 2))
+		)
+	)
+
+	legend!(
+		f[0,1],
+		plt,
+		tellwidth = false,
+		orientation=:horizontal,
+		titleposition = :left
+	)
+
+	# Save
+	filepath = "results/workshop/PILT_bivariate_posterior.png"
+	save(filepath, f)
+
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
+
+
+	f
 end
 
 # ╔═╡ 0b3de2ef-84a7-4cf3-8aff-e587190060e1
@@ -862,6 +914,7 @@ end
 # ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
 # ╠═47046875-475e-4ff1-b626-7bc285f0aac7
 # ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
+# ╠═2dab4a83-73db-4bb0-bc44-1418d7e4582a
 # ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # ╠═f8e79974-c3a2-46f6-a760-f558733d9226
 # ╠═ac8a4d61-ba61-4635-96fa-4e6ee9769e5e
