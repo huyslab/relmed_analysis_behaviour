@@ -292,7 +292,7 @@ end
 
 # ╔═╡ b14b4021-7a41-4066-b38b-be70776eebb4
 # Test retest of mean, trials +2 - +4
-let
+f_sum_post, sum_post = let
 
 	# Summarize post reversal
 	sum_post = combine(
@@ -304,7 +304,7 @@ let
 	)
 
 	# Long to wide
-	sum_post = unstack(
+	sum_post_wide = unstack(
 		sum_post,
 		:prolific_pid,
 		:session,
@@ -317,7 +317,7 @@ let
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
-		df = dropmissing!(sum_post),
+		df = dropmissing!(sum_post_wide),
 		xcol = :sess_1,
 		ycol = :sess_2,
 		xlabel = "Session 1",
@@ -331,13 +331,13 @@ let
 
 	save(filepath, f)
 
-	upload_to_osf(
-		filepath,
-		proj,
-		osf_folder
-	)
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
 
-	f
+	f, sum_post
 end
 
 # ╔═╡ d5996434-7bdc-4aa1-95f9-5e9223a6b08d
@@ -415,7 +415,7 @@ end
 
 # ╔═╡ 6521764f-80cb-4c0a-90bb-09a40fe15136
 # Logistic regression to recovery from reversal - test retest
-let
+f_post_coef, post_coef = let
 
 	# Summarize post reversal
 	sum_post = combine(
@@ -440,7 +440,7 @@ let
 	)
 
 	# Long to wide
-	post_coef = unstack(
+	post_coef_wide = unstack(
 		post_coef,
 		:prolific_pid,
 		:session,
@@ -453,7 +453,7 @@ let
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
-		df = dropmissing!(post_coef),
+		df = dropmissing!(post_coef_wide),
 		xcol = :sess_1,
 		ycol = :sess_2,
 		xlabel = "Session 1",
@@ -467,13 +467,13 @@ let
 
 	save(filepath, f)
 
-	upload_to_osf(
-		filepath,
-		proj,
-		osf_folder
-	)
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
 
-	f
+	f, post_coef
 
 end
 
@@ -613,68 +613,38 @@ let
 	fs
 end
 
-# ╔═╡ f9008604-bdff-48e9-a3f0-058c4380a230
-# Fit logitic to reversal recover for export
-recovery_coef_export = let
-	# Summarize post reversal
-	sum_post = combine(
-		groupby(
-			filter(x -> (x.trial in 1:4), reversal_data_clean),
-			[:prolific_pid, :trial]
-		),
-		:response_optimal => mean => :acc,
-		:response_optimal => length => :n
-	)
-
-	# Zscore trial
-	sum_post.trial_s = (sum_post.trial .- mean(1:4)) ./ std(1:4)
-
-	# GLM fit function
-	glm_coef(dat) = coef(glm(@formula(acc ~ trial_s), dat, Binomial(), LogitLink(), wts = dat.n))[2]
-
-	# Fit per participant and half
-	post_coef = combine(
-		groupby(sum_post, :prolific_pid),
-		AsTable([:acc, :trial_s, :n]) => glm_coef => :reversal_recovery_logistic_β
-	)
-
-end
-
-# ╔═╡ e585fc0d-0775-4430-abb3-62ea835bdc83
-# Fit QL for export
-recip_QL_export = let
-	fit = optimize_multiple(
-			reversal_data_clean;
-			model = single_p_QL_recip,
-			priors = Dict(
-				:ρ => truncated(Normal(0., 5.), lower = 0.),
-				:a => Normal(0., 2.)
-			),
-			unpack_function = df -> unpack_single_p_QL(df; columns = reversal_columns),
-			grouping_col = :prolific_pid,
-			n_starts = 10
-	)
-
-	rename!(
-		fit,
-		:a => :reversal_recip_QL_a,
-		:ρ => :reversal_recip_QL_ρ,
-		:lp => :reversal_recip_QL_lp
-	)
-
-end
-
 # ╔═╡ 9e24120b-a105-4c0b-a37b-c85e4faadf7c
 # Export params
 let
-	params = innerjoin(
-		recip_QL_export,
-		recovery_coef_export,
-		on = :prolific_pid
+	# Combine all parameter dataframes exported previously
+	params = outerjoin(
+		select(
+			QL_retest,
+			:prolific_pid,
+			:session,
+			:a => :reversal_QL_recip_learning_rate_unconstrained,
+			:ρ => :reversal_QL_recip_reward_sensitivity,
+			:a => ByRow(a2α) => :reversal_QL_recip_learning_rate,
+		),
+		select(
+			sum_post,
+			:prolific_pid,
+			:session,
+			:acc => Symbol("reversal_accuracy_2-4_post_reversal")
+		),
+		on = [:prolific_pid, :session]
 	)
 
-	@assert (nrow(params) == nrow(recip_QL_export)) && 
-		(nrow(params) == nrow(recovery_coef_export))
+	params = outerjoin(
+		params,
+		select(
+			post_coef,
+			:prolific_pid,
+			:session,
+			:β => :reversal_logistic_slope_acc_post_reversal
+		),
+		on = [:prolific_pid, :session]
+	)
 
 	CSV.write("results/workshop/reversal_params.csv")
 	
@@ -698,6 +668,4 @@ end
 # ╠═b239a169-b284-4d7d-98a4-8f15961ebad7
 # ╠═34dcb1f1-3171-4a2d-a4f4-e9d880052d4f
 # ╠═91fa774d-38d5-44ec-bc08-8b71dae24b9b
-# ╠═f9008604-bdff-48e9-a3f0-058c4380a230
-# ╠═e585fc0d-0775-4430-abb3-62ea835bdc83
 # ╠═9e24120b-a105-4c0b-a37b-c85e4faadf7c
