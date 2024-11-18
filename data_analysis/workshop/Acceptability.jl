@@ -25,6 +25,16 @@ end
 set_theme!(theme_minimal();font = "Helvetica",
 		fontsize = 16)
 
+# ╔═╡ 23f4c513-c4af-4bde-adac-8cdd88e48333
+md"""
+## Acceptability ratings
+"""
+
+# ╔═╡ d71d62c5-f617-4a5a-a27c-8a9820347b76
+md"""
+## Time elapsed on each task
+"""
+
 # ╔═╡ 89099138-d976-4e09-9933-e992f9b65924
 begin
 	# Load data
@@ -117,7 +127,7 @@ function summarize_participation(data::DataFrame)
 
 	end
 	
-	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time]),
+	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time, :session]),
 		:trialphase => (x -> "experiment_end_message" in x) => :finished,
 		:trialphase => (x -> "kick-out" in x) => :kick_out,
 		:outcomes => extract_PILT_bonus => :PILT_bonus,
@@ -169,10 +179,33 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
+# ╔═╡ b083eaa9-9b09-423c-bc32-9c5f17a91391
+let
+	accept_data = @chain p_sum begin
+		@filter(!ismissing(finished) & finished)
+		@select(session, matches("_(difficulty|clear|enjoy)"))
+		@pivot_longer(-session, names_to = "item", values_to = "score")
+		@separate(item, [task, question], "_")
+	end
+	
+	figs = []
+	for t in unique(accept_data.task)
+		fig=Figure(;size=(6, 10) .* 144 ./ 2.54)
+		transform!(accept_data, :task => (x -> x .== t) => :highlight)
+		p = data(accept_data) * mapping(:task, :score; color=:highlight, group=:task, row=:question) * visual(RainClouds, orientation = :horizontal)
+		draw!(fig[1,1], p)
+		push!(figs, fig)
+	end
+	figs
+end
+
 # ╔═╡ Cell order:
 # ╠═fce1a1b4-a5cf-11ef-0068-c7282cd862f0
 # ╠═0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
+# ╟─23f4c513-c4af-4bde-adac-8cdd88e48333
+# ╠═b083eaa9-9b09-423c-bc32-9c5f17a91391
+# ╟─d71d62c5-f617-4a5a-a27c-8a9820347b76
 # ╠═89099138-d976-4e09-9933-e992f9b65924
 # ╠═06c55ad7-0a27-4d4a-9627-2ee36e164fcb
-# ╟─2481764a-be2c-413b-bd48-e460c00fe2ff
+# ╠═2481764a-be2c-413b-bd48-e460c00fe2ff
 # ╟─f51aa34a-5501-41f2-b12f-4340d0cdaf26
