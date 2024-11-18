@@ -51,7 +51,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      PHQ_catch =
           filter(x -> (x.trialphase .== "PHQ" && x.question in ["Q1", "Q8"]), questionnaire_data) |>
           x -> unstack(x, :question, :answer) |>
-               x -> transform(x, [:Q8, :Q1] => ByRow((x, y) -> abs(x - y) > 1) => :phq_fail_catch) |>
+               x -> DataFrames.transform(x, [:Q8, :Q1] => ByRow((x, y) -> abs(x - y) > 1) => :phq_fail_catch) |>
                     x -> select(x, Not([:trialphase, :Q8, :Q1]))
      PHQ = filter(x -> (x.trialphase .== "PHQ" && x.question .!= "Q8"), questionnaire_data) |>
            x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
@@ -62,7 +62,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      # Catch question: "Worrying about the 1974 Eurovision Song Contest"
      GAD_catch = filter(x -> (x.trialphase .== "GAD" && x.question in ["Q6"]), questionnaire_data) |>
                  x -> unstack(x, :question, :answer) |>
-                      x -> transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
+                      x -> DataFrames.transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
                            x -> select(x, Not([:trialphase, :Q6]))
      GAD = filter(x -> (x.trialphase .== "GAD" && x.question .!= "Q6"), questionnaire_data) |>
            x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
@@ -114,7 +114,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      ICECAP =
           filter(x -> (x.trialphase .== "ICECAP"), questionnaire_data) |>
           x ->
-               transform(x, [:question, :answer] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
+               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :tariff_score => sum => :icecap_total, :tariff_score => length => :icecap_n)
 
@@ -122,10 +122,10 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      BFI =
           filter(x -> (x.trialphase .== "BFI"), questionnaire_data) |>
           x ->
-               transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
+               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
-                    x -> transform(x,
+                    x -> DataFrames.transform(x,
                          [:Q0, :Q5] => (+) => :bfi_E,
                          [:Q1, :Q6] => (+) => :bfi_A,
                          [:Q2, :Q7] => (+) => :bfi_C,
@@ -139,11 +139,11 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      PVSS_catch =
           filter(x -> (x.trialphase .== "PVSS"), questionnaire_data) |>
           x ->
-               transform(x, :answer => (x -> x .+ 1) => :score) |>
+               DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
                     x ->
-                         transform(x,
+                         DataFrames.transform(x,
                               [:Q19, :Q13] => ByRow((x, y) -> abs(x - y) > 2) => :pvss_fail_catch,
                               [:Q3, :Q11, :Q13] => (+) => :pvss_valuation,
                               [:Q6, :Q8, :Q12, :Q18] => (+) => :pvss_expectancy,
@@ -155,7 +155,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
                          x -> select(x, Not(r"^Q"))
      PVSS =
           filter(x -> (x.trialphase .== "PVSS" && x.question .!= "Q19"), questionnaire_data) |>
-          x -> transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pvss_total, :score => length => :pvss_n)
      leftjoin!(PVSS, PVSS_catch, on=[:prolific_pid, :exp_start_time, :session])
@@ -165,18 +165,18 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      BADS_subscale =
           filter(x -> (x.trialphase .== "BADS"), questionnaire_data) |>
           x ->
-               transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
+               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
-                    x -> transform(x,
-                         [:Q6] => ByRow(!=(6)) => :bads_fail_catch,
+                    x -> DataFrames.transform(x,
+                         [:Q6] => ByRow(<(5)) => :bads_fail_catch,
                          [:Q0, :Q1, :Q2, :Q3, :Q4, :Q9] => (+) => :bads_ac,
                          [:Q5, :Q7, :Q8] => (+) => :bads_av,
                     ) |>
                          x -> select(x, Not(r"^Q"))
      BADS =
           filter(x -> (x.trialphase .== "BADS" && x.question .!= "Q6"), questionnaire_data) |>
-          x -> transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
+          x -> DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :bads_total, :score => length => :bads_n)
      leftjoin!(BADS, BADS_subscale, on=[:prolific_pid, :exp_start_time, :session])
@@ -184,21 +184,21 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      # Hopelessness: Higher, more helplessness; 2 * 1-5
      Hopelessness =
           filter(x -> (x.trialphase .== "Hopelessness"), questionnaire_data) |>
-          x -> transform(x, :answer => (x -> 5 .- x) => :score) |>
+          x -> DataFrames.transform(x, :answer => (x -> 5 .- x) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :hopeless_total, :score => length => :hopeless_n)
 
      # PERS: Higher, more negative activation; 5 * 1-5
      PERS =
           filter(x -> (x.trialphase .== "PERS_negAct"), questionnaire_data) |>
-          x -> transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pers_negact_total, :score => length => :pers_n)
 
      # RRS: Higher, more rumination - brooding; 5 * 1-4
      RRS =
           filter(x -> (x.trialphase .== "RRS_brooding"), questionnaire_data) |>
-          x -> transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :rrs_brooding_total, :score => length => :rrs_brooding_n)
 

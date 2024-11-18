@@ -37,3 +37,4 @@ Icon
 .dotnet/
 .ssh/
 .julia/logs/
+/data_analysis/workshop/*.html
