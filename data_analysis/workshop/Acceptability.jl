@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
@@ -25,6 +25,14 @@ end
 set_theme!(theme_minimal();font = "Helvetica",
 		fontsize = 16)
 
+# ╔═╡ caa2e442-9eff-4c4d-a6f2-b09cfccf2357
+begin
+	# Load data
+	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, 
+		reversal_data, jspsych_data = load_pilot6_data()
+	nothing
+end
+
 # ╔═╡ 23f4c513-c4af-4bde-adac-8cdd88e48333
 md"""
 ## Acceptability ratings
@@ -34,14 +42,6 @@ md"""
 md"""
 ## Time elapsed on each task
 """
-
-# ╔═╡ 89099138-d976-4e09-9933-e992f9b65924
-begin
-	# Load data
-	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
-	nothing
-end
 
 # ╔═╡ f51aa34a-5501-41f2-b12f-4340d0cdaf26
 """
@@ -180,7 +180,7 @@ begin
 end
 
 # ╔═╡ b083eaa9-9b09-423c-bc32-9c5f17a91391
-let
+accept_data = let
 	accept_data = @chain p_sum begin
 		@filter(!ismissing(finished) & finished)
 		@select(session, matches("_(difficulty|clear|enjoy)"))
@@ -188,12 +188,221 @@ let
 		@separate(item, [task, question], "_")
 	end
 	
+end
+
+# ╔═╡ 3f94af37-bc0d-4bd9-ba4c-5fa244e2b3a3
+let
 	figs = []
-	for t in unique(accept_data.task)
-		fig=Figure(;size=(6, 10) .* 144 ./ 2.54)
-		transform!(accept_data, :task => (x -> x .== t) => :highlight)
-		p = data(accept_data) * mapping(:task, :score; color=:highlight, group=:task, row=:question) * visual(RainClouds, orientation = :horizontal)
-		draw!(fig[1,1], p)
+
+	tasks = unique(accept_data.task)
+	
+	for (i, t) in enumerate(tasks)
+		
+		fig = Figure(size = (700, 200))
+
+		pdata = copy(accept_data)
+
+		transform!(pdata, 
+			:task => (x -> x .== t) => :highlight,
+			:score => (x -> x .+ 1) => :score
+		)
+
+		pdata.task = CategoricalArray(
+			pdata.task, 
+			levels = vcat(filter(x -> x != t, tasks), [t])
+		)
+		
+		p = 
+			data(pdata) * 
+			(
+				mapping(
+					:task => "", 
+					:score => "",
+					color = :highlight,
+					col = :question
+				) * 
+				visual(BoxPlot, orientation = :horizontal) 
+			)
+		
+		draw!(
+			fig[1,1], 
+			p, 
+			scales(
+				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
+				Y = (; 
+					palette = [1, 2, 3, 4, 6], 
+					categories = circshift(reverse([
+						"pilt" => "PILT",
+						"vigour" => "Vigour",
+						"pit" => "PIT",
+						"wm" => "WM",
+						"reversal" => "Reversal"
+					]), i-1)
+				),
+				Col = (;
+					categories = [
+						"clear" => "Clarity",
+						"difficulty" => "Difficulty",
+						"enjoy" => "Enjoyment"
+					]
+				)
+			); 
+			facet=(; linkxaxes=:none)
+		)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ 565e9389-f251-4df0-9e4d-8fab4e009611
+let
+	figs = []
+
+	tasks = unique(accept_data.task)
+	
+	for (i, t) in enumerate(tasks)
+		
+		fig = Figure(size = (700, 200))
+
+		pdata = combine(
+			groupby(accept_data, [:task, :question]),
+			:score => (x -> mean(x .+ 1)) => :score,
+			:score => (x -> sem(x .+ 1)) => :se,
+			:score => (x -> mean(x .+ 1) - lb(x .+ 1)) => :lb,
+			:score => (x -> ub(x .+ 1) - mean(x .+ 1)) => :ub,
+		)
+
+		transform!(pdata, :task => (x -> x .== t) => :highlight)
+
+		pdata.task = CategoricalArray(
+			pdata.task, 
+			levels = vcat(filter(x -> x != t, tasks), [t])
+		)
+		
+		p = 
+			data(pdata) * 
+			(
+				mapping(
+					:score => "",
+					:task => "", 
+					:lb,
+					:ub; 
+					color = :highlight,
+					col = :question
+				) * 
+				visual(Errorbars, direction = :x) +
+				mapping(
+					:score => "",
+					:task => "", 
+					color = :highlight,
+					col = :question
+				) * 
+				visual(Scatter)
+			)
+		
+		draw!(
+			fig[1,1], 
+			p, 
+			scales(
+				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
+				Y = (; 
+					palette = [1, 2, 3, 4, 6], 
+					categories = circshift(reverse([
+						"pilt" => "PILT",
+						"vigour" => "Vigour",
+						"pit" => "PIT",
+						"wm" => "WM",
+						"reversal" => "Reversal"
+					]), i-1)
+				),
+				Col = (;
+					categories = [
+						"clear" => "Clarity",
+						"difficulty" => "Difficulty",
+						"enjoy" => "Enjoyment"
+					]
+				)
+			); 
+			facet=(; linkxaxes=:none)
+		)
+		
+		push!(figs, fig)
+	end
+	figs
+end
+
+# ╔═╡ 864f7f16-7408-441c-89bf-c0e6894ffce4
+let
+	figs = []
+
+	tasks = unique(accept_data.task)
+	
+	for (i, t) in enumerate(tasks)
+		
+		fig = Figure(size = (700, 200))
+
+		pdata = combine(
+			groupby(accept_data, [:task, :question]),
+			:score => (x -> mean(x .+ 1)) => :score,
+			:score => (x -> sem(x .+ 1)) => :se,
+			:score => (x -> mean(x .+ 1) - lb(x .+ 1)) => :lb,
+			:score => (x -> ub(x .+ 1) - mean(x .+ 1)) => :ub,
+		)
+
+		transform!(pdata, :task => (x -> x .== t) => :highlight)
+
+		pdata.task = CategoricalArray(
+			pdata.task, 
+			levels = vcat(filter(x -> x != t, tasks), [t])
+		)
+		
+		p = 
+			data(pdata) * 
+			(
+				mapping(
+					:score => "",
+					:task => "", 
+					:se; 
+					color = :highlight,
+					col = :question
+				) * 
+				visual(Errorbars, direction = :x) +
+				mapping(
+					:score => "",
+					:task => "", 
+					color = :highlight,
+					col = :question
+				) * 
+				visual(Scatter)
+			)
+		
+		draw!(
+			fig[1,1], 
+			p, 
+			scales(
+				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
+				Y = (; 
+					palette = [1, 2, 3, 4, 6], 
+					categories = circshift(reverse([
+						"pilt" => "PILT",
+						"vigour" => "Vigour",
+						"pit" => "PIT",
+						"wm" => "WM",
+						"reversal" => "Reversal"
+					]), i-1)
+				),
+				Col = (;
+					categories = [
+						"clear" => "Clarity",
+						"difficulty" => "Difficulty",
+						"enjoy" => "Enjoyment"
+					]
+				)
+			); 
+			facet=(; linkxaxes=:none)
+		)
+		
 		push!(figs, fig)
 	end
 	figs
@@ -202,10 +411,13 @@ end
 # ╔═╡ Cell order:
 # ╠═fce1a1b4-a5cf-11ef-0068-c7282cd862f0
 # ╠═0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
+# ╠═caa2e442-9eff-4c4d-a6f2-b09cfccf2357
 # ╟─23f4c513-c4af-4bde-adac-8cdd88e48333
 # ╠═b083eaa9-9b09-423c-bc32-9c5f17a91391
+# ╠═3f94af37-bc0d-4bd9-ba4c-5fa244e2b3a3
+# ╠═565e9389-f251-4df0-9e4d-8fab4e009611
+# ╠═864f7f16-7408-441c-89bf-c0e6894ffce4
 # ╟─d71d62c5-f617-4a5a-a27c-8a9820347b76
-# ╠═89099138-d976-4e09-9933-e992f9b65924
 # ╠═06c55ad7-0a27-4d4a-9627-2ee36e164fcb
 # ╠═2481764a-be2c-413b-bd48-e460c00fe2ff
 # ╟─f51aa34a-5501-41f2-b12f-4340d0cdaf26
