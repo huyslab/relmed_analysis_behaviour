@@ -273,7 +273,7 @@ end
 
 # ╔═╡ 6ea0b5b3-d3b0-47c6-a8a2-b2c82200e7b0
 # Acc test-retes
-let
+f_acc_retest, acc_sum = let
 
 	acc_sum = combine(
 		groupby(PILT_data_clean, [:prolific_pid, :session]),
@@ -310,7 +310,7 @@ let
 	# 		osf_folder
 	# )
 
-	f
+	f, acc_sum
 
 end
 
@@ -411,11 +411,11 @@ let
 		filepath = "results/workshop/PILT_acc_sess$(s)_splithalf.png"
 		save(filepath, f, pt_per_unit = 1)
 
-		 upload_to_osf(
-				filepath,
-				proj,
-				osf_folder
-		)
+		#  upload_to_osf(
+		# 		filepath,
+		# 		proj,
+		# 		osf_folder
+		# )
 
 	
 		push!(fs, f)
@@ -651,6 +651,32 @@ let
 	fs
 end
 
+# ╔═╡ 0b3de2ef-84a7-4cf3-8aff-e587190060e1
+# Save params file
+let
+	params = outerjoin(
+		select(
+			acc_sum,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:response_optimal => :PILT_prop_optimal_chosen
+		),
+		select(
+			fits_retest,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:a => :PILT_learning_rate_unconstrained,
+			:ρ => :PILT_reward_sensitivity
+		),
+		on = [:prolific_pid, :session]
+	)
+
+	CSV.write("results/workshop/PILT_params.csv", params)
+
+	params
+
+end
+
 # ╔═╡ c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # Fit by valence and half
 fits_splithalf_valence = let
@@ -840,4 +866,5 @@ end
 # ╠═f8e79974-c3a2-46f6-a760-f558733d9226
 # ╠═ac8a4d61-ba61-4635-96fa-4e6ee9769e5e
 # ╠═6f48c845-c2ec-4fd9-ad5b-eb5d7ba49a45
+# ╠═0b3de2ef-84a7-4cf3-8aff-e587190060e1
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c
