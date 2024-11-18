@@ -173,7 +173,7 @@ function summarize_participation(data::DataFrame)
 	return participants
 end
 
-# ╔═╡ 06c55ad7-0a27-4d4a-9627-2ee36e164fcb
+# ╔═╡ 8191dbc5-a8dd-49b0-bd30-58c1d4744f74
 begin
 	p_sum = summarize_participation(jspsych_data)
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
@@ -408,16 +408,128 @@ let
 	figs
 end
 
+# ╔═╡ e2711875-18a0-4c16-835a-9e12d8f6316e
+durations = let
+	finishers = filter(x -> !ismissing(x.finished), p_sum)
+	finishers = [(r.prolific_pid, r.session, r.exp_start_time) 
+		for r in eachrow(finishers)]
+
+	gb = groupby(
+		filter(
+			r -> (r.prolific_pid, r.session, r.exp_start_time) in finishers,
+			jspsych_data
+		), 
+		[:prolific_pid, :session, :exp_start_time]
+	)
+
+	# PILT duration
+	PILT = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "instruction"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pre_debrief_instructions"))]) => :end_time
+	)
+
+	PILT.duration = (PILT.end_time .- PILT.start_time) ./ 60000
+
+	PILT[!, :task] .= "PILT"
+
+	# Vigour duration
+	vigour = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "vigour_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "vigour_trial"))]) => :end_time
+	)
+
+	vigour.duration = (vigour.end_time .- vigour.start_time) ./ 60000
+
+	vigour[!, :task] .= "vigour"
+
+	# PIT duration
+	PIT = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pit_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "pit_trial"))]) => :end_time
+	)
+
+	PIT.duration = (PIT.end_time .- PIT.start_time) ./ 60000
+
+	PIT[!, :task] .= "PIT"
+
+	# Test duration
+	test = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "post-PILT_test_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT_test"))]) => :end_time
+	)
+
+	test.duration = (test.end_time .- test.start_time) ./ 60000
+
+	test[!, :task] .= "test"
+
+	# WM duration
+	WM = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "WM_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT"))]) => :end_time
+	)
+
+	WM.duration = (WM.end_time .- WM.start_time) ./ 60000
+
+	WM[!, :task] .= "WM"
+
+	# Reversal duration
+	reversal = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "reversal_instruction"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "reversal"))]) => :end_time
+	)
+
+	reversal.duration = (reversal.end_time .- reversal.start_time) ./ 60000
+
+	reversal[!, :task] .= "reversal"
+
+	# Combine together
+
+	durations = vcat([PILT, vigour, PIT, test, WM, reversal]...)
+end
+
+# ╔═╡ 0c617ddc-45f3-45f6-9c06-37c65ed6764e
+let
+
+	data(durations)
+
+end
+
 # ╔═╡ Cell order:
 # ╠═fce1a1b4-a5cf-11ef-0068-c7282cd862f0
 # ╠═0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
 # ╠═caa2e442-9eff-4c4d-a6f2-b09cfccf2357
+# ╠═8191dbc5-a8dd-49b0-bd30-58c1d4744f74
 # ╟─23f4c513-c4af-4bde-adac-8cdd88e48333
 # ╠═b083eaa9-9b09-423c-bc32-9c5f17a91391
 # ╠═3f94af37-bc0d-4bd9-ba4c-5fa244e2b3a3
 # ╠═565e9389-f251-4df0-9e4d-8fab4e009611
 # ╠═864f7f16-7408-441c-89bf-c0e6894ffce4
 # ╟─d71d62c5-f617-4a5a-a27c-8a9820347b76
-# ╠═06c55ad7-0a27-4d4a-9627-2ee36e164fcb
+# ╠═e2711875-18a0-4c16-835a-9e12d8f6316e
+# ╠═0c617ddc-45f3-45f6-9c06-37c65ed6764e
 # ╠═2481764a-be2c-413b-bd48-e460c00fe2ff
 # ╟─f51aa34a-5501-41f2-b12f-4340d0cdaf26
