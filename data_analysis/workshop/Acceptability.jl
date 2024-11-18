@@ -12,18 +12,27 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, SHA
+	import OpenScienceFramework as OSF
 	using LogExpFunctions: logistic, logit
 	using Tidier
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
 	include("plotting_utils.jl")
+	include("osf_utils.jl")
 	nothing
 end
 
 # ╔═╡ 0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
 set_theme!(theme_minimal();font = "Helvetica",
 		fontsize = 16)
+
+# ╔═╡ aae6bde5-84f8-4ecd-8ec9-bc1cf7f92583
+# Set up saving to OSF
+begin
+	osf_folder = "Workshop figures/Acceptability"
+	proj = setup_osf("Task development")
+end
 
 # ╔═╡ caa2e442-9eff-4c4d-a6f2-b09cfccf2357
 begin
@@ -337,18 +346,18 @@ let
 	figs = []
 
 	tasks = unique(accept_data.task)
-	
-	for (i, t) in enumerate(tasks)
-		
-		fig = Figure(size = (700, 200))
 
-		pdata = combine(
+	pdata = combine(
 			groupby(accept_data, [:task, :question]),
 			:score => (x -> mean(x .+ 1)) => :score,
 			:score => (x -> sem(x .+ 1)) => :se,
 			:score => (x -> mean(x .+ 1) - lb(x .+ 1)) => :lb,
 			:score => (x -> ub(x .+ 1) - mean(x .+ 1)) => :ub,
 		)
+	
+	for (i, t) in enumerate(tasks)
+		
+		fig = Figure(size = (700, 200))
 
 		transform!(pdata, :task => (x -> x .== t) => :highlight)
 
@@ -410,7 +419,7 @@ end
 
 # ╔═╡ e2711875-18a0-4c16-835a-9e12d8f6316e
 durations = let
-	finishers = filter(x -> !ismissing(x.finished), p_sum)
+	finishers = filter(x -> (!ismissing(x.finished)) && x.finished, p_sum)
 	finishers = [(r.prolific_pid, r.session, r.exp_start_time) 
 		for r in eachrow(finishers)]
 
@@ -514,13 +523,82 @@ end
 # ╔═╡ 0c617ddc-45f3-45f6-9c06-37c65ed6764e
 let
 
-	data(durations)
+	dur_sum = combine(
+		groupby(durations, :task),
+		:duration => median => :duration,
+		:duration => lb => :lb,
+		:duration => ub => :ub,
+		:duration => llb => :llb,
+		:duration => uub => :uub
+	)
+
+	tasks = unique(dur_sum.task)
+
+	fs = []
+	for (i, t) in enumerate(tasks)
+
+		transform!(dur_sum, :task => (x -> x .== t) => :highlight)
+
+		
+		mp = data(dur_sum) * 
+		(
+			mapping(
+				:task,
+				:llb,
+				:uub,
+				color = :highlight
+			) * visual(Rangebars, direction = :x) +
+			mapping(
+				:task,
+				:lb,
+				:ub,
+				color = :highlight
+			) * visual(Rangebars, direction = :x, linewidth = 3) +
+			mapping(
+				:duration,
+				:task,
+				color = :highlight
+			) * visual(Scatter)
+		)
+		
+		f = Figure()
+		
+		draw!(f[1, 1], mp, scales(
+				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
+				Y = (; 
+						palette = [1, 2, 3, 4, 5, 7], 
+						categories = circshift(reverse([
+							"PILT",
+							"vigour" => "Vigour",
+							"PIT",
+							"test" => "Post-PILT test",
+							"WM",
+							"reversal" => "Reversal"
+						]), i-1)
+		)); axis = (; xlabel = "Duration (m)", ylabel = ""))
+
+		# Save
+		filepath = "results/workshop/duration_$t.png"
+		save(filepath, f, pt_per_unit = 1)
+
+		upload_to_osf(
+			filepath,
+			proj,
+			osf_folder
+		)
+
+	
+		push!(fs, f)
+	end
+
+	fs
 
 end
 
 # ╔═╡ Cell order:
 # ╠═fce1a1b4-a5cf-11ef-0068-c7282cd862f0
 # ╠═0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
+# ╠═aae6bde5-84f8-4ecd-8ec9-bc1cf7f92583
 # ╠═caa2e442-9eff-4c4d-a6f2-b09cfccf2357
 # ╠═8191dbc5-a8dd-49b0-bd30-58c1d4744f74
 # ╟─23f4c513-c4af-4bde-adac-8cdd88e48333
