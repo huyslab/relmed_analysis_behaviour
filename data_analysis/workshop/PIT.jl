@@ -85,7 +85,7 @@ begin
 	end
 	vigour_data = @chain raw_vigour_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
-		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"])) # From sess2
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -104,8 +104,8 @@ begin
 		@filter(n < most_common_n)
 	end
 	PIT_data = @chain raw_PIT_data begin
-		@filter(prolific_pid != "671139a20b977d78ec2ac1e0")
-		@filter(prolific_pid != "6721ec463c2f6789d5b777b5")
+		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -276,7 +276,7 @@ let
 		@mutate(valence = ifelse(magnitude_left * magnitude_right < 0, "Different", ifelse(magnitude_left > 0, "Positive", "Negative")))
 		@mutate(correct = (magnitude_right .> magnitude_left) .== right_chosen)
 		@filter(!ismissing(correct))
-		@group_by(prolific_pid, exp_start_time, valence)
+		@group_by(prolific_pid, session, valence)
 		@summarize(acc = mean(correct))
 		@ungroup
 		data(_) * mapping(:valence, :acc, color=:valence) * visual(RainClouds; clouds=hist, hist_bins = 20, plot_boxplots = false)
@@ -300,6 +300,8 @@ end
 # ╔═╡ b8df8891-ec81-424e-9e4f-3b1b9c152688
 let
 	retest_df = @chain PIT_test_data begin
+		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
 		@group_by(prolific_pid, session)
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
 		@ungroup()
@@ -318,6 +320,15 @@ let
 		subtitle="Test-retest Pavlovian Test Accuracy",
 		correct_r=false
 	)
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_test_acc.png")
+	save(filepaths, fig; px_per_unit = 4)
+
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 	fig
 end
 
@@ -346,7 +357,6 @@ let
 	fig = Figure(;size=(12, 6) .* 144 ./ 2.54)
 	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
 	Label(fig[0,:], "Press Rates by Pavlovian Stimuli Across Test Accuracy", tellwidth = false)
-	# legend!(fig[1,2], p)
 	
 	# Save
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_pavlovian_acc.png")
@@ -368,8 +378,7 @@ let
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
 		@ungroup
 	end
-	# acc_quantile = quantile(acc_grp_df.acc, [0.25, 0.5, 0.75])
-	# @info "Acc at each quantile: $([@sprintf("%.1f%%", v * 100) for v in acc_quantile])"
+
 	acc_grp_df.acc_grp = cut(acc_grp_df.acc, [0.5, 0.75]; extend=true)
 
 	grouped_data, avg_w_data = avg_presses_w_fn(@filter(innerjoin(PIT_data, acc_grp_df, on=[:prolific_pid, :session])), [:reward_per_press, :acc_grp], :press_per_sec)
@@ -386,17 +395,16 @@ let
 	fig = Figure(;size=(12, 6) .* 144 ./ 2.54)
 	p = draw!(fig[1,1], p; axis=(;xlabel="Reward/press", ylabel="Press/sec", xticklabelrotation=pi/4))
 	Label(fig[0,:], "Press Rates by Reward Rates Across Test Accuracy", tellwidth = false)
-	# legend!(fig[1,2], p)
 	
-	# # Save
-	# filepaths = joinpath("results/workshop/PIT", "PIT_press_by_rpp_acc.png")
-	# save(filepaths, fig; px_per_unit = 4)
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_rpp_acc.png")
+	save(filepaths, fig; px_per_unit = 4)
 
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -904,7 +912,7 @@ end
 # ╟─b747d881-6515-49eb-8768-e1ed38104e36
 # ╠═1aceb591-9ed1-4a9a-849f-dac14802e5c0
 # ╠═cbde565b-7604-469b-b328-6c6bf84ceeeb
-# ╟─96c684cf-bf21-468c-8480-98ffeb3cfbf8
+# ╠═96c684cf-bf21-468c-8480-98ffeb3cfbf8
 # ╠═7ca13679-ab22-4e7e-9a9e-573eefea9771
 # ╟─2c1c0339-a6c4-4e36-81bc-e672ab3b9ebf
 # ╟─c3dc5eda-1421-4770-a1d3-f08b8c6c2655
@@ -915,7 +923,7 @@ end
 # ╠═58ed1255-6f89-4f8a-b6d6-a8dee840dea2
 # ╠═b8df8891-ec81-424e-9e4f-3b1b9c152688
 # ╠═07321c17-5493-4d1b-a918-2129cab2b0e1
-# ╟─45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
+# ╠═45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
 # ╟─8e046c5a-1454-4762-a93f-1555d7549931
 # ╟─b6c4383c-98f8-47d1-91e1-369bd9f27aae
 # ╠═8e103789-dc11-488f-8671-2222c0360fa3
