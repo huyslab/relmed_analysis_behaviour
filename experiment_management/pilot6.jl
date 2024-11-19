@@ -484,7 +484,7 @@ md"""
 
 # ╔═╡ 43d5b727-9761-48e3-bbc6-89af0c4f3116
 begin
-	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"]), PIT_data);
+	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"]), PIT_data);
 	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
@@ -805,7 +805,7 @@ end
 let
 	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
 x -> filter(:n_session => (==(2)), x)
-	plot_presses_vs_var(@filter(semijoin(vigour_data, two_sess_sub, on=:prolific_pid), trial_number > 0); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
+	plot_presses_vs_var(@filter(semijoin(vigour_data, two_sess_sub, on=:prolific_pid), trial_number > 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
