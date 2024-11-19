@@ -30,21 +30,17 @@ begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
 	
-	th = Theme(
+	th = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 16,
 		Axis = (
-			xgridvisible = false,
-			ygridvisible = false,
-			rightspinevisible = false,
-			topspinevisible = false,
 			xticklabelsize = 14,
 			yticklabelsize = 14,
 			spinewidth = 1.5,
 			xtickwidth = 1.5,
 			ytickwidth = 1.5
 		)
-	)
+	))
 	set_theme!(th)
 end
 
@@ -271,6 +267,49 @@ let
 	
 end
 
+# ╔═╡ 6ea0b5b3-d3b0-47c6-a8a2-b2c82200e7b0
+# Acc test-retes
+f_acc_retest, acc_sum = let
+
+	acc_sum = combine(
+		groupby(PILT_data_clean, [:prolific_pid, :session]),
+		:response_optimal => mean => :response_optimal
+	)
+
+	# Long to wide
+	acc_sum_wide = unstack(
+		acc_sum,
+		:prolific_pid,
+		:session,
+		:response_optimal
+	)
+
+	f = Figure()
+
+	# Plot
+	workshop_reliability_scatter!(
+		f[1, 1];
+		df = dropmissing!(acc_sum_wide),
+		xcol = Symbol("1"),
+		ycol = Symbol("2"),
+		xlabel = "Session 1",
+		ylabel = "Session 2",
+		subtitle = "Proportion of optimal choices"
+	)
+
+	filepath = "results/workshop/PILT_acc_test_retest.png"
+	save(filepath, f, pt_per_unit = 1)
+
+	#  upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
+
+	f, acc_sum
+
+end
+
 # ╔═╡ c40ea9ef-0d50-4889-a28a-778a14b0dec7
 # Tell fitting functions the column names
 pilt_columns = Dict(
@@ -281,53 +320,11 @@ pilt_columns = Dict(
 	"choice" => :response_optimal
 )
 
-# ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
-# ╠═╡ disabled = true
-#=╠═╡
-# Test retest of parameters
-let
-	fs = []
-
-	# Run over parameters
-	for (p, st, tf) in zip(
-		[:a, :ρ], 
-		["Learning rate", "Reward Sensitivity"],
-		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
-	)
-
-		f = Figure()
-
-		# Long to wide
-		this_retest = unstack(
-			fits_retest,
-			:prolific_pid,
-			:session,
-			p,
-			renamecols = (x -> "$(p)_$x")
-		)
-
-		# Plot
-		workshop_reliability_scatter!(
-			f[1, 1];
-			df = this_retest,
-			xcol = Symbol("$(p)_1"),
-			ycol = Symbol("$(p)_2"),
-			xlabel = "First session",
-			ylabel = "Second session",
-			subtitle = st,
-			tickformat = tf
-		)
-
-		# Save
-		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
-		save(filepath, f)
-
-		# Push for plotting in notebook
-		push!(fs, f)
-	end
-	fs
-end
-  ╠═╡ =#
+# ╔═╡ a9f674dc-6cb8-43a8-82fd-6faa8a5e8396
+priors = Dict(
+	:ρ => truncated(Normal(0., 5.), lower = 0.),
+	:a => Normal(0., 2.)
+)
 
 # ╔═╡ 7b1a8fcf-66f5-4c5a-a991-e3007819675c
 # Prepare data for fit
@@ -364,7 +361,64 @@ function prepare_data(
 		fill(2, nrow(forfit))
 	)
 
+	sort!(forfit, [:prolific_pid, :cblock, :trial])
+
 	return forfit
+
+end
+
+# ╔═╡ ee0d1649-9917-4393-a300-ec48cc47360f
+# Acc splithalf
+let
+
+	fs = []
+	for s in unique(PILT_data_clean.session)
+
+		acc_sum = combine(
+			groupby(
+				filter(x -> x.session == s, prepare_data(PILT_data_clean)), 
+				[:prolific_pid, :half]
+			),
+			:response_optimal => mean => :response_optimal
+		)
+	
+		# Long to wide
+		acc_sum_wide = unstack(
+			acc_sum,
+			:prolific_pid,
+			:half,
+			:response_optimal
+		)
+	
+		f = Figure()
+	
+		# Plot
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = dropmissing!(acc_sum_wide),
+			xcol = Symbol("1"),
+			ycol = Symbol("2"),
+			xlabel = "First half",
+			ylabel = "Second half",
+			subtitle = "Session $(s) proportion of optimal choices"
+		)
+
+		# Save plot
+		filepath = "results/workshop/PILT_acc_sess$(s)_splithalf.png"
+		save(filepath, f, pt_per_unit = 1)
+
+		#  upload_to_osf(
+		# 		filepath,
+		# 		proj,
+		# 		osf_folder
+		# )
+
+	
+		push!(fs, f)
+
+	end
+
+	fs
 
 end
 
@@ -373,12 +427,9 @@ fits_by_valence = let
 	# Fit data
 	fits = optimize_multiple_by_factor(
 		prepare_data(PILT_data_clean);
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = :valence,
-		priors = Dict(
-			:ρ => truncated(Normal(0., 5.), lower = 0.),
-			:a => Normal(0., 2.)
-		),
+		priors = priors,
 		unpack_function = unpack_single_p_QL,
 		remap_columns = pilt_columns
 	)
@@ -477,12 +528,9 @@ end
 fits_splithalf = let	
 	fits = Dict(s => optimize_multiple_by_factor(
 		prepare_data(filter(x -> x.session == s, PILT_data_clean));
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = :half,
-		priors = Dict(
-			:ρ => truncated(Normal(0., 5.), lower = 0.),
-			:a => Normal(0., 2.)
-		),
+		priors = priors,
 		unpack_function = unpack_single_p_QL,
 		remap_columns = pilt_columns
 	) for s in unique(PILT_data_clean.session))
@@ -529,6 +577,12 @@ let
 			filepath = "results/workshop/PILT_sess$(s)_$(string(p))_split_half.png"
 			save(filepath, f)
 
+			# upload_to_osf(
+			# 	filepath,
+			# 	proj,
+			# 	osf_folder
+			# )
+
 			# Push for plotting in notebook
 			push!(fs, f)
 		end
@@ -542,15 +596,137 @@ end
 fits_retest = let	
 	fits = optimize_multiple_by_factor(
 		prepare_data(PILT_data_clean);
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = :session,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 5.), lower = 0.),
-			:a => Normal(0., 2.)
+			:ρ => truncated(Normal(0, 5.), lower = 0.),
+			:a => Normal(0, 2.)
 		),
 		unpack_function = unpack_single_p_QL,
 		remap_columns = pilt_columns
 	)
+end
+
+# ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
+# Test retest of parameters
+let
+	fs = []
+
+	# Run over parameters
+	for (p, st, tf) in zip(
+		[:a, :ρ], 
+		["Learning rate", "Reward Sensitivity"],
+		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
+	)
+
+		f = Figure()
+
+		# Long to wide
+		this_retest = unstack(
+			fits_retest,
+			:prolific_pid,
+			:session,
+			p,
+			renamecols = (x -> "$(p)_$x")
+		)
+
+		# Plot
+		workshop_reliability_scatter!(
+			f[1, 1];
+			df = dropmissing!(this_retest),
+			xcol = Symbol("$(p)_1"),
+			ycol = Symbol("$(p)_2"),
+			xlabel = "First session",
+			ylabel = "Second session",
+			subtitle = st,
+			tickformat = tf,
+			correct_r = false
+		)
+
+		# Save
+		filepath = "results/workshop/PILT_$(string(p))_test_retest.png"
+		save(filepath, f)
+
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
+
+
+		# Push for plotting in notebook
+		push!(fs, f)
+	end
+	fs
+end
+
+# ╔═╡ 2dab4a83-73db-4bb0-bc44-1418d7e4582a
+# Bivariate distribution of parameters
+let
+	
+	mp = data(fits_retest) *
+	mapping(
+		:a => "Leraning rate",
+		:ρ => "Reward sensitivity",
+		color = :session => "Session",
+	) * visual(Scatter)
+
+	f = Figure()
+
+	plt = draw!(
+		f[1,1], 
+		mp; 
+		axis = (; 
+		xtickformat = x -> string.(round.(a2α.(x), digits = 2))
+		)
+	)
+
+	legend!(
+		f[0,1],
+		plt,
+		tellwidth = false,
+		orientation=:horizontal,
+		titleposition = :left
+	)
+
+	# Save
+	filepath = "results/workshop/PILT_bivariate_posterior.png"
+	save(filepath, f)
+
+	upload_to_osf(
+		filepath,
+		proj,
+		osf_folder
+	)
+
+
+	f
+end
+
+# ╔═╡ 0b3de2ef-84a7-4cf3-8aff-e587190060e1
+# Save params file
+let
+	params = outerjoin(
+		select(
+			acc_sum,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:response_optimal => :PILT_prop_optimal_chosen
+		),
+		select(
+			fits_retest,
+			:prolific_pid,
+			:session => (x -> parse.(Int, x)) => :session,
+			:a => :PILT_learning_rate_unconstrained,
+			:ρ => :PILT_reward_sensitivity
+		),
+		on = [:prolific_pid, :session]
+	)
+
+	CSV.write("results/workshop/PILT_params.csv", params)
+
+	params
+
 end
 
 # ╔═╡ c8a9802b-a1db-47d8-9719-89f1eadd11f7
@@ -576,12 +752,9 @@ fits_splithalf_valence = let
 
 	fits = optimize_multiple_by_factor(
 		forfit;
-		model = single_p_QL,
+		model = single_p_QL_recip,
 		factor = [:session, :half, :valence],
-		priors = Dict(
-			:ρ => truncated(Normal(0., 5.), lower = 0.),
-			:a => Normal(0., 2.)
-		),
+		priors = priors,
 		unpack_function = unpack_single_p_QL,
 		remap_columns = pilt_columns
 	)
@@ -661,19 +834,14 @@ fits_retest_valence = let
 		forfit;
 		model = single_p_QL,
 		factor = [:session, :valence],
-		priors = Dict(
-			:ρ => truncated(Normal(0., 5.), lower = 0.),
-			:a => Normal(0., 2.)
-		),
+		priors = priors,
 		unpack_function = unpack_single_p_QL,
 		remap_columns = pilt_columns
 	)
 end
 
 # ╔═╡ 6f48c845-c2ec-4fd9-ad5b-eb5d7ba49a45
-# ╠═╡ disabled = true
-#=╠═╡
-# Plot valence splithalf
+# Plot valence test_retest
 let 
 
 	fs = []
@@ -708,7 +876,7 @@ let
 		
 		workshop_reliability_scatter!(
 			f[1, 1];
-			df = fp,
+			df = dropmissing!(fp),
 			xcol = Symbol("$(diff)_1"),
 			ycol = Symbol("$(diff)_2"),
 			xlabel = "Session 1",
@@ -717,7 +885,7 @@ let
 		)
 
 		# Save
-		filepath = "results/workshop/PILT_sess$(s)_$(string(p))_valence_diff_test_retest.png"
+		filepath = "results/workshop/PILT_$(string(p))_valence_diff_test_retest.png"
 		save(filepath, f)
 
 		# Push for plotting in notebook
@@ -727,7 +895,6 @@ let
 	fs
 
 end
-  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═8cf30b5e-a020-11ef-23b2-2da6e9116b54
@@ -735,17 +902,22 @@ end
 # ╠═595c642e-32df-448e-81cc-6934e2152d70
 # ╠═14a292db-43d4-45d8-97a5-37ffc03bdc5c
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
-# ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
-# ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# ╟─b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
+# ╟─18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# ╠═ee0d1649-9917-4393-a300-ec48cc47360f
+# ╠═6ea0b5b3-d3b0-47c6-a8a2-b2c82200e7b0
 # ╠═c40ea9ef-0d50-4889-a28a-778a14b0dec7
+# ╠═a9f674dc-6cb8-43a8-82fd-6faa8a5e8396
 # ╠═a5b29872-3854-4566-887f-35d6e53479f6
 # ╠═4b9732c4-e74e-4775-8ff0-531be8576c30
 # ╠═d4ee7c24-5d83-4e07-acca-13006ae4278a
 # ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
 # ╠═47046875-475e-4ff1-b626-7bc285f0aac7
 # ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
+# ╠═2dab4a83-73db-4bb0-bc44-1418d7e4582a
 # ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7
 # ╠═f8e79974-c3a2-46f6-a760-f558733d9226
 # ╠═ac8a4d61-ba61-4635-96fa-4e6ee9769e5e
 # ╠═6f48c845-c2ec-4fd9-ad5b-eb5d7ba49a45
+# ╠═0b3de2ef-84a7-4cf3-8aff-e587190060e1
 # ╠═7b1a8fcf-66f5-4c5a-a991-e3007819675c

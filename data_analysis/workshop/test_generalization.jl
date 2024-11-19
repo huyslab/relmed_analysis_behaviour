@@ -1099,7 +1099,7 @@ let
 	
 	@assert nrow(params) == pre_join_nrow
 
-	CSV.write("results/workshop/PILT_test_params.csv")
+	CSV.write("results/workshop/PILT_test_params.csv", params)
 
 
 end
