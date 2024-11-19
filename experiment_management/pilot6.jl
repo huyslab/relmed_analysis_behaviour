@@ -64,8 +64,14 @@ md"""## Participant management"""
 begin
 	# Load data
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data,
-		reversal_data, jspsych_data = load_pilot6_data(; force_download = true)
+		reversal_data, jspsych_data = load_pilot6_data(; force_download = false)
 	nothing
+end
+
+# ╔═╡ d3a5d834-1c23-4882-adc9-c4d9571e7f71
+begin
+	include("questionnaire_utils.jl")
+	prepare_questionnaire_data(jspsych_data; save_data=true)
 end
 
 # ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -411,17 +417,9 @@ md"""
 ### Vigour
 """
 
-# ╔═╡ d3a5d834-1c23-4882-adc9-c4d9571e7f71
-begin
-	@chain vigour_data begin
-		@filter(press_per_sec > 11)
-		@count(prolific_pid)
-	end
-end
-
 # ╔═╡ 7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 begin
-	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"]), vigour_data);
+	filter!(x -> !(x.prolific_pid in ["671139a20b977d78ec2ac1e0", "6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"]), vigour_data);
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
@@ -804,7 +802,11 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 end
 
 # ╔═╡ 814aec54-eb08-4627-9022-19f41bcdac9f
-plot_presses_vs_var(vigour_data; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
+let
+	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
+x -> filter(:n_session => (==(2)), x)
+	plot_presses_vs_var(@filter(semijoin(vigour_data, two_sess_sub, on=:prolific_pid), trial_number > 0); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine=false)
+end
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
 let
@@ -841,7 +843,7 @@ end
 # ╟─e902cd57-f724-4c26-9bb5-1d03443fb191
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╠═7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
-# ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
+# ╠═243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╠═814aec54-eb08-4627-9022-19f41bcdac9f
 # ╠═3d05e879-aa5c-4840-9f4f-ad35b8d9519a
@@ -855,3 +857,4 @@ end
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
+# ╠═d3a5d834-1c23-4882-adc9-c4d9571e7f71
