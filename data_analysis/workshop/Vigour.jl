@@ -69,7 +69,7 @@ begin
 	end
 	vigour_data = @chain raw_vigour_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
-		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"])) # From sess2
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -98,11 +98,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_rate_dist.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -124,11 +124,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -174,11 +174,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_conds.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 	
 	fig
 end
@@ -220,11 +220,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -258,11 +258,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -300,11 +300,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -350,11 +350,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -397,11 +397,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -447,11 +447,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rppdiff.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -495,11 +495,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_rpp.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 	
 	fig
 end
@@ -545,11 +545,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -597,11 +597,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -694,11 +694,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_fr_n_rm.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 	
 	fig
 end
@@ -755,11 +755,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -818,11 +818,11 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		push!(figs, fig)
 	end
@@ -877,11 +877,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 	
 	fig
 end
@@ -904,7 +904,7 @@ begin
     # 2. Clean and preprocess the data
     post_vigour_test_data = @chain raw_post_vigour_test_data begin
         @filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
-		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea"])) # From sess2
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
         @anti_join(vigour_test_unfinished)
         @mutate(
             # Calculate difference in relative physical payment
@@ -1012,11 +1012,11 @@ begin
 		filepaths = joinpath("results/workshop/vigour", "Vigour_test_acc_by_reward_diff.png")
 		save(filepaths, fig; px_per_unit = 4)
 	
-		# upload_to_osf(
-		# 		filepaths,
-		# 		proj,
-		# 		osf_folder
-		# 	)
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
 		
 		fig
 end
