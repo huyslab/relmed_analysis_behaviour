@@ -4,7 +4,7 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 54a03c1e-a2b8-11ef-2c40-695bce51ab75
+# ╔═╡ cd74d0cc-a0d4-4b93-ae70-36f2e961744d
 begin
 	cd("/home/jovyan")
 	import Pkg
@@ -46,23 +46,25 @@ begin
 	set_theme!(th)	
 end
 
-# ╔═╡ 11ebe9db-0809-48e7-ab4b-d5bee1fae9b1
+# ╔═╡ 252143a6-a665-11ef-342a-611b7078e403
 md"
-# Plots for working memory in workshop
+## Plots for working memory in workshop
 "
 
-# ╔═╡ 2a0c2f77-4af2-44f0-adbe-3d9e52d24a59
+# ╔═╡ d3fa9ccc-373d-4b6c-a957-c44a970c4664
 begin
 	# Load data
 	_, _, _, _, _, WM_data, _, _ = load_pilot6_data()
 	df = prepare_WM_data(WM_data)
+	
+	# structure
 	pilot6_wm = load_wm_structure_csv("pilot6_WM") # task structure for ppcs
-	sess1 = filter(x -> x.block <= 10, pilot6_wm)
-	sess2 = filter(x -> x.block > 10, pilot6_wm)
+	sess1_str = filter(x -> x.block <= 10, pilot6_wm)
+	sess2_str = filter(x -> x.block > 10, pilot6_wm)
 	nothing
 end
 
-# ╔═╡ 892fc799-cc39-4a86-b899-cdcd1816c01b
+# ╔═╡ c34ed6ad-4188-4fe8-bd54-8dded373728f
 begin
 	function true_vs_preds(df1::DataFrame, df2::DataFrame; strct::DataFrame)
 		df1 = leftjoin(df1, strct; on = [:block, :valence, :trial, :pair])
@@ -114,7 +116,7 @@ begin
 	end
 end
 
-# ╔═╡ dea7d258-486f-4ca3-8bcf-a2240fdef345
+# ╔═╡ 815a8229-1420-479c-a6b7-e835afaa58da
 function workshop_reliability_scatter!(
 	f::GridPosition;
 	df::AbstractDataFrame,
@@ -168,14 +170,14 @@ function workshop_reliability_scatter!(
 
 end
 
-# ╔═╡ 0eac1304-e5c7-4022-a648-2a3ad0293d36
+# ╔═╡ 8937e80e-81a1-4314-9391-213994933679
 md"
 ## Choice accuracy by set size
 "
 
-# ╔═╡ 419ae40b-f067-43ab-aff7-af7817ab93db
+# ╔═╡ 9a951062-ab2e-4fc6-9826-b45718caf366
 let
-	f = Figure(size = (800, 600))
+	f = Figure(size = (800, 1000))
 	plot_prior_accuracy!(
 		f[1,1:2],
 		df;
@@ -212,93 +214,48 @@ let
 		title = "Punishment blocks",
 		error_band = "se"
 	)
-	f
-end
-
-# ╔═╡ fa15d0b0-705c-4f62-8d94-4d7dec28b487
-md"
-#### Splits
-"
-
-# ╔═╡ 242afc6b-5881-47c4-b86b-f117d6c213d1
-begin
-	df.early .= Float64.(df.block) .<= maximum(df.block)/2
-	DataFrames.transform!(
-		groupby(df, [:prolific_pid]), :trial_index => (x -> ordinalrank(x, rev = false)) => :trial_number
-	)
-	df.even .= Int64.(df.trial_number) .% 2 .=== 0
-	nothing
-end
-
-# ╔═╡ c1bca834-a7bd-470e-831f-3ddf3d3c0a9a
-let
-	f = Figure(size = (800, 600))
 	plot_prior_accuracy!(
-		f[1,1],
-		filter(x -> x.early, df);
+		f[3,1],
+		filter(x -> x.session == "1", df);
 		choice_val = 3.,
 		group = :set_size,
 		pid_col = :PID,
 		legend = true,
 		legend_rows = 1,
 		legend_pos = :bottom,
-		title = "First half",
+		title = "Session 1",
 		error_band = "se"
 	)
 	plot_prior_accuracy!(
-		f[1,2],
-		filter(x -> !(x.early), df);
+		f[3, 2],
+		filter(x -> x.session == "2", df);
 		choice_val = 3.,
 		group = :set_size,
 		pid_col = :PID,
 		legend = true,
 		legend_rows = 1,
 		legend_pos = :bottom,
-		title = "Second half",
-		error_band = "se"
-	)
-	plot_prior_accuracy!(
-		f[2, 1],
-		filter(x -> x.even, df);
-		choice_val = 3.,
-		group = :set_size,
-		pid_col = :PID,
-		legend = true,
-		legend_rows = 1,
-		legend_pos = :bottom,
-		title = "Even trials",
-		error_band = "se"
-	)
-	plot_prior_accuracy!(
-		f[2, 2],
-		filter(x -> !(x.even), df);
-		choice_val = 3.,
-		group = :set_size,
-		pid_col = :PID,
-		legend = true,
-		legend_rows = 1,
-		legend_pos = :bottom,
-		title = "Odd trials",
+		title = "Session 2",
 		error_band = "se"
 	)
 	f
 end
 
-# ╔═╡ 946360aa-3a1a-4ea0-b4ef-c32453e65b19
+# ╔═╡ 73f18d96-fe5c-48ad-87bb-968c0df3bdd5
 md"
-### Model fits
+## Model fits
 "
 
-# ╔═╡ 6fe27779-90e2-459e-adb9-2afc166d37f8
+# ╔═╡ 9e36111d-6b22-49ec-8c3e-ef3701ae4e9c
 md"
-##### Q-learning model with two learning rates
+#### Q-learning model with two learning rates
 "
 
-# ╔═╡ 3108a5a5-37b9-4b76-a529-dab5e3eecff2
+# ╔═╡ 87479aa6-d8a2-4801-860f-df408243dc41
 begin
 	# single update model
-	qs_ests, qs_choices = optimize_multiple(
-		df;
+	qs_ests_s1, qs_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = RL_multi_2set,
 		estimate = "MAP",
 		include_true = false,
@@ -309,12 +266,28 @@ begin
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
-		gq_struct = sess1,
-		n_starts = 10
+		gq_struct = sess1_str,
+		n_starts = 5
 	)
+	qs_ests_s2, qs_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = RL_multi_2set,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., 2.),
+        	:a2 => Normal(0., 2.)
+		),
+		parameters = [:ρ, :a1, :a2],
+		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		gq_struct = sess2_str,
+		n_starts = 5
+	)
+
 	# reciprocal update model
-	qr_ests, qr_choices = optimize_multiple(
-		df;
+	qr_ests_s1, qr_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = RL_multi_2set_recip,
 		estimate = "MAP",
 		include_true = false,
@@ -325,19 +298,37 @@ begin
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
-		gq_struct = sess1,
-		n_starts = 10
+		gq_struct = sess1_str,
+		n_starts = 5
 	)
+	qr_ests_s2, qr_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = RL_multi_2set_recip,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., 2.),
+        	:a2 => Normal(0., 2.)
+		),
+		parameters = [:ρ, :a1, :a2],
+		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		gq_struct = sess2_str,
+		n_starts = 5
+	)
+	
 	nothing
 end
 
-# ╔═╡ 19d06113-a41f-4b5f-a353-225cec794db0
+# ╔═╡ f0c0fb08-bbb8-4876-ad6d-eab5f817d4e5
 let
 	f = Figure(size = (800, 300))
 	
 	# Define parameters
-	ρ1, α1s, ll1 = qs_ests.ρ, qs_ests.α1, qs_ests.loglike
-	ρ2, α1r, ll2 = qr_ests.ρ, qr_ests.α1, qr_ests.loglike
+	s1ρ1, s1α1s, s1ll1 = qs_ests_s1.ρ, qs_ests_s1.α1, qs_ests_s1.loglike
+	s2ρ1, s2α1s, s2ll1 = qs_ests_s2.ρ, qs_ests_s2.α1, qs_ests_s2.loglike
+	s1ρ2, s1α1r, s1ll2 = qr_ests_s1.ρ, qr_ests_s1.α1, qr_ests_s1.loglike
+	s2ρ2, s2α1r, s2ll2 = qr_ests_s2.ρ, qr_ests_s2.α1, qr_ests_s2.loglike
 
 	# Set labels
 	labs1 = (xlabel = "ρ", ylabel = "α1", zlabel = "log-likelihood", title = "Single")
@@ -345,26 +336,28 @@ let
 
 	# Plot
 	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
-	scatter!(ax1, ρ1, α1s, ll1)
-	scatter!(ax2, ρ2, α1r, ll2)
+	scatter!(ax1, s1ρ1, s1α1s, s1ll1)
+	scatter!(ax1, s2ρ1, s2α1s, s2ll1)
+	scatter!(ax2, s1ρ2, s1α1r, s1ll2)
+	scatter!(ax2, s2ρ2, s2α1r, s2ll2)
 	f
 end
 
-# ╔═╡ 34db522e-26ce-4954-8660-5d4f4c5c53a5
+# ╔═╡ 11e19837-c3c6-40c8-bd3b-e1ff9fca00b6
 md"
-##### Palimpsest working memory model
+#### Palimpsest working memory model
 "
 
-# ╔═╡ aa77e9de-514b-43dd-b0c9-f542c6ab7c2f
+# ╔═╡ 50323172-e475-4cdd-99cc-a3419ac22887
 md"
-A) **Overall** capacity + averaging
+A) **Overall** capacity + no averaging
 "
 
-# ╔═╡ 1c46ae0f-658c-40df-82fa-385c0b5365ee
+# ╔═╡ 53d8fa96-127a-42d4-9928-d3f36d616f45
 begin
 	# single update model
-	wm_ests, wm_choices = optimize_multiple(
-		df;
+	wm_ests_s1, wm_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = WM_multi_all_outc_pmst_sgd_sum,
 		estimate = "MAP",
 		include_true = false,
@@ -373,12 +366,26 @@ begin
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
-		gq_struct = sess1,
+		gq_struct = sess1_str,
 		n_starts = 5
 	)
+	wm_ests_s2, wm_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = WM_multi_all_outc_pmst_sgd_sum,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
+			:C => truncated(Normal(5., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		gq_struct = sess2_str,
+		n_starts = 5
+	)
+	
 	# reciprocal update model
-	wmr_ests, wmr_choices = optimize_multiple(
-		df;
+	wmr_ests_s1, wmr_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = WM_multi_all_outc_pmst_sgd_sum_recip,
 		estimate = "MAP",
 		include_true = false,
@@ -387,19 +394,34 @@ begin
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
-		gq_struct = sess1,
+		gq_struct = sess1_str,
+		n_starts = 5
+	)
+	wmr_ests_s2, wmr_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = WM_multi_all_outc_pmst_sgd_sum_recip,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
+			:C => truncated(Normal(5., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		gq_struct = sess2_str,
 		n_starts = 5
 	)
 	nothing
 end
 
-# ╔═╡ 03918685-bda8-46b2-a1ac-be20e8781e9f
+# ╔═╡ 09c121c4-dd34-42c6-a506-d05634f53f4b
 let
 	f = Figure(size = (800, 300))
 	
 	# Define parameters
-	ρ1, C1, ll1 = wm_ests.ρ, wm_ests.C, wm_ests.loglike
-	ρ2, C2, ll2 = wmr_ests.ρ, wmr_ests.C, wmr_ests.loglike
+	s1ρ1, s1C1, s1ll1 = wm_ests_s1.ρ, wm_ests_s1.C, wm_ests_s1.loglike
+	s2ρ1, s2C1, s2ll1 = wm_ests_s2.ρ, wm_ests_s2.C, wm_ests_s2.loglike
+	s1ρ2, s1C2, s1ll2 = wmr_ests_s1.ρ, wmr_ests_s1.C, wmr_ests_s1.loglike
+	s2ρ2, s2C2, s2ll2 = wmr_ests_s2.ρ, wmr_ests_s2.C, wmr_ests_s2.loglike
 
 	# Set labels
 	labs1 = (xlabel = "ρ", ylabel = "C", zlabel = "log-likelihood", title = "Single")
@@ -407,21 +429,23 @@ let
 
 	# Plot
 	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
-	scatter!(ax1, ρ1, C1, ll1)
-	scatter!(ax2, ρ2, C2, ll2)
+	scatter!(ax1, s1ρ1, s1C1, s1ll1)
+	scatter!(ax1, s2ρ1, s2C1, s2ll1)
+	scatter!(ax2, s1ρ2, s1C2, s1ll2)
+	scatter!(ax2, s2ρ2, s2C2, s2ll2)
 	f
 end
 
-# ╔═╡ 157d7977-0c94-47bf-9df0-47abf0887eeb
+# ╔═╡ 95e141ba-7011-4e9c-84a8-7605f3516db1
 md"
 B) **Stimulus-specific** capacity + no averaging
 "
 
-# ╔═╡ 6429d353-3892-4d62-9a9e-cf167639e4fe
+# ╔═╡ a235c7c1-f5a6-4bf3-8ddc-9ec44f56117e
 begin
 	# single update model
-	wmss_ests, wmss_choices = optimize_multiple(
-		df;
+	wmss_ests_s1, wmss_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = WM_multi_pmst_sgd_sum,
 		estimate = "MAP",
 		include_true = false,
@@ -430,12 +454,26 @@ begin
 			:C => truncated(Normal(3., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
-		gq_struct = sess1,
+		gq_struct = sess1_str,
 		n_starts = 5
 	)
+	wmss_ests_s2, wmss_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = WM_multi_pmst_sgd_sum,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
+			:C => truncated(Normal(3., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		gq_struct = sess2_str,
+		n_starts = 5
+	)
+	
 	# reciprocal update model
-	wmssr_ests, wmssr_choices = optimize_multiple(
-		df;
+	wmssr_ests_s1, wmssr_choices_s1 = optimize_multiple(
+		filter(x -> x.session == "1", df);
 		model = WM_multi_pmst_sgd_sum_recip,
 		estimate = "MAP",
 		include_true = false,
@@ -444,19 +482,34 @@ begin
 			:C => truncated(Normal(3., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
-		gq_struct = sess1,
+		gq_struct = sess1_str,
+		n_starts = 5
+	)
+	wmssr_ests_s2, wmssr_choices_s2 = optimize_multiple(
+		filter(x -> x.session == "2", df);
+		model = WM_multi_pmst_sgd_sum_recip,
+		estimate = "MAP",
+		include_true = false,
+		priors = Dict(
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
+			:C => truncated(Normal(3., 3.), lower = 1.)
+		),
+		parameters = [:ρ, :C],
+		gq_struct = sess2_str,
 		n_starts = 5
 	)
 	nothing
 end
 
-# ╔═╡ 4fe85f44-2dbe-450b-859a-85cfbf5a8024
+# ╔═╡ af0e6ebe-249b-46ab-9f0f-e44caf8055df
 let
 	f = Figure(size = (800, 300))
 	
 	# Define parameters
-	ρ1, C1, ll1 = wmss_ests.ρ, wmss_ests.C, wmss_ests.loglike
-	ρ2, C2, ll2 = wmssr_ests.ρ, wmssr_ests.C, wmssr_ests.loglike
+	s1ρ1, s1C1, s1ll1 = wmss_ests_s1.ρ, wmss_ests_s1.C, wmss_ests_s1.loglike
+	s2ρ1, s2C1, s2ll1 = wmss_ests_s2.ρ, wmss_ests_s2.C, wmss_ests_s2.loglike
+	s1ρ2, s1C2, s1ll2 = wmssr_ests_s1.ρ, wmssr_ests_s1.C, wmssr_ests_s1.loglike
+	s2ρ2, s2C2, s2ll2 = wmssr_ests_s2.ρ, wmssr_ests_s2.C, wmssr_ests_s2.loglike
 
 	# Set labels
 	labs1 = (xlabel = "ρ", ylabel = "C", zlabel = "log-likelihood", title = "Single")
@@ -464,75 +517,120 @@ let
 
 	# Plot
 	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
-	scatter!(ax1, ρ1, C1, ll1)
-	scatter!(ax2, ρ2, C2, ll2)
+	scatter!(ax1, s1ρ1, s1C1, s1ll1)
+	scatter!(ax1, s2ρ1, s2C1, s2ll1)
+	scatter!(ax2, s1ρ2, s1C2, s1ll2)
+	scatter!(ax2, s2ρ2, s2C2, s2ll2)
 	f
 end
 
-# ╔═╡ ee33a3e7-2d4c-40a1-9255-b57f3a73df80
+# ╔═╡ 3a2f75c0-62ed-4a9b-8e09-a771ee5c3830
 md"
-#### Posterior predictions
+### Posterior predictions
 "
 
-# ╔═╡ 0faebc26-016a-4683-b26a-a248fa9a0dee
+# ╔═╡ 76299691-ba71-4c6b-8226-aa0036a0c074
 md"
-##### Q-learning model
+#### Q-learning model
 "
 
-# ╔═╡ 56e84e90-f53c-474e-a0aa-d5d97cb8f255
+# ╔═╡ 8df1a8b6-3de5-40a2-b549-702402895c7f
+md"
+**Session 1**
+"
+
+# ╔═╡ 13b6ccfa-a377-4158-8809-17f16e9511b2
 let
-	choice_df1, choice_df2 = true_vs_preds(qs_choices, qr_choices; strct = sess1)
+	choice_df1, choice_df2 = true_vs_preds(qs_choices_s1, qr_choices_s1; strct = sess1_str)
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
 
-# ╔═╡ fa7fcb02-e12d-4bc5-8886-e50460a04186
+# ╔═╡ dcbdbe12-2c0c-4205-98b0-fe04d2d8812a
 md"
-##### Working memory model
+**Session 2**
 "
 
-# ╔═╡ f266fcdb-5000-4458-9328-684d70f896f0
-md"
-A) **Overall** capacity
-"
-
-# ╔═╡ 9c9c4f38-3631-4a02-8a0e-f4583702e377
+# ╔═╡ e45c5d7f-70f9-4caa-a16f-8ed6dd89e8dc
 let
-	choice_df1, choice_df2 = true_vs_preds(wm_choices, wmr_choices; strct = sess1)
+	choice_df1, choice_df2 = true_vs_preds(qs_choices_s2, qr_choices_s2; strct = sess2_str)
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
 
-# ╔═╡ b34d0881-4480-480a-9673-e3cf5ba8a909
+# ╔═╡ e1d2f0ee-a6b4-4ccd-93dd-f35271b3096e
 md"
-B) **Stimulus-specific capacity**
+#### Working memory models
 "
 
-# ╔═╡ 11e8bd77-e192-4e00-9e15-d8aa2edae2e8
+# ╔═╡ cc653756-8962-4f27-a8ec-95f848f5016c
+md"
+A) **Overall** capacity + no averaging
+"
+
+# ╔═╡ 8fc367ad-0a43-4df1-94fd-6b9c5f6a3973
+md"
+**Session 1**
+"
+
+# ╔═╡ 3c330108-a4fc-41f5-a6ae-04077f03345c
 let
-	choice_df1, choice_df2 = true_vs_preds(wmss_choices, wmssr_choices; strct = sess1)
+	choice_df1, choice_df2 = true_vs_preds(wm_choices_s1, wmr_choices_s1; strct = sess1_str)
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
 
-# ╔═╡ 75bf8e63-f786-4d1a-9dc2-d2ad3b2e586e
+# ╔═╡ e880e378-616d-4020-a4c1-e3b918e3bc81
+md"
+**Session 2**
+"
+
+# ╔═╡ eecbad77-245b-4637-bc1a-f5930afbdc24
+let
+	choice_df1, choice_df2 = true_vs_preds(wm_choices_s2, wmr_choices_s2; strct = sess2_str)
+	plot_true_vs_preds(choice_df1, choice_df2)
+end
+
+# ╔═╡ 43eddd3a-7518-47e8-a988-343dd57fd8fb
+md"
+B) **Stimulus-specific** capacity + no averaging
+"
+
+# ╔═╡ 64e0d111-94db-43f9-afb6-b1f538e7d4ad
+md"
+**Session 1**
+"
+
+# ╔═╡ 36f6b691-997b-490a-8f86-a71d565b2ce9
+let
+	choice_df1, choice_df2 = true_vs_preds(wmss_choices_s1, wmssr_choices_s1; strct = sess1_str)
+	plot_true_vs_preds(choice_df1, choice_df2)
+end
+
+# ╔═╡ 90af826c-9ba4-4496-b37b-a1716dcc2f5a
+md"
+**Session 2**
+"
+
+# ╔═╡ 2edec29a-c4c3-4cd8-baf3-03f71ada674b
+let
+	choice_df1, choice_df2 = true_vs_preds(wmss_choices_s2, wmssr_choices_s2; strct = sess2_str)
+	plot_true_vs_preds(choice_df1, choice_df2)
+end
+
+# ╔═╡ 5950c9d6-c581-493d-b726-beba0315a8eb
 md"
 ## Test-retest
 "
 
-# ╔═╡ bfeb3a32-87d4-45a1-b1c9-c2c522366a73
+# ╔═╡ f1b6aaf2-0226-4d2a-bad0-71e4471857e3
 md"
-### Even-odd
+### Extended Q-learning model
 "
 
-# ╔═╡ 26eb6122-96a2-45d2-b479-240a0da3eef8
-md"
-#### Extended Q-learning model
-"
-
-# ╔═╡ 519b1a8b-e600-4fcb-84cc-cc3afc5d5b06
+# ╔═╡ 2938d136-24c7-4162-bf27-88a9c4a35702
 begin
 	qs_splithalf = optimize_multiple_by_factor(
 		df;
 		model = RL_multi_2set,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a1 => Normal(0., 2.),
@@ -548,7 +646,7 @@ begin
 	qr_splithalf = optimize_multiple_by_factor(
 		df;
 		model = RL_multi_2set_recip,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a1 => Normal(0., 2.),
@@ -563,106 +661,108 @@ begin
 	nothing
 end
 
-# ╔═╡ 1a8b8235-e31e-4d1e-9829-5cb44daeb017
+# ╔═╡ 1764420b-3cb9-4516-9b28-33ea6e7cf985
 md"
 **Single update**
 "
 
-# ╔═╡ 372bc57f-3bde-4275-9440-a28aae76bba5
+# ╔═╡ 8398a4d3-2161-49ac-b6eb-374228aef9f2
 let
 	retest_df = leftjoin(qs_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1:2];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:α1,
 		ycol=:α1_1,
-		subtitle="Session 1 even-odd: learning rate (set-size = 3)",
+		subtitle="Test-retest: learning rate (set-size = 3)",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,2];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:α2,
 		ycol=:α2_1,
-		subtitle="Session 1 even-odd: learning rate (set-size = 21)",
+		subtitle="Test-retest: learning rate (set-size = 21)",
 		correct_r=false
 	)
 	fig
 end
 
-# ╔═╡ 9a42da85-8531-4d91-944e-77a9378d6b0b
+# ╔═╡ c5590646-9909-46a9-95bb-79f79f377008
 md"
 **Reciprocal update**
 "
 
-# ╔═╡ 38ea51ca-f146-4f45-a32d-1aca601c5c17
+# ╔═╡ b2971e33-797c-4c1c-be55-c18830067982
 let
 	retest_df = leftjoin(qr_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1:2];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:α1,
 		ycol=:α1_1,
-		subtitle="Session 1 even-odd: learning rate (set-size = 3)",
+		subtitle="Test-retest: learning rate (set-size = 3)",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,2];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:α2,
 		ycol=:α2_1,
-		subtitle="Session 1 even-odd: learning rate (set-size = 21)",
+		subtitle="Test-retest: learning rate (set-size = 21)",
 		correct_r=false
 	)
 	fig
 end
 
-# ╔═╡ 4b2074cd-9e36-49cd-898e-8c096388e175
+# ╔═╡ 147ffa2a-1524-4daa-b228-05a5d4e0c292
 md"
-#### Palimpsest working memory models
+### Palimpsest working memory models
 "
 
-# ╔═╡ 20616d82-c334-4e8b-9e67-0bb9270d5c4b
+# ╔═╡ 59643cec-9163-45ea-b0cc-9a1402aa9b52
 md"
 A) **Overall** capacity
 "
 
-# ╔═╡ da71edc6-5867-4cba-8c71-fbe225011e20
+# ╔═╡ c902b164-6d41-4d7a-a8c5-c58dbdcd9853
 begin
 	wm_splithalf = optimize_multiple_by_factor(
 		df;
 		model = WM_multi_all_outc_pmst_sgd_sum,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
@@ -676,7 +776,7 @@ begin
 	wmr_splithalf = optimize_multiple_by_factor(
 		df;
 		model = WM_multi_all_outc_pmst_sgd_sum_recip,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
@@ -689,81 +789,83 @@ begin
 	nothing
 end
 
-# ╔═╡ 5a770983-740c-404c-b5d5-ea37e2c77cc4
+# ╔═╡ a4e26c75-7c77-4c09-9149-f8f236f0c9d7
 md"
 **Single update**
 "
 
-# ╔═╡ 3dfc8850-b62c-401d-a4a4-c2ddb135fe8d
+# ╔═╡ 609f38ad-a107-4dcb-a109-03a81470eb84
 let
 	retest_df = leftjoin(wm_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:C,
 		ycol=:C_1,
-		subtitle="Session 1 even-odd: overall capacity",
+		subtitle="Test-retest: overall capacity",
 		correct_r=false
 	)
 	fig
 end
 
-# ╔═╡ ef6a0662-f688-4941-bebe-694b02375638
+# ╔═╡ 06081dd1-78d8-4bad-a64b-703619e7f12e
 md"
 **Reciprocal update**
 "
 
-# ╔═╡ 3a29b6ee-06a6-4ce5-a0ab-7bc020ad6d13
+# ╔═╡ f80c84e3-41c9-429e-b39b-0050f057bd9d
 let
 	retest_df = leftjoin(wmr_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:C,
 		ycol=:C_1,
-		subtitle="Session 1 even-odd: overall capacity",
+		subtitle="Test-retest: overall capacity",
 		correct_r=false
 	)
 	fig
 end
 
-# ╔═╡ 361e6a8d-aa7c-45cb-8034-67f1b77d2d2c
+# ╔═╡ f5a78d8e-ab11-4204-8337-2db5176c6718
 md"
 B) **Stimulus-specific** capacity
 "
 
-# ╔═╡ 84360976-a52e-4b13-8a0a-a50f52860eb9
+# ╔═╡ b0242d24-2463-492c-81d7-61f0ef6f7583
 begin
 	wmss_splithalf = optimize_multiple_by_factor(
 		df;
 		model = WM_multi_pmst_sgd_sum,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 3.), lower = 1.)
@@ -777,7 +879,7 @@ begin
 	wmssr_splithalf = optimize_multiple_by_factor(
 		df;
 		model = WM_multi_pmst_sgd_sum_recip,
-		factor = :even,
+		factor = :session,
 		priors = Dict(
 			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 3.), lower = 1.)
@@ -790,118 +892,125 @@ begin
 	nothing
 end
 
-# ╔═╡ a2e68387-a919-4a84-ad41-7b857ca34c00
+# ╔═╡ 395efdab-12c6-43d0-8bb7-8714c0af8f54
 md"
 **Single update**
 "
 
-# ╔═╡ 0b110e8d-d325-4aaf-b00f-b6be55332743
+# ╔═╡ 4756e64e-0a1b-4a4c-8408-e3fe6e7c7ecb
 let
 	retest_df = leftjoin(wmss_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:C,
 		ycol=:C_1,
-		subtitle="Session 1 even-odd: stimulus-specific capacity",
+		subtitle="Test-retest: stimulus-specific capacity",
 		correct_r=false
 	)
 	fig
 end
 
-# ╔═╡ 4d5490da-dfa3-41fb-8812-f9da163dbbdf
+# ╔═╡ 140b5d49-c254-4325-b942-e78d933f3a37
 md"
 **Reciprocal update**
 "
 
-# ╔═╡ 444e2e69-6aa5-4baa-99da-78eb01896715
+# ╔═╡ 795450a9-1f4c-41eb-8af4-06bb3bcfeae5
 let
 	retest_df = leftjoin(wmssr_splithalf..., on = :PID, makeunique=true)
+	dropmissing!(retest_df)
 	fig=Figure(;size=(800, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:ρ,
 		ycol=:ρ_1,
-		subtitle="Session 1 even-odd: reward sensitivity",
+		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
 	workshop_reliability_scatter!(
 		fig[2,1];
 		df=retest_df,
-		xlabel="Even trials",
-		ylabel="Odd trials",
+		xlabel="Session 1",
+		ylabel="Session 2",
 		xcol=:C,
 		ycol=:C_1,
-		subtitle="Session 1 even-odd: stimulus-specific capacity",
+		subtitle="Test-retest: stimulus-specific capacity",
 		correct_r=false
 	)
 	fig
 end
 
 # ╔═╡ Cell order:
-# ╟─11ebe9db-0809-48e7-ab4b-d5bee1fae9b1
-# ╠═54a03c1e-a2b8-11ef-2c40-695bce51ab75
-# ╠═2a0c2f77-4af2-44f0-adbe-3d9e52d24a59
-# ╟─892fc799-cc39-4a86-b899-cdcd1816c01b
-# ╟─dea7d258-486f-4ca3-8bcf-a2240fdef345
-# ╟─0eac1304-e5c7-4022-a648-2a3ad0293d36
-# ╠═419ae40b-f067-43ab-aff7-af7817ab93db
-# ╟─fa15d0b0-705c-4f62-8d94-4d7dec28b487
-# ╠═242afc6b-5881-47c4-b86b-f117d6c213d1
-# ╠═c1bca834-a7bd-470e-831f-3ddf3d3c0a9a
-# ╠═946360aa-3a1a-4ea0-b4ef-c32453e65b19
-# ╠═6fe27779-90e2-459e-adb9-2afc166d37f8
-# ╠═3108a5a5-37b9-4b76-a529-dab5e3eecff2
-# ╠═19d06113-a41f-4b5f-a353-225cec794db0
-# ╠═34db522e-26ce-4954-8660-5d4f4c5c53a5
-# ╠═aa77e9de-514b-43dd-b0c9-f542c6ab7c2f
-# ╠═1c46ae0f-658c-40df-82fa-385c0b5365ee
-# ╠═03918685-bda8-46b2-a1ac-be20e8781e9f
-# ╠═157d7977-0c94-47bf-9df0-47abf0887eeb
-# ╠═6429d353-3892-4d62-9a9e-cf167639e4fe
-# ╠═4fe85f44-2dbe-450b-859a-85cfbf5a8024
-# ╠═ee33a3e7-2d4c-40a1-9255-b57f3a73df80
-# ╠═0faebc26-016a-4683-b26a-a248fa9a0dee
-# ╠═56e84e90-f53c-474e-a0aa-d5d97cb8f255
-# ╟─fa7fcb02-e12d-4bc5-8886-e50460a04186
-# ╟─f266fcdb-5000-4458-9328-684d70f896f0
-# ╠═9c9c4f38-3631-4a02-8a0e-f4583702e377
-# ╟─b34d0881-4480-480a-9673-e3cf5ba8a909
-# ╠═11e8bd77-e192-4e00-9e15-d8aa2edae2e8
-# ╟─75bf8e63-f786-4d1a-9dc2-d2ad3b2e586e
-# ╟─bfeb3a32-87d4-45a1-b1c9-c2c522366a73
-# ╟─26eb6122-96a2-45d2-b479-240a0da3eef8
-# ╠═519b1a8b-e600-4fcb-84cc-cc3afc5d5b06
-# ╟─1a8b8235-e31e-4d1e-9829-5cb44daeb017
-# ╠═372bc57f-3bde-4275-9440-a28aae76bba5
-# ╟─9a42da85-8531-4d91-944e-77a9378d6b0b
-# ╠═38ea51ca-f146-4f45-a32d-1aca601c5c17
-# ╟─4b2074cd-9e36-49cd-898e-8c096388e175
-# ╟─20616d82-c334-4e8b-9e67-0bb9270d5c4b
-# ╠═da71edc6-5867-4cba-8c71-fbe225011e20
-# ╠═5a770983-740c-404c-b5d5-ea37e2c77cc4
-# ╠═3dfc8850-b62c-401d-a4a4-c2ddb135fe8d
-# ╠═ef6a0662-f688-4941-bebe-694b02375638
-# ╠═3a29b6ee-06a6-4ce5-a0ab-7bc020ad6d13
-# ╠═361e6a8d-aa7c-45cb-8034-67f1b77d2d2c
-# ╠═84360976-a52e-4b13-8a0a-a50f52860eb9
-# ╠═a2e68387-a919-4a84-ad41-7b857ca34c00
-# ╠═0b110e8d-d325-4aaf-b00f-b6be55332743
-# ╠═4d5490da-dfa3-41fb-8812-f9da163dbbdf
-# ╠═444e2e69-6aa5-4baa-99da-78eb01896715
+# ╟─252143a6-a665-11ef-342a-611b7078e403
+# ╠═cd74d0cc-a0d4-4b93-ae70-36f2e961744d
+# ╠═d3fa9ccc-373d-4b6c-a957-c44a970c4664
+# ╟─c34ed6ad-4188-4fe8-bd54-8dded373728f
+# ╟─815a8229-1420-479c-a6b7-e835afaa58da
+# ╟─8937e80e-81a1-4314-9391-213994933679
+# ╠═9a951062-ab2e-4fc6-9826-b45718caf366
+# ╟─73f18d96-fe5c-48ad-87bb-968c0df3bdd5
+# ╟─9e36111d-6b22-49ec-8c3e-ef3701ae4e9c
+# ╠═87479aa6-d8a2-4801-860f-df408243dc41
+# ╠═f0c0fb08-bbb8-4876-ad6d-eab5f817d4e5
+# ╟─11e19837-c3c6-40c8-bd3b-e1ff9fca00b6
+# ╟─50323172-e475-4cdd-99cc-a3419ac22887
+# ╠═53d8fa96-127a-42d4-9928-d3f36d616f45
+# ╠═09c121c4-dd34-42c6-a506-d05634f53f4b
+# ╟─95e141ba-7011-4e9c-84a8-7605f3516db1
+# ╠═a235c7c1-f5a6-4bf3-8ddc-9ec44f56117e
+# ╠═af0e6ebe-249b-46ab-9f0f-e44caf8055df
+# ╠═3a2f75c0-62ed-4a9b-8e09-a771ee5c3830
+# ╟─76299691-ba71-4c6b-8226-aa0036a0c074
+# ╟─8df1a8b6-3de5-40a2-b549-702402895c7f
+# ╠═13b6ccfa-a377-4158-8809-17f16e9511b2
+# ╟─dcbdbe12-2c0c-4205-98b0-fe04d2d8812a
+# ╠═e45c5d7f-70f9-4caa-a16f-8ed6dd89e8dc
+# ╟─e1d2f0ee-a6b4-4ccd-93dd-f35271b3096e
+# ╟─cc653756-8962-4f27-a8ec-95f848f5016c
+# ╟─8fc367ad-0a43-4df1-94fd-6b9c5f6a3973
+# ╠═3c330108-a4fc-41f5-a6ae-04077f03345c
+# ╟─e880e378-616d-4020-a4c1-e3b918e3bc81
+# ╠═eecbad77-245b-4637-bc1a-f5930afbdc24
+# ╟─43eddd3a-7518-47e8-a988-343dd57fd8fb
+# ╟─64e0d111-94db-43f9-afb6-b1f538e7d4ad
+# ╠═36f6b691-997b-490a-8f86-a71d565b2ce9
+# ╟─90af826c-9ba4-4496-b37b-a1716dcc2f5a
+# ╠═2edec29a-c4c3-4cd8-baf3-03f71ada674b
+# ╟─5950c9d6-c581-493d-b726-beba0315a8eb
+# ╟─f1b6aaf2-0226-4d2a-bad0-71e4471857e3
+# ╠═2938d136-24c7-4162-bf27-88a9c4a35702
+# ╟─1764420b-3cb9-4516-9b28-33ea6e7cf985
+# ╠═8398a4d3-2161-49ac-b6eb-374228aef9f2
+# ╟─c5590646-9909-46a9-95bb-79f79f377008
+# ╠═b2971e33-797c-4c1c-be55-c18830067982
+# ╟─147ffa2a-1524-4daa-b228-05a5d4e0c292
+# ╟─59643cec-9163-45ea-b0cc-9a1402aa9b52
+# ╠═c902b164-6d41-4d7a-a8c5-c58dbdcd9853
+# ╟─a4e26c75-7c77-4c09-9149-f8f236f0c9d7
+# ╠═609f38ad-a107-4dcb-a109-03a81470eb84
+# ╟─06081dd1-78d8-4bad-a64b-703619e7f12e
+# ╠═f80c84e3-41c9-429e-b39b-0050f057bd9d
+# ╟─f5a78d8e-ab11-4204-8337-2db5176c6718
+# ╠═b0242d24-2463-492c-81d7-61f0ef6f7583
+# ╟─395efdab-12c6-43d0-8bb7-8714c0af8f54
+# ╠═4756e64e-0a1b-4a4c-8408-e3fe6e7c7ecb
+# ╟─140b5d49-c254-4325-b942-e78d933f3a37
+# ╠═795450a9-1f4c-41eb-8af4-06bb3bcfeae5

@@ -642,7 +642,7 @@ end
 
 function get_choice_number(row, block_stimuli_map)
     # Use compound key
-    key = (row.block, row.stimulus_group_id)
+    key = (row.block, row.stimulus_group_id, row.session)
     stimulus_to_number = block_stimuli_map[key]
     chosen = get_chosen_stimulus(row)
     return stimulus_to_number[chosen]
@@ -652,9 +652,11 @@ function add_choice_column!(df)
     # Map (block, stimulus_group_id) to stimulus mappings
     block_stimuli_map = Dict()
     
-    for block_grp in unique(zip(df.block, df.stimulus_group_id))
-        block, grp = block_grp
-        block_data = filter(r -> r.block == block && r.stimulus_group_id == grp, df)
+    for block_grp in unique(zip(df.block, df.stimulus_group_id, df.session))
+        block, grp, sess = block_grp
+        block_data = filter(
+			r -> r.block == block && r.stimulus_group_id == grp && r.session == sess, df
+		)
         
         stimuli = unique([
             block_data.stimulus_left;
@@ -722,7 +724,7 @@ function prepare_WM_data(data)
 	forfit.pair = forfit.stimulus_group
 	forfit.isOptimal = forfit.response_optimal
 	forfit = DataFrames.transform(
-		groupby(forfit, [:PID, :block, :pair]), eachindex => :trial; ungroup=true
+		groupby(forfit, [:PID, :block, :pair, :session]), eachindex => :trial; ungroup=true
 	)
 
 	return forfit
