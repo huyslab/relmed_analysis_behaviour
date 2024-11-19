@@ -122,7 +122,7 @@ let
 	fig = @chain PIT_data begin
 		@filter(trial_number != 0)
 		@ungroup
-		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine="average")
+		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine="average")
 	end
 	
 	# Save
@@ -206,15 +206,15 @@ end
 # ╔═╡ 1beaa9b1-73e9-407b-bf5f-a4091f00a17d
 let
 	df = @chain PIT_data begin
-		@arrange(prolific_pid, magnitude, ratio)
+		@arrange(prolific_pid, session, magnitude, ratio)
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
 		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
 	end
 	colors=ColorSchemes.PRGn_7.colors
 	colors[4]=colorant"rgb(210, 210, 210)"
-	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig], :press_per_sec)
+	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig, :session], :press_per_sec)
 	p = data(avg_w_data) *
-	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric, row=:session) *
 	(
 		visual(Lines, linewidth=1, color=:gray75) +
 		visual(Errorbars, whiskerwidth=4) *
@@ -222,8 +222,8 @@ let
 		visual(Scatter, markersize=10) *
 		mapping(color=:coin => nonnumeric => :"Coin value")
 	)
-	fig = Figure(;size=(16, 5) .* 144 ./ 2.54)
-	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
+	fig = Figure(;size=(16, 8) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p, scales(Color = (; palette=colors), Row=(;categories=["1" => "Session 1", "2" => "Session 2"])); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
 	legend!(fig[1,2], p)
 
 	# Save
