@@ -112,10 +112,48 @@ md"""
 ### Press rate by reward rate
 """
 
+# ╔═╡ d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
+let
+	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
+x -> filter(:n_session => (==(2)), x)
+	fig = plot_presses_vs_var(@filter(vigour_data, trial_number > 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine="average")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_session.png")
+	save(filepaths, fig; px_per_unit = 4)
+
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+
+# ╔═╡ bd3c7bce-be8d-4ed1-b194-f6811daebebe
+let
+	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
+	x -> filter(:n_session => (==(2)), x)
+	fig = plot_presses_vs_var(@filter(semijoin(vigour_data, two_sess_sub, on=:prolific_pid), trial_number > 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine="average")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_matched_session.png")
+	save(filepaths, fig; px_per_unit = 4)
+
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+
 # ╔═╡ 7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 let
 	fig = @chain vigour_data begin
-		@filter(trial_number != 0)
+		@filter(trial_number > 0)
 		@ungroup
 		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine="average")
 	end
@@ -1090,6 +1128,8 @@ end
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
 # ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
+# ╠═d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
+# ╠═bd3c7bce-be8d-4ed1-b194-f6811daebebe
 # ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
 # ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
