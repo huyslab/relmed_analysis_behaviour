@@ -94,31 +94,29 @@ function random_outcomes_from_sequence(;
     n_options::Int64 = 2,
     kwargs...
 )
-
-return vcat(
-    [
-        random_sequence(;
-            optimal = mgnt[2], 
-            suboptimal = mgnt[1],
-            n_pairs = set_sizes[i] ÷ n_options,
-            n_options = n_options,
-            kwargs...
-        )
-        for (i, mgnt) in enumerate(
-            Iterators.take(
-                Iterators.cycle(
-                    [
-                        ([0.01], [0.5, 1.]),
-                        ([0.01, 0.5], [1.]),
-                        ([-0.5, -1.], [-0.01]),
-                        ([-1.], [-0.01, -0.5])
-                    ]
-                ), n_blocks
+    return vcat(
+        [
+            random_sequence(;
+                optimal = mgnt[2], 
+                suboptimal = mgnt[1],
+                n_pairs = set_sizes[i] ÷ n_options,
+                n_options = n_options,
+                kwargs...
             )
-        )
-    ]...
-)
-
+            for (i, mgnt) in enumerate(
+                Iterators.take(
+                    Iterators.cycle(
+                        [
+                            ([0.01], [0.5, 1.]),
+                            ([0.01, 0.5], [1.]),
+                            ([-0.5, -1.], [-0.01]),
+                            ([-1.], [-0.01, -0.5])
+                        ]
+                    ), n_blocks
+                )
+            )
+        ]...
+    )
 end
 
 function set_size_per_block(;
@@ -392,7 +390,7 @@ end
 
 # end
 
-# Prepare pilot data for fititng with model
+# Prepare previous pilot data for fititng with model
 function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false, wm = false)
     data.condition .= pilot2 || pilot4 ? 1 : data.condition
     data.choice .= wm ? data.choice .+= 1 : data.choice
@@ -473,176 +471,176 @@ end
 # end
 
 # Find MLE / MAP for DataFrame with data for single participant
-function optimize_ss(
-	data::AbstractDataFrame;
-    initial::Union{Float64, Nothing} = nothing,
-    model::Function = RL_ss,
-	estimate::String = "MAP",
-    priors::Dict = Dict(
-        :ρ => truncated(Normal(0., 1.), lower = 0.),
-        :a => Normal(0., 0.5)
-    ),
-    parameters::Vector{Symbol} = collect(keys(priors)),
-    transformed::Dict{Symbol, Symbol} = Dict{:a => :α}, # Transformed parameters
-    bootstraps::Int64 = 0
-)
-    data_for_fit = unpack_data(data)
-    res = model(
-        data_for_fit,
-        data.choice;
-        priors = priors,
-        initial = initial
-    )
+# function optimize_ss(
+# 	data::AbstractDataFrame;
+#     initial::Union{Float64, Nothing} = nothing,
+#     model::Function = RL_ss,
+# 	estimate::String = "MAP",
+#     priors::Dict = Dict(
+#         :ρ => truncated(Normal(0., 1.), lower = 0.),
+#         :a => Normal(0., 0.5)
+#     ),
+#     parameters::Vector{Symbol} = collect(keys(priors)),
+#     transformed::Dict{Symbol, Symbol} = Dict{:a => :α}, # Transformed parameters
+#     bootstraps::Int64 = 0
+# )
+#     data_for_fit = unpack_data(data)
+#     res = model(
+#         data_for_fit,
+#         data.choice;
+#         priors = priors,
+#         initial = initial
+#     )
 
-    if estimate == "MLE"
-        fit = maximum_likelihood(res)
-    elseif estimate == "MAP"
-        fit = maximum_a_posteriori(res)
-    end
+#     if estimate == "MLE"
+#         fit = maximum_likelihood(res)
+#     elseif estimate == "MAP"
+#         fit = maximum_a_posteriori(res)
+#     end
 
-    # Estimate covariance matrix using bootstrapping?
-    cov_mat = Matrix{Float64}(undef, length(parameters), length(parameters))
-    try
-        cov_mat = vcov(fit)
-    catch
-        if bootstraps > 0
-            ests_tr = Matrix{Float64}(undef, bootstraps, length(parameters))
-            Threads.@threads for b in 1:bootstraps
-                # sample rows with replacement
-                idxs = sample(Xoshiro(b), 1:nrow(data), nrow(data), replace=true)
-                data_boot = data[idxs, :]
+#     # Estimate covariance matrix using bootstrapping?
+#     cov_mat = Matrix{Float64}(undef, length(parameters), length(parameters))
+#     try
+#         cov_mat = vcov(fit)
+#     catch
+#         if bootstraps > 0
+#             ests_tr = Matrix{Float64}(undef, bootstraps, length(parameters))
+#             Threads.@threads for b in 1:bootstraps
+#                 # sample rows with replacement
+#                 idxs = sample(Xoshiro(b), 1:nrow(data), nrow(data), replace=true)
+#                 data_boot = data[idxs, :]
     
-                boot_res = model(
-                    data_for_fit,
-                    data_boot.choice; # sample with replacement from choices
-                    priors = priors,
-                    initial = initial
-                )
+#                 boot_res = model(
+#                     data_for_fit,
+#                     data_boot.choice; # sample with replacement from choices
+#                     priors = priors,
+#                     initial = initial
+#                 )
     
-                if estimate == "MLE"
-                    boot_fit = maximum_likelihood(boot_res)
-                elseif estimate == "MAP"
-                    boot_fit = maximum_a_posteriori(boot_res)
-                end
+#                 if estimate == "MLE"
+#                     boot_fit = maximum_likelihood(boot_res)
+#                 elseif estimate == "MAP"
+#                     boot_fit = maximum_a_posteriori(boot_res)
+#                 end
     
-                ests_tr[b, :] = [haskey(transformed, p) ? a2α(boot_fit.values[p]) : boot_fit.values[p] for p in parameters]
-            end
-            cov_mat = cov(ests_tr, corrected = false) # covariance of transformed parameters
-        else
-            println("No covariance matrix estimated.")
-        end
-    end
+#                 ests_tr[b, :] = [haskey(transformed, p) ? a2α(boot_fit.values[p]) : boot_fit.values[p] for p in parameters]
+#             end
+#             cov_mat = cov(ests_tr, corrected = false) # covariance of transformed parameters
+#         else
+#             println("No covariance matrix estimated.")
+#         end
+#     end
 
-    # get predictions from the model for choices by setting a Dirac prior on the parameters
-    priors_fitted = Dict{Symbol, Distribution}()
-    for p in parameters
-        priors_fitted = merge!(priors_fitted, Dict(p => Dirac(fit.values[p])))
-    end
+#     # get predictions from the model for choices by setting a Dirac prior on the parameters
+#     priors_fitted = Dict{Symbol, Distribution}()
+#     for p in parameters
+#         priors_fitted = merge!(priors_fitted, Dict(p => Dirac(fit.values[p])))
+#     end
     
-    gq_mod = model(
-        data_for_fit,
-        fill(missing, length(data.block));
-        priors = priors_fitted,
-        initial = initial
-    )
+#     gq_mod = model(
+#         data_for_fit,
+#         fill(missing, length(data.block));
+#         priors = priors_fitted,
+#         initial = initial
+#     )
 
-    # Draw parameters and simulate choice
-    gq_samp = sample(
-        Random.default_rng(),
-        gq_mod,
-        Prior(),
-        1
-    )
-    gq = generated_quantities(gq_mod, gq_samp)
-    choices = gq[1].choice
-    loglike = gq[1].loglike
-    bic = -2 * loglike + length(parameters) * log(nrow(data))
+#     # Draw parameters and simulate choice
+#     gq_samp = sample(
+#         Random.default_rng(),
+#         gq_mod,
+#         Prior(),
+#         1
+#     )
+#     gq = generated_quantities(gq_mod, gq_samp)
+#     choices = gq[1].choice
+#     loglike = gq[1].loglike
+#     bic = -2 * loglike + length(parameters) * log(nrow(data))
 
-	return fit, bic, choices, loglike, cov_mat
-end
+# 	return fit, bic, choices, loglike, cov_mat
+# end
 
-# Find MLE / MAP multiple times
-function optimize_multiple(
-	data::AbstractDataFrame;
-    initial::Union{Float64, Nothing} = nothing,
-    model::Function = RL_ss,
-    estimate::String = "MAP",
-	include_true::Bool = true, # Whether to return true value if this is simulation
-    priors::Dict = Dict(
-        :ρ => truncated(Normal(0., 1.), lower = 0.),
-        :a => Normal(0., 0.5)
-    ),
-    transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
-    parameters::Vector{Symbol} = collect(keys(priors)),
-    bootstraps::Int64 = 0
-)
-	ests = []
-    choice_df = Dict{Int64, DataFrame}()
-    cov_mat_dict = Dict{Int64, Matrix{Float64}}()
-	lk = ReentrantLock()
+# # Find MLE / MAP multiple times
+# function optimize_multiple(
+# 	data::AbstractDataFrame;
+#     initial::Union{Float64, Nothing} = nothing,
+#     model::Function = RL_ss,
+#     estimate::String = "MAP",
+# 	include_true::Bool = true, # Whether to return true value if this is simulation
+#     priors::Dict = Dict(
+#         :ρ => truncated(Normal(0., 1.), lower = 0.),
+#         :a => Normal(0., 0.5)
+#     ),
+#     transformed::Dict{Symbol, Symbol} = Dict(:a => :α), # Transformed parameters
+#     parameters::Vector{Symbol} = collect(keys(priors)),
+#     bootstraps::Int64 = 0
+# )
+# 	ests = []
+#     choice_df = Dict{Int64, DataFrame}()
+#     cov_mat_dict = Dict{Int64, Matrix{Float64}}()
+# 	lk = ReentrantLock()
 
-	Threads.@threads for p in unique(data.PID)
+# 	Threads.@threads for p in unique(data.PID)
 
-		# Select data
-		gdf = filter(x -> x.PID == p, data)
+# 		# Select data
+# 		gdf = filter(x -> x.PID == p, data)
 
-		# Optimize
-		est, bic, choices, loglike, cov_mat = optimize_ss(
-			gdf;
-			initial = initial,
-            model = model,
-			estimate = estimate,
-            priors = priors,
-            parameters = parameters,
-            transformed = transformed,
-            bootstraps = bootstraps
-		)
+# 		# Optimize
+# 		est, bic, choices, loglike, cov_mat = optimize_ss(
+# 			gdf;
+# 			initial = initial,
+#             model = model,
+# 			estimate = estimate,
+#             priors = priors,
+#             parameters = parameters,
+#             transformed = transformed,
+#             bootstraps = bootstraps
+# 		)
 
-		# Return
-        est_dct = Dict{Symbol, Union{Int64, Float64}}(:PID => gdf.PID[1])
-        est_par = Dict{Symbol, Symbol}()
-        if include_true
-            for p in parameters
-                est_par[p] = haskey(transformed, p) ? transformed[p] : p
-                est_dct[Symbol("true_$(est_par[p])")] = gdf[!, est_par[p]][1]
-                est_dct[Symbol("MLE_$(est_par[p])")] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
-            end
-        else
-            for p in parameters
-                est_par[p] = haskey(transformed, p) ? transformed[p] : p
-                est_dct[est_par[p]] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
-            end
-        end
+# 		# Return
+#         est_dct = Dict{Symbol, Union{Int64, Float64}}(:PID => gdf.PID[1])
+#         est_par = Dict{Symbol, Symbol}()
+#         if include_true
+#             for p in parameters
+#                 est_par[p] = haskey(transformed, p) ? transformed[p] : p
+#                 est_dct[Symbol("true_$(est_par[p])")] = gdf[!, est_par[p]][1]
+#                 est_dct[Symbol("MLE_$(est_par[p])")] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
+#             end
+#         else
+#             for p in parameters
+#                 est_par[p] = haskey(transformed, p) ? transformed[p] : p
+#                 est_dct[est_par[p]] = haskey(transformed, p) ? a2α(est.values[p]) : est.values[p]
+#             end
+#         end
 
-        est_dct[:loglike] = loglike
-        est_dct[:BIC] = bic
+#         est_dct[:loglike] = loglike
+#         est_dct[:BIC] = bic
 
-        if bootstraps > 0
-            # add bootstrap standard deviations to output dictionary
-            for (i, p) in enumerate(parameters)
-                est_dct[Symbol("sd_$(est_par[p])")] = sqrt(cov_mat[i, i])
-            end
-        end
-		lock(lk) do
-            est = NamedTuple{Tuple(keys(est_dct))}(values(est_dct))
-			push!(ests, est)
-            merge!(cov_mat_dict, Dict(p => cov_mat))
-            choice_df[p] = DataFrame(
-                PID = gdf.PID,
-                block = gdf.block,
-                valence = gdf.valence,
-                trial = gdf.trial,
-                true_choice = gdf.choice,
-                predicted_choice = choices
-            )
-		end
-	end
+#         if bootstraps > 0
+#             # add bootstrap standard deviations to output dictionary
+#             for (i, p) in enumerate(parameters)
+#                 est_dct[Symbol("sd_$(est_par[p])")] = sqrt(cov_mat[i, i])
+#             end
+#         end
+# 		lock(lk) do
+#             est = NamedTuple{Tuple(keys(est_dct))}(values(est_dct))
+# 			push!(ests, est)
+#             merge!(cov_mat_dict, Dict(p => cov_mat))
+#             choice_df[p] = DataFrame(
+#                 PID = gdf.PID,
+#                 block = gdf.block,
+#                 valence = gdf.valence,
+#                 trial = gdf.trial,
+#                 true_choice = gdf.choice,
+#                 predicted_choice = choices
+#             )
+# 		end
+# 	end
 
-    # make choice_df into a single DataFrame
-    choice_df = vcat(values(choice_df)...)
+#     # make choice_df into a single DataFrame
+#     choice_df = vcat(values(choice_df)...)
 
-	return DataFrame(ests), choice_df, cov_mat_dict
-end
+# 	return DataFrame(ests), choice_df, cov_mat_dict
+# end
 
 # function bootstrap_optimize_single_p_QL(
 # 	PLT_data::DataFrame;

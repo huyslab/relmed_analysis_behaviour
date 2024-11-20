@@ -255,12 +255,11 @@ function plot_prior_accuracy!(
 
 	# Default group value
     tdata = copy(data)
-    if ismissing(group)
-        tdata.group .= "1"
-        group = :group
-    else
-        tdata.group = string.(tdata[!, group])
-    end
+    tdata.group .= isnothing(group) ? "1" : tdata[!, group]
+	if tdata.group isa Array{<:Number,1}
+		DataFrames.sort!(tdata, [:trial, :valence, :group])
+		tdata.group .= string.(tdata.group)
+	end
 
 	if !hasproperty(tdata, :isOptimal)
 		insertcols!(tdata, :isOptimal => tdata.choice .== choice_val)
@@ -774,7 +773,7 @@ function optimization_calibration(
 		:a => Normal(0., 1.)
 	),
 	parameters::Vector{Symbol} = collect(keys(priors)),
-	bootstraps::Int64 = 0,
+	n_starts::Int64 = 5,
 	ms::Float64 = 4.
 )
 	MLEs = optimize_func(
@@ -786,8 +785,9 @@ function optimization_calibration(
 		priors = priors,
 		parameters = parameters,
 		transformed = transformed,
-		bootstraps = bootstraps
-	)[1]
+		n_starts = n_starts,
+		fit_only = true
+	)
 
 	# if parameter[i] in transformed, use transformed name, else use original
 	final_parameters = [haskey(transformed, p) ? transformed[p] : p for p in parameters]

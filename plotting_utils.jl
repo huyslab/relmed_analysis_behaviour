@@ -1,27 +1,48 @@
 # Functions for plotting data and simulations
-
 """
-reorder_bands_lines!(f::Figure)
+    extract_axis(f::GridPosition) -> Axis
 
-Reorders a bands and lines plot such that the band and line for each subgroup are plotted sequentially.
+Extracts the first `Axis` from the given `GridPosition`. If the first content of the 
+`GridPosition` is itself an `Axis`, it is returned directly. Otherwise, it recursively 
+extracts the first `Axis` from the nested contents.
 
 # Arguments
-- `f::Figure`: The figure containing the plots to be reordered.
+- `f::GridPosition`: The grid position from which to extract the axis.
+
+# Returns
+- `Axis`: The extracted axis object.
+"""
+function extract_axis(f::GridPosition)
+
+	# Get contents
+	axis = contents(f)[1]
+
+	# Allow for plotting straight into plot, or to grid position
+	if isa(axis, Axis)
+		return axis
+	else
+		return contents(axis)[1]
+	end
+end
+
+"""
+    reorder_bands_lines!(f::GridPosition)
+
+Reorders a bands and lines plot within a `GridPosition` such that the band and line for each subgroup 
+are plotted sequentially.
+
+# Arguments
+- `f::GridPosition`: The grid position containing the plots to be reordered.
 
 # Description
-This function reorders the plots in the provided `Figure` such that bands and lines for each subgroup are plotted one after the other. It assumes that the plots are initially ordered with bands followed by lines for each subgroup, and it reorders them by adjusting their z-values to ensure the desired sequential order.
+This function reorders the plots in the provided `GridPosition` by adjusting their z-values, ensuring 
+that bands and lines for each subgroup are plotted in an alternating sequence. It assumes that the plots 
+are initially ordered with all bands followed by all lines (or vice versa) and validates this structure before reordering.
 """
 function reorder_bands_lines!(f::GridPosition)
 
 	# Get plots
-	plots = contents(f)[1]
-
-	# Allow for plotting straight into plot, or to grid position
-	if isa(plots, Axis)
-		plots = plots.scene.plots
-	else
-		plots = contents(plots)[1].scene.plots
-	end
+	plots = extract_axis(f).scene.plots
 
 	n = length(plots)
 
@@ -43,8 +64,8 @@ Creates a scatter plot with a regression line and a unit line on a given grid po
 # Arguments
 - `f::GridPosition`: The grid position to draw the plot on.
 - `df::AbstractDataFrame`: The data frame containing the data to be plotted.
-- `xlabel::String`: Label for the x-axis.
-- `ylabel::String`: Label for the y-axis.
+- `xlabel::AbstractString`: Label for the x-axis.
+- `ylabel::AbstractString`: Label for the y-axis.
 - `xcol::Symbol = :x`: The column symbol for x-axis values in `df`.
 - `ycol::Symbol = :y`: The column symbol for y-axis values in `df`.
 - `subtitle::String = ""`: Subtitle for the plot.
@@ -61,17 +82,25 @@ The function computes the Spearman-Brown corrected correlation between `xcol` an
 function workshop_reliability_scatter!(
 	f::GridPosition;
 	df::AbstractDataFrame,
-	xlabel::String,
-	ylabel::String,
+	xlabel::AbstractString,
+	ylabel::AbstractString,
 	xcol::Symbol = :x,
 	ycol::Symbol = :y,
-	subtitle::String = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic
+	subtitle::AbstractString = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+	correct_r::Bool = true # Whether to apply Spearman Brown
 )	
 
-	# Compute Spearman-Brown-corrected correlation
-	r = spearman_brown(cor(df[!, xcol], df[!, ycol])) 
-	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
+	# Compute correlation
+	r = cor(df[!, xcol], df[!, ycol])
+	
+	# Spearman-Brown correction
+	if correct_r
+		r = spearman_brown(r)
+	end
+
+	# Text
+	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
 
 	# Plot
 	mp = data(df) *

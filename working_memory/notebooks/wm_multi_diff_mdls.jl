@@ -22,6 +22,7 @@ begin
 	include("$(pwd())/working_memory/simulate.jl")
 	include("$(pwd())/working_memory/RL+WM_multiaction_models.jl")	
 	include("$(pwd())/working_memory/plotting_utils.jl")
+	include("$(pwd())/working_memory/model_utils.jl")
 
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
@@ -53,6 +54,7 @@ md"
 begin
 	## load working memory task sequence for Pilot 6
 	pilot6_wm = load_wm_structure_csv("pilot6_WM")
+	filter!(x -> x.block <= 10, pilot6_wm)
 		
 	# random_task = create_random_task(;
 	#     n_blocks = 18, n_trials = 10, n_confusing = 0, 
@@ -82,9 +84,9 @@ begin
 	    100;
 		model = RL_multi_2set,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
-			:a1 => Normal(0., 0.5),
-        	:a2 => Normal(-0.2, 0.5),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., .5),
+        	:a2 => Normal(-0.5, .5),
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
@@ -99,12 +101,13 @@ begin
 		estimate = "MAP",
 		model = RL_multi_2set,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
-			:a1 => Normal(0., 0.5),
-        	:a2 => Normal(-0.2, 0.5),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., .5),
+        	:a2 => Normal(-0.5, .5),
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		n_starts = 5
 	)
 
 	f_qla
@@ -136,9 +139,9 @@ begin
 	    100;
 		model = RL_multi_2set_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
-			:a1 => Normal(0., 0.5),
-        	:a2 => Normal(-0.2, 0.5),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., .5),
+        	:a2 => Normal(-0.5, .5),
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
@@ -153,12 +156,13 @@ begin
 		estimate = "MAP",
 		model = RL_multi_2set_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
-			:a1 => Normal(0., 0.5),
-        	:a2 => Normal(-0.2, 0.5),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
+			:a1 => Normal(0., .5),
+        	:a2 => Normal(-0.5, .5),
 		),
 		parameters = [:ρ, :a1, :a2],
 		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		n_starts = 5
 	)
 
 	f_qlb
@@ -195,9 +199,9 @@ begin
 	    100;
 		model = RL_multi_2set_diff,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a => Normal(0., 0.5),
-        	:Δa => Normal(-0.2, 0.5)
+        	:Δa => Normal(-0.5, 0.5)
 		),
 		parameters = [:ρ, :a, :Δa],
 		transformed = Dict(:a => :α),
@@ -212,12 +216,13 @@ begin
 		estimate = "MAP",
 		model = RL_multi_2set_diff,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a => Normal(0., 0.5),
-        	:Δa => Normal(-0.2, 0.5)
+        	:Δa => Normal(-0.5, 0.5)
 		),
 		parameters = [:ρ, :a, :Δa],
-		transformed = Dict(:a => :α)		
+		transformed = Dict(:a => :α),
+		n_starts = 5
 	)
 
 	f_qlc
@@ -249,9 +254,9 @@ begin
 	    100;
 		model = RL_multi_2set_diff_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a => Normal(0., 0.5),
-        	:Δa => Normal(-0.2, 0.5)
+        	:Δa => Normal(-0.5, 0.5)
 		),
 		parameters = [:ρ, :a, :Δa],
 		transformed = Dict(:a => :α),
@@ -266,12 +271,13 @@ begin
 		estimate = "MAP",
 		model = RL_multi_2set_diff_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 5.), lower = 0.),
 			:a => Normal(0., 0.5),
-        	:Δa => Normal(-0.2, 0.5)
+        	:Δa => Normal(-0.5, 0.5)
 		),
 		parameters = [:ρ, :a, :Δa],
-		transformed = Dict(:a => :α)		
+		transformed = Dict(:a => :α),
+		n_starts = 5
 	)
 
 	f_qld
@@ -313,7 +319,7 @@ begin
 	    100;
 		model = WM_multi_all_outc_pmst_sgd,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -328,10 +334,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_all_outc_pmst_sgd,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wma
@@ -363,7 +370,7 @@ begin
 	    100;
 		model = WM_multi_pmst_sgd,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -378,10 +385,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_pmst_sgd,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wms
@@ -413,7 +421,7 @@ begin
 	    100;
 		model = WM_multi_all_outc_pmst_sgd_sum,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -428,10 +436,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_all_outc_pmst_sgd_sum,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wmc
@@ -463,7 +472,7 @@ begin
 	    100;
 		model = WM_multi_pmst_sgd_sum,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -478,10 +487,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_pmst_sgd_sum,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wmd
@@ -525,7 +535,7 @@ begin
 	    100;
 		model = WM_multi_all_outc_pmst_sgd_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -540,10 +550,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_all_outc_pmst_sgd_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wme
@@ -575,7 +586,7 @@ begin
 	    100;
 		model = WM_multi_pmst_sgd_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -590,10 +601,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_pmst_sgd_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wmf
@@ -625,7 +637,7 @@ begin
 	    100;
 		model = WM_multi_all_outc_pmst_sgd_sum_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -640,10 +652,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_all_outc_pmst_sgd_sum_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(5., 3.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wmg
@@ -675,7 +688,7 @@ begin
 	    100;
 		model = WM_multi_pmst_sgd_sum_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
 		parameters = [:ρ, :C],
@@ -690,10 +703,11 @@ begin
 		estimate = "MAP",
 		model = WM_multi_pmst_sgd_sum_recip,
 		priors = Dict(
-			:ρ => truncated(Normal(0., 4.), lower = 0.),
+			:ρ => truncated(Normal(0., 3.), lower = 0.),
 			:C => truncated(Normal(3., 2.), lower = 1.)
 		),
-		parameters = [:ρ, :C]
+		parameters = [:ρ, :C],
+		n_starts = 5
 	)
 
 	f_wmh

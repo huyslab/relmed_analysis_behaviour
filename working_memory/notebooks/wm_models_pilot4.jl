@@ -46,9 +46,6 @@ begin
 	set_theme!(th)
 end
 
-# ╔═╡ dc996131-1760-4d86-bf3a-adf51df3e7fb
-include("$(pwd())/working_memory/RL+RLWM_models.jl")
-
 # ╔═╡ 8eeab37a-3fdf-4103-b9e0-564b779a3493
 begin
 	PILT_data, _, _, _ = load_pilot4x_data()
@@ -56,6 +53,7 @@ begin
 	PILT_data = exclude_PLT_sessions(PILT_data, required_n_blocks = 18)
 	PILT_data_clean = filter(x -> x.choice != "noresp", PILT_data)
 	df = prepare_for_fit(PILT_data_clean; pilot4=true)[1]
+	nothing
 end
 
 # ╔═╡ 3cbde056-055a-4249-bc2f-6d9572add543
@@ -69,9 +67,12 @@ begin
 		
 		df1 = stack(df1, [:true_choice, :predicted_choice])
 		df1.chce_ss = df1.variable .* string.(df1.set_size)
+		rename!(df1, (:choice => :true_choice), (:value => :choice))
 		
 		df2 = stack(df2, [:true_choice, :predicted_choice])
 		df2.chce_ss = df2.variable .* string.(df2.set_size)
+		#df1.choice = ifelse.(df2.value == 1., 1, 0)
+		rename!(df2, (:choice => :true_choice), (:value => :choice))
 
 		return df1, df2
 	end
@@ -80,39 +81,39 @@ begin
 		f = Figure(size = (1000, 800))
 		plot_prior_accuracy!(
 			f[1,1], filter(x -> x.set_size == 2, choice_df1);
-			group = :variable, pid_col = :PID, acc_col = :value, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
+			group = :variable, pid_col = :PID, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
 			title = "Single (set size = 2)", colors = Makie.colorschemes[:Reds_3]
 		)
 		plot_prior_accuracy!(
 			f[1,2], filter(x -> x.set_size == 2, choice_df2);
 			group = :variable,
-		    pid_col = :PID, acc_col = :value, error_band = "se",legend = true,
+		    pid_col = :PID, error_band = "se",legend = true,
 			legend_pos = :bottom, legend_rows = 2,
 			title = "Reciprocal (set size = 2)", colors = Makie.colorschemes[:Reds_3]
 		)
 		plot_prior_accuracy!(
 			f[2,1], filter(x -> x.set_size == 6, choice_df1);
 			group = :variable, 
-			pid_col = :PID, acc_col = :value, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
+			pid_col = :PID, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
 			title = "Single (set size = 6)", colors = Makie.colorschemes[:Blues_3]
 		)
 		plot_prior_accuracy!(
 			f[2,2], filter(x -> x.set_size == 6, choice_df2);
 			group = :variable, 
-		    pid_col = :PID, acc_col = :value, error_band = "se",legend = true,
+		    pid_col = :PID, error_band = "se",legend = true,
 			legend_pos = :bottom, legend_rows = 2,
 			title = "Reciprocal (set size = 6)", colors = Makie.colorschemes[:Blues_3]
 		)
 		plot_prior_accuracy!(
 			f[3,1], filter(x -> x.set_size == 14, choice_df1);
 			group = :variable, 
-			pid_col = :PID, acc_col = :value, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
+			pid_col = :PID, error_band = "se", legend = true, legend_pos = :bottom, legend_rows = 2, 
 			title = "Single (set size = 14)", colors = Makie.colorschemes[:Oranges_3]
 		)
 		plot_prior_accuracy!(
 			f[3,2], filter(x -> x.set_size == 14, choice_df2);
 			group = :variable, 
-		    pid_col = :PID, acc_col = :value, error_band = "se",legend = true,
+		    pid_col = :PID, error_band = "se",legend = true,
 			legend_pos = :bottom, legend_rows = 2,
 			title = "Reciprocal (set size = 14)", colors = Makie.colorschemes[:Oranges_3]
 		)
@@ -177,7 +178,7 @@ end
 let
 	choice_df1, choice_df2 =
 		true_vs_preds(aos_pmst_choices, aosr_pmst_choices; og_df = df)
-
+	choice_df1
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
 
@@ -360,7 +361,6 @@ end
 
 # ╔═╡ Cell order:
 # ╠═172dcebc-9d1f-11ef-069b-cb4f7a52ef0a
-# ╠═dc996131-1760-4d86-bf3a-adf51df3e7fb
 # ╠═8eeab37a-3fdf-4103-b9e0-564b779a3493
 # ╠═3cbde056-055a-4249-bc2f-6d9572add543
 # ╟─0d7e8671-b1ba-49ed-bb90-006704921c58
