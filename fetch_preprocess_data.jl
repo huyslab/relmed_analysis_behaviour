@@ -308,8 +308,7 @@ end
 
 function exclude_double_takers!(df::DataFrame)
 	# Find double takes
-	double_takers = unique(df[!, [:prolific_pid, :session, 
-		:exp_start_time]])
+	double_takers = unique(df[!, [:prolific_pid, :session, :exp_start_time]])
 
 	# Function to parse date with multiple formats (WorldClock API format and jsPsych format)
 	function parse_date(date_str)
@@ -332,7 +331,7 @@ function exclude_double_takers!(df::DataFrame)
 	# Find earliert session
 	double_takers.date = parse_date.(double_takers.exp_start_time)
 
-	DataFrames.DataFrames.transform!(
+	DataFrames.transform!(
 		groupby(double_takers, [:prolific_pid, :session]),
 		:session => length => :n,
 		:date => minimum => :first_date
@@ -363,10 +362,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24
 		on = [:prolific_pid, :session, 
 		:exp_start_time])
 
-	exclude_double_takers!(PLT_data_clean)
-
-	return PLT_data_clean
-
+	return exclude_double_takers!(PLT_data_clean)
 end
 
 function exclude_PLT_trials(PLT_data::DataFrame)
@@ -632,6 +628,106 @@ function prepare_PIT_data(data::DataFrame)
 		)
 		PIT_data = exclude_double_takers!(PIT_data)
 	return PIT_data
+end
+
+function get_chosen_stimulus(row)
+    if row.response == "left"
+        return row.stimulus_left
+    elseif row.response == "right"
+        return row.stimulus_right
+    else # "middle"
+        return row.stimulus_middle
+    end
+end
+
+function get_choice_number(row, block_stimuli_map)
+    # Use compound key
+    key = (row.block, row.stimulus_group_id, row.session)
+    stimulus_to_number = block_stimuli_map[key]
+    chosen = get_chosen_stimulus(row)
+    return stimulus_to_number[chosen]
+end
+
+function add_choice_column!(df)
+    # Map (block, stimulus_group_id) to stimulus mappings
+    block_stimuli_map = Dict()
+    
+    for block_grp in unique(zip(df.block, df.stimulus_group_id, df.session))
+        block, grp, sess = block_grp
+        block_data = filter(
+			r -> r.block == block && r.stimulus_group_id == grp && r.session == sess, df
+		)
+        
+        stimuli = unique([
+            block_data.stimulus_left;
+            block_data.stimulus_right;
+            block_data.stimulus_middle
+        ])
+        
+        optimal = first(filter(r -> r.optimal_side == "middle", block_data)).stimulus_middle
+        others = setdiff(stimuli, [optimal])
+        
+        stimulus_to_number = Dict(
+            optimal => 3,
+            others[1] => 1,
+            others[2] => 2
+        )
+        
+        block_stimuli_map[block_grp] = stimulus_to_number
+    end
+    
+    df.choice = [get_choice_number(row, block_stimuli_map) for row in eachrow(df)]
+    return df
+end
+
+# Prepare pilot data for fititng with model
+function prepare_WM_data(data)
+	forfit = exclude_PLT_sessions(data, required_n_blocks = 10)
+	filter!(x -> x.response != "noresp", forfit)
+	forfit.feedback_optimal = 
+		ifelse.(
+			forfit.optimal_side .== "middle",
+			forfit.feedback_middle,
+			ifelse.(
+				forfit.optimal_side .== "left", forfit.feedback_left, forfit.feedback_right
+			)
+		)
+	
+	# Suboptimal feedback is always the same, so can be copied
+	forfit.feedback_suboptimal1 = 
+		ifelse.(
+			forfit.optimal_side .== "middle",
+			forfit.feedback_left,
+			ifelse.(forfit.optimal_side .== "left", forfit.feedback_right, forfit.feedback_middle)
+		)
+	forfit.feedback_suboptimal2 = forfit.feedback_suboptimal1
+
+	# Make choice into an integer column
+	forfit = add_choice_column!(forfit)
+
+	# Clean block numbers up
+	renumber_block(x) = indexin(x, sort(unique(x)))
+    DataFrames.transform!(
+		groupby(forfit, [:prolific_pid, :session]),
+		:block => renumber_block => :block,
+		ungroup=true
+	)
+	forfit.block = convert(Vector{Int64}, forfit.block)
+
+	# PID as number
+	pids = unique(forfit[!, [:prolific_pid]])
+	pids.PID = 1:nrow(pids)
+	forfit = innerjoin(forfit, pids[!, [:prolific_pid, :PID]], on = :prolific_pid)
+
+	# New columns for compatilibility with WM functions
+	forfit.set_size = forfit.n_groups .* 3
+	forfit.pair = forfit.stimulus_group
+	forfit.isOptimal = forfit.response_optimal
+	forfit = DataFrames.transform(
+		groupby(forfit, [:PID, :block, :pair, :session]), eachindex => :trial; ungroup=true
+	)
+
+	return forfit
 end
 
 
