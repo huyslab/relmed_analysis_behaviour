@@ -853,6 +853,7 @@ md"
 "
 
 # ╔═╡ 89358642-2a4b-4b42-b03d-a8c8f0e817e8
+#=╠═╡
 let
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rl = optimization_calibration(
@@ -864,8 +865,10 @@ let
 
 	f_rl
 end
+  ╠═╡ =#
 
 # ╔═╡ 9c54629b-4aeb-4019-a369-00558270fc96
+#=╠═╡
 let
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rfl = optimization_calibration(
@@ -885,8 +888,10 @@ let
 
 	f_rfl
 end
+  ╠═╡ =#
 
 # ╔═╡ 1dfd03d0-a789-4dcc-885e-8546d73a0f0d
+#=╠═╡
 let
 	aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
 	f_rlwm = optimization_calibration(
@@ -909,6 +914,7 @@ let
 
 	f_rlwm
 end
+  ╠═╡ =#
 
 # ╔═╡ e0e8b4b4-cc86-4816-b3f6-389df99b437e
 let
