@@ -55,7 +55,7 @@ md"
 # ╔═╡ 3fb61265-25f8-456d-8e4c-5e6d2064467a
 begin
 	random_task = create_random_task(;
-	    n_blocks = 18, n_trials = 10, n_confusing = 2, set_sizes = [2, 4, 6]
+	    n_blocks = 10, n_trials = 7, n_confusing = 0, set_sizes = [2, 6, 14]
 	)
 	chce = fill(missing, nrow(random_task))
 	

@@ -48,7 +48,7 @@ end
 
 # ╔═╡ 252143a6-a665-11ef-342a-611b7078e403
 md"
-## Plots for working memory in workshop
+# Pilot session 1 & 2 for workshop
 "
 
 # ╔═╡ d3fa9ccc-373d-4b6c-a957-c44a970c4664
@@ -265,7 +265,7 @@ begin
         	:a2 => Normal(0., 2.)
 		),
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		#transformed = Dict(:a1 => :α1, :a2 => :α2),
 		gq_struct = sess1_str,
 		n_starts = 5
 	)
@@ -280,7 +280,7 @@ begin
         	:a2 => Normal(0., 2.)
 		),
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		#transformed = Dict(:a1 => :α1, :a2 => :α2),
 		gq_struct = sess2_str,
 		n_starts = 5
 	)
@@ -297,7 +297,7 @@ begin
         	:a2 => Normal(0., 2.)
 		),
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		#transformed = Dict(:a1 => :α1, :a2 => :α2),
 		gq_struct = sess1_str,
 		n_starts = 5
 	)
@@ -312,7 +312,7 @@ begin
         	:a2 => Normal(0., 2.)
 		),
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		#transformed = Dict(:a1 => :α1, :a2 => :α2),
 		gq_struct = sess2_str,
 		n_starts = 5
 	)
@@ -320,26 +320,37 @@ begin
 	nothing
 end
 
+# ╔═╡ c24f739a-1f33-4394-8248-697f548f4019
+let
+	pids = unique(df, [:prolific_pid, :PID])[:, [:prolific_pid, :PID]]
+	sess1_pars = leftjoin(pids, qs_ests_s1[:, [:PID, :ρ, :a1, :a2]], on = :PID)
+	sess1_pars.session .= 1
+	sess2_pars = leftjoin(pids, qs_ests_s2[:, [:PID, :ρ, :a1, :a2]], on = :PID)
+	sess2_pars.session .= 2
+	wm_pars_all = vcat(sess1_pars, sess2_pars)
+	CSV.write("wm_pars_all.csv", wm_pars_all)
+end
+
 # ╔═╡ f0c0fb08-bbb8-4876-ad6d-eab5f817d4e5
 let
 	f = Figure(size = (800, 300))
 	
 	# Define parameters
-	s1ρ1, s1α1s, s1ll1 = qs_ests_s1.ρ, qs_ests_s1.α1, qs_ests_s1.loglike
-	s2ρ1, s2α1s, s2ll1 = qs_ests_s2.ρ, qs_ests_s2.α1, qs_ests_s2.loglike
-	s1ρ2, s1α1r, s1ll2 = qr_ests_s1.ρ, qr_ests_s1.α1, qr_ests_s1.loglike
-	s2ρ2, s2α1r, s2ll2 = qr_ests_s2.ρ, qr_ests_s2.α1, qr_ests_s2.loglike
+	s1ρ1, s1a1s, s1ll1 = qs_ests_s1.ρ, qs_ests_s1.a1, qs_ests_s1.loglike
+	s2ρ1, s2a1s, s2ll1 = qs_ests_s2.ρ, qs_ests_s2.a1, qs_ests_s2.loglike
+	s1ρ2, s1a1r, s1ll2 = qr_ests_s1.ρ, qr_ests_s1.a1, qr_ests_s1.loglike
+	s2ρ2, s2a1r, s2ll2 = qr_ests_s2.ρ, qr_ests_s2.a1, qr_ests_s2.loglike
 
 	# Set labels
-	labs1 = (xlabel = "ρ", ylabel = "α1", zlabel = "log-likelihood", title = "Single")
-	labs2 = (xlabel = "ρ", ylabel = "α1", zlabel = "log-likelihood", title = "Reciprocal")
+	labs1 = (xlabel = "ρ", ylabel = "a1", zlabel = "log-likelihood", title = "Single")
+	labs2 = (xlabel = "ρ", ylabel = "a1", zlabel = "log-likelihood", title = "Reciprocal")
 
 	# Plot
 	ax1, ax2 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...)
-	scatter!(ax1, s1ρ1, s1α1s, s1ll1)
-	scatter!(ax1, s2ρ1, s2α1s, s2ll1)
-	scatter!(ax2, s1ρ2, s1α1r, s1ll2)
-	scatter!(ax2, s2ρ2, s2α1r, s2ll2)
+	scatter!(ax1, s1ρ1, s1a1s, s1ll1)
+	scatter!(ax1, s2ρ1, s2a1s, s2ll1)
+	scatter!(ax2, s1ρ2, s1a1r, s1ll2)
+	scatter!(ax2, s2ρ2, s2a1r, s2ll2)
 	f
 end
 
@@ -437,11 +448,16 @@ let
 end
 
 # ╔═╡ 95e141ba-7011-4e9c-84a8-7605f3516db1
+# ╠═╡ disabled = true
+#=╠═╡
 md"
 B) **Stimulus-specific** capacity + no averaging
 "
+  ╠═╡ =#
 
 # ╔═╡ a235c7c1-f5a6-4bf3-8ddc-9ec44f56117e
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	# single update model
 	wmss_ests_s1, wmss_choices_s1 = optimize_multiple(
@@ -500,8 +516,11 @@ begin
 	)
 	nothing
 end
+  ╠═╡ =#
 
 # ╔═╡ af0e6ebe-249b-46ab-9f0f-e44caf8055df
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	f = Figure(size = (800, 300))
 	
@@ -523,6 +542,7 @@ let
 	scatter!(ax2, s2ρ2, s2C2, s2ll2)
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 3a2f75c0-62ed-4a9b-8e09-a771ee5c3830
 md"
@@ -599,10 +619,13 @@ md"
 "
 
 # ╔═╡ 36f6b691-997b-490a-8f86-a71d565b2ce9
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	choice_df1, choice_df2 = true_vs_preds(wmss_choices_s1, wmssr_choices_s1; strct = sess1_str)
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
+  ╠═╡ =#
 
 # ╔═╡ 90af826c-9ba4-4496-b37b-a1716dcc2f5a
 md"
@@ -610,10 +633,13 @@ md"
 "
 
 # ╔═╡ 2edec29a-c4c3-4cd8-baf3-03f71ada674b
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	choice_df1, choice_df2 = true_vs_preds(wmss_choices_s2, wmssr_choices_s2; strct = sess2_str)
 	plot_true_vs_preds(choice_df1, choice_df2)
 end
+  ╠═╡ =#
 
 # ╔═╡ 5950c9d6-c581-493d-b726-beba0315a8eb
 md"
@@ -639,7 +665,7 @@ begin
 		estimate = "MAP",
 		include_true = false,
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		# transformed = Dict(:a1 => :α1, :a2 => :α2),
 		n_starts = 5
 	)
 	# reciprocal update model
@@ -655,7 +681,7 @@ begin
 		estimate = "MAP",
 		include_true = false,
 		parameters = [:ρ, :a1, :a2],
-		transformed = Dict(:a1 => :α1, :a2 => :α2),
+		# transformed = Dict(:a1 => :α1, :a2 => :α2),
 		n_starts = 5
 	)
 	nothing
@@ -670,7 +696,10 @@ md"
 let
 	retest_df = leftjoin(qs_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
-	fig=Figure(;size=(800, 700))
+	retest_df[!, :Δa_s1] .= retest_df.a2 .- retest_df.a1
+	retest_df[!, :Δa_s2] .= retest_df.a2_1 .- retest_df.a1_1
+	
+	fig=Figure(;size=(800, 1000))
 	workshop_reliability_scatter!(
 		fig[1,1:2];
 		df=retest_df,
@@ -686,8 +715,8 @@ let
 		df=retest_df,
 		xlabel="Session 1",
 		ylabel="Session 2",
-		xcol=:α1,
-		ycol=:α1_1,
+		xcol=:a1,
+		ycol=:a1_1,
 		subtitle="Test-retest: learning rate (set-size = 3)",
 		correct_r=false
 	)
@@ -696,9 +725,19 @@ let
 		df=retest_df,
 		xlabel="Session 1",
 		ylabel="Session 2",
-		xcol=:α2,
-		ycol=:α2_1,
+		xcol=:a2,
+		ycol=:a2_1,
 		subtitle="Test-retest: learning rate (set-size = 21)",
+		correct_r=false
+	)
+	workshop_reliability_scatter!(
+		fig[3,1:2];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=:Δa_s1,
+		ycol=:Δa_s2,
+		subtitle="Test-retest: learning rate difference",
 		correct_r=false
 	)
 	fig
@@ -713,7 +752,10 @@ md"
 let
 	retest_df = leftjoin(qr_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
-	fig=Figure(;size=(800, 700))
+	retest_df[!, :Δa_s1] .= retest_df.a2 .- retest_df.a1
+	retest_df[!, :Δa_s2] .= retest_df.a2_1 .- retest_df.a1_1
+	
+	fig=Figure(;size=(800, 1000))
 	workshop_reliability_scatter!(
 		fig[1,1:2];
 		df=retest_df,
@@ -729,8 +771,8 @@ let
 		df=retest_df,
 		xlabel="Session 1",
 		ylabel="Session 2",
-		xcol=:α1,
-		ycol=:α1_1,
+		xcol=:a1,
+		ycol=:a1_1,
 		subtitle="Test-retest: learning rate (set-size = 3)",
 		correct_r=false
 	)
@@ -739,9 +781,19 @@ let
 		df=retest_df,
 		xlabel="Session 1",
 		ylabel="Session 2",
-		xcol=:α2,
-		ycol=:α2_1,
+		xcol=:a2,
+		ycol=:a2_1,
 		subtitle="Test-retest: learning rate (set-size = 21)",
+		correct_r=false
+	)
+	workshop_reliability_scatter!(
+		fig[3,1:2];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=:Δa_s1,
+		ycol=:Δa_s2,
+		subtitle="Test-retest: learning rate difference",
 		correct_r=false
 	)
 	fig
@@ -789,6 +841,60 @@ begin
 	nothing
 end
 
+# ╔═╡ a6df3af3-b79d-4e29-a11f-51a0700a0ae9
+function workshop_reliability_scatter_new!(
+	f::GridPosition;
+	df::AbstractDataFrame,
+	xlabel::AbstractString,
+	ylabel::AbstractString,
+	xcol::Symbol = :x,
+	ycol::Symbol = :y,
+	subtitle::AbstractString = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+	correct_r::Bool = false # Whether to apply Spearman Brown
+)	
+
+	# Compute correlation
+	r = cor(df[!, xcol], df[!, ycol])
+	
+	# Spearman-Brown correction
+	if correct_r
+		r = spearman_brown(r)
+	end
+
+	# Text
+	r_text = "n = $(nrow(df)), r = $(round(r; digits = 2))"
+
+	# Plot
+	mp = data(df) *
+			mapping(xcol, ycol) *
+			(visual(Scatter) + linear()) +
+		mapping([0], [1]) *
+			visual(ABLines, linestyle = :dash, color = :gray70)
+	
+	draw!(f, mp; axis=(;
+		xlabel = xlabel, 
+		ylabel = ylabel, 
+		xtickformat = tickformat,
+		ytickformat = tickformat,
+		subtitle = subtitle
+	))
+
+	if r > 0
+		Label(
+			f,
+			r_text,
+			fontsize = 16,
+			font = :bold,
+			halign = 0.975,
+			valign = 0.1,
+			tellheight = false,
+			tellwidth = false
+		)
+	end
+
+end
+
 # ╔═╡ a4e26c75-7c77-4c09-9149-f8f236f0c9d7
 md"
 **Single update**
@@ -798,7 +904,7 @@ md"
 let
 	retest_df = leftjoin(wm_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
-	fig=Figure(;size=(800, 700))
+	fig=Figure(;size=(500, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
@@ -809,7 +915,7 @@ let
 		subtitle="Test-retest: reward sensitivity",
 		correct_r=false
 	)
-	workshop_reliability_scatter!(
+	workshop_reliability_scatter_new!(
 		fig[2,1];
 		df=retest_df,
 		xlabel="Session 1",
@@ -831,7 +937,7 @@ md"
 let
 	retest_df = leftjoin(wmr_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
-	fig=Figure(;size=(800, 700))
+	fig=Figure(;size=(500, 700))
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=retest_df,
@@ -861,6 +967,8 @@ B) **Stimulus-specific** capacity
 "
 
 # ╔═╡ b0242d24-2463-492c-81d7-61f0ef6f7583
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	wmss_splithalf = optimize_multiple_by_factor(
 		df;
@@ -891,6 +999,7 @@ begin
 	)
 	nothing
 end
+  ╠═╡ =#
 
 # ╔═╡ 395efdab-12c6-43d0-8bb7-8714c0af8f54
 md"
@@ -898,6 +1007,8 @@ md"
 "
 
 # ╔═╡ 4756e64e-0a1b-4a4c-8408-e3fe6e7c7ecb
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	retest_df = leftjoin(wmss_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
@@ -924,6 +1035,7 @@ let
 	)
 	fig
 end
+  ╠═╡ =#
 
 # ╔═╡ 140b5d49-c254-4325-b942-e78d933f3a37
 md"
@@ -931,6 +1043,8 @@ md"
 "
 
 # ╔═╡ 795450a9-1f4c-41eb-8af4-06bb3bcfeae5
+# ╠═╡ disabled = true
+#=╠═╡
 let
 	retest_df = leftjoin(wmssr_splithalf..., on = :PID, makeunique=true)
 	dropmissing!(retest_df)
@@ -957,6 +1071,7 @@ let
 	)
 	fig
 end
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╟─252143a6-a665-11ef-342a-611b7078e403
@@ -969,15 +1084,16 @@ end
 # ╟─73f18d96-fe5c-48ad-87bb-968c0df3bdd5
 # ╟─9e36111d-6b22-49ec-8c3e-ef3701ae4e9c
 # ╠═87479aa6-d8a2-4801-860f-df408243dc41
+# ╠═c24f739a-1f33-4394-8248-697f548f4019
 # ╠═f0c0fb08-bbb8-4876-ad6d-eab5f817d4e5
 # ╟─11e19837-c3c6-40c8-bd3b-e1ff9fca00b6
 # ╟─50323172-e475-4cdd-99cc-a3419ac22887
 # ╠═53d8fa96-127a-42d4-9928-d3f36d616f45
 # ╠═09c121c4-dd34-42c6-a506-d05634f53f4b
-# ╟─95e141ba-7011-4e9c-84a8-7605f3516db1
+# ╠═95e141ba-7011-4e9c-84a8-7605f3516db1
 # ╠═a235c7c1-f5a6-4bf3-8ddc-9ec44f56117e
 # ╠═af0e6ebe-249b-46ab-9f0f-e44caf8055df
-# ╠═3a2f75c0-62ed-4a9b-8e09-a771ee5c3830
+# ╟─3a2f75c0-62ed-4a9b-8e09-a771ee5c3830
 # ╟─76299691-ba71-4c6b-8226-aa0036a0c074
 # ╟─8df1a8b6-3de5-40a2-b549-702402895c7f
 # ╠═13b6ccfa-a377-4158-8809-17f16e9511b2
@@ -1004,6 +1120,7 @@ end
 # ╟─147ffa2a-1524-4daa-b228-05a5d4e0c292
 # ╟─59643cec-9163-45ea-b0cc-9a1402aa9b52
 # ╠═c902b164-6d41-4d7a-a8c5-c58dbdcd9853
+# ╠═a6df3af3-b79d-4e29-a11f-51a0700a0ae9
 # ╟─a4e26c75-7c77-4c09-9149-f8f236f0c9d7
 # ╠═609f38ad-a107-4dcb-a109-03a81470eb84
 # ╟─06081dd1-78d8-4bad-a64b-703619e7f12e
