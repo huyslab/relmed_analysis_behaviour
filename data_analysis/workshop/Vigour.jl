@@ -909,7 +909,7 @@ let
 		subtitle="β2",
 		correct_r=false
 	)
-	Label(fig[0,:], "log(Press rate) ~ β0 + β1*log(Fixed ratio) + β2*log(Magnitude)")
+	Label(fig[0,:], "log(Press rate) ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
 	
 	# Save
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
