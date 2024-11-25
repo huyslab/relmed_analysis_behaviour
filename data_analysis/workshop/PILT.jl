@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, Tidier
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -68,7 +68,7 @@ end
 
 # ╔═╡ b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
 # Accuracy curveֿ
-let
+f_acc1, f_acc2, f_acc3, general_acc_curve = let
 
 	# Sumarrize by participant and trial
 	acc_curve = combine(
@@ -111,14 +111,28 @@ let
 	matching = mapping([0.86]) * visual(HLines, linestyle = :dash)
 
 	# Plot whole data
-	f1 = Figure()
+	f1 = Figure(size = (30., 28.) .* 36 ./ 2.54)
+
+	genreal_acc_curve = data(acc_curve_sum) * mp 
 	
-	draw!(f1, data(acc_curve_sum) * mp + matching;
+	draw!(f1, genreal_acc_curve + matching;
 		axis = (; xautolimitmargin = (0, 0))
 	)
 
+	# Plot it small
+	f1s = Figure(size = (28., 14.) .* 36 ./ 2.54, backgroundcolor = :cornflowerblue)
+	
+	draw!(f1s, data(acc_curve_sum) * mp + matching;
+		axis = (; 
+			xautolimitmargin = (0, 0),
+			xlabel = "",
+			ylabel = "",
+			backgroundcolor = :cornflowerblue
+		),
+	)
+
 	# Plot up to trial 5
-	f2 = Figure()
+	f2 = Figure(size = (30., 28.) .* 36 ./ 2.54)
 	
 	draw!(
 		f2, 
@@ -128,7 +142,7 @@ let
 
 
 	# Plot with matching level
-	f3 = Figure()
+	f3 = Figure(size = (30., 28.) .* 36 ./ 2.54)
 	
 	draw!(
 		f3, 
@@ -142,9 +156,9 @@ let
 	linkaxes!(contents(f1[1,1])[1], contents(f2[1,1])[1], contents(f3[1,1])[1])
 
 	# Save
-	filepaths = [joinpath("results/workshop", "PILT_acc_curve_$k.png") for k in ["full", "partial", "partial_line"]]
+	filepaths = [joinpath("results/workshop", "PILT_acc_curve_$k.png") for k in ["full", "full_small", "partial", "partial_line"]]
 
-	save.(filepaths, [f1, f2, f3])
+	save.(filepaths, [f1, f1s, f2, f3])
 
 	# for fp in filepaths
 	# 	upload_to_osf(
@@ -154,7 +168,7 @@ let
 	# 	)
 	# end
 
-	f1, f2, f3
+	f1, f2, f3, genreal_acc_curve
 	
 end
 
@@ -212,7 +226,7 @@ let
 	)
 
 	# Plot whole figure
-	f1 = Figure()
+	f1 = Figure(size = (30., 28.) .* 36 ./ 2.54)
 	
 	plt1 = draw!(f1[1,1], data(acc_curve_sum) * mp; 
 		axis = (; xautolimitmargin = (0, 0)))
@@ -229,7 +243,7 @@ let
 	reorder_bands_lines!(f1[1,1])
 
 	# Plot first five trials
-	f2 = Figure()
+	f2 = Figure(size = (30., 28.) .* 36 ./ 2.54)
 	
 	draw!(f2[1,1], data(filter(x -> x.trial <= 5, acc_curve_sum)) * mp; 
 		axis = (; xautolimitmargin = (0, 0)))
@@ -284,7 +298,7 @@ f_acc_retest, acc_sum = let
 		:response_optimal
 	)
 
-	f = Figure()
+	f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 
 	# Plot
 	workshop_reliability_scatter!(
@@ -294,7 +308,9 @@ f_acc_retest, acc_sum = let
 		ycol = Symbol("2"),
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Proportion of optimal choices"
+		subtitle = " ",
+		correct_r = false,
+		markersize = 5
 	)
 
 	filepath = "results/workshop/PILT_acc_test_retest.png"
@@ -390,7 +406,7 @@ let
 			:response_optimal
 		)
 	
-		f = Figure()
+		f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 	
 		# Plot
 		workshop_reliability_scatter!(
@@ -400,7 +416,8 @@ let
 			ycol = Symbol("2"),
 			xlabel = "First half",
 			ylabel = "Second half",
-			subtitle = "Session $(s) proportion of optimal choices"
+			subtitle = "Session $(s)",
+			markersize = 5
 		)
 
 		# Save plot
@@ -475,7 +492,7 @@ let fits = fits_by_valence
 	)
 
 	# Plot
-	f1 = Figure()
+	f1 = Figure(size = (30, 23.8) .* 36 ./ 2.54)
 
 	for (i, (p, l)) in 
 		enumerate(zip([:ρ, :α], ["Reward sensitivity", "Learning rate"]))
@@ -550,7 +567,7 @@ let
 			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 		)
 
-			f = Figure()
+			f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 
 			# Long to wide
 			splithalf = unstack(
@@ -569,8 +586,9 @@ let
 				ycol = Symbol("$(p)_2"),
 				xlabel = "First half",
 				ylabel = "Second half",
-				subtitle = "Session $s $st",
-				tickformat = tf
+				subtitle = "Session $s",
+				tickformat = tf,
+				markersize = 5
 			)
 
 			# Save
@@ -607,6 +625,187 @@ fits_retest = let
 	)
 end
 
+# ╔═╡ 10c85ad6-7fc1-496c-8358-836c1306d6e4
+f_bad, bad_participants = let
+
+	bad_participants = [
+		(r.prolific_pid, r.session) 
+		for r in eachrow(filter(x -> x.ρ < 1, fits_retest))
+	]
+
+	println(
+		combine(
+			groupby(fits_retest, :session),
+			:ρ => (x -> mean(x .< 1)) => :bad_n
+		)
+	)
+
+	bad_data = filter(x -> (x.prolific_pid, x.session) in bad_participants, PILT_data_clean)
+
+	# Sumarrize by participant and trial
+	acc_curve = combine(
+		groupby(bad_data, [:prolific_pid, :trial]),
+		:response_optimal => mean => :acc
+	)
+
+	sort!(acc_curve, [:prolific_pid, :trial])
+
+	# Summarize by trial
+	acc_curve_sum = combine(
+		groupby(acc_curve, :trial),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	insertcols!(
+		acc_curve_sum,
+		:lb => acc_curve_sum.acc .- acc_curve_sum.se,
+		:ub => acc_curve_sum.acc .+ acc_curve_sum.se
+	)
+
+	# Create plot mapping
+	mp = (
+	# Error band
+		mapping(
+		:trial => "Trial #",
+		:lb => "Prop. optimal choice",
+		:ub => "Prop. optimal choice"
+	) * visual(Band, color = (:cornflowerblue, 0.3)) +
+	# Average line	
+		mapping(
+		:trial => "Trial #",
+		:acc => "Prop. optimal choice"
+	) * visual(Lines, linewidth = 4, color = :cornflowerblue)
+	)
+
+	# Mathcing line
+	matching = mapping([0.86]) * visual(HLines, linestyle = :dash)
+
+	# Plot whole data
+	f1 = Figure(size = (30, 28) .* 36 ./ 2.54)
+	
+	draw!(f1, data(acc_curve_sum) * mp + matching + general_acc_curve;
+		axis = (; xautolimitmargin = (0, 0))
+	)
+
+	save("results/workshop/PILT_acc_curve_bad_participants.png", f1, pt_per_unit = 1)
+
+	f1, bad_participants
+
+end
+
+# ╔═╡ 26163a1c-3bfe-438d-b996-de5452791434
+let
+	accept = DataFrame(CSV.File("results/workshop/acceptability.csv"))
+
+	accept_data = @chain accept begin
+		@filter(!ismissing(finished) & finished)
+		@select(prolific_pid, session, matches("_(difficulty|clear|enjoy)"))
+		@pivot_longer(-(prolific_pid:session), names_to = "item", values_to = "score")
+		@separate(item, [task, question], "_")
+	end
+
+	filter!(x -> x.task == "pilt", accept_data)
+
+	accept_bad = filter(x -> (x.prolific_pid, string(x.session)) in bad_participants, accept_data)
+
+	accept_bad[!, :sample] .= "Low reward sensitivity"
+
+	accept_data[!, :sample] .= "Everyone"
+
+	accept = vcat(accept_bad, accept_data)
+
+	accept.score = accept.score .+ 1
+
+	DataFrames.transform!(
+		groupby(accept, [:sample, :question]),
+		:sample => length => :total_n
+	)
+
+	accept = combine(
+		groupby(accept, [:sample, :question, :score]),
+		:total_n => (x -> length(x) / only(unique(x))) => :n
+	)
+
+	@assert all(combine(groupby(accept, [:sample, :question]),
+		:n => sum => :n
+	).n .≈ 1.0)
+
+	mp = data(accept) *
+	mapping(
+		:score => "Rating",
+		:n => "Proprotion",
+		col = :question,
+		color = :sample => "",
+		dodge = :sample => ""
+	) * visual(BarPlot)
+
+	f = Figure(size = (30, 28) .* 36 ./ 2.54)
+	
+	plt = draw!(
+		f[1,1], mp,
+		scales(
+			Col = (;
+					categories = [
+						"clear" => "Clarity",
+						"difficulty" => "Difficulty",
+						"enjoy" => "Enjoyment"
+					]
+				),
+			Color = (;
+				palette = [:black, :cornflowerblue]
+			)
+		)
+	)
+
+	legend!(f[0,1], plt, orientation = :horizontal, titleposition = :left, tellwidth = false)
+
+	save("results/workshop/PILT_acceptability_bad_participants.png", f, pt_per_unit = 1)
+
+
+	f
+
+	# fig = Figure(size = (41.47, 14.78) .* 36 ./ 2.54)
+		
+	# 	p = 
+	# 		data(accept) * 
+	# 		(
+	# 			mapping(
+	# 				:sample => "", 
+	# 				:score => "",
+	# 				col = :question
+	# 			) * 
+	# 			visual(BoxPlot, orientation = :horizontal, outliercolor = :white) 
+	# 		)
+		
+	# 	draw!(
+	# 		fig[1,1], 
+	# 		p, 
+	# 		scales(
+	# 			Y = (; 
+	# 				categories = reverse([
+	# 					"bad" => "Low reward sensitivity",
+	# 					"all" => "Everyone"
+	# 				])
+	# 			),
+	# 			Col = (;
+	# 				categories = [
+	# 					"clear" => "Clarity",
+	# 					"difficulty" => "Difficulty",
+	# 					"enjoy" => "Enjoyment"
+	# 				]
+	# 			)
+	# 		); 
+	# 		facet=(; linkxaxes=:none)
+	# 	)
+
+	# 	# save("results/workshop/acceptability_$t.png", fig, pt_per_unit = 1)
+	
+	# 	fig
+
+end
+
 # ╔═╡ 6e965be9-5e8e-43ed-a711-c5845705bdc3
 # Test retest of parameters
 let
@@ -619,7 +818,7 @@ let
 		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 	)
 
-		f = Figure()
+		f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 
 		# Long to wide
 		this_retest = unstack(
@@ -638,9 +837,10 @@ let
 			ycol = Symbol("$(p)_2"),
 			xlabel = "First session",
 			ylabel = "Second session",
-			subtitle = st,
+			subtitle = " ",
 			tickformat = tf,
-			correct_r = false
+			correct_r = false,
+			markersize = 5
 		)
 
 		# Save
@@ -671,13 +871,16 @@ let
 		color = :session => "Session",
 	) * visual(Scatter)
 
-	f = Figure()
+	f = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt = draw!(
 		f[1,1], 
-		mp; 
+		mp,
+		scales(
+			Color = (; palette = Makie.wong_colors()[3:4])
+		); 
 		axis = (; 
-		xtickformat = x -> string.(round.(a2α.(x), digits = 2))
+			xtickformat = x -> string.(round.(a2α.(x), digits = 2))
 		)
 	)
 
@@ -693,11 +896,11 @@ let
 	filepath = "results/workshop/PILT_bivariate_posterior.png"
 	save(filepath, f)
 
-	upload_to_osf(
-		filepath,
-		proj,
-		osf_folder
-	)
+	# upload_to_osf(
+	# 	filepath,
+	# 	proj,
+	# 	osf_folder
+	# )
 
 
 	f
@@ -902,8 +1105,8 @@ end
 # ╠═595c642e-32df-448e-81cc-6934e2152d70
 # ╠═14a292db-43d4-45d8-97a5-37ffc03bdc5c
 # ╠═6ed82686-35ab-4afd-a1b2-6fa19ae67168
-# ╟─b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
-# ╟─18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
+# ╠═b5b75f4e-7b91-4287-a409-6f0ebdf20f4e
+# ╠═18b19cd7-8af8-44ad-8b92-d40a2cfff8b4
 # ╠═ee0d1649-9917-4393-a300-ec48cc47360f
 # ╠═6ea0b5b3-d3b0-47c6-a8a2-b2c82200e7b0
 # ╠═c40ea9ef-0d50-4889-a28a-778a14b0dec7
@@ -913,6 +1116,8 @@ end
 # ╠═d4ee7c24-5d83-4e07-acca-13006ae4278a
 # ╠═ad2b69d5-9582-4cf3-ab9b-e6c3463f1435
 # ╠═47046875-475e-4ff1-b626-7bc285f0aac7
+# ╠═10c85ad6-7fc1-496c-8358-836c1306d6e4
+# ╠═26163a1c-3bfe-438d-b996-de5452791434
 # ╠═6e965be9-5e8e-43ed-a711-c5845705bdc3
 # ╠═2dab4a83-73db-4bb0-bc44-1418d7e4582a
 # ╠═c8a9802b-a1db-47d8-9719-89f1eadd11f7

@@ -12,7 +12,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM, MixedModels, StatsModels
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
@@ -24,9 +24,6 @@ begin
 	include("PILT_models.jl")
 	Turing.setprogress!(false)
 end
-
-# ╔═╡ fcafa95b-8d34-4221-8bd3-22f5cc5bf16f
-using MixedModels, StatsModels
 
 # ╔═╡ 56cafcfb-90c3-4310-9b19-aac5ec231512
 begin
@@ -269,7 +266,7 @@ let
 			)
 	
 			# Plot
-			f = Figure()
+			f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 			workshop_reliability_scatter!(
 				f[1, 1];
 				df = ranefs,
@@ -277,7 +274,8 @@ let
 				ycol = :empirical_EV_diff_1,
 				xlabel = labs[1],
 				ylabel = labs[2],
-				subtitle = "Session $s EV sensitivity"
+				subtitle = "Session $s",
+				markersize = 5
 			)
 	
 			# Save plot
@@ -327,7 +325,7 @@ let
 	)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 	workshop_reliability_scatter!(
 		f[1, 1];
 		df = ranefs,
@@ -335,8 +333,9 @@ let
 		ycol = :empirical_EV_diff_1,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "EV sensitivity",
-		correct_r = false
+		subtitle = " ",
+		correct_r = false,
+		markersize = 5
 	)
 
 	# Save plot
@@ -393,7 +392,7 @@ let
 			)
 	
 			# Plot
-			f = Figure()
+			f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 			workshop_reliability_scatter!(
 				f[1, 1];
 				df = ranefs,
@@ -401,7 +400,8 @@ let
 				ycol = :optimality_diff_1,
 				xlabel = labs[1],
 				ylabel = labs[2],
-				subtitle = "Session $s learning context bias"
+				subtitle = "Session $s",
+				markersize = 5
 			)
 	
 			# Save plot
@@ -450,7 +450,7 @@ let
 	)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 	workshop_reliability_scatter!(
 		f[1, 1];
 		df = ranefs,
@@ -458,8 +458,9 @@ let
 		ycol = :optimality_diff_1,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Learning context bias",
-		correct_r = false
+		subtitle = " ",
+		correct_r = false,
+		markersize = 5
 	)
 
 	# Save plot
@@ -532,7 +533,7 @@ let n_bins = 6
 	data(predicted) * mapping(:empirical_EV_diff, :right_chosen) * visual(Lines)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (30, 28) .* 36 ./ 2.54)
 	
 	draw!(f[1,1], mp; 
 		axis = (; 
@@ -636,7 +637,7 @@ let n_bins = 5
 		group = :optimality_diff => nonnumeric => "Optimal on:"
 	) * visual(Lines)
 
-	f = Figure()
+	f = Figure(size = (30, 28) .* 36 ./ 2.54)
 	
 	plt = draw!(
 		f[1,1], 
@@ -751,7 +752,7 @@ let
 	mp_hline = mapping([0.5]) * visual(HLines, linestyle = :dash, color = :grey)
 	
 	# Plot broken penny data
-	f1 = Figure()
+	f1 = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt1 = draw!(
 		f1[1,1], 
@@ -761,7 +762,7 @@ let
 		))
 
 	# Plot broken penny data and fit
-	f2 = Figure()
+	f2 = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt2 = draw!(
 		f2[1,1], 
@@ -772,7 +773,7 @@ let
 		))
 
 	# Plot broken penny data and fit and penny data
-	f3 = Figure()
+	f3 = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt3 = draw!(
 		f3[1,1], 
@@ -785,7 +786,7 @@ let
 	f3
 
 	# Plot everything
-	f4 = Figure()
+	f4 = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt4 = draw!(
 		f4[1,1], 
@@ -821,11 +822,11 @@ let
 		
 		save(fp, f, pt_per_unit = 1)
 
-		upload_to_osf(
-			fp,
-			proj,
-			osf_folder
-		)
+		# upload_to_osf(
+		# 	fp,
+		# 	proj,
+		# 	osf_folder
+		# )
 	end
 
 	f1, f2, f3, f4
@@ -861,6 +862,24 @@ let
 	)
 
 	@info "Penny chosen %$(round(mean(test_sum.high_chosen) * 100, digits = 2)) of trials. Predicted: %$(round(mean(test_sum.sim_high_chosen) * 100, digits = 2))"
+
+	# Summarize by participant and magnitudes
+	test_sum = combine(
+		groupby(forplot, [:prolific_pid, :session]),
+		:high_chosen => mean => :high_chosen,
+		:simuated => mean => :sim_high_chosen
+	)
+
+	test_sum = combine(
+		groupby(test_sum, [:session]),
+		:high_chosen => mean => :high_chosen,
+		:sim_high_chosen => mean => :sim_high_chosen
+	)
+
+	for s in test_sum.session
+		@info "Session $s: Penny chosen %$(round(mean(test_sum.high_chosen[test_sum.session .== s]) * 100, digits = 2)) of trials. Predicted: %$(round(mean(test_sum.sim_high_chosen[test_sum.session .== s]) * 100, digits = 2))"
+	end
+
 	
 end
 
@@ -924,7 +943,7 @@ let
 			dropmissing!(pence)
 		
 			# Plot
-			f = Figure()
+			f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 			
 			workshop_reliability_scatter!(
 				f[1, 1];
@@ -933,7 +952,8 @@ let
 				ycol = :diff_2,
 				xlabel = labs[1],
 				ylabel = labs[2],
-				subtitle = "Session $s broken penny bias"
+				subtitle = "Session $s",
+				markersize = 5
 			)
 
 			# Save plot
@@ -1010,7 +1030,7 @@ f_pence, pence = let
 	dropmissing!(pence_wide)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
@@ -1019,7 +1039,8 @@ f_pence, pence = let
 		ycol = :diff_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Broken penny bias"
+		subtitle = " ",
+		markersize = 5
 	)
 
 	# Save plot
@@ -1110,7 +1131,6 @@ end
 # ╠═ea6eb668-de64-4aa5-b3ea-8a5bc0475250
 # ╠═1a1eb012-16e2-4318-be51-89b2e6a3b55b
 # ╠═120babf5-f4c4-4c43-aab4-b3537111d15d
-# ╠═fcafa95b-8d34-4221-8bd3-22f5cc5bf16f
 # ╠═50f853c8-8e24-4bd8-bb66-9f25e92d0b4b
 # ╠═3d3c637f-6278-4f54-acbb-9ff06e8b459b
 # ╠═33811ec9-f7c1-499d-9d9d-1a83951004a0

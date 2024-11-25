@@ -52,6 +52,9 @@ md"""
 ## Time elapsed on each task
 """
 
+# ╔═╡ 15950e90-11b7-45fb-9507-8f5e805d6ce4
+unique(jspsych_data.trialphase)
+
 # ╔═╡ f51aa34a-5501-41f2-b12f-4340d0cdaf26
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -185,6 +188,7 @@ end
 # ╔═╡ 8191dbc5-a8dd-49b0-bd30-58c1d4744f74
 begin
 	p_sum = summarize_participation(jspsych_data)
+	CSV.write("results/workshop/acceptability.csv", p_sum)
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
@@ -204,7 +208,7 @@ let
 	
 	for (i, t) in enumerate(tasks)
 		
-		fig = Figure(size = (700, 200))
+		fig = Figure(size = (41.47, 14.78) .* 36 ./ 2.54)
 
 		pdata = copy(accept_data)
 
@@ -227,7 +231,7 @@ let
 					color = :highlight,
 					col = :question
 				) * 
-				visual(BoxPlot, orientation = :horizontal) 
+				visual(BoxPlot, orientation = :horizontal, outliercolor = :white) 
 			)
 		
 		draw!(
@@ -236,14 +240,13 @@ let
 			scales(
 				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
 				Y = (; 
-					palette = [1, 2, 3, 4, 6], 
-					categories = circshift(reverse([
+					categories = reverse([
 						"pilt" => "PILT",
 						"vigour" => "Vigour",
 						"pit" => "PIT",
 						"wm" => "WM",
 						"reversal" => "Reversal"
-					]), i-1)
+					])
 				),
 				Col = (;
 					categories = [
@@ -255,6 +258,8 @@ let
 			); 
 			facet=(; linkxaxes=:none)
 		)
+
+		save("results/workshop/acceptability_$t.png", fig, pt_per_unit = 1)
 		
 		push!(figs, fig)
 	end
@@ -314,13 +319,13 @@ let
 				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
 				Y = (; 
 					palette = [1, 2, 3, 4, 6], 
-					categories = circshift(reverse([
+					categories = reverse([
 						"pilt" => "PILT",
 						"vigour" => "Vigour",
 						"pit" => "PIT",
 						"wm" => "WM",
 						"reversal" => "Reversal"
-					]), i-1)
+					])
 				),
 				Col = (;
 					categories = [
@@ -330,7 +335,8 @@ let
 					]
 				)
 			); 
-			facet=(; linkxaxes=:none)
+			facet=(; linkxaxes=:none),
+			axis = (; limits = (1, 5, nothing, nothing))
 		)
 		
 		push!(figs, fig)
@@ -354,7 +360,7 @@ let
 	
 	for (i, t) in enumerate(tasks)
 		
-		fig = Figure(size = (700, 200))
+		fig = Figure(size = (41.47, 14.78) .* 36 ./ 2.54)
 
 		transform!(pdata, :task => (x -> x .== t) => :highlight)
 
@@ -389,14 +395,13 @@ let
 			scales(
 				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
 				Y = (; 
-					palette = [1, 2, 3, 4, 6], 
-					categories = circshift(reverse([
+					categories = reverse([
 						"pilt" => "PILT",
 						"vigour" => "Vigour",
 						"pit" => "PIT",
 						"wm" => "WM",
 						"reversal" => "Reversal"
-					]), i-1)
+					])
 				),
 				Col = (;
 					categories = [
@@ -406,7 +411,8 @@ let
 					]
 				)
 			); 
-			facet=(; linkxaxes=:none)
+			facet=(; linkxaxes=:none),
+			axis = (; limits = (1, 5, nothing, nothing))
 		)
 		
 		push!(figs, fig)
@@ -432,8 +438,8 @@ durations = let
 	PILT = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "instruction"))]) => 
-				:start_time,
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "instruction"))-1]) 
+				=> :start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pre_debrief_instructions"))]) => :end_time
 	)
@@ -442,11 +448,27 @@ durations = let
 
 	PILT[!, :task] .= "PILT"
 
+	# PILT net duration
+	PILT_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "instruction_quiz"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pre_debrief_instructions"))]) 
+				=> :end_time
+	)
+
+	PILT_net.duration = (PILT_net.end_time .- PILT_net.start_time) ./ 60000
+
+	PILT_net[!, :task] .= "PILT net"
+
+
 	# Vigour duration
 	vigour = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "vigour_instructions"))]) => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "vigour_instructions"))-1]) => 
 				:start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "vigour_trial"))]) => :end_time
@@ -454,13 +476,28 @@ durations = let
 
 	vigour.duration = (vigour.end_time .- vigour.start_time) ./ 60000
 
-	vigour[!, :task] .= "vigour"
+	vigour[!, :task] .= "Vigour"
+
+	# Vigour net duration
+	vigour_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "vigour_trial"))-1]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "vigour_trial"))]) => :end_time
+	)
+
+	vigour_net.duration = (vigour_net.end_time .- vigour_net.start_time) ./ 60000
+
+	vigour_net[!, :task] .= "Vigour net"
+
 
 	# PIT duration
 	PIT = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pit_instructions"))]) => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "pit_instructions"))-1]) => 
 				:start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "pit_trial"))]) => :end_time
@@ -470,11 +507,26 @@ durations = let
 
 	PIT[!, :task] .= "PIT"
 
+	# PIT net duration
+	PIT_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "pit_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "pit_trial"))]) => :end_time
+	)
+
+	PIT_net.duration = (PIT_net.end_time .- PIT_net.start_time) ./ 60000
+
+	PIT_net[!, :task] .= "PIT net"
+
+
 	# Test duration
 	test = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "post-PILT_test_instructions"))]) => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "post-PILT_test_instructions"))-1]) => 
 				:start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT_test"))]) => :end_time
@@ -482,13 +534,28 @@ durations = let
 
 	test.duration = (test.end_time .- test.start_time) ./ 60000
 
-	test[!, :task] .= "test"
+	test[!, :task] .= "Post-PILT test"
+
+	# Test net duration
+	test_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "post-PILT_test_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT_test"))]) => :end_time
+	)
+
+	test_net.duration = (test_net.end_time .- test_net.start_time) ./ 60000
+
+	test_net[!, :task] .= "Post-PILT test net"
+
 
 	# WM duration
 	WM = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "WM_instructions"))]) => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "WM_instructions"))-1]) => 
 				:start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT"))]) => :end_time
@@ -498,11 +565,26 @@ durations = let
 
 	WM[!, :task] .= "WM"
 
+	# WM net duration
+	WM_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "WM_instructions"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "PILT"))]) => :end_time
+	)
+
+	WM_net.duration = (WM_net.end_time .- WM_net.start_time) ./ 60000
+
+	WM_net[!, :task] .= "WM net"
+
+
 	# Reversal duration
 	reversal = combine(
 		gb,
 		[:trialphase, :time_elapsed] => 
-			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "reversal_instruction"))]) => 
+			((p, t) -> t[findfirst(.!ismissing.(p) .&& (p .== "reversal_instruction"))-1]) => 
 				:start_time,
 		[:trialphase, :time_elapsed] => 
 			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "reversal"))]) => :end_time
@@ -510,11 +592,26 @@ durations = let
 
 	reversal.duration = (reversal.end_time .- reversal.start_time) ./ 60000
 
-	reversal[!, :task] .= "reversal"
+	reversal[!, :task] .= "Reversal"
+
+	# Reversal net duration
+	reversal_net = combine(
+		gb,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "reversal_instruction"))]) => 
+				:start_time,
+		[:trialphase, :time_elapsed] => 
+			((p, t) -> t[findlast(.!ismissing.(p) .&& (p .== "reversal"))]) => :end_time
+	)
+
+	reversal_net.duration = (reversal_net.end_time .- reversal_net.start_time) ./ 60000
+
+	reversal_net[!, :task] .= "Reversal net"
+
 
 	# Combine together
 
-	durations = vcat([PILT, vigour, PIT, test, WM, reversal]...)
+	durations = vcat([PILT, PILT_net, vigour, vigour_net, PIT, PIT_net, test, test_net, WM, WM_net, reversal, reversal_net]...)
 end
 
 # ╔═╡ 0c617ddc-45f3-45f6-9c06-37c65ed6764e
@@ -529,15 +626,18 @@ let
 		:duration => uub => :uub
 	)
 
-	tasks = unique(dur_sum.task)
+	tasks = filter(x -> !occursin("net", x), unique(dur_sum.task))
 
 	fs = []
 	for (i, t) in enumerate(tasks)
 
-		transform!(dur_sum, :task => (x -> x .== t) => :highlight)
+		pdat = filter(x -> (x.task in tasks) || x.task == "$(t) net", dur_sum)
 
+		transform!(pdat, :task => ByRow(x -> x in [t, "$(t) net"]) => :highlight)
+
+		categories = vcat(tasks[1:i], "$(t) net" => "—excl. instruct.", tasks[i+1:end])
 		
-		mp = data(dur_sum) * 
+		mp = data(pdat) * 
 		(
 			mapping(
 				:task,
@@ -558,31 +658,23 @@ let
 			) * visual(Scatter)
 		)
 		
-		f = Figure()
+		f = Figure(size = (18.78, 14.78) .* 36 ./ 2.54, figure_padding = 0)
 		
 		draw!(f[1, 1], mp, scales(
 				Color = (; palette = [:grey, Makie.wong_colors()[1]]),
 				Y = (; 
-						palette = [1, 2, 3, 4, 5, 7], 
-						categories = circshift(reverse([
-							"PILT",
-							"vigour" => "Vigour",
-							"PIT",
-							"test" => "Post-PILT test",
-							"WM",
-							"reversal" => "Reversal"
-						]), i-1)
+						categories = reverse(categories)
 		)); axis = (; xlabel = "Duration (m)", ylabel = ""))
 
 		# Save
 		filepath = "results/workshop/duration_$t.png"
 		save(filepath, f, pt_per_unit = 1)
 
-		upload_to_osf(
-			filepath,
-			proj,
-			osf_folder
-		)
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
 
 	
 		push!(fs, f)
@@ -621,6 +713,7 @@ end
 # ╠═864f7f16-7408-441c-89bf-c0e6894ffce4
 # ╟─d71d62c5-f617-4a5a-a27c-8a9820347b76
 # ╠═e2711875-18a0-4c16-835a-9e12d8f6316e
+# ╠═15950e90-11b7-45fb-9507-8f5e805d6ce4
 # ╠═0c617ddc-45f3-45f6-9c06-37c65ed6764e
 # ╠═2481764a-be2c-413b-bd48-e460c00fe2ff
 # ╟─f51aa34a-5501-41f2-b12f-4340d0cdaf26
