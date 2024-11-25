@@ -1,19 +1,17 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
-    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
-    #! format: on
 end
 
 # ╔═╡ 237a05f6-9e0e-11ef-2433-3bdaa51dbed4
@@ -619,7 +617,7 @@ function summarize_participation(data::DataFrame)
 
 	end
 	
-	participants = combine(groupby(data, [:prolific_pid, :record_id, :exp_start_time]),
+	participants = combine(groupby(data, [:prolific_pid, :session, :record_id, :exp_start_time]),
 		:trialphase => (x -> "experiment_end_message" in x) => :finished,
 		:trialphase => (x -> "kick-out" in x) => :kick_out,
 		:outcomes => extract_PILT_bonus => :PILT_bonus,
@@ -672,7 +670,7 @@ begin
 end
 
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
-for r in eachrow(filter(x -> occursin("2024-11-11", x.exp_start_time), p_sum))
+for r in eachrow(filter(x -> x.session == "2", p_sum))
 	if r.total_bonus > 0.
 		println(r.prolific_pid, ", ", round(r.total_bonus, digits = 2))
 	end
