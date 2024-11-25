@@ -69,7 +69,7 @@ begin
 	end
 	vigour_data = @chain raw_vigour_data begin
 		@filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
-		@filter(prolific_pid != "6721ec463c2f6789d5b777b5") # From sess2
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
 		@mutate(
 			press_per_sec = trial_presses / trial_duration * 1000,
 			ratio = categorical(ratio; levels = [1, 8, 16], ordered=true),
@@ -90,7 +90,7 @@ let
 	fig = @chain vigour_data begin
 		# @filter(trial_presses > 0)
 		@mutate(ratio = ~recode(ratio, 1=>"FR: 1",8=>"FR: 8",16=>"FR: 16"))
-		data(_) * mapping(:press_per_sec; color=:magnitude=>"Magnitude", row=:ratio) * AlgebraOfGraphics.density()
+		data(_) * mapping(:press_per_sec; color=:magnitude=>"Magnitude", row=:ratio, col=:session) * AlgebraOfGraphics.density()
 		draw(_, scales(Color = (;palette=:Oranges_3)); figure=(;size=(8, 6) .* 144 ./ 2.54), axis=(;xlabel="Press/sec", ylabel="Density"))
 	end
 
@@ -112,10 +112,48 @@ md"""
 ### Press rate by reward rate
 """
 
+# ╔═╡ d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
+let
+	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
+x -> filter(:n_session => (==(2)), x)
+	fig = plot_presses_vs_var(@filter(vigour_data, trial_number > 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine="average")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_session.png")
+	save(filepaths, fig; px_per_unit = 4)
+
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+
+# ╔═╡ bd3c7bce-be8d-4ed1-b194-f6811daebebe
+let
+	two_sess_sub = combine(groupby(vigour_data, :prolific_pid), :session => length∘unique => :n_session) |>
+	x -> filter(:n_session => (==(2)), x)
+	fig = plot_presses_vs_var(@filter(semijoin(vigour_data, two_sess_sub, on=:prolific_pid), trial_number > 1); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:session, xlab="Reward/press", ylab = "Press/sec", combine="average")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_matched_session.png")
+	save(filepaths, fig; px_per_unit = 4)
+
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+
+	fig
+end
+
 # ╔═╡ 7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 let
 	fig = @chain vigour_data begin
-		@filter(trial_number != 0)
+		@filter(trial_number > 0)
 		@ungroup
 		plot_presses_vs_var(_; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine="average")
 	end
@@ -300,11 +338,11 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	# upload_to_osf(
-	# 		filepaths,
-	# 		proj,
-	# 		osf_folder
-	# 	)
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
 
 	fig
 end
@@ -481,7 +519,7 @@ let
 		@arrange(reward_per_press)
 		data(_) * (mapping(:reward_per_press, :value, color=:variable=>"", linestyle=:variable=>"") * visual(Lines))
 	end
-	fig = Figure(;size=(8, 6) .* 144 ./ 2.54)
+	fig = Figure(;size=(9, 6) .* 144 ./ 2.54)
 	p = draw!(fig[1,1], p, scales(
 		Color=(;palette=reverse(ColorSchemes.Paired_10[1:2]),categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"]),
 		LineStyle=(;palette=[:solid,:dash],categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"])
@@ -489,6 +527,18 @@ let
 	legend!(fig[1,2], p
 		#; halign=0.95, valign=0.05, tellheight=false, tellwidth=false
 	)
+	Label(fig[0,:], "log(Press rate) ~ β0 + β1 * log(Reward rate)")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_rpp.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+	
 	fig
 end
 
@@ -527,7 +577,7 @@ let
 			ycol=:y,
 			subtitle="β1"
 		)
-		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Reward rate)")
+		Label(fig[0,:], "Session $(s) log(Press rate) ~ β0 + β1 * log(Reward rate)")
 		
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_evenodd.png")
@@ -579,7 +629,7 @@ let
 			ycol=:y,
 			subtitle="β1"
 		)
-		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Reward rate)")
+		Label(fig[0,:], "Session $(s) log(Press rate ~ β0 + β1 * log(Reward rate)")
 		
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_firstsecond.png")
@@ -632,7 +682,7 @@ let
 		subtitle="β1",
 		correct_r=false
 	)
-	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Reward rate)")
+	Label(fig[0,:], "log(Press rate) ~ β0 + β1 * log(Reward rate)")
 	
 	# Save
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rpp_beta.png")
@@ -668,7 +718,7 @@ let
 		@arrange(reward_per_press)
 		data(_) * (mapping(:reward_per_press, :value, color=:variable=>"", linestyle=:variable=>"") * visual(Lines))
 	end
-	fig = Figure(;size=(8, 6) .* 144 ./ 2.54)
+	fig = Figure(;size=(9, 6) .* 144 ./ 2.54)
 	p = draw!(fig[1,1], p, scales(
 		Color=(;palette=reverse(ColorSchemes.Paired_10[1:2]),categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"]),
 		LineStyle=(;palette=[:solid,:dash],categories=["pred"=>"Model pred.", "press_per_sec"=>"Data"])
@@ -676,6 +726,18 @@ let
 	legend!(fig[1,2], p
 		#; halign=0.95, valign=0.05, tellheight=false, tellwidth=false
 	)
+	Label(fig[0,:], "log(Press rate) ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_fr_n_rm.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	upload_to_osf(
+			filepaths,
+			proj,
+			osf_folder
+		)
+	
 	fig
 end
 
@@ -725,7 +787,7 @@ let
 			ycol=:y,
 			subtitle="β2"
 		)
-		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+		Label(fig[0,:], "Session $(s) log(Press rate) ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
 		
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
@@ -788,7 +850,7 @@ let
 			ycol=:y,
 			subtitle="β2"
 		)
-		Label(fig[0,:], "Session $(s) Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+		Label(fig[0,:], "Session $(s) log(Press rate) ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
 		
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
@@ -847,7 +909,7 @@ let
 		subtitle="β2",
 		correct_r=false
 	)
-	Label(fig[0,:], "Press rate ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
+	Label(fig[0,:], "log(Press rate) ~ β0 + β1 * log(Fixed ratio) + β2 * log(Magnitude)")
 	
 	# Save
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
@@ -869,7 +931,7 @@ md"""
 
 # ╔═╡ c0ae5758-efef-42fa-9f46-1ec4e231c550
 # ╠═╡ show_logs = false
-let
+begin
     # 1. Identify and remove incomplete test data
     vigour_test_unfinished = @chain raw_post_vigour_test_data begin
         @count(prolific_pid, exp_start_time)
@@ -879,7 +941,8 @@ let
 
     # 2. Clean and preprocess the data
     post_vigour_test_data = @chain raw_post_vigour_test_data begin
-        @filter(prolific_pid != "671139a20b977d78ec2ac1e0")
+        @filter(prolific_pid != "671139a20b977d78ec2ac1e0") # From sess1
+		@filter(!(prolific_pid in ["6721ec463c2f6789d5b777b5", "62ae1ecc1bd29fdc6b14f6ea", "672c8f7bd981bf863dd16a98"])) # From sess2
         @anti_join(vigour_test_unfinished)
         @mutate(
             # Calculate difference in relative physical payment
@@ -996,6 +1059,63 @@ let
 		fig
 end
 
+# ╔═╡ 160ddb0e-99a2-4f24-af4a-10d4ec82b782
+md"""
+## Export Vigour measures
+"""
+
+# ╔═╡ 46b37450-d9af-48d1-bd31-8f812acc94de
+let
+# 1. Motor: average press per sec
+	motor_df = @chain vigour_data begin
+		@group_by(prolific_pid, session)
+		@summarize(vigour_pps = mean(press_per_sec))
+		@ungroup
+	end
+# 2. Press per sec by RPP difference
+	rpp_diff_df = @chain vigour_data begin
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = low_rpp, values_from = n_presses)
+		@mutate(low_to_high_diff = low_rpp - high_rpp)
+		@select(prolific_pid, session, vigour_pps_rpp_diff = low_to_high_diff)
+	end
+# 3. RPP model: intercept and beta
+	rpp_coef_df = let
+		glm_coef(data) = coef(glm(@formula(trial_presses ~ log(reward_per_press)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+
+		@chain vigour_data begin
+			DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+			groupby([:prolific_pid, :session])
+			combine(AsTable([:trial_presses, :reward_per_press, :dur]) => (x -> [glm_coef(x)]) => [:vigour_rpp_b0, :vigour_rpp_b1])
+		end
+	end
+# 4. FR and RM model: intercept and betas
+	fr_n_rm_coef_df = let
+		glm_coef(data) = coef(glm(@formula(trial_presses ~ log(ratio) + log(magnitude)), data, Poisson(), LogLink(); offset=log.(data.dur)))
+	
+		@chain vigour_data begin
+			DataFrames.transform(:trial_duration => (x -> x/1000) => :dur)
+			DataFrames.transform([:ratio, :magnitude] .=> ByRow(as_float), renamecols=false)
+			groupby([:prolific_pid, :session])
+			combine(AsTable([:trial_presses, :ratio, :magnitude, :dur]) => (x -> [glm_coef(x)]) => [:vigour_fnr_b0, :vigour_fnr_b1, :vigour_fnr_b2])
+		end
+	end
+# 5. Post-vigour accuracy
+# Combine all together and save
+     all_vigour_df = copy(motor_df)
+     for df in [rpp_diff_df, rpp_coef_df, fr_n_rm_coef_df, @rename(test_acc_df, vigour_test_acc = acc)]
+          leftjoin!(all_vigour_df, df, on=[:prolific_pid, :session])
+     end
+	CSV.write("results/workshop/vigour_measures.csv", all_vigour_df)
+	all_vigour_df
+end
+
 # ╔═╡ Cell order:
 # ╠═b41e7252-a075-11ef-039c-f532a7fb0a94
 # ╠═28b7224d-afb4-4474-b346-7ee353b6d3d3
@@ -1008,31 +1128,35 @@ end
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
 # ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
+# ╠═d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
+# ╠═bd3c7bce-be8d-4ed1-b194-f6811daebebe
 # ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
-# ╟─e3faa2fc-c085-4fc1-80ef-307904a38f33
+# ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
-# ╟─b9d78883-eb28-4984-af6b-afb76dd85349
-# ╟─f188af11-d2a4-4e1c-9cc7-b63bc386ef57
+# ╠═b9d78883-eb28-4984-af6b-afb76dd85349
+# ╠═f188af11-d2a4-4e1c-9cc7-b63bc386ef57
 # ╟─9b8909ca-2804-45a4-9085-e6ed5e1f1c49
 # ╠═33a27773-b242-49b3-9318-59c15e9602f9
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
-# ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
-# ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╠═4fc4a680-0934-49de-a785-08cac3a8be3e
+# ╠═7b096527-2420-4e0d-9d72-8289a42a78fe
 # ╟─c02b47f4-3e96-4a09-a212-13671b8fad25
 # ╠═4d3da833-7333-442c-96ed-9e2fba0a4298
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
 # ╟─6f11e67c-84b2-457d-9727-825e0631860b
-# ╟─68985a71-98c4-485b-a800-643aea8b8a5e
-# ╟─cea80eac-27cd-4757-ba4b-498f1add5c4f
-# ╟─81ab693c-431d-4b73-a148-84846e448f4d
+# ╠═68985a71-98c4-485b-a800-643aea8b8a5e
+# ╠═cea80eac-27cd-4757-ba4b-498f1add5c4f
+# ╠═81ab693c-431d-4b73-a148-84846e448f4d
 # ╟─e8c04ee8-a851-4409-9919-ec5227f96689
 # ╠═198f34e5-c89b-4667-82e0-50164fed3491
 # ╟─cc7e08b3-e245-4483-8cac-086a673a2861
-# ╟─42e2e827-253d-4881-bfc9-65d206e6201d
-# ╟─5d98b42c-2e9a-4111-b2de-5c14d28d4c96
-# ╟─cb9e5cb5-070c-427e-9895-2e27b0d3344e
+# ╠═42e2e827-253d-4881-bfc9-65d206e6201d
+# ╠═5d98b42c-2e9a-4111-b2de-5c14d28d4c96
+# ╠═cb9e5cb5-070c-427e-9895-2e27b0d3344e
 # ╠═0e33dab6-6824-4883-8c47-5dd69aa288df
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
-# ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
+# ╠═c0ae5758-efef-42fa-9f46-1ec4e231c550
+# ╟─160ddb0e-99a2-4f24-af4a-10d4ec82b782
+# ╠═46b37450-d9af-48d1-bd31-8f812acc94de

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -193,14 +193,11 @@ begin
 end
 
 # ╔═╡ b083eaa9-9b09-423c-bc32-9c5f17a91391
-accept_data = let
-	accept_data = @chain p_sum begin
-		@filter(!ismissing(finished) & finished)
-		@select(session, prolific_pid, matches("_(difficulty|clear|enjoy)"))
-		@pivot_longer([-session, -prolific_pid], names_to = "item", values_to = "score")
-		@separate(item, [task, question], "_")
-	end
-	
+accept_data = @chain p_sum begin
+	@filter(!ismissing(finished) & finished)
+	@select(prolific_pid, session, matches("_(difficulty|clear|enjoy)"))
+	@pivot_longer(-(prolific_pid:session), names_to = "item", values_to = "score")
+	@separate(item, [task, question], "_")
 end
 
 # ╔═╡ 3f94af37-bc0d-4bd9-ba4c-5fa244e2b3a3
@@ -687,6 +684,22 @@ let
 
 end
 
+# ╔═╡ b978543e-42c7-4a98-bdf0-cfaf3bd83da3
+md"""
+## Export acceaptability and time elapsed data
+"""
+
+# ╔═╡ c5facfa0-8694-48b4-a4d8-c21645dcc22c
+let
+	accept_data = @chain p_sum begin
+		@filter(!ismissing(finished) & finished)
+		@select(prolific_pid, session, matches("_(difficulty|clear|enjoy)"))
+	end
+	dur_data = unstack(durations, [:prolific_pid, :session], :task, :duration, renamecols=x->Symbol(x, :_dur))
+	CSV.write("results/workshop/acceptability.csv", accept_data)
+	CSV.write("results/workshop/time_elapsed.csv", dur_data)
+end
+
 # ╔═╡ Cell order:
 # ╠═fce1a1b4-a5cf-11ef-0068-c7282cd862f0
 # ╠═0978c5a9-b488-44f0-8a6c-9d3e51da4c3a
@@ -704,3 +717,5 @@ end
 # ╠═0c617ddc-45f3-45f6-9c06-37c65ed6764e
 # ╠═2481764a-be2c-413b-bd48-e460c00fe2ff
 # ╟─f51aa34a-5501-41f2-b12f-4340d0cdaf26
+# ╟─b978543e-42c7-4a98-bdf0-cfaf3bd83da3
+# ╠═c5facfa0-8694-48b4-a4d8-c21645dcc22c
