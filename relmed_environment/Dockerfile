@@ -63,7 +63,7 @@ RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024
 
 # Run script installing R packages
 COPY docker_setup/install_r.R install_r.R
-RUN /opt/conda/bin/Rscript install_r.R
+RUN ["Rscript", "install_r.R"]
 
 # CMDSTAN pre-requisites
 RUN apt-get update --yes && \
@@ -73,8 +73,8 @@ RUN apt-get update --yes && \
 
 # Run script installing cmdstan
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
-RUN /opt/conda/bin/Rscript install_cmdstan.R && \
-    fix-permissions "/home/${NB_USER}"
+RUN ["Rscript", "install_cmdstan.R"]
+RUN fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home
 ENV CMDSTAN_HOME=/home/jovyan/.cmdstanr/cmdstan-2.34.1
