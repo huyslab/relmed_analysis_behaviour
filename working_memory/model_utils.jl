@@ -41,6 +41,14 @@ function multistart_mode_estimator(
         end
 	end
 
+    if (isnothing(best_result))
+        try
+            best_result = maximum_a_posteriori(model)
+        catch
+            error("No valid optimization result found.")
+        end
+    end
+
 	return best_result
 end
 

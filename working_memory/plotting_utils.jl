@@ -365,7 +365,7 @@ function plot_prior_expectations!(
 	data::DataFrame;
 	colA::Symbol = :EV_A,
 	colB::Union{Symbol, Vector{Symbol}} = :EV_B,
-    norm::Symbol = :ρ,
+    norm::Union{Nothing, Symbol} = :ρ,
 	ylab::String = "Q value",
 	ylims::Union{Tuple{Float64, Float64}, Nothing} = nothing,
 	group::Symbol = :group,
@@ -383,10 +383,12 @@ function plot_prior_expectations!(
     colB = typeof(colB) == Symbol ? [colB] : colB
     col_names = [colA, colB...]
     line_styles = [:solid, :dash, :dashdot][1:length(col_names)]
+	
+	p_data[!, :norm] .= isnothing(norm) ? 1 : p_data[!, norm]
     
     # Normalize values
     for (i, col) in enumerate(col_names)
-        p_data[!, "val$(i)_s"] = p_data[!, col] ./ p_data[!, norm]
+        p_data[!, "val$(i)_s"] = p_data[!, col] ./ p_data[!, :norm]
     end
 
     # Group summaries
@@ -460,12 +462,12 @@ function plot_sim_q_value_acc!(
 	sim_dat::DataFrame;
 	choice_val::Float64 = 1.,
 	colA::Union{Symbol, Vector{Symbol}} = :EV_A,
-	colB::Union{Symbol, Vector{Symbol}} = :EV_B,
+	colB::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}} = :EV_B,
 	pid_col::Symbol = :PID,
-    norm::Symbol = :ρ,
+    norm::Union{Nothing, Symbol} = :ρ,
 	ylab::Union{String, Tuple{String, String}} = "Q value",
 	ylims::Union{Tuple{Float64, Float64}, Nothing} = nothing,
-	group::Symbol = :group,
+	group::Union{Nothing, Symbol} = nothing,
 	legend::Bool = true,
     legend_rows::Int64 = 1,
 	legend_title::String = "",
@@ -476,6 +478,12 @@ function plot_sim_q_value_acc!(
 	plw::Float64 = 1.,
 	acc_error_band = "se"
 )
+    # Make group column
+	sim_dat.group .= isnothing(group) ? "1" : sim_dat[!, group]
+	if sim_dat.group isa Array{<:Number, 1}
+		DataFrames.sort!(sim_dat, [:trial, :valence, :group])
+		sim_dat.group .= string.(sim_dat.group)
+	end
 
     # Calculate accuracy
     sim_dat.isOptimal = sim_dat[!, :choice] .== choice_val
@@ -497,7 +505,7 @@ function plot_sim_q_value_acc!(
 		norm = norm,
 		ylab = ylab,
 		ylims = ylims,
-		group = group,
+		group = :group,
 		legend = legend,
 		legend_pos = q_legend_pos,
 		legend_rows = legend_rows,
@@ -509,7 +517,7 @@ function plot_sim_q_value_acc!(
 
 	ax_acc = plot_prior_accuracy!(
 		f[1, nplt + 1], sim_dat;
-        group = group,
+        group = :group,
 		pid_col = pid_col,
 		legend = false,
 		colors = colors,
@@ -527,7 +535,7 @@ function plot_sim_q_value_acc!(
 			norm = norm,
 			ylab = ylab2,
 			ylims = ylims,
-			group = group,
+			group = :group,
 			legend = false,
 			colors = colors,
 			backgroundcolor = backgroundcolor,
@@ -879,9 +887,10 @@ function optimization_calibration(
 
 
     if length(other_pars) > 0
+		row_n = length(final_parameters) == length(other_pars) ? 1 : 2
         for (i, p) in enumerate(other_pars)
             ax = Axis(
-                f[2, i],
+                f[row_n + floor(Int, i/4), mod1(i, 4)],
                 xlabel = "True $p",
                 ylabel = "$estimate $p",
                 aspect = 1.
@@ -977,21 +986,15 @@ function plot_prior_predictive_by_valence(
 	legend::Bool = false,
 	legend_rows::Int64 = 1,
 	legend_title::String = "",
-	norm::Symbol = :ρ,
+	norm::Union{Nothing, Symbol} = :ρ,
 	pid_col::Symbol = :PID,
 	group::Union{Symbol, Nothing} = nothing,
 	fig_size::Tuple{Int, Int} = (700, 1000),
 	colors = Makie.wong_colors(),
 	error_band::String = "se"
 )
-	prior_sample.group .= isnothing(group) ? "1" : prior_sample[!, group]
-	if prior_sample.group isa Array{<:Number,1}
-		DataFrames.sort!(prior_sample, [:trial, :valence, :group])
-		prior_sample.group .= string.(prior_sample.group)
-	end
-
 	colA = !isnothing(W_cols) ? [Q_cols[1], W_cols[1]] : Q_cols[1]
-	colB = !isnothing(W_cols) ? [Q_cols[2], W_cols[2]] : Q_cols[2:end]
+	colB = !isnothing(W_cols) ? [Q_cols[2:end], W_cols[2:end]] : Q_cols[2:end]
 	
 	f = Figure(size = fig_size)
 
@@ -1007,7 +1010,7 @@ function plot_prior_predictive_by_valence(
 		norm = norm,
 		ylab = ylab,
 		ylims = nothing,
-		group = :group,
+		group = group,
 		legend = legend,
 		q_legend_pos = :top,
 		legend_rows = legend_rows,
@@ -1031,7 +1034,7 @@ function plot_prior_predictive_by_valence(
 		norm = norm,
 		ylab = ylab,
 		ylims = nothing,
-		group = :group,
+		group = group,
 		legend = legend,
 		q_legend_pos = :bottom,
 		legend_rows = legend_rows,
@@ -1055,7 +1058,7 @@ function plot_prior_predictive_by_valence(
 		norm = norm,
 		ylab = ylab,
 		ylims = nothing,
-		group = :group,
+		group = group,
 		legend = legend,
 		q_legend_pos = :top,
 		legend_rows = legend_rows,

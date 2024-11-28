@@ -705,6 +705,9 @@ function prepare_WM_data(data)
 	# Make choice into an integer column
 	forfit = add_choice_column!(forfit)
 
+	# add action column for stickiness
+    forfit.action = data.response == "left" ? 1 : (data.response == "right" ? 3 : 2)
+
 	# Clean block numbers up
 	renumber_block(x) = indexin(x, sort(unique(x)))
     DataFrames.transform!(

@@ -92,8 +92,17 @@ function random_outcomes_from_sequence(;
     n_blocks::Int64,
     set_sizes::Vector{Int64},
     n_options::Int64 = 2,
+    coins::Vector{Float64} = [0.01, 0.5, 1.],
+    punish::Bool = true,
     kwargs...
 )
+
+    min, max = [minimum(coins)], [maximum(coins)]
+    cycle = [(min, setdiff(coins, min)), (setdiff(coins, max), max)]
+    if punish
+        push!(cycle, (setdiff(coins, min), min) .* -1)
+        push!(cycle, (max, setdiff(coins, max)) .* -1)
+    end
     return vcat(
         [
             random_sequence(;
@@ -104,16 +113,7 @@ function random_outcomes_from_sequence(;
                 kwargs...
             )
             for (i, mgnt) in enumerate(
-                Iterators.take(
-                    Iterators.cycle(
-                        [
-                            ([0.01], [0.5, 1.]),
-                            ([0.01, 0.5], [1.]),
-                            ([-0.5, -1.], [-0.01]),
-                            ([-1.], [-0.01, -0.5])
-                        ]
-                    ), n_blocks
-                )
+                Iterators.take(Iterators.cycle(cycle), n_blocks)
             )
         ]...
     )
@@ -148,7 +148,9 @@ function create_random_task(;
 	n_trials::Int64,
 	n_blocks::Int64,
     n_options::Int64 = 2, # number of options to choose from
-    set_sizes::Union{Int64, Vector{Int64}} = 2
+    set_sizes::Union{Int64, Vector{Int64}} = 2,
+    coins::Vector{Float64} = [0.01, 0.5, 1.],
+    punish::Bool = true
 )
 
     set_sizes_blk = set_size_per_block(
@@ -161,10 +163,15 @@ function create_random_task(;
         n_trials = n_trials,
         n_blocks = n_blocks,
         set_sizes = set_sizes_blk,
-        n_options = n_options
+        n_options = n_options,
+        coins = coins,
+        punish = punish
     )
 	valence = sign.(outcomes[[findfirst(block .== i) for i in 1:n_blocks], 1])
 	trial = Int.(outcomes[:, n_options + 2])
+
+    # generate a random action (1 to n_options) for each trial
+    action = Int.(rand(1:n_options, size(outcomes, 1)))
 
 	df = DataFrame(
 		block = block,
@@ -182,6 +189,7 @@ function create_random_task(;
         df[!, "feedback_suboptimal"] = outcomes[:, 1]
     end
     df[!, "set_size"] = set_sizes_blk[block]
+    df[!, "action"] = action
 
 	return df
 end
@@ -196,7 +204,8 @@ function simulate_from_prior(
     condition::Union{String, Nothing} = nothing,
     fixed_struct::Union{DataFrame, Nothing} = nothing,
     structure::NamedTuple = (
-        n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = 2, n_options = 2
+        n_blocks = 20, n_trials = 10, n_confusing = 2, set_sizes = 2,
+        n_options = 2, coins = [0.01, 0.5, 1.], valences = (-1, 1)
     ),
     repeats::Bool = false,
     gq::Bool = false,
