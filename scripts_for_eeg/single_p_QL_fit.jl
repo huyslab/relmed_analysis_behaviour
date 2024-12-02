@@ -20,15 +20,15 @@ begin
 	include("$(pwd())/PILT_models.jl")
 	include("$(pwd())/sample_utils.jl")
 	include("$(pwd())/stats_utils.jl")
-	include("$(pwd())/single_p_QL.jl")
+	include("$(pwd())/model_utils.jl")
 	nothing
 end
 
 # ╔═╡ 610792a4-7f8f-48b5-8062-a600e094f0c1
 # Paremters for running
 begin
-	input_file = "scripts_for_eeg/0011_export.csv"
-	output_file = "scripts_for_eeg/0011_qvals.csv"
+	input_file = "scripts_for_eeg/0024_export.csv"
+	output_file = "scripts_for_eeg/0024_qvals.csv"
 	plot_things = true
 end
 
@@ -60,14 +60,22 @@ begin
 end
 
 # ╔═╡ 332c204f-2534-4048-a4f6-2509b2ad8831
-# Model priors
+# Auxillary variables
 begin
-	prior_ρ = truncated(Normal(0., 5.), lower = 0.)
-	prior_a = Normal()
-end
+	# Model priors
+	priors = Dict(
+		:ρ => truncated(Normal(0., 5.), lower = 0.),
+		:a => Normal(0., 2.)
+	)
 
-# ╔═╡ 56075d24-1a2c-4531-b6f2-ad2a3683dfaa
-aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
+	pilt_columns = Dict(
+		"block" => :block,
+		"trial" => :trial,
+		"feedback_optimal" => :feedback_optimal,
+		"feedback_suboptimal" => :feedback_suboptimal,
+		"choice" => :choice
+	)
+end
 
 # ╔═╡ 927f1dae-f91f-4c8b-8ee6-09e12a81811b
 # Load data
@@ -137,11 +145,13 @@ end
 # ╔═╡ fa80c3dd-a3fa-44d8-96b9-b46c5f3933ad
 begin
 	# Fit data
-	fit = optimize_single_p_QL(
-		forfit,
-		initV = aao,
-		prior_ρ = prior_ρ,
-		prior_a = prior_a
+	fit = optimize(
+		unpack_single_p_QL(
+			forfit;
+			columns = pilt_columns
+		);
+		model = single_p_QL,
+		priors = priors
 	)
 
 	ρ_est = fit.values[:ρ]
@@ -178,11 +188,13 @@ if plot_things
 				for (i, b) in enumerate(block_sample)]...)
 		
 			# Fit data
-			fit = optimize_single_p_QL(
-				this_dat,
-				initV = aao,
-				prior_ρ = prior_ρ,
-				prior_a = prior_a
+			fit = optimize(
+				unpack_single_p_QL(
+					this_dat;
+					columns = pilt_columns
+				);
+				model = single_p_QL,
+				priors = priors
 			)
 	
 			# Push results
@@ -235,16 +247,12 @@ end
 # Get Q values
 begin
 	# Compute Q values
-	Qs = single_p_QL(
-		block = forfit.block,
-		choice = forfit.choice,
-		outcomes = hcat(
-			forfit.feedback_suboptimal,
-			forfit.feedback_optimal
-		),
-		initV = fill(aao, 1, 2),
-		prior_ρ = Dirac(ρ_est),
-		prior_a = Dirac(a_est)
+	Qs = single_p_QL(;
+		unpack_single_p_QL(
+			forfit;
+			columns = pilt_columns
+		)...,
+		priors = priors
 	)()
 
 	# Add block and trial
@@ -298,7 +306,6 @@ CSV.write(output_file, Qs_df)
 # ╠═610792a4-7f8f-48b5-8062-a600e094f0c1
 # ╠═332c204f-2534-4048-a4f6-2509b2ad8831
 # ╠═6c040618-650b-4ab1-b64d-16be6d98e71a
-# ╠═56075d24-1a2c-4531-b6f2-ad2a3683dfaa
 # ╠═927f1dae-f91f-4c8b-8ee6-09e12a81811b
 # ╠═6b1937b9-30bb-44c6-8e00-ab284f3c1cc1
 # ╠═fa80c3dd-a3fa-44d8-96b9-b46c5f3933ad
