@@ -36,7 +36,7 @@ jobs:
           
           # Check if this commit exists in haoyang_dev branch
           git fetch origin haoyang_dev
-          if git merge-base --is-ancestor $LATEST_COMMIT origin/haoyang_dev; then
+          if git merge-base --is-ancestor $LATEST_COMMIT $(git rev-parse origin/haoyang_dev); then
             echo "Changes originated from haoyang_dev branch, skipping sync"
             echo "skip_sync=true" >> $GITHUB_OUTPUT
           else
