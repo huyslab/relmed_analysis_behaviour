@@ -519,7 +519,7 @@ end
 
 # ╔═╡ 9ca0e902-ed3e-4431-b4f4-ebf4ce2570dc
 md"""
-- Low and high RPP
+##### Low and high RPP
 """
 
 # ╔═╡ 14e7a5f9-61cc-4cc4-aa13-3116592f4739
@@ -1215,6 +1215,80 @@ let
 	all_vigour_df
 end
 
+# ╔═╡ 73648056-1b86-4b31-a679-ad0eba7a90ce
+md"""
+## Acceptability ratings and behaviors in Vigour
+"""
+
+# ╔═╡ 84d3afa0-ee47-4d1c-92b0-904d69c295cb
+begin
+	acceptability = @chain CSV.read("results/workshop/acceptability.csv", DataFrame) begin
+		@select(prolific_pid, session, starts_with("vigour"))
+	end
+	
+	acceptability_chg = @chain acceptability begin
+		stack(_, names(_, startswith("vigour_")))
+		@mutate(key = string(variable) * "_" * string(session))
+		unstack(:prolific_pid, :key, :value)
+		dropmissing
+		@mutate(
+			vigour_enjoy_diff = vigour_enjoy_2 - vigour_enjoy_1,
+			vigour_difficulty_diff = vigour_difficulty_2 - vigour_difficulty_1,
+			vigour_clear_diff = vigour_clear_2 - vigour_clear_1
+		)
+		@select(prolific_pid, ends_with("diff"))
+	end
+	nothing
+end
+
+# ╔═╡ d8141f2b-1a79-4638-a2df-096ac6b8d11a
+motor_accept_df = let
+	motor_chg = @chain vigour_data begin
+		@group_by(prolific_pid, session)
+		@summarize(vigour_pps = mean(press_per_sec))
+		@ungroup
+		unstack(:prolific_pid, :session, :vigour_pps)
+		dropmissing
+		@mutate(vigour_pps_diff = var"2" - var"1")
+		@select(prolific_pid, ends_with("diff"))
+	end
+	innerjoin(motor_chg, acceptability_chg, on = :prolific_pid)
+end;
+
+# ╔═╡ 9a0aec0f-6bb1-4877-a53b-6572e8673ff4
+begin
+	using HypothesisTests
+	lmfit = lm(@formula(vigour_pps_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_df)
+	ftest(lmfit.model)
+end
+
+# ╔═╡ a93c3a5b-7c3f-46cc-ac45-dd3199de6909
+lm(@formula(vigour_pps_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_df)
+
+# ╔═╡ ca862c35-ae01-40ba-9786-1fd4c5af24dc
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain motor_accept_df begin
+		stack([:vigour_enjoy_diff, :vigour_difficulty_diff, :vigour_clear_diff])
+		data(_) * mapping(:value, :vigour_pps_diff; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear_diff" => "Clarity",
+					"vigour_difficulty_diff" => "Difficulty",
+					"vigour_enjoy_diff" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="ΔAcceptability rating", ylabel="ΔPress rate"),
+		# facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
 # ╔═╡ Cell order:
 # ╠═b41e7252-a075-11ef-039c-f532a7fb0a94
 # ╠═28b7224d-afb4-4474-b346-7ee353b6d3d3
@@ -1261,3 +1335,9 @@ end
 # ╠═c0ae5758-efef-42fa-9f46-1ec4e231c550
 # ╟─160ddb0e-99a2-4f24-af4a-10d4ec82b782
 # ╠═46b37450-d9af-48d1-bd31-8f812acc94de
+# ╟─73648056-1b86-4b31-a679-ad0eba7a90ce
+# ╠═84d3afa0-ee47-4d1c-92b0-904d69c295cb
+# ╠═d8141f2b-1a79-4638-a2df-096ac6b8d11a
+# ╠═a93c3a5b-7c3f-46cc-ac45-dd3199de6909
+# ╠═9a0aec0f-6bb1-4877-a53b-6572e8673ff4
+# ╠═ca862c35-ae01-40ba-9786-1fd4c5af24dc
