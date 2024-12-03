@@ -1220,6 +1220,11 @@ md"""
 ## Acceptability ratings and behaviors in Vigour
 """
 
+# ╔═╡ 281188c1-bf7e-4d48-841d-d4cf506c2af5
+md"""
+### Changes in ratings and press rates
+"""
+
 # ╔═╡ 84d3afa0-ee47-4d1c-92b0-904d69c295cb
 begin
 	acceptability = @chain CSV.read("results/workshop/acceptability.csv", DataFrame) begin
@@ -1249,28 +1254,26 @@ motor_accept_df = let
 		@ungroup
 		unstack(:prolific_pid, :session, :vigour_pps)
 		dropmissing
-		@mutate(vigour_pps_diff = var"2" - var"1")
-		@select(prolific_pid, ends_with("diff"))
+		@mutate(Δvigour_pps = var"2" - var"1")
+		@select(prolific_pid, Δvigour_pps, ends_with("diff"))
 	end
 	innerjoin(motor_chg, acceptability_chg, on = :prolific_pid)
 end;
 
 # ╔═╡ 9a0aec0f-6bb1-4877-a53b-6572e8673ff4
-begin
+let
 	using HypothesisTests
-	lmfit = lm(@formula(vigour_pps_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_df)
-	ftest(lmfit.model)
+	lmfit = lm(@formula(Δvigour_pps ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_df)
+	@info ftest(lmfit.model)
+	lmfit
 end
-
-# ╔═╡ a93c3a5b-7c3f-46cc-ac45-dd3199de6909
-lm(@formula(vigour_pps_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_df)
 
 # ╔═╡ ca862c35-ae01-40ba-9786-1fd4c5af24dc
 let
 	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
 	p = @chain motor_accept_df begin
 		stack([:vigour_enjoy_diff, :vigour_difficulty_diff, :vigour_clear_diff])
-		data(_) * mapping(:value, :vigour_pps_diff; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+		data(_) * mapping(:value, :Δvigour_pps; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
 	end
 	draw!(
 		fig[1,1], p, 
@@ -1283,7 +1286,64 @@ let
 				]
 			)
 		);
-		axis=(;xlabel="ΔAcceptability rating", ylabel="ΔPress rate"),
+		axis=(;xlabel="ΔSession of Acceptability rating", ylabel="ΔSession of Press rate"),
+		# facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
+# ╔═╡ eb2f1f73-ad2e-430e-95ee-a41a35e7a700
+md"""
+### Changes in ratings and ΔPress rates
+"""
+
+# ╔═╡ 1c692fc8-2cee-432e-8d31-96de8c34c85e
+rpp_diff_accept_df = let
+	rpp_diff_chg = @chain vigour_data begin
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = low_rpp, values_from = n_presses)
+		@mutate(low_to_high_diff = low_rpp - high_rpp)
+		@select(prolific_pid, session, vigour_pps_rpp_diff = low_to_high_diff)
+		unstack(:prolific_pid, :session, :vigour_pps_rpp_diff)
+		dropmissing
+		@mutate(Δvigour_pps_rpp_diff = var"2" - var"1")
+		@select(prolific_pid, Δvigour_pps_rpp_diff, ends_with("diff"))
+	end
+	innerjoin(rpp_diff_chg, acceptability_chg, on = :prolific_pid)
+end;
+
+# ╔═╡ aa9d6dee-6d82-4bd0-a65d-879e05aa645f
+let
+	lmfit = lm(@formula(Δvigour_pps_rpp_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), rpp_diff_accept_df)
+	@info ftest(lmfit.model)
+	lmfit
+end
+
+# ╔═╡ ee6e32e9-3ba0-49ee-9898-4ef3b500017c
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain rpp_diff_accept_df begin
+		stack([:vigour_enjoy_diff, :vigour_difficulty_diff, :vigour_clear_diff])
+		data(_) * mapping(:value, :Δvigour_pps_rpp_diff; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear_diff" => "Clarity",
+					"vigour_difficulty_diff" => "Difficulty",
+					"vigour_enjoy_diff" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="ΔSession of Acceptability rating", ylabel="ΔSession of ΔPress rate"),
 		# facet=(; linkxaxes=:none)
 	)
 	fig
@@ -1336,8 +1396,12 @@ end
 # ╟─160ddb0e-99a2-4f24-af4a-10d4ec82b782
 # ╠═46b37450-d9af-48d1-bd31-8f812acc94de
 # ╟─73648056-1b86-4b31-a679-ad0eba7a90ce
-# ╠═84d3afa0-ee47-4d1c-92b0-904d69c295cb
-# ╠═d8141f2b-1a79-4638-a2df-096ac6b8d11a
-# ╠═a93c3a5b-7c3f-46cc-ac45-dd3199de6909
-# ╠═9a0aec0f-6bb1-4877-a53b-6572e8673ff4
-# ╠═ca862c35-ae01-40ba-9786-1fd4c5af24dc
+# ╟─281188c1-bf7e-4d48-841d-d4cf506c2af5
+# ╟─84d3afa0-ee47-4d1c-92b0-904d69c295cb
+# ╟─d8141f2b-1a79-4638-a2df-096ac6b8d11a
+# ╟─9a0aec0f-6bb1-4877-a53b-6572e8673ff4
+# ╟─ca862c35-ae01-40ba-9786-1fd4c5af24dc
+# ╟─eb2f1f73-ad2e-430e-95ee-a41a35e7a700
+# ╟─1c692fc8-2cee-432e-8d31-96de8c34c85e
+# ╟─aa9d6dee-6d82-4bd0-a65d-879e05aa645f
+# ╟─ee6e32e9-3ba0-49ee-9898-4ef3b500017c
