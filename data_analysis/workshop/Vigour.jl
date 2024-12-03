@@ -35,6 +35,7 @@ TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true
 begin
 	osf_folder = "/Workshop figures/Vigour/"
 	proj = setup_osf("Task development")
+	upload = false
 end
 
 # ╔═╡ 93bc3812-c620-4a8d-a312-de9fd0e55327
@@ -98,11 +99,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_rate_dist.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -122,11 +125,13 @@ x -> filter(:n_session => (==(2)), x)
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_session.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -141,11 +146,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_matched_session.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -162,11 +169,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -212,11 +221,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_conds.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -258,11 +269,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -296,11 +309,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -338,11 +353,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -388,11 +405,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -434,12 +453,14 @@ let
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
-		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+			
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -485,11 +506,71 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rppdiff.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
+
+	fig
+end
+
+# ╔═╡ 9ca0e902-ed3e-4431-b4f4-ebf4ce2570dc
+md"""
+- Low and high RPP
+"""
+
+# ╔═╡ 14e7a5f9-61cc-4cc4-aa13-3116592f4739
+let
+	retest_df = @chain vigour_data begin
+		@filter(trial_number != 0)
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		unstack([:prolific_pid, :low_rpp], :session, :n_presses)
+		dropmissing
+	end
+
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=@filter(retest_df, low_rpp == "low_rpp"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate in Low RPP",
+		correct_r=false
+	)
+
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=@filter(retest_df, low_rpp == "high_rpp"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate in High RPP",
+		correct_r=false
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_byrpp.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -533,11 +614,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_rpp.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -583,11 +666,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -635,11 +720,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -688,11 +775,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rpp_beta.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -732,11 +821,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_fr_n_rm.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -793,11 +884,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -856,11 +949,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -915,11 +1010,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -1050,11 +1147,13 @@ begin
 		filepaths = joinpath("results/workshop/vigour", "Vigour_test_acc_by_reward_diff.png")
 		save(filepaths, fig; px_per_unit = 4)
 	
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		fig
 end
@@ -1144,6 +1243,8 @@ end
 # ╠═7b096527-2420-4e0d-9d72-8289a42a78fe
 # ╟─c02b47f4-3e96-4a09-a212-13671b8fad25
 # ╠═4d3da833-7333-442c-96ed-9e2fba0a4298
+# ╟─9ca0e902-ed3e-4431-b4f4-ebf4ce2570dc
+# ╠═14e7a5f9-61cc-4cc4-aa13-3116592f4739
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
 # ╟─6f11e67c-84b2-457d-9727-825e0631860b
 # ╠═68985a71-98c4-485b-a800-643aea8b8a5e
