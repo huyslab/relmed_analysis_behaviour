@@ -39,3 +39,4 @@ Icon
 .julia/logs/
 /data_analysis/workshop/*.html
 .vscode-server/
+.gitconfig
