@@ -308,7 +308,7 @@ let
 	mapping([0.5]) * visual(HLines, linestyle = :dash, color = :grey)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (30, 28) .* 36 ./ 2.54)
 
 	plt = draw!(f[1,1], mp, scales(
 		    X = (; categories = [false => "Suboptimal", true => "Optimal"]),
@@ -386,7 +386,7 @@ let  s = "2"
 		)
 	
 		#Plot
-		f = Figure()
+		f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 		workshop_reliability_scatter!(
 			f[1, 1];
 			df = dropmissing(repeat_sum),
@@ -394,7 +394,8 @@ let  s = "2"
 			ycol = :half_2,
 			xlabel = "First half",
 			ylabel = "Second half",
-			subtitle = "Session $s optimality generalization effect"
+			subtitle = "Session $s",
+			markersize = 5
 		)
 
 		# Save plot
@@ -464,7 +465,7 @@ let
 	)
 	
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.47, 19.47) .* 36 ./ 2.54)
 	workshop_reliability_scatter!(
 		f[1, 1];
 		df = dropmissing!(repeat_sum),
@@ -472,7 +473,8 @@ let
 		ycol = :sess_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Optimality generalization effect"
+		subtitle = " ",
+		markersize = 5
 	)
 	
 	# Save plot
@@ -480,11 +482,11 @@ let
 	
 	save(filepath, f)
 	
-	upload_to_osf(
-			filepath,
-			proj,
-			osf_folder
-	)
+	# upload_to_osf(
+	# 		filepath,
+	# 		proj,
+	# 		osf_folder
+	# )
 
 	f
 
@@ -616,10 +618,10 @@ let
 		subtitle = "Choice of previous optimal stimuli reward - punishment"
 	)
 	
-	# # Save plot
-	# filepath = "results/workshop/generalization_PILT_1st_trial_optimality_test_retest.png"
+	# Save plot
+	filepath = "results/workshop/generalization_PILT_1st_trial_optimality_test_retest.png"
 	
-	# save(filepath, f)
+	save(filepath, f)
 	
 	# upload_to_osf(
 	# 		filepath,

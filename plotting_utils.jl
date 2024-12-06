@@ -88,7 +88,8 @@ function workshop_reliability_scatter!(
 	ycol::Symbol = :y,
 	subtitle::AbstractString = "",
 	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Bool = true # Whether to apply Spearman Brown
+	correct_r::Bool = true, # Whether to apply Spearman Brown
+	markersize::Int64 = 8
 )	
 
 	# Compute correlation
@@ -105,7 +106,7 @@ function workshop_reliability_scatter!(
 	# Plot
 	mp = data(df) *
 			mapping(xcol, ycol) *
-			(visual(Scatter) + linear()) +
+			(visual(Scatter; markersize = markersize) + linear()) +
 		mapping([0], [1]) *
 			visual(ABLines, linestyle = :dash, color = :gray70)
 	

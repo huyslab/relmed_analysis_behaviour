@@ -214,7 +214,7 @@ let
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 
-	f1 = Figure()
+	f1 = Figure(size = (45, 28) .* 72 ./ 2.54 ./ 2)
 	draw!(f1[1,1], mp, scales(Color = (; colormap = :roma)); 
 		axis = (; xticks = -3:5, yticks = 0:0.25:1.))
 
@@ -259,7 +259,7 @@ let
 		)
 	
 		# Plot
-		f = Figure()
+		f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 		
 		workshop_reliability_scatter!(
 			f[1, 1];
@@ -268,7 +268,8 @@ let
 			ycol = :half_2,
 			xlabel = "First half",
 			ylabel = "Second half",
-			subtitle = "Session $s post reversal accuracy"
+			subtitle = "Session $s",
+			markersize = 5
 		)
 
 		# Save
@@ -314,7 +315,7 @@ f_sum_post, sum_post = let
 	)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
@@ -323,8 +324,9 @@ f_sum_post, sum_post = let
 		ycol = :sess_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Post reversal accuracy",
-		correct_r = false
+		subtitle = " ",
+		correct_r = false,
+		markersize = 5
 	)
 
 	# Save
@@ -381,7 +383,7 @@ let
 		)
 	
 		# Plot
-		f = Figure()
+		f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 		
 		workshop_reliability_scatter!(
 			f[1, 1];
@@ -390,7 +392,8 @@ let
 			ycol = :half_2,
 			xlabel = "First half",
 			ylabel = "Second half",
-			subtitle = "Session $s post reversal recovery"
+			subtitle = "Session $s",
+			markersize = 5
 		)
 
 			# Save
@@ -398,11 +401,11 @@ let
 	
 		save(filepath, f)
 	
-		upload_to_osf(
-			filepath,
-			proj,
-			osf_folder
-		)
+		# upload_to_osf(
+		# 	filepath,
+		# 	proj,
+		# 	osf_folder
+		# )
 
 		# Push for notebook plotting
 		push!(fs, f)
@@ -450,7 +453,7 @@ f_post_coef, post_coef = let
 	)
 
 	# Plot
-	f = Figure()
+	f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 	
 	workshop_reliability_scatter!(
 		f[1, 1];
@@ -459,8 +462,9 @@ f_post_coef, post_coef = let
 		ycol = :sess_2,
 		xlabel = "Session 1",
 		ylabel = "Session 2",
-		subtitle = "Post reversal recovery",
-		correct_r = false
+		subtitle = " ",
+		correct_r = false,
+		markersize = 5
 	)
 
 		# Save
@@ -517,7 +521,7 @@ let
 			[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 		)
 
-			f = Figure()
+			f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 
 			# Long to wide
 			splithalf = unstack(
@@ -536,8 +540,9 @@ let
 				ycol = Symbol("$(p)_2"),
 				xlabel = "First half",
 				ylabel = "Second half",
-				subtitle = "Session $s $st",
-				tickformat = tf
+				subtitle = "Session $s",
+				tickformat = tf,
+				markersize = 5
 			)
 
 			# Save
@@ -580,7 +585,7 @@ let
 		[x -> string.(round.(a2α.(x), digits = 2)), Makie.automatic]
 	)
 
-		f = Figure()
+		f = Figure(size = (19.5, 19.5) .* 72 ./ 2.54 ./ 2)
 
 		# Long to wide
 		this_retest = unstack(
@@ -599,9 +604,10 @@ let
 			ycol = Symbol("$(p)_2"),
 			xlabel = "First session",
 			ylabel = "Second session",
-			subtitle = st,
+			# subtitle = st,
 			tickformat = tf,
-			correct_r = false
+			correct_r = false,
+			markersize = 5
 		)
 
 		# Save
