@@ -5,23 +5,23 @@
     data::NamedTuple,
     choice;
     priors::Dict = Dict(
-        :β => Dirac(25.), # fixed inverse temperature
+        :β => 25., # fixed inverse temperature
         :a => Normal(0., 2.),
         :bRL => Normal(0., 1.),
         :bWM => Normal(0., 1.),
         :E => Normal(0., 0.5),
         :F_wm => Normal(1., 1.),
         :w0 => Normal(0., 2.),
-        :rlw => Normal(0., 2.), # wm/rl interaction
-        :C => Distributions.Categorical([fill(0.25, 4)]) # 1, 2, 3, or 4
+        :C => Uniform(2., 5.)
     ),
     HLWM::Bool = false,
     initial::Union{Nothing, Float64} = nothing
 )
     # initial values
-    n_options = size(data.outcomes, 2)
-    init = isnothing(initial) ? 0. : initial
-    initV::AbstractArray{Float64} = fill(init, 1, maximum(data.set_size))
+    n_actions = size(data.outcomes, 2)
+    init = isnothing(initial) ? 1. / n_actions : initial
+    mss::Int64 = maximum(data.set_size) * n_actions
+    initV::Matrix{Float64} = fill(init, 1, mss)
 
     # optimal outcomes in reward/punishment blocks
     unq_outc = unique(data.outcomes)
@@ -33,73 +33,75 @@
     # Parameters to estimate
     parameters = collect(keys(priors))
     set_sizes = unique(data.set_size)
-    @submodel a_pos, a_neg, bRL, bWM, E, F_rl, F_wm, w0, rlw, β, α_pos, α_neg, α_neg_wm, ε, φ_rl, φ_wm, rlw_int = rlwm_pars(priors, parameters)
+    @submodel a_pos, a_neg, bRL, bWM, E, F_rl, F_wm, w0, β, α_pos, α_neg, α_neg_wm, ε, φ_rl, φ_wm = rlwm_pars(priors, parameters)
 
     # Fix working memory weights for different set sizes
-    C ~ priors[:C] + 1 # 2, 3, 4, or 5
-    w = Dict(s => a2α(w0) * min(1, C / s) for s in set_sizes)
+    C ~ priors[:C]
+    w = Dict(s => a2α(w0) * min(1., C / s) for s in set_sizes)
+
+    # Get type parameter from priors to match ForwardDiff
+    T = typeof(α_pos)
 
     # Initialize Q and W values
-    Qs::Matrix{Any} = repeat(initV, length(data.block)) .* data.valence[data.block]
-    Ws::Matrix{Any} = repeat(initV, length(data.block)) .* data.valence[data.block]
-
+    Qs = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
+    Ws = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
+    
     # Initial values
-    Q0, Q = copy(Qs), copy(Qs[:, 1:n_options])
-    W0, Wv = copy(Ws), copy(Ws[:, 1:n_options])
-
+    Q = copy(Qs[:, 1:n_actions])
+    W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
+    
     # Initial set-size
     ssz = data.set_size[data.block[1]]
     N = length(data.block)
-    loglike = 0.
+    loglike = zero(T)
 
-    # Loop over trials, updating Q values and incrementing log-density
+    # Main loop
     for i in 1:N
         # index of first outcome for this stimulus group, because we have a flat Q-table
-        pri = 1 + (n_options * (data.pair[i]-1))
+        pri::Int = 1 + (n_actions * (data.stimset[i]-1))
 
         # setup RL and WM policies (softmax with directed and undirected noise)
         # Collins (2024) assumes directed noise β is fixed at 25.
-        π_rl = (1 - ε) * Turing.softmax(β .* Qs[i, pri:(pri+n_options-1)]) .+ ε / n_options
-        π_wm = (1 - ε) * Turing.softmax(β .* Ws[i, pri:(pri+n_options-1)]) .+ ε / n_options
+        π_rl = (1 - ε) * Turing.softmax(β .* Qs[i, pri:(pri+n_actions-1)]) .+ ε / n_actions
+        π_wm = (1 - ε) * Turing.softmax(β .* Ws[i, pri:(pri+n_actions-1)]) .+ ε / n_actions
 
         # Weighted policy
-        π = w[ssz] * π_wm + (1 - w[ssz]) * π_rl
-
-		# Choice
-        choice[i] ~ Turing.Categorical(π) # 1, 2, 3... n_options
-		choice_idx::Int64 = choice[i] + pri - 1
-        choice_1id::Int64 = choice[i]
-
-        # log likelihood
-        loglike += loglikelihood(Turing.Categorical(π), choice[i])
-
-		# prediction error
-        outc_wm = data.outcomes[i, choice_1id]
-        outc_rl = HLWM ? 1. : outc_wm
-		δ = outc_rl - (rlw_int * Ws[i, choice_idx] + (1 - rlw_int) * Qs[i, choice_idx])
-        α_rl, α_wm = if any(x -> x == outc_rl, opt_outc)
-            α_pos, 1.
-        else
-            α_neg, α_neg_wm
-        end
+        π = @. w[ssz] * π_wm + (1 - w[ssz]) * π_rl
         
-        # Update Qs and Ws and decay Ws
+        # Choice and likelihood
+        choice[i] ~ Turing.Categorical(π)
+        loglike += loglikelihood(Turing.Categorical(π), choice[i])
+        
+        # Updates
+        choice_idx::Int = choice[i] + pri - 1
+        choice_1id::Int = choice[i]
+        outc_wm = data.outcomes[i, choice_1id]
+        outc_rl = HLWM ? 1.0 : outc_wm
+        α_rl, α_wm = in(outc_rl, opt_outc) ? (α_pos, 1.0) : (α_neg, α_neg_wm)
+        
         if (i != N) && (data.block[i] == data.block[i+1])
-            Qs[i + 1, :] = Qs[i, :] + φ_rl * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
-			Qs[i + 1, choice_idx] += α_rl * δ
-            Ws[i + 1, :] = Ws[i, :] + φ_wm * (W0[i, :] .- Ws[i, :]) # decay or just store previous W
-            Ws[i + 1, choice_idx] += α_wm * (outc_wm - Ws[i, choice_idx])
+            # In-place updates
+            @views begin
+                copyto!(Qs[i + 1, :], Qs[i, :])
+                Qs[i + 1, choice_idx] += α_rl * (outc_rl - Qs[i, choice_idx])
+                
+                copyto!(Ws[i + 1, :], Ws[i, :])
+                un_idx = setdiff(1:mss, choice_idx)
+                Ws[i + 1, un_idx] .+= φ_wm .* (W0[i, un_idx] .- Ws[i, un_idx])
+                Ws[i + 1, choice_idx] += α_wm * (outc_wm - Ws[i, choice_idx])
+            end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
         end
-
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
-        Q[i, :] = Qs[i, pri:(pri+n_options-1)]
-        Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
+        
+        # Store values
+        @views begin
+            Q[i, :] .= Qs[i, pri:(pri+n_actions-1)]
+            Wv[i, :] .= Ws[i, pri:(pri+n_actions-1)]
+        end
     end
 
     return (choice = choice, Qs = Q, Ws = Wv, loglike = loglike)
-
 end
 
 ### HELPER FUNCTIONS -----------------------------------------------------------
@@ -129,10 +131,9 @@ function unpack_data(data::DataFrame)
     data_tuple = (
         block = data.block, # length = number of trials
         valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
-        pair = data.pair, # length = number of trials
+        stimset = data.stimset, # length = number of trials
         outcomes = hcat(feedback_suboptimal, data.feedback_optimal), # length = number of trials
         set_size = unique(data[!, [:block, :set_size]]).set_size # length = number of blocks
-        # action = data.action # length = number of trials
     )
     return data_tuple
 end
@@ -142,7 +143,9 @@ end
     parameters::Vector{Symbol}
 )
     # reward sensitivity or inverse temp?
-    if :β in parameters
+    if isa(priors[:β], Number)
+        β = priors[:β]
+    elseif :β in parameters && isa(priors[:β], Distributions.Distribution)
         β ~ priors[:β]
     else
         β = 25. # this is what AGC fixes it to
@@ -177,10 +180,10 @@ end
     # WM learning rate bias
     if :bWM in parameters
         bWM ~ priors[:bWM]
+        α_neg_wm = a2α(bWM)
     else
-        bWM = nothing
+        bWM, α_neg_wm = nothing, 1.
     end
-    α_neg_wm = isnothing(bWM) ? 1 : a2α(bWM)
 
     # undirected noise or lapse rate
     if :E in parameters
@@ -231,15 +234,8 @@ end
         w0 = 0.
     end
 
-    if :rlw in parameters
-        rlw ~ priors[:rlw]
-        rlw_int = a2α(rlw)
-    else
-        rlw, rlw_int = nothing, 0
-    end
-
     return (
-        a_pos, a_neg, bRL, bWM, E, F_rl, F_wm, w0, rlw, # unconstrained parameters
-        β, α_pos, α_neg, α_neg_wm, ε, φ_rl, φ_wm, rlw_int # constrained parameters
+        a_pos, a_neg, bRL, bWM, E, F_rl, F_wm, w0, # unconstrained parameters
+        β, α_pos, α_neg, α_neg_wm, ε, φ_rl, φ_wm # constrained parameters
     )
 end

@@ -39,7 +39,7 @@
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in eachindex(data.block)
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Qs[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -62,7 +62,7 @@
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, pri:(pri+n_options-1)]
 	end
 
@@ -107,7 +107,7 @@ end
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in eachindex(data.block)
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Qs[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -132,7 +132,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, pri:(pri+n_options-1)]
 	end
 
@@ -178,7 +178,7 @@ end
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in eachindex(data.block)
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Qs[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -201,7 +201,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, pri:(pri+n_options-1)]
 	end
 
@@ -247,7 +247,7 @@ end
 
 	# Loop over trials, updating Q values and incrementing log-density
 	for i in eachindex(data.block)
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Qs[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -272,7 +272,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update) 
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update) 
         Q[i, :] = Qs[i, pri:(pri+n_options-1)]
 	end
 
@@ -338,7 +338,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -373,7 +373,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -435,7 +435,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -470,7 +470,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -533,7 +533,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -577,7 +577,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -610,8 +610,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -641,7 +641,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -684,7 +684,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -746,7 +746,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -781,7 +781,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -843,7 +843,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -878,7 +878,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -941,7 +941,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -985,7 +985,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -1048,7 +1048,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 1 + (n_options * (data.pair[i]-1)) # index of first outcome for this stimulus group
+        pri = 1 + (n_options * (data.stimset[i]-1)) # index of first outcome for this stimulus group
 
         # more than 2 options so need to use proper softmax, but the last option is always the optimal one
         π = Turing.softmax(Ws[i, pri:(pri+n_options-1)]) # softmax of W-values
@@ -1092,7 +1092,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, pri:(pri+n_options-1)]
     end
 
@@ -1127,9 +1127,9 @@ function unpack_data(data::DataFrame)
     data_tuple = (
         block = data.block, # length = number of trials
         valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
-        pair = data.pair, # length = number of trials
+        stimset = data.stimset, # length = number of trials
         outcomes = hcat(feedback_suboptimal, data.feedback_optimal), # length = number of trials
-        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
+        set_size = unique(data[!, [:block, :set_size]]).set_size .* (1 + n_subopt), # length = number of blocks
     )
     return data_tuple
 end

@@ -32,7 +32,7 @@
 
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
@@ -53,7 +53,7 @@
             Qs[i + 1, :] = Qs[i, :] + φ * (Q0[i, :] .- Qs[i, :]) # decay or just store previous Q
 			Qs[i + 1, choice_idx] += α * δ
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
@@ -91,7 +91,7 @@ end
 
         # Policy (softmax) - β=1 if we're using reward sensitivity and ε=0 if we're not using lapse rate
         # in Collins et al. terminology, these are directed and undirected noise
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         π = (1 - ε) * (β * (Qs[i, pri] - Qs[i, pri - 1])) + ε * 0.5
 
 		# Choice
@@ -114,7 +114,7 @@ end
 			Qs[i + 1, choice_idx] += α * δ
             Qs[i + 1, alt_idx] -= α * δ
 		end
-        # store Q values for output (n.b. these are the values for pair[i] *before* the update) 
+        # store Q values for output (n.b. these are the values for stimset[i] *before* the update) 
         Q[i, :] = Qs[i, (pri-1):pri]
 	end
 
@@ -163,7 +163,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -192,7 +192,7 @@ end
         elseif (i != N)
             ssz = data.set_size[data.block[i+1]]
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -238,8 +238,8 @@ end
     N = length(data.block)
     ssz = data.set_size[data.block[1]]
     loglike = 0.
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
 
     # Initialize circular buffers and running sums for outcomes
     bs = clamp(C, 1., nT)
@@ -252,7 +252,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -308,7 +308,7 @@ end
             buffer_upd_idx = ones(Int, ssz)
             outc_no = ones(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -338,8 +338,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -368,7 +368,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
 
 		# Choice
 		choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -400,7 +400,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -429,8 +429,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -459,7 +459,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
 
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -491,7 +491,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -520,8 +520,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -551,7 +551,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -589,7 +589,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -618,8 +618,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -649,7 +649,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # WM policy (softmax with directed and undirected noise)
         π = 1 / (1 + exp(-(Ws[i, pri] - Ws[i, pri - 1])))
 
@@ -693,7 +693,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -729,8 +729,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -761,7 +761,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -806,7 +806,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -843,8 +843,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -876,7 +876,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -928,7 +928,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -965,8 +965,8 @@ end
 
     # sigmoid transformation using C
     k = 3 # sharpness of the sigmoid
-    gd = groupby(DataFrame("block" => data.block, "pair" => data.pair), :block)
-    nT = maximum(combine(gd, :pair => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
+    gd = groupby(DataFrame("block" => data.block, "stimset" => data.stimset), :block)
+    nT = maximum(combine(gd, :stimset => (x -> maximum(values(countmap(x)))) => :max_count).max_count)
     wt = 1 ./ (1 .+ exp.((collect(1:nT) .- C) * k))
 
     # for each unique outcome in data.outcomes, premultiply by ρ and wt
@@ -998,7 +998,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -1050,7 +1050,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -1109,7 +1109,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
 
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -1141,7 +1141,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -1199,7 +1199,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -1231,7 +1231,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -1298,7 +1298,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         # RL and WM policies (softmax with directed and undirected noise)
         π_rl = (1 - ε) * (1 / (1 + exp(-β * (Qs[i, pri] - Qs[i, pri - 1])))) + ε * 0.5
         π_wm = (1 - ε) * (1 / (1 + exp(-β * (Ws[i, pri] - Ws[i, pri - 1])))) + ε * 0.5
@@ -1343,7 +1343,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store Q- and W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store Q- and W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Q[i, :] = Qs[i, (pri-1):pri]
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
@@ -1403,7 +1403,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -1441,7 +1441,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -1500,7 +1500,7 @@ end
 
     # Loop over trials, updating Q values and incrementing log-density
     for i in 1:N
-        pri = 2 * data.pair[i]
+        pri = 2 * data.stimset[i]
         
         # Choice
         choice[i] ~ BernoulliLogit(Ws[i, pri] - Ws[i, pri - 1])
@@ -1538,7 +1538,7 @@ end
             outc_lag = zeros(Int, ssz, nT)
             outc_num = zeros(Int, ssz)
         end
-        # store W-values for output (n.b. these are the values for pair[i] *before* the update)
+        # store W-values for output (n.b. these are the values for stimset[i] *before* the update)
         Wv[i, :] = Ws[i, (pri-1):pri]
     end
 
@@ -1704,9 +1704,9 @@ function unpack_data(data::DataFrame)
     data_tuple = (
         block = data.block, # length = number of trials
         valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
-        pair = data.pair, # length = number of trials
+        stimset = data.stimset, # length = number of trials
         outcomes = hcat(data.feedback_suboptimal, data.feedback_optimal), # length = number of trials
-        set_size = unique(data[!, [:block, :set_size]]).set_size, # length = number of blocks
+        set_size = unique(data[!, [:block, :set_size]]).set_size .* 2, # length = number of blocks
     )
     return data_tuple
 end

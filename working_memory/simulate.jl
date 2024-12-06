@@ -15,8 +15,8 @@
 # 	task.feedback_suboptimal = 
 # 		ifelse.(task.optimal_A .== 0, task.feedback_A, task.feedback_B)
 
-#     # currently assume one pair/triplet per block
-#     task.pair .= 1
+#     # currently assume one stimset/triplet per block
+#     task.stimset .= 1
 
 # 	# Arrange outcomes such as second column is optimal
 # 	# outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal)
@@ -34,20 +34,20 @@ function load_wm_structure_csv(taskname::String)
 
     # Rename stimulus group column to what is expected
     DataFrames.rename!(
-        task, Dict(:stimulus_group => :pair, :feedback_suboptimal => :feedback_suboptimal1)
+        task, Dict(:stimulus_group => :stimset, :feedback_suboptimal => :feedback_suboptimal1)
     )
 
     # Renumber trial
     DataFrames.transform!(
-        groupby(task, [:block, :pair]), eachindex => :trial; ungroup=true
+        groupby(task, [:block, :stimset]), eachindex => :trial; ungroup=true
     )
 
     # Get and second suboptimal column
     task.feedback_suboptimal2 = task.feedback_suboptimal1
-    task.set_size = task.n_groups .* 3
+    task.set_size = task.n_groups
 
 	return task[
-        :, [:block, :trial, :pair, :valence, :feedback_optimal,
+        :, [:block, :trial, :stimset, :valence, :feedback_optimal,
         :feedback_suboptimal1, :feedback_suboptimal2, :set_size]
     ]
 end
@@ -57,11 +57,11 @@ function random_sequence(;
 	suboptimal::Vector{Float64},
 	n_confusing::Int64,
 	n_trials::Int64,
-    n_pairs::Int64 = 1,
+    n_stimsets::Int64 = 1,
     n_options::Int64 = 2
 )
-    seq = Vector{Matrix{Float64}}(undef, n_pairs)
-    for i in 1:n_pairs
+    seq = Vector{Matrix{Float64}}(undef, n_stimsets)
+    for i in 1:n_stimsets
         common = shuffle(
             vcat(
                 fill(true, n_trials - n_confusing),
@@ -108,7 +108,7 @@ function random_outcomes_from_sequence(;
             random_sequence(;
                 optimal = mgnt[2], 
                 suboptimal = mgnt[1],
-                n_pairs = set_sizes[i] ÷ n_options,
+                n_stimsets = set_sizes[i],
                 n_options = n_options,
                 kwargs...
             )
@@ -124,7 +124,6 @@ function set_size_per_block(;
     n_blocks::Int64,
     n_options::Int64 = 2
 )
-    @assert all([s % n_options == 0 for s in set_sizes]) "Set sizes must be a multiple of the number of actions."
     if length(set_sizes) == n_blocks
         ssz = set_sizes
     elseif set_sizes isa Int64
@@ -157,7 +156,7 @@ function create_random_task(;
         set_sizes = set_sizes, n_blocks = n_blocks, n_options = n_options
     )
 	# Create task sequence
-	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * (set_sizes_blk[i] ÷ n_options))]...)
+	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * set_sizes_blk[i])]...)
 	outcomes = random_outcomes_from_sequence(
         n_confusing = n_confusing,
         n_trials = n_trials,
@@ -176,7 +175,7 @@ function create_random_task(;
 	df = DataFrame(
 		block = block,
 		trial = trial,
-        pair = Int.(outcomes[:, n_options + 1]),
+        stimset = Int.(outcomes[:, n_options + 1]),
 		valence = valence[block],
 		feedback_optimal = outcomes[:, n_options]
 	)
@@ -205,7 +204,7 @@ function simulate_from_prior(
     fixed_struct::Union{DataFrame, Nothing} = nothing,
     structure::NamedTuple = (
         n_blocks = 20, n_trials = 10, n_confusing = 2, set_sizes = 2,
-        n_options = 2, coins = [0.01, 0.5, 1.], valences = (-1, 1)
+        n_options = 2, coins = [0.01, 0.5, 1.], punish = true
     ),
     repeats::Bool = false,
     gq::Bool = false,
@@ -252,7 +251,7 @@ function simulate_from_prior(
         block = repeat(task_strct.block, N),
         valence = repeat(task_strct.valence, N),
         trial = repeat(task_strct.trial, N),
-        pair = repeat(task_strct.pair, N),
+        stimset = repeat(task_strct.stimset, N),
         set_size = repeat(task_strct.set_size, N),
     )
 
@@ -266,12 +265,12 @@ function simulate_from_prior(
         end
     end
 
-    nsubopt::Int64 = (maximum(task_strct.set_size) / maximum(task_strct.pair)) - 1
+    nsubopt::Int64 = count(contains("feedback"), names(task_strct)) - 1
     subopt_col = nsubopt == 1 ? [:feedback_suboptimal] : [Symbol("feedback_suboptimal$i") for i in 1:nsubopt]
 
     sim_data = leftjoin(sim_data, 
-        task_strct[!, [:block, :trial, :pair, :feedback_optimal, subopt_col...]],
-        on = [:block, :trial, :pair]
+        task_strct[!, [:block, :trial, :stimset, :feedback_optimal, subopt_col...]],
+        on = [:block, :trial, :stimset]
     )
 
     # Renumber blocks
@@ -432,10 +431,10 @@ function prepare_for_fit(data; pilot2::Bool = false, pilot4::Bool = false, wm = 
 	forfit.block = convert(Vector{Int64}, forfit.block)
 
     if pilot2 || pilot4
-        forfit.set_size = data.n_pairs .* 2
-	    forfit.pair = data.stimulus_pair
+        forfit.set_size = data.n_stimsets
+	    forfit.stimset = data.stimulus_stimset
         forfit = DataFrames.transform(
-            groupby(forfit, [:PID, :block, :pair]), eachindex => :trial;
+            groupby(forfit, [:PID, :block, :stimset]), eachindex => :trial;
             ungroup=true
         )
     end

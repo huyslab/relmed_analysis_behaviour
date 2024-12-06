@@ -195,7 +195,7 @@ function optimize_multiple(
                 block = gqf.block,
                 valence = gqf.valence,
                 trial = gqf.trial,
-                pair = gqf.pair,
+                stimset = gqf.stimset,
                 predicted_choice = res.choices
             )
             if isnothing(gq_struct)
@@ -206,10 +206,10 @@ function optimize_multiple(
                     block = gdf.block,
                     valence = gdf.valence,
                     trial = gdf.trial,
-                    pair = gdf.pair,
+                    stimset = gdf.stimset,
                     true_choice = gdf.choice
                 )
-                cdf = leftjoin(cdf, pdf, on = [:block, :valence, :trial, :pair])
+                cdf = leftjoin(cdf, pdf, on = [:block, :valence, :trial, :stimset])
             end
             insertcols!(cdf, 1, :PID => p)
         end

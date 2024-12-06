@@ -723,11 +723,11 @@ function prepare_WM_data(data)
 	forfit = innerjoin(forfit, pids[!, [:prolific_pid, :PID]], on = :prolific_pid)
 
 	# New columns for compatilibility with WM functions
-	forfit.set_size = forfit.n_groups .* 3
-	forfit.pair = forfit.stimulus_group
+	forfit.set_size = forfit.n_groups
+	forfit.stimset = forfit.stimulus_group
 	forfit.isOptimal = forfit.response_optimal
 	forfit = DataFrames.transform(
-		groupby(forfit, [:PID, :block, :pair, :session]), eachindex => :trial; ungroup=true
+		groupby(forfit, [:PID, :block, :stimset, :session]), eachindex => :trial; ungroup=true
 	)
 
 	return forfit
