@@ -1055,6 +1055,45 @@ let
 	fig
 end
 
+# ╔═╡ 9fa45141-ea59-4f6f-8972-05c05323a170
+md"""
+## Acceptability ratings by PIT effect clusters
+"""
+
+# ╔═╡ f7a805e5-0527-4fb8-b102-1b20f9b8ef7a
+let
+	pit_cluster_df = @chain PIT_data begin
+		@filter(coin != 0)
+		@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(diff = pos - neg)
+		unstack([:prolific_pid], :session, :diff)
+		dropmissing()
+		@mutate(cluster=case_when(
+			var"1" < 2 && var"2" < 2 => "Both small",
+			var"1" < 2 && var"2" >= 2 => "S1 small",
+			var"1" >= 2 && var"2" < 2 => "S2 small",
+			true => "Both large"
+		))
+		leftjoin(acceptability, on = [:prolific_pid])
+		stack([:pit_enjoy, :pit_difficulty, :pit_clear], variable_name=:pit_var, value_name=:pit_val)
+		@group_by(cluster, session, pit_var)
+		@summarize(pit_val = mean(pit_val), se = std(pit_val)/sqrt(length(pit_val)))
+		@ungroup
+	end
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	p=data(pit_cluster_df) *
+		(
+			mapping(:session, :pit_val, dodge_x=:cluster, col=:pit_var, color=:cluster) * visual(Scatter) + 
+			mapping(:session, :pit_val, :se, dodge_x=:cluster, col=:pit_var, color=:cluster) * visual(Errorbars)
+		)
+	p=draw!(fig[1,1], p, scales(DodgeX = (; width = 0.25)))
+	legend!(fig[1,2], p)
+	fig
+end
 
 # ╔═╡ Cell order:
 # ╠═ad7f05f1-0e20-4b2a-9dc2-63c5da38bead
@@ -1100,4 +1139,10 @@ end
 # ╠═ae5edcad-62bc-4e25-81d7-038c3a19a6a5
 # ╟─f658b1db-1fbd-4343-ad0c-b507b1c352b2
 # ╠═10230022-aa20-497d-875c-b073a295e9ea
+# ╠═a848e863-125a-471f-ac44-5a5c8eaf689e
 # ╟─11276fb8-e5cc-40a3-9f18-2b73d573355d
+# ╠═185b6624-6d72-4074-aedc-4f0ac09de3e2
+# ╠═f2ca2237-194f-4b5c-bdbd-83235080de29
+# ╠═23dd2d35-7478-4419-93f0-c76dc305842a
+# ╠═9fa45141-ea59-4f6f-8972-05c05323a170
+# ╠═f7a805e5-0527-4fb8-b102-1b20f9b8ef7a
