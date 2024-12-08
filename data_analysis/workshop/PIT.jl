@@ -955,7 +955,7 @@ md"""
 """
 
 # ╔═╡ 10230022-aa20-497d-875c-b073a295e9ea
-let
+all_pit_df = let
 	pit_instrument_w0_pav_df = @chain PIT_data begin
 		@filter(coin==0)
 		@group_by(prolific_pid, session)
@@ -1005,14 +1005,56 @@ let
      for df in [PIT_acc_df, pit_valence_diff_df, pit_valence_slope_df, pit_asymmetry_df]
           leftjoin!(all_pit_df, df, on=[:prolific_pid, :session])
      end
-	CSV.write("results/workshop/pit_measures.csv", all_pit_df)
 	all_pit_df
 end
+
+# ╔═╡ a848e863-125a-471f-ac44-5a5c8eaf689e
+CSV.write("results/workshop/pit_measures.csv", all_pit_df)
 
 # ╔═╡ 11276fb8-e5cc-40a3-9f18-2b73d573355d
 md"""
 ## Acceptability ratings and PIT effects
 """
+
+# ╔═╡ 185b6624-6d72-4074-aedc-4f0ac09de3e2
+begin
+	acceptability = @chain CSV.read("results/workshop/acceptability.csv", DataFrame) begin
+		@select(prolific_pid, session, starts_with("pit_"))
+		@mutate(session=string(session))
+	end
+	
+	acceptability_chg = @chain acceptability begin
+		stack(_, names(_, startswith("pit_")))
+		@mutate(key = string(variable) * "_" * string(session))
+		unstack(:prolific_pid, :key, :value)
+		dropmissing
+		@mutate(
+			pit_enjoy_diff = pit_enjoy_2 - pit_enjoy_1,
+			pit_difficulty_diff = pit_difficulty_2 - pit_difficulty_1,
+			pit_clear_diff = pit_clear_2 - pit_clear_1
+		)
+		@select(prolific_pid, ends_with("diff"))
+	end
+	nothing
+end
+
+# ╔═╡ f2ca2237-194f-4b5c-bdbd-83235080de29
+pit_accept_long = @chain all_pit_df begin
+	innerjoin(acceptability, on = [:prolific_pid, :session])
+	stack([:pit_pps, :pit_acc, :pit_valence_diff, :pit_neg_b, :pit_pos_b, :pit_asymm]; variable_name=:pit_var, value_name=:pit_val)
+	stack([:pit_enjoy, :pit_difficulty, :pit_clear]; variable_name=:accept_var, value_name=:accept_val)
+end
+
+# ╔═╡ 23dd2d35-7478-4419-93f0-c76dc305842a
+let
+	fig=Figure(;size=(10, 16) .* 144 ./ 2.54)
+	p=data(pit_accept_long) * 
+		mapping(:accept_val, :pit_val; col=:accept_var, row=:pit_var) *
+		(visual(RainClouds))
+	draw!(fig[1,1], p; facet=(; linkxaxes=:none, linkyaxes=:none))
+	fig
+end
+
 
 # ╔═╡ Cell order:
 # ╠═ad7f05f1-0e20-4b2a-9dc2-63c5da38bead
