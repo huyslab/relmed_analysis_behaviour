@@ -146,7 +146,7 @@ function FI_for_feedback_sequence(;
 	task::AbstractDataFrame,
 	ρ::Float64,
 	a::Float64,
-	initV::Float64,
+	initV::Union{Float64, Nothing} = nothing,
 	n_blocks::Int64 = 500,
 	summary_method::Function = tr
 )
@@ -177,7 +177,7 @@ function FI_for_feedback_sequence(;
 		model = single_p_QL,
 		map_data_to_model = map_data_to_single_p_QL,
 		param_names = [:a, :ρ],
-		initV = fill(initV, 1, 2),
+		initV = initV,
 		summary_method = summary_method
 	)
 end
@@ -203,7 +203,7 @@ function sum_FI_for_feedback_sequence(;
 	task::AbstractDataFrame,
 	ρ_vals::AbstractVector,
 	a_vals::AbstractVector,
-	initV::Float64,
+	initV::Union{Float64, Nothing} = nothing,
 	n_blocks::Int64 = 200,
 	within_summary_method::Function = det,
 	across_summary_method::Function = median
@@ -256,7 +256,7 @@ function compute_save_FIs_for_all_seqs(;
 	n_confusing::Int64,
 	fifty_high::Bool,
 	FI_res::Int64 = 6,
-    initV::Float64
+    initV::Union{Float64, Nothing} = nothing
 )
 
 	filename = "saved_models/FI/FIs_$(n_trials)_$(n_confusing)_$(fifty_high).jld2"
