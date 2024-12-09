@@ -1049,9 +1049,21 @@ end
 let
 	fig=Figure(;size=(10, 16) .* 144 ./ 2.54)
 	p=data(pit_accept_long) * 
-		mapping(:accept_val, :pit_val; col=:accept_var, row=:pit_var) *
+		mapping(:accept_val=>:Rating, :pit_val=>:Measure; col=:accept_var, row=:pit_var) *
 		(visual(RainClouds))
-	draw!(fig[1,1], p; facet=(; linkxaxes=:none, linkyaxes=:none))
+	draw!(fig[1,1], p, scales(
+		Row=(;categories=[
+			"pit_pps" => "Press rate",
+			"pit_acc" => "Test acc.",
+			"pit_valence_diff" => "PIT effect",
+			"pit_neg_b" => "Neg. Slope",
+			"pit_pos_b" => "Pos. Slope",
+			"pit_asymm" => "Asymm."]),
+		Col=(;categories=[
+			"pit_enjoy" => "Enjoyment",
+			"pit_difficulty" => "Difficulty",
+			"pit_clear" => "Clarity"]));
+			facet=(; linkxaxes=:none, linkyaxes=:none))
 	fig
 end
 
@@ -1087,10 +1099,10 @@ let
 	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
 	p=data(pit_cluster_df) *
 		(
-			mapping(:session, :pit_val, dodge_x=:cluster, col=:pit_var, color=:cluster) * visual(Scatter) + 
-			mapping(:session, :pit_val, :se, dodge_x=:cluster, col=:pit_var, color=:cluster) * visual(Errorbars)
+			mapping(:session => :Session, :pit_val => :Rating, dodge_x=:cluster, col=:pit_var, color=:cluster => :Cluster) * visual(Scatter) + 
+			mapping(:session => :Session, :pit_val => :Rating, :se, dodge_x=:cluster, col=:pit_var, color=:cluster => :Cluster) * visual(Errorbars)
 		)
-	p=draw!(fig[1,1], p, scales(DodgeX = (; width = 0.25)))
+	p=draw!(fig[1,1], p, scales(DodgeX = (; width = 0.25), Col=(;categories=["pit_enjoy" => "Enjoyment", "pit_difficulty" => "Difficulty", "pit_clear" => "Clarity"])))
 	legend!(fig[1,2], p)
 	fig
 end
