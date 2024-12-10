@@ -59,6 +59,71 @@ begin
 
 end
 
+# ╔═╡ fd3cbfab-124f-4e14-bd7d-e8ee5f677356
+let ns = 4, n_repeats = 10
+	collect(1:(2*ns):(n_repeats * ns)), n_repeats * ns
+
+end
+
+# ╔═╡ b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
+function randomize_triplets(
+	ns::Int64, 
+	n_repeats::Int64; 
+	max_iters::Int64 = 10^ns,
+	rng::AbstractRNG = Random.default_rng()
+)
+
+	stimuli = 1:ns
+    target_uniform = [1:(2 * ns - 1);]
+    ideal_freq = n_repeats * ns / length(target_uniform)
+
+    best_sequence = []
+    best_score = Inf
+	best_hist = []
+	best_delays = []
+
+    # Generate the initial sequence
+    base_sequence = repeat(stimuli, outer = n_repeats)
+
+    for _ in 1:max_iters
+        # Shuffle the sequence in miniblocks of 2*ns
+		for i in 1:(2*ns):(n_repeats * ns)
+        	base_sequence[i:(i+2*ns-1)] = shuffle(rng, base_sequence[i:(i+2*ns-1)])
+		end
+        
+        # Calculate delays between successive appearances
+        delays = Dict(stim => Int[] for stim in stimuli)
+        last_position = Dict(stim => -99 for stim in stimuli)
+
+        for (i, stim) in enumerate(base_sequence)
+            if last_position[stim] != -99
+                push!(delays[stim], i - last_position[stim])
+            end
+            last_position[stim] = i
+        end
+        
+        # Flatten the delays and calculate a score
+        all_delays = vcat(values(delays)...)
+        histogram = counts(all_delays, 1:(2 * ns - 1))
+        score = sum(abs.(histogram .- ideal_freq)) + 
+			1000 * (maximum(all_delays) > (2 * ns - 1))
+
+        if score < best_score
+            best_sequence = copy(base_sequence)
+			best_score = score
+            best_hist = counts(all_delays)
+			best_delays = sort(unique(all_delays))
+        end
+    end
+
+    return best_sequence
+end
+
+# ╔═╡ f3cf2d73-1764-4053-a651-d1d1dbe583df
+let 
+	randomize_triplets(4, 10)
+end
+
 # ╔═╡ fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
 function reorder_with_fixed(v::AbstractVector, fixed::AbstractVector; rng::Xoshiro = Xoshiro(0))
 	v = collect(v)
@@ -180,7 +245,7 @@ end
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
 		groupby(block_order, :n_confusing),
-		:block => length => :n
+		:set_size => sum => :n
 	)
 	
 	# Generate all sequences and compute FI
@@ -193,121 +258,135 @@ end
 		unpack_function = unpack_single_p_QL
 	) for n in n_confusing_wanted.n_confusing]
 
-	# # Unpack results
-	# common_seqs = [x[2] for x in FI_seqs]
-	# magn_seqs = [x[3] for x in FI_seqs]
+	# Unpack results
+	common_seqs = [x[2] for x in FI_seqs]
+	magn_seqs = [x[3] for x in FI_seqs]
 
 	# # Choose sequences optimizing FI under contraints
-	# chosen_idx, common_per_pos, EV_per_pos = optimize_FI_distribution(
-	# 	n_wanted = n_confusing_wanted.n,
-	# 	FIs = [x[1] for x in FI_seqs],
-	# 	common_seqs = common_seqs,
-	# 	magn_seqs = magn_seqs,
-	# 	ω_FI = 0.08,
-	# 	filename = "results/exp_sequences/pilot6_opt.jld2"
-	# )
+	chosen_idx, common_per_pos, EV_per_pos = optimize_FI_distribution(
+		n_wanted = n_confusing_wanted.n,
+		FIs = [x[1] for x in FI_seqs],
+		common_seqs = common_seqs,
+		magn_seqs = magn_seqs,
+		ω_FI = 0.07,
+		constrain_pairs = false,
+		filename = "results/exp_sequences/pilot7_opt.jld2"
+	)
 
-	# @assert length(vcat(chosen_idx...)) == nrow(PILT_block_attr) "Number of saved optimize sequences does not match number of sequences needed. Delete file and rerun."
+	@assert length(vcat(chosen_idx...)) == sum(block_order.set_size) "Number of saved optimize sequences does not match number of sequences needed. Delete file and rerun."
 
-	# # Shuffle chosen sequences
-	# rng = Xoshiro(random_seed)
-	# shuffle!.(rng, chosen_idx)
+	# Shuffle chosen sequences
+	rng = Xoshiro(random_seed)
+	shuffle!.(rng, chosen_idx)
 
-	# # Unpack chosen sequences
-	# chosen_common = [[common_seqs[s][idx[1]] for idx in chosen_idx[s]]
-	# 	for s in eachindex(common_seqs)]
+	# Unpack chosen sequences
+	chosen_common = [[common_seqs[s][idx[1]] for idx in chosen_idx[s]]
+		for s in eachindex(common_seqs)]
 
-	# chosen_magn = [[magn_seqs[s][idx[2]] for idx in chosen_idx[s]]
-	# 	for s in eachindex(magn_seqs)]
+	chosen_magn = [[magn_seqs[s][idx[2]] for idx in chosen_idx[s]]
+		for s in eachindex(magn_seqs)]
 
-	# # Repack into DataFrame	
-	# n_sequences = sum(length.(chosen_common))
-	# task = DataFrame(
-	# 	idx = repeat(1:n_sequences, inner = PILT_trials_per_block),
-	# 	sequence = repeat(vcat([1:length(x) for x in chosen_common]...), 
-	# 		inner = PILT_trials_per_block),
-	# 	trial = repeat(1:PILT_trials_per_block, n_sequences),
-	# 	feedback_common = vcat(vcat(chosen_common...)...),
-	# 	variable_magnitude = vcat(vcat(chosen_magn...)...)
-	# )
+	# Repack into DataFrame	
+	n_sequences = sum(length.(chosen_common))
+	task = DataFrame(
+		idx = repeat(1:n_sequences, inner = WM_trials_per_triplet),
+		sequence = repeat(vcat([1:length(x) for x in chosen_common]...), 
+			inner = WM_trials_per_triplet),
+		appearance = repeat(1:WM_trials_per_triplet, n_sequences),
+		feedback_common = vcat(vcat(chosen_common...)...),
+		variable_magnitude = vcat(vcat(chosen_magn...)...)
+	)
 
-	# # Create n_confusing and fifty_high varaibles
-	# DataFrames.transform!(
-	# 	groupby(task, :idx),
-	# 	:feedback_common => (x -> PILT_trials_per_block - sum(x)) => :n_confusing,
-	# 	:variable_magnitude => (x -> 1. in x) => :fifty_high
-	# )
+	# Create n_confusing varaible
+	DataFrames.transform!(
+		groupby(task, :idx),
+		:feedback_common => (x -> WM_trials_per_triplet - sum(x)) => :n_confusing
+	)
 
-	# # Add sequnces variable to PILT_block_attr
-	# DataFrames.transform!(
-	# 	groupby(PILT_block_attr, [:n_confusing, :fifty_high]),
-	# 	:block => (x -> shuffle(rng, 1:length(x))) => :sequence
-	# )
+	# Expand block_order to triplet_order
+	triplet_order = combine(
+		groupby(block_order, [:block, :set_size, :n_confusing, :valence]),
+		:set_size => (x -> 1:x[1]) => :triplet
+	)
 
+	# Add sequnces variable to block_order
+	DataFrames.transform!(
+		groupby(triplet_order, :n_confusing),
+		:triplet => (x -> shuffle(rng, 1:length(x))) => :sequence
+	)
 
-	# # Combine with block attributes
-	# task = innerjoin(
-	# 	task,
-	# 	PILT_block_attr,
-	# 	on = [:n_confusing, :fifty_high, :sequence],
-	# 	order = :left
-	# )
+	# Combine with block attributes
+	task = innerjoin(
+		task,
+		triplet_order,
+		on = [:n_confusing, :sequence],
+		order = :left
+	)
 
-
-	# @assert nrow(task) == length(vcat(vcat(chosen_common...)...)) "Problem with join operation"
-	# @assert nrow(unique(task[!, [:block]])) == PILT_total_blocks "Problem with join operation"
+	@assert nrow(task) == length(vcat(vcat(chosen_common...)...)) "Problem with join operation"
+	@assert nrow(unique(task[!, [:block]])) == WM_n_total_blocks "Problem with join operation"
 		
-	# @assert mean(task.fifty_high) == 0.5 "Proportion of blocks with 50 pence in high magnitude option expected to be 0.5"
+	# Sort by block
+	sort!(task, [:block, :triplet, :appearance])
 
-	# # Sort by block
-	# sort!(task, [:block, :trial])
+	# Remove auxillary variables
+	select!(task, Not([:sequence, :idx]))
 
-	# # Remove auxillary variables
-	# select!(task, Not([:sequence, :idx]))
+	# Shuffle triplet order
+	shuffled_triplet_order = DataFrame(
+		block = vcat([fill(r.block, r.set_size * WM_trials_per_triplet) for r in eachrow(block_order)]...),
+		triplet = vcat([randomize_triplets(ns, WM_trials_per_triplet; rng = rng) for ns in block_order.set_size]...)
+	)
 
-	# # Compute low and high feedback
-	# task.feedback_high = ifelse.(
-	# 	task.valence .> 0,
-	# 	ifelse.(
-	# 		task.fifty_high,
-	# 		task.variable_magnitude,
-	# 		fill(1., nrow(task))
-	# 	),
-	# 	ifelse.(
-	# 		task.fifty_high,
-	# 		fill(-0.01, nrow(task)),
-	# 		.- task.variable_magnitude
-	# 	)
-	# )
+	DataFrames.transform!(
+		groupby(shuffled_triplet_order, [:block, :triplet]),
+		:block => (x -> 1:length(x)) => :appearance
+	)
 
-	# task.feedback_low = ifelse.(
-	# 	task.valence .> 0,
-	# 	ifelse.(
-	# 		.!task.fifty_high,
-	# 		task.variable_magnitude,
-	# 		fill(0.01, nrow(task))
-	# 	),
-	# 	ifelse.(
-	# 		.!task.fifty_high,
-	# 		fill(-1, nrow(task)),
-	# 		.- task.variable_magnitude
-	# 	)
-	# )
+	task = innerjoin(
+		task,
+		shuffled_triplet_order,
+		on = [:block, :triplet, :appearance],
+		order = :right
+	)
 
-	# # Compute feedback optimal and suboptimal
-	# task.feedback_optimal = ifelse.(
-	# 	task.feedback_common,
-	# 	task.feedback_high,
-	# 	task.feedback_low
-	# )
+	# Compute trial varaible
+	DataFrames.transform!(
+		groupby(task, :block),
+		:block => (x -> 1:length(x)) => :trial
+	)
 
-	# task.feedback_suboptimal = ifelse.(
-	# 	.!task.feedback_common,
-	# 	task.feedback_high,
-	# 	task.feedback_low
-	# )
+	# Compute low and high feedback
+	task.feedback_high = ifelse.(
+		task.valence .> 0,
+		task.variable_magnitude,
+		ifelse.(
+			task.variable_magnitude .== 1.,
+			fill(-0.01, nrow(task)),
+			.- task.variable_magnitude
+		)
+	)
 
-	# task, common_per_pos, EV_per_pos
+	task.feedback_low = ifelse.(
+		task.valence .> 0,
+		fill(0.01, nrow(task)),
+		fill(-1.0, nrow(task))
+	)
+
+	# Compute feedback optimal and suboptimal
+	task.feedback_optimal = ifelse.(
+		task.feedback_common,
+		task.feedback_high,
+		task.feedback_low
+	)
+
+	task.feedback_suboptimal = ifelse.(
+		.!task.feedback_common,
+		task.feedback_high,
+		task.feedback_low
+	)
+
+	task, common_per_pos, EV_per_pos
 end
 
 # ╔═╡ Cell order:
@@ -316,4 +395,7 @@ end
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
+# ╠═f3cf2d73-1764-4053-a651-d1d1dbe583df
+# ╠═fd3cbfab-124f-4e14-bd7d-e8ee5f677356
+# ╠═b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
