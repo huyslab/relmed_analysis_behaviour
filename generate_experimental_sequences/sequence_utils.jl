@@ -293,39 +293,17 @@ function compute_save_FIs_for_all_seqs(;
 	return FIs, common_seqs, magn_seq
 end
 
-"""
-    optimize_FI_distribution(; n_wanted::Vector{Int64}, FIs::Vector{Matrix{Float64}}, common_seqs::Vector{Vector{Vector{Bool}}}, magn_seqs::Vector{Vector{Vector{Float64}}}, ω_FI::Float64, filename::String)
-
-Optimize the selection of sequences to maximize Fisher Information (FI) while maintaining uniform distributions of confusing feedback trials and feedback magnitude across trial positions.
-
-# Arguments
-- `n_wanted::Vector{Int64}`: The number of sequences to select from each category.
-- `FIs::Vector{Matrix{Float64}}`: Fisher Information matrices for each sequence in each category.
-- `common_seqs::Vector{Vector{Vector{Bool}}}`: Sequences of common (vs. confusing) feedback positions for each category.
-- `magn_seqs::Vector{Vector{Vector{Float64}}}`: Sequences of feedback magnitudes for each category.
-- `ω_FI::Float64`: The weight assigned to maximizing FI relative to uniformity of distributions.
-- `filename::String`: The file name to save or load the results of the optimization.
-
-# Details
-This function formulates and solves an optimization problem that selects a set of feedback sequences to maximize Fisher Information, subject to the constraint that the distribution of confusing feedback and feedback magnitude remains uniform across trial positions. The function ensures that each common feedback sequence is chosen only once across related categories and enforces the selection of a desired number of sequences for each category.
-
-The objective function balances maximizing Fisher Information and minimizing deviations in the proportion of common feedback and the mean feedback magnitude across trial positions, controlled by the weight parameter `ω_FI`. A higher `ω_FI` prioritizes FI maximization, while a lower value emphasizes distribution uniformity.
-
-The selected sequence indices are either saved to or loaded from the specified file, depending on whether the file already exists.
-
-# Returns
-- `selected_idx`: Indices of the selected sequences for each category.
-"""
 function optimize_FI_distribution(;
 	n_wanted::Vector{Int64}, # How many sequences wanted of each category
 	FIs::Vector{Matrix{Float64}}, # Fisher information for all the sequences in each category
 	common_seqs::Vector{Vector{Vector{Bool}}}, # Sequences of common feedback position in each category
 	magn_seqs::Vector{Vector{Vector{Float64}}}, # Sequences of feedback magnitude in each category
 	ω_FI::Float64, # Weight of FI vs uniform distributions.
-	filename::String # Filename to save results
+	filename::String, # Filename to save results,
+	constrain_pairs::Bool = true # Whether to contrain not picking same sequence across pairs of FI matrices. Useful if you have both fifty_high=true, false
 )
 
-	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 2:2:length(FIs)]) "Assuming inputs are arranged in pairs matching in sizes, except first stimulus. Common sequences will be constrained to be only chosen once across pairs"
+	@assert all([size(FIs[s]) == size(FIs[s+1]) for s in 2:2:length(FIs)]) || !constrain_pairs "Assuming inputs are arranged in pairs matching in sizes, except first stimulus. Common sequences will be constrained to be only chosen once across pairs"
 
 	@assert all([size(FIs[s], 1) == length(common_seqs[s]) for s in eachindex(FIs)]) "FIs and common_seqs not matching in size"
 
@@ -372,11 +350,17 @@ function optimize_FI_distribution(;
 		# Constraint: Exactly n_wanted vectors should be selected
 		for s in eachindex(xs)
 			@constraint(model, sum(xs[s]) == n_wanted[s])
-	
-			if iseven(s) # Make sure no common sequence is chosen twice across variations of magnitude
-				# Each row (sequence) is selected exactly once across all columns
+			
+			if constrain_pairs
+				if iseven(s) # Make sure no common sequence is chosen twice across variations of magnitude
+					# Each row (sequence) is selected exactly once across all columns
+					for i in 1:n_common_seqs[s]
+						@constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) + sum(xs[s+1][i,j] for j in 1:n_magn_seqs[s+1]) <= ceil(n_wanted[s] / n_common_seqs[s]))  # Don't select a row more than needed
+					end
+				end
+			else
 				for i in 1:n_common_seqs[s]
-				    @constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) + sum(xs[s+1][i,j] for j in 1:n_magn_seqs[s+1]) <= 1)  # Each row selected at most once
+					@constraint(model, sum(xs[s][i,j] for j in 1:n_magn_seqs[s]) <= ceil(n_wanted[s] / n_common_seqs[s]))  # Don't select a row more than needed
 				end
 			end
 				
