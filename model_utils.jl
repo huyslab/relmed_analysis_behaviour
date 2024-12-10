@@ -347,7 +347,10 @@ function FI(;
 )
 
 	res = 0
-	for gdf in groupby(data, id_col)
+	for g in unique(data[!, id_col])
+
+		# Select data
+		gdf = filter(x -> x[id_col] == g, data)
 		
 		# Pass data to model
 		m = model(;
