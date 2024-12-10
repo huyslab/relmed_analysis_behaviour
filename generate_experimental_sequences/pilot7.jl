@@ -59,12 +59,6 @@ begin
 
 end
 
-# ╔═╡ fd3cbfab-124f-4e14-bd7d-e8ee5f677356
-let ns = 4, n_repeats = 10
-	collect(1:(2*ns):(n_repeats * ns)), n_repeats * ns
-
-end
-
 # ╔═╡ b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 function randomize_triplets(
 	ns::Int64, 
@@ -117,11 +111,6 @@ function randomize_triplets(
     end
 
     return best_sequence
-end
-
-# ╔═╡ f3cf2d73-1764-4053-a651-d1d1dbe583df
-let 
-	randomize_triplets(4, 10)
 end
 
 # ╔═╡ fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
@@ -395,7 +384,5 @@ end
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
-# ╠═f3cf2d73-1764-4053-a651-d1d1dbe583df
-# ╠═fd3cbfab-124f-4e14-bd7d-e8ee5f677356
 # ╠═b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
