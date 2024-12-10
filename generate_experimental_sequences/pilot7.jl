@@ -21,7 +21,7 @@ begin
 
 	include("$(pwd())/PILT_models.jl")
 	include("$(pwd())/sample_utils.jl")
-	include("$(pwd())/stats_utils.jl")
+	include("$(pwd())/model_utils.jl")
 	include("$(pwd())/plotting_utils.jl")
 	include("$(pwd())/fetch_preprocess_data.jl")
 	include("$(pwd())/generate_experimental_sequences/sequence_utils.jl")
@@ -172,13 +172,148 @@ block_order = let random_seed = 1
 	
 end
 
-# ╔═╡ f065038f-0ac7-431b-8b51-c7ad28efa04f
-reorder_with_fixed(collect(1:10), [3, 5, missing, 6])
+# ╔═╡ 7e078cb5-c615-4dc8-9060-3b69c86648b6
+# Create feedback sequences per pair
+# sequences, common_per_pos, EV_per_pos = 
+	let random_seed = 2
+	
+	# Compute how much we need of each sequence category
+	n_confusing_wanted = combine(
+		groupby(block_order, :n_confusing),
+		:block => length => :n
+	)
+	
+	# Generate all sequences and compute FI
+	FI_seqs = [compute_save_FIs_for_all_seqs(;
+		n_trials = 10,
+		n_confusing = n,
+		fifty_high = true,
+		model = single_p_QL_recip,
+		model_name = "QL_recip",
+		unpack_function = unpack_single_p_QL
+	) for n in n_confusing_wanted.n_confusing]
+
+	# # Unpack results
+	# common_seqs = [x[2] for x in FI_seqs]
+	# magn_seqs = [x[3] for x in FI_seqs]
+
+	# # Choose sequences optimizing FI under contraints
+	# chosen_idx, common_per_pos, EV_per_pos = optimize_FI_distribution(
+	# 	n_wanted = n_confusing_wanted.n,
+	# 	FIs = [x[1] for x in FI_seqs],
+	# 	common_seqs = common_seqs,
+	# 	magn_seqs = magn_seqs,
+	# 	ω_FI = 0.08,
+	# 	filename = "results/exp_sequences/pilot6_opt.jld2"
+	# )
+
+	# @assert length(vcat(chosen_idx...)) == nrow(PILT_block_attr) "Number of saved optimize sequences does not match number of sequences needed. Delete file and rerun."
+
+	# # Shuffle chosen sequences
+	# rng = Xoshiro(random_seed)
+	# shuffle!.(rng, chosen_idx)
+
+	# # Unpack chosen sequences
+	# chosen_common = [[common_seqs[s][idx[1]] for idx in chosen_idx[s]]
+	# 	for s in eachindex(common_seqs)]
+
+	# chosen_magn = [[magn_seqs[s][idx[2]] for idx in chosen_idx[s]]
+	# 	for s in eachindex(magn_seqs)]
+
+	# # Repack into DataFrame	
+	# n_sequences = sum(length.(chosen_common))
+	# task = DataFrame(
+	# 	idx = repeat(1:n_sequences, inner = PILT_trials_per_block),
+	# 	sequence = repeat(vcat([1:length(x) for x in chosen_common]...), 
+	# 		inner = PILT_trials_per_block),
+	# 	trial = repeat(1:PILT_trials_per_block, n_sequences),
+	# 	feedback_common = vcat(vcat(chosen_common...)...),
+	# 	variable_magnitude = vcat(vcat(chosen_magn...)...)
+	# )
+
+	# # Create n_confusing and fifty_high varaibles
+	# DataFrames.transform!(
+	# 	groupby(task, :idx),
+	# 	:feedback_common => (x -> PILT_trials_per_block - sum(x)) => :n_confusing,
+	# 	:variable_magnitude => (x -> 1. in x) => :fifty_high
+	# )
+
+	# # Add sequnces variable to PILT_block_attr
+	# DataFrames.transform!(
+	# 	groupby(PILT_block_attr, [:n_confusing, :fifty_high]),
+	# 	:block => (x -> shuffle(rng, 1:length(x))) => :sequence
+	# )
+
+
+	# # Combine with block attributes
+	# task = innerjoin(
+	# 	task,
+	# 	PILT_block_attr,
+	# 	on = [:n_confusing, :fifty_high, :sequence],
+	# 	order = :left
+	# )
+
+
+	# @assert nrow(task) == length(vcat(vcat(chosen_common...)...)) "Problem with join operation"
+	# @assert nrow(unique(task[!, [:block]])) == PILT_total_blocks "Problem with join operation"
+		
+	# @assert mean(task.fifty_high) == 0.5 "Proportion of blocks with 50 pence in high magnitude option expected to be 0.5"
+
+	# # Sort by block
+	# sort!(task, [:block, :trial])
+
+	# # Remove auxillary variables
+	# select!(task, Not([:sequence, :idx]))
+
+	# # Compute low and high feedback
+	# task.feedback_high = ifelse.(
+	# 	task.valence .> 0,
+	# 	ifelse.(
+	# 		task.fifty_high,
+	# 		task.variable_magnitude,
+	# 		fill(1., nrow(task))
+	# 	),
+	# 	ifelse.(
+	# 		task.fifty_high,
+	# 		fill(-0.01, nrow(task)),
+	# 		.- task.variable_magnitude
+	# 	)
+	# )
+
+	# task.feedback_low = ifelse.(
+	# 	task.valence .> 0,
+	# 	ifelse.(
+	# 		.!task.fifty_high,
+	# 		task.variable_magnitude,
+	# 		fill(0.01, nrow(task))
+	# 	),
+	# 	ifelse.(
+	# 		.!task.fifty_high,
+	# 		fill(-1, nrow(task)),
+	# 		.- task.variable_magnitude
+	# 	)
+	# )
+
+	# # Compute feedback optimal and suboptimal
+	# task.feedback_optimal = ifelse.(
+	# 	task.feedback_common,
+	# 	task.feedback_high,
+	# 	task.feedback_low
+	# )
+
+	# task.feedback_suboptimal = ifelse.(
+	# 	.!task.feedback_common,
+	# 	task.feedback_high,
+	# 	task.feedback_low
+	# )
+
+	# task, common_per_pos, EV_per_pos
+end
 
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
+# ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
-# ╠═f065038f-0ac7-431b-8b51-c7ad28efa04f
