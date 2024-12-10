@@ -82,7 +82,7 @@ Defines a Turing model for single-participant Q-learning in a reinforcement lear
 end
 
 function check_PILT_data(
-	data::DataFrame;
+	data::AbstractDataFrame;
 	columns::Dict
 )
 
