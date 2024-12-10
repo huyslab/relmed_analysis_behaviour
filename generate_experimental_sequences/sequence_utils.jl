@@ -121,105 +121,84 @@ function assign_stimuli_and_optimality(;
 
 end
 
-"""
-    FI_for_feedback_sequence(; task::AbstractDataFrame, ρ::Float64, a::Float64, initV::Float64, n_blocks::Int64 = 500, summary_method::Function = tr)
-
-Compute the Fisher Information (FI) for a given sequence of feedback in a probabilistic instrumental learning task using a simple Q-learning model.
-
-# Arguments
-- `task::AbstractDataFrame`: The DataFrame containing the feedback sequences. It should include columns for `block`, `trial`, `feedback_optimal`, and `feedback_suboptimal`.
-- `ρ::Float64`: Reward sensitivity to be used for simulating data.
-- `a::Float64`: Learning rate to be used for simulatind data (unconstrained scale).
-- `initV::Float64`: The initial value of the Q-values for both choices (optimal and suboptimal).
-- `n_blocks::Int64`: The number of simulated blocks over which the Fisher Information is summarized. Defaults to 500.
-- `summary_method::Function`: A function used to summarize the Fisher Information matrix. Defaults to `tr` (trace).
-
-# Returns
-- The computed Fisher Information (FI) for the feedback sequence.
-
-# Details
-The function first simulates feedback sequences using a Q-learning model with the provided parameters (`ρ`, `a`, and `initV`).
-
-After simulation, the Fisher Information is computed using the provided model `single_p_QL`, which maps the task data to the model parameters and calculates FI using the specified summary method.
-"""
-function FI_for_feedback_sequence(;
-	task::AbstractDataFrame,
-	ρ::Float64,
-	a::Float64,
-	initV::Union{Float64, Nothing} = nothing,
+function FI_for_feedback_sequence(
+	task::AbstractDataFrame;
+	model::Function,
+	unpack_function::Function,
+	params::Dict,
 	n_blocks::Int64 = 500,
-	summary_method::Function = tr
+	summary_method::Function = tr,
+	kwargs...
 )
 
 	# Sample from prior
-	prior_sample = simulate_single_p_QL(
-			n_blocks;
-			block = task.block,
-			outcomes = hcat(task.feedback_suboptimal, task.feedback_optimal),
-			initV = fill(initV, 1, 2),
-			random_seed = 0,
-			prior_ρ = Dirac(ρ),
-			prior_a = Dirac(a)
-		)
-
-	prior_sample = innerjoin(prior_sample, 
-			task[!, [:block, :trial, :feedback_optimal, :feedback_suboptimal]],
-			on = [:block, :trial]
+	samp = prior_sample(
+		task;
+		n = n_blocks,
+		model = model,
+		unpack_function = unpack_function,
+		priors = Dict(
+			k => Dirac(v) for (k,v) in params
+		),
+		outcome_name = :choice,
+		kwargs...
 	)
+	
+	# Wide to long, join with task DataFrame
+	samp = vcat([insertcols(
+			task, 
+			:sample => i,
+			:choice => samp[:, i],
+		) for i in 1:size(samp,2)]...)
 
-	prior_sample.block = prior_sample.PID
+	# Set block counter to sample
+	samp.block = samp.sample
 
-	prior_sample[!, :PID] .= 1
+	# Set PID for FI function
+	samp[!, :PID] .= 1
+
+	# Set param values
+	for (p, v) in params
+		samp[!, p] .= v
+	end
 
 	# Compute FI
 	return FI(
-		data = prior_sample,
+		data = samp,
 		model = single_p_QL,
-		map_data_to_model = map_data_to_single_p_QL,
+		map_data_to_model = unpack_function,
 		param_names = [:a, :ρ],
-		initV = initV,
 		summary_method = summary_method
 	)
 end
 
-"""
-    sum_FI_for_feedback_sequence(; task::AbstractDataFrame, ρ_vals::AbstractVector, a_vals::AbstractVector, initV::Float64, n_blocks::Int64 = 200, within_summary_method::Function = det, across_summary_method::Function = median)
-
-Compute and summarize the Fisher Information (FI) across multiple combinations of Q-learning parameters.
-
-# Arguments
-- `task::AbstractDataFrame`: The task data containing feedback sequence.
-- `ρ_vals::AbstractVector`: Vector of reward sensitivity values to compute FI over.
-- `a_vals::AbstractVector`: Vector of learning rate values for action selection.
-- `initV::Float64`: Initial value for Q-values.
-- `n_blocks::Int64`: Number of blocks for simulation. Defaults to 200.
-- `within_summary_method::Function`: Method to summarize the FI matrix (default: determinant `det`).
-- `across_summary_method::Function`: Method to summarize FI across different parameter combinations (default: `median`).
-
-# Returns
-- A scalar summarizing the FI over the parameter space using the specified across-summary method.
-"""
-function sum_FI_for_feedback_sequence(;
-	task::AbstractDataFrame,
+function sum_FI_for_feedback_sequence(
+	task::AbstractDataFrame;
+	model::Function,
+	unpack_function::Function,
 	ρ_vals::AbstractVector,
 	a_vals::AbstractVector,
-	initV::Union{Float64, Nothing} = nothing,
 	n_blocks::Int64 = 200,
 	within_summary_method::Function = det,
-	across_summary_method::Function = median
+	across_summary_method::Function = median,
+	kwargs...
 )
 	
 	FIs = Matrix{Float64}(undef, length(ρ_vals), length(a_vals))
 	
 	for (i, ρ) in enumerate(ρ_vals)
 		for (j, a) in enumerate(a_vals)
-			FIs[i, j] = FI_for_feedback_sequence(;
-				task = task,
-				ρ = ρ,
-				a = a,
-				initV = initV,
+			FIs[i, j] = FI_for_feedback_sequence(
+				task;
+				params = Dict(
+					:ρ => ρ,
+					:a => a,
+				),
+				model = model,
+				unpack_function = unpack_function,
+				n_blocks = n_blocks,
 				summary_method = within_summary_method,
-				n_blocks = n_blocks
+				kwargs...
 			) / n_blocks
 		end
 	end
@@ -227,39 +206,18 @@ function sum_FI_for_feedback_sequence(;
 	return across_summary_method(FIs)
 end
 
-"""
-    compute_save_FIs_for_all_seqs(; n_trials::Int64, n_confusing::Int64, fifty_high::Bool, FI_res::Int64 = 6)
-
-Compute and save Fisher Information (FI) for all possible feedback sequences with a specified number of confusing trials and reward magnitude distributions.
-
-# Arguments
-- `n_trials::Int64`: The total number of trials in each sequence.
-- `n_confusing::Int64`: The number of confusing feedback trials in each sequence.
-- `fifty_high::Bool`: Whether to include high-magnitude (1.0) and low-magnitude (0.01) rewards, or uniform magnitudes (0.5).
-- `FI_res::Int64`: The resolution of Fisher Information computation, i.e., the number of grid points for parameter values (default: 6).
-- `initV::Float64`: The initial value of the Q-values for both choices.
-
-# Details
-This function computes FI for all possible combinations of:
-1. Sequences of common (true) and confusing (false) feedback, constrained by the number of confusing trials (`n_confusing`).
-2. Sequences of feedback magnitudes, either alternating between high (1.0) and low (0.01) or fixed at 0.5 depending on the value of `fifty_high`.
-
-The Fisher Information is computed over a grid of values for the parameters `ρ` (learning rate) and `a` (exploration-exploitation balance) using the `sum_FI_for_feedback_sequence` function. The results are saved to a file for future use.
-
-# Returns
-- `FIs`: A 3D matrix where each entry corresponds to the FI for a specific combination of feedback sequence and magnitude sequence.
-- `common_seqs`: All possible sequences of common/confusing feedback.
-- `magn_seq`: All possible sequences of feedback magnitudes.
-"""
 function compute_save_FIs_for_all_seqs(;
+	model::Function,
+	model_name::String,
+	unpack_function::Function,
 	n_trials::Int64,
 	n_confusing::Int64,
 	fifty_high::Bool,
 	FI_res::Int64 = 6,
-    initV::Union{Float64, Nothing} = nothing
+	kwargs...
 )
 
-	filename = "saved_models/FI/FIs_$(n_trials)_$(n_confusing)_$(fifty_high).jld2"
+	filename = "saved_models/FI/FIs_$(model_name)_$(n_trials)_$(n_confusing)_$(fifty_high).jld2"
 
 	if !isfile(filename)
 		# All possible sequences of confusing feedback
@@ -293,17 +251,28 @@ function compute_save_FIs_for_all_seqs(;
 		# Compute in parallel
 		Threads.@threads for i in eachindex(common_seqs)
 			for (j, magn) in enumerate(magn_seq)
-				thisFI = sum_FI_for_feedback_sequence(;
-						task = sequence_to_task_df(;
+				thisFI = sum_FI_for_feedback_sequence(
+						sequence_to_task_df(;
 							feedback_common = common_seqs[i],
 							feedback_magnitude_high = fifty_high ? magn : fill(1., n_trials),
 							feedback_magnitude_low = fifty_high ? fill(0.01, n_trials) : magn
+						);
+						model = model,
+						unpack_function = x -> unpack_function(
+							x;
+							columns = Dict(
+								"block" => :block,
+								"trial" => :trial,
+								"feedback_optimal" => :feedback_optimal,
+								"feedback_suboptimal" => :feedback_suboptimal,
+								"choice" => :choice
+							)
 						),
 						ρ_vals = range(1., 10., length = FI_res),
 						a_vals = range(-1.5, 1.5, length = FI_res),
-						initV = initV,
 						across_summary_method = identity,
-						n_blocks = 200
+						n_blocks = 200,
+						kwargs...
 					) 
 
 				lock(lk) do
