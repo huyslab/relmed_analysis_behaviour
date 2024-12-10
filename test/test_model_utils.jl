@@ -1,3 +1,16 @@
+# Setup
+begin
+    cd("/home/jovyan")
+    import Pkg
+    # activate the shared project environment
+    Pkg.activate("$(pwd())/relmed_environment")
+    # instantiate, i.e. make sure that all packages are downloaded
+    Pkg.instantiate()
+    using Test, Random, DataFrames, Distributions, StatsBase, LinearAlgebra, ForwardDiff, Turing
+    Turing.setprogress!(false)
+    include("$(pwd())/model_utils.jl")
+end
+
 @testset "FI" begin
 
     # Simplest coin-toss model for testing
