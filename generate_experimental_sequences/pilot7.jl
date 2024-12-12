@@ -28,6 +28,24 @@ begin
 	nothing
 end
 
+# ╔═╡ 114f2671-1888-4b11-aab1-9ad718ababe6
+begin
+	# Set theme	
+	th = merge(theme_minimal(), Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	))
+	
+	set_theme!(th)
+end
+
 # ╔═╡ de74293f-a452-4292-b5e5-b4419fb70feb
 categories = let
 	categories = (s -> replace(s, ".jpg" => "")[1:(end-1)]).(readdir("generate_experimental_sequences/pilot7_stims"))
@@ -239,7 +257,7 @@ end
 # ╔═╡ 7e078cb5-c615-4dc8-9060-3b69c86648b6
 # Create feedback sequences per pair
 task, common_per_pos, EV_per_pos =
-let random_seed = 2
+let random_seed = 3
 	
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
@@ -418,13 +436,68 @@ let
 
 end
 
+# ╔═╡ 87035e3e-e7ce-4320-a440-c150c4547c02
+# Visualize seuqnce
+let 
+
+	f = Figure(size = (700, 300))
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, :appearance),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	mp1 = data(confusing_location) * mapping(
+		:appearance => "Appearance", 
+		:feedback_confusing => "Prop. confusing feedback"
+	) * visual(ScatterLines)
+
+	plt1 = draw!(f[1,1], mp1)
+
+	# Plot confusing trials by block
+	fp = insertcols(
+		task,
+		:color => ifelse.(
+			task.feedback_common,
+			(task.valence .+ 1) .÷ 2,
+			fill(3, nrow(task))
+		)
+	)
+
+	mp = data(fp) * mapping(
+		:trial => "Trial",
+		:block => "Block",
+		:color
+	) * visual(Heatmap)
+
+	draw!(f[1,2], mp, axis = (; yreversed = true))
+
+	# Plot confusing appearnce by triplet
+	mp = data(fp) * mapping(
+		:appearance => "Appearance",
+		:stimulus_group_id => "Triplet",
+		:color
+	) * visual(Heatmap)
+
+	draw!(f[1,3], mp, axis = (; yreversed = true))
+
+
+	# save("results/pilot6_pilt_trial_plan.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
+# ╠═114f2671-1888-4b11-aab1-9ad718ababe6
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
 # ╠═8e9ffd82-89ec-4a63-83a8-54dfde7192a0
+# ╠═87035e3e-e7ce-4320-a440-c150c4547c02
 # ╠═b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 # ╠═69afd881-0c45-48c9-8db9-699f9ae23bec
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
