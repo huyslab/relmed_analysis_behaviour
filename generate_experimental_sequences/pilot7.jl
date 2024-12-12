@@ -59,11 +59,30 @@ begin
 
 end
 
+# ╔═╡ 69afd881-0c45-48c9-8db9-699f9ae23bec
+function count_delays(base_sequence::AbstractVector)
+
+	stimuli = unique(base_sequence)
+
+	# Calculate delays between successive appearances
+	delays = Dict(stim => Int[] for stim in stimuli)
+	last_position = Dict(stim => -99 for stim in stimuli)
+
+	for (i, stim) in enumerate(base_sequence)
+		if last_position[stim] != -99
+			push!(delays[stim], i - last_position[stim])
+		end
+		last_position[stim] = i
+	end
+
+	return vcat(values(delays)...)
+end
+
 # ╔═╡ b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 function randomize_triplets(
 	ns::Int64, 
 	n_repeats::Int64; 
-	max_iters::Int64 = 10^ns,
+	max_iters::Int64 = 2*10^(ns),
 	rng::AbstractRNG = Random.default_rng()
 )
 
@@ -86,18 +105,9 @@ function randomize_triplets(
 		end
         
         # Calculate delays between successive appearances
-        delays = Dict(stim => Int[] for stim in stimuli)
-        last_position = Dict(stim => -99 for stim in stimuli)
-
-        for (i, stim) in enumerate(base_sequence)
-            if last_position[stim] != -99
-                push!(delays[stim], i - last_position[stim])
-            end
-            last_position[stim] = i
-        end
-        
-        # Flatten the delays and calculate a score
-        all_delays = vcat(values(delays)...)
+        all_delays = count_delays(base_sequence)
+		
+        # Calculate a score
         histogram = counts(all_delays, 1:(2 * ns - 1))
         score = sum(abs.(histogram .- ideal_freq)) + 
 			1000 * (maximum(all_delays) > (2 * ns - 1))
@@ -228,8 +238,8 @@ end
 
 # ╔═╡ 7e078cb5-c615-4dc8-9060-3b69c86648b6
 # Create feedback sequences per pair
-# sequences, common_per_pos, EV_per_pos = 
-	let random_seed = 2
+task, common_per_pos, EV_per_pos =
+let random_seed = 2
 	
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
@@ -295,13 +305,13 @@ end
 	# Expand block_order to triplet_order
 	triplet_order = combine(
 		groupby(block_order, [:block, :set_size, :n_confusing, :valence]),
-		:set_size => (x -> 1:x[1]) => :triplet
+		:set_size => (x -> 1:x[1]) => :stimulus_group
 	)
 
 	# Add sequnces variable to block_order
 	DataFrames.transform!(
 		groupby(triplet_order, :n_confusing),
-		:triplet => (x -> shuffle(rng, 1:length(x))) => :sequence
+		:stimulus_group => (x -> shuffle(rng, 1:length(x))) => :sequence
 	)
 
 	# Combine with block attributes
@@ -316,7 +326,7 @@ end
 	@assert nrow(unique(task[!, [:block]])) == WM_n_total_blocks "Problem with join operation"
 		
 	# Sort by block
-	sort!(task, [:block, :triplet, :appearance])
+	sort!(task, [:block, :stimulus_group, :appearance])
 
 	# Remove auxillary variables
 	select!(task, Not([:sequence, :idx]))
@@ -324,18 +334,18 @@ end
 	# Shuffle triplet order
 	shuffled_triplet_order = DataFrame(
 		block = vcat([fill(r.block, r.set_size * WM_trials_per_triplet) for r in eachrow(block_order)]...),
-		triplet = vcat([randomize_triplets(ns, WM_trials_per_triplet; rng = rng) for ns in block_order.set_size]...)
+		stimulus_group = vcat([randomize_triplets(ns, WM_trials_per_triplet; rng = rng) for ns in block_order.set_size]...)
 	)
 
 	DataFrames.transform!(
-		groupby(shuffled_triplet_order, [:block, :triplet]),
+		groupby(shuffled_triplet_order, [:block, :stimulus_group]),
 		:block => (x -> 1:length(x)) => :appearance
 	)
 
 	task = innerjoin(
 		task,
 		shuffled_triplet_order,
-		on = [:block, :triplet, :appearance],
+		on = [:block, :stimulus_group, :appearance],
 		order = :right
 	)
 
@@ -343,6 +353,18 @@ end
 	DataFrames.transform!(
 		groupby(task, :block),
 		:block => (x -> 1:length(x)) => :trial
+	)
+
+	# Compute triplet counter
+	group_ids = sort(unique(task[!, [:block, :stimulus_group]]), [:block, :stimulus_group])
+
+	group_ids.stimulus_group_id = 1:nrow(group_ids)
+
+	task = leftjoin(
+		task,
+		group_ids,
+		on = [:block, :stimulus_group],
+		order = :left
 	)
 
 	# Compute low and high feedback
@@ -378,11 +400,31 @@ end
 	task, common_per_pos, EV_per_pos
 end
 
+# ╔═╡ 8e9ffd82-89ec-4a63-83a8-54dfde7192a0
+# Checks
+let
+	delays = combine(
+		groupby(task, [:block, :set_size]),
+		:triplet => (x -> length(unique(count_delays(x)))) => :n_unique_delays,
+		[:triplet, :set_size] => ((t, s) -> Ref(counts(count_delays(t), 1:(2*s[1]-1)))) => :distribution
+	)
+
+	@assert all(delays.n_unique_delays .== 2 .* delays.set_size .- 1) "Number of unique delay values between triplets should be exactly 2*ns-1"
+
+	@assert all(all.((x -> 3 .≤ x .≤ 6).(delays.distribution))) "Distribution of delays far from uniform"
+
+	@info "Each delay value appears $(minimum(minimum.(delays.distribution))) - $(maximum(maximum.(delays.distribution))) times"
+	
+
+end
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
+# ╠═8e9ffd82-89ec-4a63-83a8-54dfde7192a0
 # ╠═b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
+# ╠═69afd881-0c45-48c9-8db9-699f9ae23bec
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
