@@ -405,8 +405,8 @@ end
 let
 	delays = combine(
 		groupby(task, [:block, :set_size]),
-		:triplet => (x -> length(unique(count_delays(x)))) => :n_unique_delays,
-		[:triplet, :set_size] => ((t, s) -> Ref(counts(count_delays(t), 1:(2*s[1]-1)))) => :distribution
+		:stimulus_group => (x -> length(unique(count_delays(x)))) => :n_unique_delays,
+		[:stimulus_group, :set_size] => ((t, s) -> Ref(counts(count_delays(t), 1:(2*s[1]-1)))) => :distribution
 	)
 
 	@assert all(delays.n_unique_delays .== 2 .* delays.set_size .- 1) "Number of unique delay values between triplets should be exactly 2*ns-1"
