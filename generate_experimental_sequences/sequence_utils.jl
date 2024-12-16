@@ -525,13 +525,13 @@ Generate a shuffled vector by filling `n` trials with the values from `values`, 
 function shuffled_fill(
 	values::AbstractVector, # Values to fill vector
 	n::Int64; # How many trials overall
-	random_seed::Int64 = 0
+	rng::AbstractRNG = Random.default_rng()
 )	
 	# Create vector with as equal number of appearance for each value as possible
-	shuffled_values = shuffle(Xoshiro(random_seed), values)
+	shuffled_values = shuffle(rng, values)
 	unshuffled_vector = collect(Iterators.take(Iterators.cycle(shuffled_values), n))
 
-	return shuffle(Xoshiro(random_seed + 1), unshuffled_vector)
+	return shuffle(rng, unshuffled_vector)
 end
 
 """
