@@ -77,6 +77,133 @@ begin
 
 end
 
+# ╔═╡ 5b37feb9-30c2-4e72-bba9-08f3b4e1c499
+function assign_triplet_stimuli_and_optimality(;
+	n_phases::Int64,
+	n_groups::Vector{Int64}, # Number of groups in each block. Assume same for all phases
+	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
+		for i in 1:(sum(n_groups) * 3 * n_phases + n_phases)],
+	random_seed::Int64 = 1
+)
+
+	# Copy categories so that it is not changed
+	this_cats = copy(categories)
+
+	total_n_groups = sum(n_groups) # Number of pairs needed
+	
+	@assert rem(length(n_groups), 2) == 0 "Code only works for even number of blocks per sesion"
+
+	# Compute how many repeating categories we will have
+	n_repeating = sum(min.(n_groups[2:end], n_groups[1:end-1]))
+
+	rng = Xoshiro(random_seed)
+
+	# Assign whether repeating is optimal and shuffle
+	repeating_optimal = vcat([shuffled_fill([true, false, false], n_repeating, rng = rng) for p in 1:n_phases]...)
+
+	# Assign whether categories that cannot repeat are optimal
+	rest_optimal = vcat([shuffled_fill([true, false, false], total_n_groups - n_repeating, rng = rng) for p in 1:n_phases]...)
+
+	# Initialize vectors for stimuli. A novel to be repeated, B just novel, C may be repeating
+	stimulus_A = []
+	stimulus_B = []
+	stimulus_C = []
+	optimal_C = []
+	repeating_C = []
+	
+	for j in 1:n_phases
+		for (i, p) in enumerate(n_groups)
+
+	
+			# Choose repeating categories for this block
+			n_repeating = ((i > 1) && minimum([p, n_groups[i - 1]])) * 1
+			append!(
+				stimulus_C,
+				stimulus_A[(end - n_repeating + 1):end]
+			)
+
+			# Update repeating_C variable
+			append!(
+				repeating_C,
+				fill(true, n_repeating)
+			)
+	
+			# Fill up stimulus_repeating with novel categories if not enough to repeat
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						stimulus_C,
+						popfirst!(this_cats)
+					)
+				end
+			end
+
+			# Update repeating_C variable
+			append!(
+				repeating_C,
+				fill(false, p - n_repeating)
+			)
+			
+			# Choose novel categories for this block
+			for _ in 1:p
+				push!(
+					stimulus_A,
+					popfirst!(this_cats)
+				)
+
+				push!(
+					stimulus_B,
+					popfirst!(this_cats)
+				)
+			end
+
+			# Populate who is optimal vector
+			for _ in 1:(n_repeating)
+				push!(
+					optimal_C,
+					popfirst!(repeating_optimal)
+				)
+			end
+
+			if (p - n_repeating) > 0
+				for _ in 1:(p - n_repeating)
+					push!(
+						optimal_C,
+						popfirst!(rest_optimal)
+					)
+				end
+			end
+		end
+	end
+
+	stimulus_A = (x -> x * "1.jpg").(stimulus_A)
+	stimulus_B = (x -> x * "1.jpg").(stimulus_B)
+	stimulus_C = (x -> x * "2.jpg").(stimulus_C)
+
+	optimal_stimulus = ifelse.(
+		optimal_C,
+		"C",
+		"X"
+	)
+
+	optimal_stimulus[optimal_stimulus .== "X"] = shuffled_fill(["A","B"], sum(.!optimal_C), rng = rng)
+
+	return DataFrame(
+		phase = repeat(1:n_phases, inner = total_n_groups),
+		block = repeat(
+			vcat([fill(i, p) for (i, p) in enumerate(n_groups)]...), n_phases),
+		triplet = repeat(
+			vcat([1:p for p in n_groups]...), n_phases),
+		stimulus_A = stimulus_A,
+		stimulus_B = stimulus_B,
+		stimulus_C = stimulus_C,
+		optimal_stimulus = optimal_stimulus,
+		repeating_C = repeating_C
+	)
+
+end
+
+
 # ╔═╡ 69afd881-0c45-48c9-8db9-699f9ae23bec
 function count_delays(base_sequence::AbstractVector)
 
@@ -182,6 +309,19 @@ function reorder_with_fixed(v::AbstractVector, fixed::AbstractVector; rng::Xoshi
     return result
 end
 
+# ╔═╡ 3952d2ef-a5c6-40a1-9373-6c4c9ff5ec2b
+function count_valence_transitions(valence::AbstractVector)
+	# Preallocate Dict
+	transitions = Dict((i, j) => 0 for i in [1, -1] for j in [1, -1])
+
+	# Loop and count
+	for i in eachindex(valence)[2:end]
+		transitions[(valence[i-1], valence[i])] += 1
+	end
+
+	return transitions
+end
+
 # ╔═╡ 699245d7-1493-4f94-bcfc-83184ca521eb
 # Assign valence, probabilistic/determinitistic, and set size per block
 block_order = let random_seed = 1
@@ -205,26 +345,49 @@ block_order = let random_seed = 1
 	)
 
 	# Shuffle with constraints
-	gradual_set_size = false
-	start_with_reward = false
-
 	rng = Xoshiro(random_seed)
+
+	best_score = Inf
+	best_block_order = DataFrame()
+
+	# Shuffle trying to keep transitions between valence block uniform
+	for _ in 1:10
+		# Shuffle set size order making sure we start with low set sizes
+		torder = DataFrames.transform(
+			groupby(block_order, [:det_prob, :valence]),
+			:set_size => (x -> reorder_with_fixed(x, [2, 4], rng = rng)) => :set_size
+		)
 	
-	# Shuffle set size order making sure we start with low set sizes
-	DataFrames.transform!(
-		groupby(block_order, [:det_prob, :valence]),
-		:set_size => (x -> reorder_with_fixed(x, [2, 4], rng = rng)) => :set_size
-	)
+		sort!(torder, :det_prob)
+	
+		# Shuffle valence, set size order, making sure we start with rewards and low set sizes
+		torder.block = vcat(
+			invperm(reorder_with_fixed(1:(nrow(torder) ÷ 2), [2, 4, 1], rng = rng)),
+			invperm(reorder_with_fixed(1:(nrow(torder) ÷ 2), [2, 4, 1], rng = rng)) .+ (nrow(torder) ÷ 2)
+		)
+	
+		sort!(torder, :block)
 
-	sort!(block_order, :det_prob)
+		# Index of first probabilistic block
+		first_prob = findfirst(torder.det_prob .== "prob")
 
-	# Shuffle valence, set size order, making sure we start with rewards and low set sizes
-	block_order.block = vcat(
-		invperm(reorder_with_fixed(1:(nrow(block_order) ÷ 2), [2, 4, 1], rng = rng)),
-		invperm(reorder_with_fixed(1:(nrow(block_order) ÷ 2), [2, 4, 1], rng = rng)) .+ (nrow(block_order) ÷ 2)
-	)
+		# Compute number transitions from one valence to next
+		transitions = count_valence_transitions(torder.valence)
 
-	sort!(block_order, :block)
+		# Adjust for transition from det to prob
+		transitions[(torder.valence[first_prob-1], torder.valence[first_prob])] -= 1
+
+		# Calculate deviation from uniform
+		score = sum(abs.(values(transitions) .- (nrow(torder) / 4)))
+
+		# Choose best score
+		if score < best_score
+			best_score = score
+			best_block_order = torder
+		end
+	end
+
+	block_order = best_block_order
 
 	# Assign n_confusing
 	DataFrames.transform!(
@@ -257,7 +420,7 @@ end
 # ╔═╡ 7e078cb5-c615-4dc8-9060-3b69c86648b6
 # Create feedback sequences per pair
 task, common_per_pos, EV_per_pos =
-let random_seed = 3
+let random_seed = 1
 	
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
@@ -489,6 +652,84 @@ let
 
 end
 
+# ╔═╡ ed848098-c8cf-4c8b-adda-850c58e828e6
+# Assign stimulus images
+stimuli, stim_score = let
+
+	shuffle!(Xoshiro(0), categories)
+
+	best_stimuli = DataFrame()
+	best_score = 0
+
+	for random_seed in 1:10
+
+		# Assign stimulus pairs
+		stimuli = assign_triplet_stimuli_and_optimality(;
+			n_phases = 2,
+			n_groups = disallowmissing(block_order.set_size),
+			# categories = categories,
+			random_seed = random_seed
+		)
+	
+		rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+	
+		stimuli.repeating_optimal = ifelse.(
+			stimuli.repeating_C,
+			stimuli.optimal_stimulus .== "C",
+			missing
+		)
+	
+		# Compute repeating_prev_optimal
+		repeating_prev_optimal::Vector{Union{Missing, Bool}} = fill(missing, nrow(stimuli))
+	
+		for (i, r) in enumerate(eachrow(stimuli))
+			if r.repeating_C
+				repeating_prev_optimal[i] = only(stimuli.optimal_stimulus[stimuli.stimulus_A .== replace(r.stimulus_C, "2" => "1")]) == "A"
+			end
+		end
+	
+		stimuli.repeating_prev_optimal = repeating_prev_optimal
+	
+		# Add valence and prev_valence
+		stimuli = leftjoin(
+			stimuli,
+			insertcols(
+				block_order[!, [:block, :valence]],
+				:prev_valence => vcat([missing], block_order.valence[1:(end-1)])
+			),
+			on = :block,
+			order = :left
+		)
+	
+		# Score on uniformity of distribution across variables important for generalization 
+		generaliation_ns = combine(
+			groupby(
+				dropmissing(stimuli, [:repeating_optimal, :repeating_prev_optimal]), [:repeating_optimal, :repeating_prev_optimal, :valence, :prev_valence]),
+			:repeating_optimal => length => :n
+		)
+		
+		score = minimum(generaliation_ns.n) - 1000 * (nrow(generaliation_ns) != 16)
+
+		if score > best_score
+			best_stimuli = stimuli
+			best_score = score
+		end
+
+	end
+
+	
+	best_stimuli, best_score
+end
+
+# ╔═╡ 34f390db-aeff-41e3-934e-05406b76a3dd
+let
+	generaliation_ns = combine(
+		groupby(
+			dropmissing(stimuli, [:repeating_optimal, :repeating_prev_optimal]), [:repeating_optimal, :repeating_prev_optimal, :valence, :prev_valence]),
+		:repeating_optimal => length => :n
+	)
+end
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
@@ -496,8 +737,12 @@ end
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
+# ╠═ed848098-c8cf-4c8b-adda-850c58e828e6
+# ╠═34f390db-aeff-41e3-934e-05406b76a3dd
 # ╠═8e9ffd82-89ec-4a63-83a8-54dfde7192a0
 # ╠═87035e3e-e7ce-4320-a440-c150c4547c02
+# ╠═5b37feb9-30c2-4e72-bba9-08f3b4e1c499
 # ╠═b4a3c42d-ebc6-4d7f-a451-271fc3a5132d
 # ╠═69afd881-0c45-48c9-8db9-699f9ae23bec
 # ╠═fdbe5c4e-29cd-4d24-bbe5-40d24d5f98f4
+# ╠═3952d2ef-a5c6-40a1-9373-6c4c9ff5ec2b
