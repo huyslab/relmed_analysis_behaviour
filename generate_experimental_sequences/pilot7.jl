@@ -48,7 +48,7 @@ end
 
 # ╔═╡ de74293f-a452-4292-b5e5-b4419fb70feb
 categories = let
-	categories = (s -> replace(s, ".jpg" => "")[1:(end-1)]).(readdir("generate_experimental_sequences/pilot7_stims"))
+	categories = (s -> replace(s, ".jpg" => "")[1:(end-2)]).(readdir("generate_experimental_sequences/pilot7_stims"))
 
 	# Keep only categories where we have two files exactly
 	keeps = filter(x -> last(x) == 2, countmap(categories))
@@ -83,7 +83,7 @@ function assign_triplet_stimuli_and_optimality(;
 	n_groups::Vector{Int64}, # Number of groups in each block. Assume same for all phases
 	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
 		for i in 1:(sum(n_groups) * 3 * n_phases + n_phases)],
-	random_seed::Int64 = 1
+	rng::AbstractRNG
 )
 
 	# Copy categories so that it is not changed
@@ -96,7 +96,7 @@ function assign_triplet_stimuli_and_optimality(;
 	# Compute how many repeating categories we will have
 	n_repeating = sum(min.(n_groups[2:end], n_groups[1:end-1]))
 
-	rng = Xoshiro(random_seed)
+	# rng = Xoshiro(random_seed)
 
 	# Assign whether repeating is optimal and shuffle
 	repeating_optimal = vcat([shuffled_fill([true, false, false], n_repeating, rng = rng) for p in 1:n_phases]...)
@@ -176,9 +176,9 @@ function assign_triplet_stimuli_and_optimality(;
 		end
 	end
 
-	stimulus_A = (x -> x * "1.jpg").(stimulus_A)
-	stimulus_B = (x -> x * "1.jpg").(stimulus_B)
-	stimulus_C = (x -> x * "2.jpg").(stimulus_C)
+	stimulus_A = (x -> x * "_1.jpg").(stimulus_A)
+	stimulus_B = (x -> x * "_1.jpg").(stimulus_B)
+	stimulus_C = (x -> x * "_2.jpg").(stimulus_C)
 
 	optimal_stimulus = ifelse.(
 		optimal_C,
@@ -192,7 +192,7 @@ function assign_triplet_stimuli_and_optimality(;
 		phase = repeat(1:n_phases, inner = total_n_groups),
 		block = repeat(
 			vcat([fill(i, p) for (i, p) in enumerate(n_groups)]...), n_phases),
-		triplet = repeat(
+		stimulus_group = repeat(
 			vcat([1:p for p in n_groups]...), n_phases),
 		stimulus_A = stimulus_A,
 		stimulus_B = stimulus_B,
@@ -419,8 +419,8 @@ end
 
 # ╔═╡ 7e078cb5-c615-4dc8-9060-3b69c86648b6
 # Create feedback sequences per pair
-task, common_per_pos, EV_per_pos =
-let random_seed = 1
+sequence, common_per_pos, EV_per_pos =
+let random_seed = 2
 	
 	# Compute how much we need of each sequence category
 	n_confusing_wanted = combine(
@@ -581,22 +581,186 @@ let random_seed = 1
 	task, common_per_pos, EV_per_pos
 end
 
-# ╔═╡ 8e9ffd82-89ec-4a63-83a8-54dfde7192a0
-# Checks
-let
-	delays = combine(
-		groupby(task, [:block, :set_size]),
-		:stimulus_group => (x -> length(unique(count_delays(x)))) => :n_unique_delays,
-		[:stimulus_group, :set_size] => ((t, s) -> Ref(counts(count_delays(t), 1:(2*s[1]-1)))) => :distribution
+# ╔═╡ 6469c3ec-7e45-4c48-8621-75b17ac347d0
+stimuli = let random_seed = 0
+
+    shuffle!(Xoshiro(0), categories)  # Shuffle categories with RNG
+
+    n_trials = 20_000_000
+    n_threads = Threads.nthreads()
+
+    best_stimuli = nothing
+    best_score = Inf
+
+    # Allocate thread-local storage for best results
+    local_best_stimuli = Vector{DataFrame}(undef, n_threads)
+    local_best_scores = fill(Inf, n_threads)
+
+	rngs = (x -> Xoshiro(x)).(1:n_threads)
+
+    Threads.@threads for t in 1:n_trials
+
+        # Assign stimulus pairs
+        trial_stimuli = assign_triplet_stimuli_and_optimality(
+            n_phases = 1,
+            n_groups = disallowmissing(block_order.set_size),
+			categories = categories,
+            rng = rngs[Threads.threadid()]
+        )
+
+        rename!(trial_stimuli, :phase => :session)
+
+        # Compute repeating_prev_optimal
+        trial_stimuli.repeating_optimal = ifelse.(
+            trial_stimuli.repeating_C,
+            trial_stimuli.optimal_stimulus .== "C",
+            missing
+        )
+
+        repeating_prev_optimal::Vector{Union{Missing, Bool}} = fill(missing, nrow(trial_stimuli))
+
+        for (i, r) in enumerate(eachrow(trial_stimuli))
+            if r.repeating_C
+                repeating_prev_optimal[i] = only(
+                    trial_stimuli.optimal_stimulus[
+                        trial_stimuli.stimulus_A .== replace(r.stimulus_C, "_2" => "_1")
+                    ]
+                ) == "A"
+            end
+        end
+
+        trial_stimuli.repeating_prev_optimal = repeating_prev_optimal
+
+        # Add valence and prev_valence
+        trial_stimuli = leftjoin(
+            trial_stimuli,
+            insertcols(
+                block_order[!, [:block, :valence]],
+                :prev_valence => vcat([missing], block_order.valence[1:(end-1)])
+            ),
+            on = :block,
+            order = :left
+        )
+
+        # Compute generalization score
+        generalization_ns = combine(
+            groupby(
+                dropmissing(trial_stimuli, [:repeating_optimal, :repeating_prev_optimal]),
+                [:repeating_optimal, :repeating_prev_optimal, :valence, :prev_valence]
+            ),
+            :repeating_optimal => length => :n
+        )
+
+        score = std(generalization_ns.n) +
+                1000 * (nrow(generalization_ns) != 16) -
+                100 * minimum(generalization_ns.n)
+
+        # Update thread-local best score and stimuli
+        thread_id = Threads.threadid()
+        if score < local_best_scores[thread_id]
+            local_best_scores[thread_id] = score
+            local_best_stimuli[thread_id] = trial_stimuli
+        end
+    end
+
+    # Find global best score across all threads
+    global_best_index = argmin(local_best_scores)
+    best_stimuli = local_best_stimuli[global_best_index]
+    best_score = local_best_scores[global_best_index]
+
+    best_stimuli
+end
+
+# ╔═╡ 6ade28b0-34c9-483f-ba23-895f4302bd0f
+# Combine stimuli and sequences
+task = let random_seed = 1
+
+	rng = Xoshiro(random_seed)
+
+	# Join stimuli and sequence
+	task = leftjoin(
+		sequence,
+		stimuli,
+		on = [:block, :stimulus_group, :valence],
+		order = :left
 	)
 
-	@assert all(delays.n_unique_delays .== 2 .* delays.set_size .- 1) "Number of unique delay values between triplets should be exactly 2*ns-1"
+	# Randomize stimuli location
+	DataFrames.transform!(
+		groupby(task, :stimulus_group_id),
+		:trial => (x -> shuffled_fill(
+			collect(permutations(["A", "B", "C"])), 
+			length(x);
+			rng = rng
+		)) => :stimulus_locations
+	)
 
-	@assert all(all.((x -> 3 .≤ x .≤ 6).(delays.distribution))) "Distribution of delays far from uniform"
-
-	@info "Each delay value appears $(minimum(minimum.(delays.distribution))) - $(maximum(maximum.(delays.distribution))) times"
+	# Create stimulus_right, stimulus_middle, and stimulus_left variables
+	task.stimulus_left = [task[i, Symbol("stimulus_$(x[1])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
 	
+	task.stimulus_middle = [task[i, Symbol("stimulus_$(x[2])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
 
+	
+	task.stimulus_right = [task[i, Symbol("stimulus_$(x[3])")] 
+		for (i,x) in enumerate(task.stimulus_locations)]
+
+	# Create optimal_side variable
+	task.optimal_side = [["left", "middle", "right"][findfirst(task.stimulus_locations[i] .== x)] for (i,x) in enumerate(task.optimal_stimulus)]
+
+	# Create feedback_right, feedback_middle, feedback_left variables
+	task.feedback_left = ifelse.(
+		task.optimal_side .== "left",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_middle = ifelse.(
+		task.optimal_side .== "middle",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_right = ifelse.(
+		task.optimal_side .== "right",
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	# Add variables needed for experiment code
+	insertcols!(
+		task,
+		:n_stimuli => 3,
+		:optimal_right => "",
+		:present_pavlovian => true
+	)
+
+	rename!(
+		task,
+		:set_size => :n_groups,
+	)
+
+	# Reorder columns
+	select!(
+		task,
+		:session,
+		:block,
+		:valence,
+		:trial,
+		:stimulus_group,
+		:stimulus_group_id,
+		:appearance,
+		names(task)
+	)
+
+
+end
+
+# ╔═╡ f4dd2e9b-a500-406f-b2f0-3ec4d9611d8b
+let
+	save_to_JSON(task, "results/pilot7_PILT.json")
+	CSV.write("results/pilot7_PILT.csv", task)
 end
 
 # ╔═╡ 87035e3e-e7ce-4320-a440-c150c4547c02
@@ -645,89 +809,66 @@ let
 
 	draw!(f[1,3], mp, axis = (; yreversed = true))
 
-
-	# save("results/pilot6_pilt_trial_plan.png", f, pt_per_unit = 1)
-
 	f
 
 end
 
-# ╔═╡ ed848098-c8cf-4c8b-adda-850c58e828e6
-# Assign stimulus images
-stimuli, stim_score = let
-
-	shuffle!(Xoshiro(0), categories)
-
-	best_stimuli = DataFrame()
-	best_score = 0
-
-	for random_seed in 1:10
-
-		# Assign stimulus pairs
-		stimuli = assign_triplet_stimuli_and_optimality(;
-			n_phases = 2,
-			n_groups = disallowmissing(block_order.set_size),
-			# categories = categories,
-			random_seed = random_seed
-		)
-	
-		rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
-	
-		stimuli.repeating_optimal = ifelse.(
-			stimuli.repeating_C,
-			stimuli.optimal_stimulus .== "C",
-			missing
-		)
-	
-		# Compute repeating_prev_optimal
-		repeating_prev_optimal::Vector{Union{Missing, Bool}} = fill(missing, nrow(stimuli))
-	
-		for (i, r) in enumerate(eachrow(stimuli))
-			if r.repeating_C
-				repeating_prev_optimal[i] = only(stimuli.optimal_stimulus[stimuli.stimulus_A .== replace(r.stimulus_C, "2" => "1")]) == "A"
-			end
-		end
-	
-		stimuli.repeating_prev_optimal = repeating_prev_optimal
-	
-		# Add valence and prev_valence
-		stimuli = leftjoin(
-			stimuli,
-			insertcols(
-				block_order[!, [:block, :valence]],
-				:prev_valence => vcat([missing], block_order.valence[1:(end-1)])
-			),
-			on = :block,
-			order = :left
-		)
-	
-		# Score on uniformity of distribution across variables important for generalization 
-		generaliation_ns = combine(
-			groupby(
-				dropmissing(stimuli, [:repeating_optimal, :repeating_prev_optimal]), [:repeating_optimal, :repeating_prev_optimal, :valence, :prev_valence]),
-			:repeating_optimal => length => :n
-		)
-		
-		score = minimum(generaliation_ns.n) - 1000 * (nrow(generaliation_ns) != 16)
-
-		if score > best_score
-			best_stimuli = stimuli
-			best_score = score
-		end
-
-	end
-
-	
-	best_stimuli, best_score
-end
-
-# ╔═╡ 34f390db-aeff-41e3-934e-05406b76a3dd
+# ╔═╡ 8e9ffd82-89ec-4a63-83a8-54dfde7192a0
+# Checks
 let
+	delays = combine(
+		groupby(task, [:block, :n_groups]),
+		:stimulus_group => (x -> length(unique(count_delays(x)))) => :n_unique_delays,
+		[:stimulus_group, :n_groups] => ((t, s) -> Ref(counts(count_delays(t), 1:(2*s[1]-1)))) => :distribution
+	)
+
+	@assert all(delays.n_unique_delays .== 2 .* delays.n_groups .- 1) "Number of unique delay values between triplets should be exactly 2*ns-1"
+
+	@assert all(all.((x -> 3 .≤ x .≤ 6).(delays.distribution))) "Distribution of delays far from uniform"
+
+	@info "Each delay value appears $(minimum(minimum.(delays.distribution))) - $(maximum(maximum.(delays.distribution))) times"
+
 	generaliation_ns = combine(
 		groupby(
 			dropmissing(stimuli, [:repeating_optimal, :repeating_prev_optimal]), [:repeating_optimal, :repeating_prev_optimal, :valence, :prev_valence]),
 		:repeating_optimal => length => :n
 	)
+
+	@assert nrow(generaliation_ns) == 16 "There should be 16 conditions for generalization"
+
+	@info "Each cell for generalization is repeated $(minimum(generaliation_ns.n))-$(maximum(generaliation_ns.n)) times"
+	
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert all(combine(groupby(task, [:session]), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+	
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	@assert all(combine(groupby(task, :stimulus_group_id),
+		:appearance => maximum => :max_appear
+	).max_appear .== WM_trials_per_triplet) "Didn't find exactly $WM_trials_per_triplet apperances per pair"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence < 0, task) |> 
+		df -> ifelse.(
+			df.feedback_right .< df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+
 end
 
 # ╔═╡ Cell order:
@@ -737,8 +878,9 @@ end
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═699245d7-1493-4f94-bcfc-83184ca521eb
 # ╠═7e078cb5-c615-4dc8-9060-3b69c86648b6
-# ╠═ed848098-c8cf-4c8b-adda-850c58e828e6
-# ╠═34f390db-aeff-41e3-934e-05406b76a3dd
+# ╠═6469c3ec-7e45-4c48-8621-75b17ac347d0
+# ╠═6ade28b0-34c9-483f-ba23-895f4302bd0f
+# ╠═f4dd2e9b-a500-406f-b2f0-3ec4d9611d8b
 # ╠═8e9ffd82-89ec-4a63-83a8-54dfde7192a0
 # ╠═87035e3e-e7ce-4320-a440-c150c4547c02
 # ╠═5b37feb9-30c2-4e72-bba9-08f3b4e1c499
