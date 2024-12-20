@@ -299,7 +299,7 @@ function simulate_from_prior(
             end
         end
 
-        if haskey(priors, :C)
+        if contains(string(model), "WM")
             Ws = [pt.Ws for pt in gq] |> vec
             sim_data.W_optimal = vcat([ws[:, end] for ws in Ws]...)
             if nsubopt == 1

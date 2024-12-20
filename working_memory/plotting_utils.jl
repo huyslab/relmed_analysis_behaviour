@@ -799,113 +799,40 @@ function optimization_calibration(
 
 	# if parameter[i] in transformed, use transformed name, else use original
 	final_parameters = [haskey(transformed, p) ? transformed[p] : p for p in parameters]
-    other_pars = setdiff(final_parameters, [:α, :ρ])
-	f = length(other_pars) > 0 ? Figure(size = (900, 400)) : Figure(size = (900, 200))
-
-	# Plot a
-	if :α in final_parameters
-		ax_a = Axis(
-			f[1,1],
-			xlabel = "True α",
-			ylabel = "$estimate α",
+	np = length(final_parameters)
+	nc = np > 2 ? (mod1(np, 4) > mod1(np, 3) ? 4 : 3) : np
+	nr = ceil(Int, np / nc)
+	f = Figure(size = (800, 200*nr))
+	
+	for (i, p) in enumerate(final_parameters)
+		ax = Axis(
+			f[ceil(Int, i/nc), mod1(i, nc)],
+			xlabel = "True $p",
+			ylabel = "$estimate $p",
 			aspect = 1.
 		)
 
 		scatter!(
-			ax_a,
-			MLEs.true_α,
-			MLEs.MLE_α,
+			ax,
+			MLEs[!, Symbol("true_$p")],
+			MLEs[!, Symbol("MLE_$p")],
 			markersize = ms
 		)
 
-		unit_line!(ax_a)
-
-		# Plot ρ
-		ax_ρ = Axis(
-			f[1,2],
-			xlabel = "True ρ",
-			ylabel = "$estimate ρ",
-			aspect = 1.
+		# add correlation
+		r = cor(MLEs[!, Symbol("true_$p")], MLEs[!, Symbol("MLE_$p")])
+		text!(
+			ax,
+			[0.05],  # x position (5% from left)
+			[0.95],  # y position (95% from bottom)
+			text = "r = $(round(r, digits=2))",
+			align = (:left, :top),
+			color = :black,
+			space = :relative  # use relative coordinates
 		)
 
-		scatter!(
-			ax_ρ,
-			MLEs.true_ρ,
-			MLEs.MLE_ρ,
-			markersize = ms
-		)
-
-		unit_line!(ax_ρ)
-
-		# Plot bivariate
-		ax_αρ = Axis(
-			f[1,3],
-			xlabel = "$estimate α",
-			ylabel = "$estimate ρ",
-			aspect = 1.
-		)
-
-		scatter!(
-			ax_αρ,
-			MLEs.MLE_α,
-			MLEs.MLE_ρ,
-			markersize = ms
-		)
-
-		# Plot ground truth
-		ax_tαρ = Axis(
-			f[1,4],
-			xlabel = "True α",
-			ylabel = "True ρ",
-			aspect = 1.
-		)
-
-		scatter!(
-			ax_tαρ,
-			MLEs.true_α,
-			MLEs.true_ρ,
-			markersize = ms
-		)
-	elseif :ρ in parameters
-		# Plot ρ
-		ax_ρ = Axis(
-			f[1,1],
-			xlabel = "True ρ",
-			ylabel = "$estimate ρ",
-			aspect = 1.
-		)
-
-		scatter!(
-			ax_ρ,
-			MLEs.true_ρ,
-			MLEs.MLE_ρ,
-			markersize = ms
-		)
-
-		unit_line!(ax_ρ)
+		unit_line!(ax)
 	end
-
-
-    if length(other_pars) > 0
-		row_n = length(final_parameters) == length(other_pars) ? 1 : 2
-        for (i, p) in enumerate(other_pars)
-            ax = Axis(
-                f[row_n + floor(Int, i/4), mod1(i, 4)],
-                xlabel = "True $p",
-                ylabel = "$estimate $p",
-                aspect = 1.
-            )
-
-            scatter!(
-                ax,
-                MLEs[!, Symbol("true_$p")],
-                MLEs[!, Symbol("MLE_$p")],
-                markersize = ms
-            )
-
-            unit_line!(ax)
-        end
-    end
 
 	f
 end
