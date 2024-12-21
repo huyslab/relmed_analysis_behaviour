@@ -214,10 +214,11 @@ function compute_save_FIs_for_all_seqs(;
 	n_confusing::Int64,
 	fifty_high::Bool,
 	FI_res::Int64 = 6,
+	prop_fifty::Float64 = 0.5,
 	kwargs...
 )
 
-	filename = "saved_models/FI/FIs_$(model_name)_$(n_trials)_$(n_confusing)_$(fifty_high).jld2"
+	filename = "saved_models/FI/FIs_$(model_name)_$(n_trials)_$(n_confusing)_$(fifty_high)_$(prop_fifty).jld2"
 
 	if !isfile(filename)
 		# All possible sequences of confusing feedback
@@ -235,8 +236,8 @@ function compute_save_FIs_for_all_seqs(;
 		magn_seq = collect(
 			multiset_permutations(
 				vcat(
-					fill(.5, div(n_trials, 2)), 
-					fill(fifty_high ? 1. : 0.01, div(n_trials, 2))
+					fill(.5, ceil(Int64, n_trials * prop_fifty)), 
+					fill(fifty_high ? 1. : 0.01, floor(Int64, n_trials * (1 - prop_fifty)))
 				),
 				n_trials
 			)
