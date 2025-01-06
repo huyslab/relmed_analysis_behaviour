@@ -210,12 +210,10 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
-	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
-			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
+		parameters = [:a_pos, :F_wm, :w0],
 		gq_struct = sess1_str,
 		n_starts = 5
 	)
@@ -227,18 +225,16 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
-	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
-			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
+		parameters = [:a_pos, :F_wm, :w0],
 		gq_struct = sess2_str,
 		n_starts = 5
 	)
 end
 
-# ╔═╡ 72799510-10af-4552-a6d5-7ef783af288d
+# ╔═╡ 16215d5d-9ec9-40f4-b10a-2658297700bd
 begin
 	np = maximum(hlwm_ests_s1.PID)
 	prior_sample_hlwm = simulate_from_prior(
@@ -247,12 +243,10 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => DiscreteNonParametric(hlwm_ests_s1.a_pos, fill(1/np, np)),
-			:bWM => DiscreteNonParametric(hlwm_ests_s1.bWM, fill(1/np, np)),
-			:E => DiscreteNonParametric(hlwm_ests_s1.E, fill(1/np, np)),
 			:F_wm => DiscreteNonParametric(hlwm_ests_s1.F_wm, fill(1/np, np)),
 	        :w0 => DiscreteNonParametric(hlwm_ests_s1.w0, fill(1/np, np))
 		),
-		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
+		parameters = [:a_pos, :F_wm, :w0],
 		fixed_struct = sess1_str,
 		gq = true,
 		random_seed = 1
@@ -260,7 +254,7 @@ begin
 	nothing
 end
 
-# ╔═╡ a7fbe009-3eb2-45f2-9fce-cfb3b93a4c74
+# ╔═╡ 567518b5-5d63-44dd-b4e6-a0f7583015de
 let
 	f = plot_prior_predictive_by_valence(
 		prior_sample_hlwm,
@@ -282,25 +276,24 @@ let
 	f = Figure(size = (1200, 300))
 	
 	# Define parameters
-	s1a1, s1e, s1ll = hlwm_ests_s1.a_pos, hlwm_ests_s1.E, hlwm_ests_s1.loglike
-	s2a1, s2e, s2ll = hlwm_ests_s2.a_pos, hlwm_ests_s2.E, hlwm_ests_s2.loglike
-	s1f, s1a2 = hlwm_ests_s1.F_wm, hlwm_ests_s1.bWM
-	s2f, s2a2 = hlwm_ests_s2.F_wm, hlwm_ests_s2.bWM
+	s1a, s1ll = hlwm_ests_s1.a_pos, hlwm_ests_s1.loglike
+	s2a, s2ll = hlwm_ests_s2.a_pos, hlwm_ests_s2.loglike
+	s1f, s2f = hlwm_ests_s1.F_wm, hlwm_ests_s2.F_wm
 	s1w, s2w = hlwm_ests_s1.w0, hlwm_ests_s2.w0
 
 	# Set labels
-	labs1 = (xlabel = "a_pos", ylabel = "bWM", zlabel = "log-likelihood", title = "HL parameters")
-	labs2 = (xlabel = "F_wm", ylabel = "w0", zlabel = "log-likelihood", title = "WM forgetting + bias")
-	labs3 = (xlabel = "w0", ylabel = "E", zlabel = "log-likelihood", title = "WM weight + capacity")
+	labs1 = (xlabel = "a_pos", ylabel = "F_wm", zlabel = "log-likelihood", title = "Learning + forgetting")
+	labs2 = (xlabel = "F_wm", ylabel = "w0", zlabel = "log-likelihood", title = "WM forgetting + weight")
+	labs3 = (xlabel = "a_pos", ylabel = "F_wm", zlabel = "w0", title = "All parameters")
 
 	# Plot
 	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, s1a1, s1a2, s1ll)
-	scatter!(ax1, s2a1, s2a2, s2ll)
+	scatter!(ax1, s1a, s1f, s1ll)
+	scatter!(ax1, s2a, s2f, s2ll)
 	scatter!(ax2, s1f, s1w, s1ll)
 	scatter!(ax2, s2f, s2w, s2ll)
-	scatter!(ax3, s1w, s1e, s1ll)
-	scatter!(ax3, s2w, s2e, s2ll)
+	scatter!(ax3, s1a, s1f, s1w)
+	scatter!(ax3, s2a, s2f, s2w)
 	f
 end
 
@@ -369,26 +362,18 @@ let
 	retest_df = leftjoin(hlwm_ests_s1, hlwm_ests_s2, on = :PID, makeunique=true)
 	dropmissing!(retest_df)
 
-	fig=Figure(;size=(800, 1000))
+	fig=Figure(;size=(1000, 300))
 	reliability_scatter!(
 		fig[1,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:a_pos, ycol=:a_pos_1, subtitle="RL reward learning rate"
+		xcol=:a_pos, ycol=:a_pos_1, subtitle="HL learning rate"
 	)
 	reliability_scatter!(
 		fig[1,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:bWM, ycol=:bWM_1, subtitle="WM punishment learning rate bias"
-	)
-	reliability_scatter!(
-		fig[2,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
 		xcol=:F_wm, ycol=:F_wm_1, subtitle="WM forgetting"
 	)
 	reliability_scatter!(
-		fig[2,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:w0, ycol=:w0_1, subtitle="WM initial weighting"
-	)
-	reliability_scatter!(
-		fig[3,1:2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:E, ycol=:E_1, subtitle="Undirected policy noise"
+		fig[1,3]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
+		xcol=:w0, ycol=:w0_1, subtitle="WM weighting"
 	)
 	fig
 end
@@ -411,12 +396,10 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
-	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
-			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
+		parameters = [:a_pos, :F_wm, :w0],
 		n_starts = 5
 	)
 
@@ -436,12 +419,10 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
-	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
-			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
+		parameters = [:a_pos, :F_wm, :w0],
 		n_starts = 5
 	)
 
@@ -457,8 +438,8 @@ end
 # ╠═5f5ce9fe-c168-431e-bd48-19e06f81eabd
 # ╟─c4559cb4-98c2-4dae-b1d1-a163783855d1
 # ╠═84fd6ba3-f471-4550-a9da-8e09ccd927a8
-# ╠═72799510-10af-4552-a6d5-7ef783af288d
-# ╠═a7fbe009-3eb2-45f2-9fce-cfb3b93a4c74
+# ╠═16215d5d-9ec9-40f4-b10a-2658297700bd
+# ╠═567518b5-5d63-44dd-b4e6-a0f7583015de
 # ╠═8c4f9aeb-84e2-4942-814f-00284432bf2c
 # ╠═88b7c2e9-7fc2-4885-8f0e-ca349e61e349
 # ╟─e26b9dc7-7135-421f-8885-d7d8bbd7ce66

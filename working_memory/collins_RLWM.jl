@@ -284,8 +284,8 @@ end
         
         # Store values
         @views begin
-            Q[i, :] .= Qs[i, pri:(pri+n_actions-1)]
-            Wv[i, :] .= Ws[i, pri:(pri+n_actions-1)]
+            Q[i, :] .= Qs[i, opts]
+            Wv[i, :] .= Ws[i, opts]
         end
     end
 

@@ -161,12 +161,12 @@ begin
 	        :w0 => Beta(1., 2.) # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
 		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
-		# fixed_struct = sess1_str,
-		structure = (
-           n_blocks = 20, n_trials = 10, n_confusing = 0,
-		    set_sizes = [2, 4, 6], n_options = 3,
-		    coins = [-1.0, -0.01, 0.01, 1.0], punish = true
-		),
+		fixed_struct = sess1_str,
+		# structure = (
+  #          n_blocks = 20, n_trials = 10, n_confusing = 0,
+		#     set_sizes = [2, 4, 6], n_options = 3,
+		#     coins = [-1.0, -0.01, 0.01, 1.0], punish = true
+		# ),
 		gq = true,
 		random_seed = 1
 	)
