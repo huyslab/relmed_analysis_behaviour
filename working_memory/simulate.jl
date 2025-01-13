@@ -30,7 +30,7 @@ function load_wm_structure_csv(taskname::String)
 	task = DataFrame(CSV.File("data/$taskname.csv"))
 
 	# Renumber block
-	task.block = task.block .+ (task.session .- 1) * maximum(task.block)
+	# task.block = task.block .+ (task.session .- 1) * maximum(task.block)
 
     # Rename stimulus group column to what is expected
     DataFrames.rename!(
@@ -39,7 +39,7 @@ function load_wm_structure_csv(taskname::String)
 
     # Renumber trial
     DataFrames.transform!(
-        groupby(task, [:block, :stimset]), eachindex => :trial; ungroup=true
+        groupby(task, [:session, :block, :stimset]), eachindex => :trial; ungroup=true
     )
 
     # Get and second suboptimal column
@@ -47,7 +47,7 @@ function load_wm_structure_csv(taskname::String)
     task.set_size = task.n_groups
 
 	return task[
-        :, [:block, :trial, :stimset, :valence, :feedback_optimal,
+        :, [:session, :block, :trial, :stimset, :valence, :feedback_optimal,
         :feedback_suboptimal1, :feedback_suboptimal2, :set_size]
     ]
 end
@@ -121,8 +121,7 @@ end
 
 function set_size_per_block(;
     set_sizes::Union{Int64, Vector{Int64}},
-    n_blocks::Int64,
-    n_options::Int64 = 2
+    n_blocks::Int64
 )
     if length(set_sizes) == n_blocks
         ssz = set_sizes
@@ -152,9 +151,7 @@ function create_random_task(;
     punish::Bool = true
 )
 
-    set_sizes_blk = set_size_per_block(
-        set_sizes = set_sizes, n_blocks = n_blocks, n_options = n_options
-    )
+    set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
 	# Create task sequence
 	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * set_sizes_blk[i])]...)
 	outcomes = random_outcomes_from_sequence(
@@ -193,6 +190,86 @@ function create_random_task(;
 	return df
 end
 
+function generate_delay_sequence(
+    ns::Int,         # total number of stimulus sets
+    start::Int = 10; # number of trials to start with
+    seed::Union{Int, Nothing} = nothing,
+    tolerance::Int = 1
+)
+    rng = isnothing(seed) ? Random.default_rng() : Xoshiro(seed)
+    # 1. Generate a random array of delays
+    ess = ones(Int, start) # current set_size
+    delays = ones(Int, start) # we start with one stimulus
+    for i in 1:ns
+        d = repeat(1:2*i-1, i)
+        append!(ess, fill(i, length(d)))
+        append!(delays, shuffle!(rng, d))
+    end
+
+    # Initialize arrays to track delay/count per stimulus (1-based indexing)
+    delay_per_stim = [1, -ones(Int, ns-1)...]
+    count_per_stim, count_per_ss = zeros(Int, ns), zeros(Int, ns)
+
+    # Prepare output arrays
+    nT = length(delays)
+    sequence     = -ones(Int, nT)
+    true_delay   = -ones(Int, nT)
+    trial_no_set = -ones(Int, nT)
+    trial_no_ss  = -ones(Int, nT)
+
+    for (i, d) in enumerate(delays)
+        # Find valid stimuli (i.e., positive delay)
+        valid_stims = findall(x -> x >= 0, delay_per_stim)
+
+        if length(valid_stims) < ess[i]
+            # 8a(i). Introduce a new stimulus if possible
+            new_stim_idx = findfirst(x -> x === -1, delay_per_stim)
+            sequence[i]   = new_stim_idx
+            true_delay[i] = 0
+        else
+            c_idx = findall(
+                x -> abs(x - d) <= tolerance, delay_per_stim[valid_stims]
+            )
+            if !isempty(c_idx)
+                stim_idx = valid_stims[c_idx[rand(rng, 1:length(c_idx))]]
+            else
+                # fallback to nearest
+                stim_idx = valid_stims[argmin(abs.(delay_per_stim[valid_stims] .- d))]
+            end
+            sequence[i]   = stim_idx
+            true_delay[i] = delay_per_stim[stim_idx]
+        end
+
+        s = sequence[i]::Int
+        
+        # Reset chosen stimulus’s delay
+        delay_per_stim[s] = 1
+        delay_per_stim[setdiff(valid_stims, s)] .+= 1
+
+        # Update count & check max_count
+        count_per_stim[s] += 1
+        trial_no_set[i] = count_per_stim[s]
+        if i != nT && ess[i] == ess[i+1]
+            count_per_ss[s] += 1
+            trial_no_ss[i] = count_per_ss[s]
+        else
+            trial_no_ss[i] = count_per_ss[s] + 1
+            count_per_ss .= 0
+        end
+    end
+
+    return DataFrame(
+        trial     = 1:nT,
+        trial_set = trial_no_set,
+        trial_ss  = trial_no_ss,
+        stimset   = sequence,
+        delay     = true_delay,
+        delay_g   = delays,
+        set_size  = ess
+    )
+end
+
+
 function simulate_from_prior(
     N::Int64; # number of simulated participants or repeats (depending on priors)
     model::Function,
@@ -218,7 +295,7 @@ function simulate_from_prior(
             n_blocks = maximum(task_strct.block)
         )[task_strct.block]
     elseif !isnothing(fixed_struct)
-        task_strct = fixed_struct
+        task_strct = deepcopy(fixed_struct)
     else
         task_strct = create_random_task(;
             structure...

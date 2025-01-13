@@ -254,7 +254,103 @@ end
         pri::Int = 1 + (n_actions * (data.stimset[i]-1))
         opts::UnitRange{Int64} = pri:(pri+n_actions-1)
 
-        # Weighted policy incl. noise
+        # setup RL and WM policies (softmax with directed and undirected noise)
+        π_hl = Turing.softmax(Qs[i, opts])
+        π_wm = Turing.softmax(β .* Ws[i, opts])
+        π = @. (1 - ε) * (w0 * π_wm + (1 - w0) * π_hl) + ε / n_actions
+
+        # weightings inside the softmax?
+        # π = (1 - ε) * Turing.softmax(β * ((1 - w0) * Qs[i, opts] .+ w0 * Ws[i, opts])) .+ ε / n_actions
+        
+        # Choice and likelihood
+        choice[i] ~ Turing.Categorical(π)
+        loglike += loglikelihood(Turing.Categorical(π), choice[i])
+        
+        # Updates
+        choice_idx::Int = choice[i] + pri - 1
+        choice_1id::Int = choice[i]
+        # outc_hl, outc_wm = 1.0, data.outcomes[i, choice_1id] # HLWM means 1.0 for chosen option, regardless of valence
+        outc = data.outcomes[i, choice_1id]
+        α_hl, α_wm = in(outc, opt_outc) ? (α_pos, 1.0) : (α_neg, α_neg_wm)
+        
+        if (i != N) && (data.block[i] == data.block[i+1])
+            # In-place updates
+            @views begin
+                copyto!(Qs[i + 1, :], Qs[i, :])
+                Qs[i + 1, choice_idx] += α_hl * (outc - Qs[i, choice_idx])
+                
+                copyto!(Ws[i + 1, :], Ws[i, :])
+                un_idx = setdiff(1:mss, choice_idx)
+                Ws[i + 1, un_idx] .+= φ_wm .* (W0[i, un_idx] .- Ws[i, un_idx])
+                Ws[i + 1, choice_idx] += α_wm * (outc - Ws[i, choice_idx])
+            end
+        elseif (i != N)
+            ssz = data.set_size[data.block[i+1]]
+        end
+        
+        # Store values
+        @views begin
+            Q[i, :] .= Qs[i, opts]
+            Wv[i, :] .= Ws[i, opts]
+        end
+    end
+
+    return (choice = choice, Qs = Q, Ws = Wv, loglike = loglike)
+end
+
+@model function HLWM_collins_mk3(
+    data::NamedTuple,
+    choice;
+    priors::Dict = Dict(
+        :β => 25., # fixed inverse temperature
+        :a => Normal(0., 2.),
+        :bWM => Normal(0., 1.),
+        :E => Normal(0., 0.5),
+        :F_wm => Normal(-1., 1.), # working memory forgetting rate
+        :w0 => Beta(1., 2.) # prop. of WM to RL weight (i.e., 0.5 ===)
+    ),
+    initial::Union{Nothing, Float64} = nothing
+)
+    # initial values
+    n_actions = size(data.outcomes, 2)
+    init = isnothing(initial) ? 1. / n_actions : initial
+    mss::Int64 = maximum(data.set_size) * n_actions
+    initV::Matrix{Float64} = fill(init, 1, mss)
+
+    # optimal outcomes in reward/punishment blocks
+    unq_outc = unique(data.outcomes)
+    opt_outc = vcat(
+        unq_outc[unq_outc .>= 0.5], # reward blocks
+        unq_outc[(unq_outc .> -0.5) .& (unq_outc .< 0)] # punishment blocks
+    )
+    
+    # Parameters to estimate
+    parameters = collect(keys(priors))
+    @submodel a_pos, a_neg, bRL, bWM, E, F_hl, F_wm, w0, β, α_pos, α_neg, α_neg_wm, ε, φ_hl, φ_wm = rlwm_pars(priors, parameters)
+
+    # Get type parameter from priors to match ForwardDiff
+    T = typeof(α_pos)
+
+    # Initialize Q and W values
+    Qs = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
+    Ws = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
+    
+    # Initial values
+    Q = copy(Qs[:, 1:n_actions])
+    W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
+    
+    # Initial set-size
+    ssz = data.set_size[data.block[1]]
+    N = length(data.block)
+    loglike = zero(T)
+
+    # Main loop
+    for i in 1:N
+        # index of first outcome for this stimulus group, because we have a flat Q-table
+        pri::Int = 1 + (n_actions * (data.stimset[i]-1))
+        opts::UnitRange{Int64} = pri:(pri+n_actions-1)
+
+        # weightings inside the softmax
         π = (1 - ε) * Turing.softmax(β * ((1 - w0) * Qs[i, opts] .+ w0 * Ws[i, opts])) .+ ε / n_actions
         
         # Choice and likelihood

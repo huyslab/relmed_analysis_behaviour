@@ -204,7 +204,7 @@ begin
 	# single update model
 	hlwm_ests_s1, hlwm_choices_s1 = optimize_multiple(
 		filter(x -> x.session == "1", df);
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		estimate = "MAP",
 		include_true = false,
 		priors = Dict(
@@ -219,7 +219,7 @@ begin
 	)
 	hlwm_ests_s2, hlwm_choices_s2 = optimize_multiple(
 		filter(x -> x.session == "2", df);
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		estimate = "MAP",
 		include_true = false,
 		priors = Dict(
@@ -273,9 +273,10 @@ md"
 # ╔═╡ 16215d5d-9ec9-40f4-b10a-2658297700bd
 begin
 	np = maximum(hlwm_ests_s1.PID)
+	sess1 = filter(x -> x.session == 1, pilot6_wm)
 	prior_sample_hlwm = simulate_from_prior(
 	    100;
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => DiscreteNonParametric(hlwm_ests_s1.a_pos, fill(1/np, np)),
@@ -283,7 +284,7 @@ begin
 	        :w0 => DiscreteNonParametric(hlwm_ests_s1.w0, fill(1/np, np))
 		),
 		parameters = [:a_pos, :F_wm, :w0],
-		fixed_struct = sess1_str,
+		fixed_struct = sess1,
 		gq = true,
 		random_seed = 1
 	)
@@ -422,7 +423,7 @@ begin
 		fit_df1,
 		optimize_multiple,
 		estimate = "MAP",
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
@@ -450,7 +451,7 @@ begin
 		fit_df2,
 		optimize_multiple,
 		estimate = "MAP",
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
@@ -473,7 +474,7 @@ md"
 let
 	prior_sample_hlwm_broad = simulate_from_prior(
 	    100;
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 2.), # RL reward learning rate
@@ -481,7 +482,7 @@ let
 	        :w0 => Beta(2, 2), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
 		parameters = [:a_pos, :F_wm, :w0],
-		fixed_struct = sess1_str,
+		fixed_struct = sess1,
 		gq = true,
 		random_seed = 1
 	)
@@ -489,7 +490,7 @@ let
 		prior_sample_hlwm_broad,
 		optimize_multiple,
 		estimate = "MAP",
-		model = HLWM_collins_mk2,
+		model = HLWM_collins_mk3,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate

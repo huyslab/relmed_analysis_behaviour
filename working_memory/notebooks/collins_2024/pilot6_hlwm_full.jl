@@ -51,7 +51,7 @@ end
 
 # ╔═╡ 8e96fc42-2eda-4aca-a766-fe6793ebe2ed
 md"
-### Forgetful habit models (simple)
+### Forgetful habit models (full)
 "
 
 # ╔═╡ a0300a7d-600b-4661-aadd-6afbaebe0486
@@ -210,10 +210,12 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
+	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
+			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		gq_struct = sess1_str,
 		n_starts = 5
 	)
@@ -225,10 +227,12 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
+	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
+			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		gq_struct = sess2_str,
 		n_starts = 5
 	)
@@ -244,24 +248,25 @@ let
 	f = Figure(size = (1200, 300))
 	
 	# Define parameters
-	s1a, s1ll = hlwm_ests_s1.a_pos, hlwm_ests_s1.loglike
-	s2a, s2ll = hlwm_ests_s2.a_pos, hlwm_ests_s2.loglike
-	s1f, s2f = hlwm_ests_s1.F_wm, hlwm_ests_s2.F_wm
+	s1a1, s1e, s1ll = hlwm_ests_s1.a_pos, hlwm_ests_s1.E, hlwm_ests_s1.loglike
+	s2a1, s2e, s2ll = hlwm_ests_s2.a_pos, hlwm_ests_s2.E, hlwm_ests_s2.loglike
+	s1f, s1a2 = hlwm_ests_s1.F_wm, hlwm_ests_s1.bWM
+	s2f, s2a2 = hlwm_ests_s2.F_wm, hlwm_ests_s2.bWM
 	s1w, s2w = hlwm_ests_s1.w0, hlwm_ests_s2.w0
 
 	# Set labels
-	labs1 = (xlabel = "a_pos", ylabel = "F_wm", zlabel = "log-likelihood", title = "Learning + forgetting")
-	labs2 = (xlabel = "F_wm", ylabel = "w0", zlabel = "log-likelihood", title = "WM forgetting + weight")
-	labs3 = (xlabel = "a_pos", ylabel = "F_wm", zlabel = "w0", title = "All parameters")
+	labs1 = (xlabel = "a_pos", ylabel = "bWM", zlabel = "log-likelihood", title = "HL parameters")
+	labs2 = (xlabel = "F_wm", ylabel = "w0", zlabel = "log-likelihood", title = "WM forgetting + bias")
+	labs3 = (xlabel = "w0", ylabel = "E", zlabel = "log-likelihood", title = "WM weight + capacity")
 
 	# Plot
 	ax1, ax2, ax3 = Axis3(f[1,1]; labs1...), Axis3(f[1,2]; labs2...), Axis3(f[1,3]; labs3...)
-	scatter!(ax1, s1a, s1f, s1ll)
-	scatter!(ax1, s2a, s2f, s2ll)
+	scatter!(ax1, s1a1, s1a2, s1ll)
+	scatter!(ax1, s2a1, s2a2, s2ll)
 	scatter!(ax2, s1f, s1w, s1ll)
 	scatter!(ax2, s2f, s2w, s2ll)
-	scatter!(ax3, s1a, s1f, s1w)
-	scatter!(ax3, s2a, s2f, s2w)
+	scatter!(ax3, s1w, s1e, s1ll)
+	scatter!(ax3, s2w, s2e, s2ll)
 	f
 end
 
@@ -273,16 +278,19 @@ md"
 # ╔═╡ 16215d5d-9ec9-40f4-b10a-2658297700bd
 begin
 	np = maximum(hlwm_ests_s1.PID)
+	let sess1_str = filter(x -> x.block <= 10, pilot6_wm) end
 	prior_sample_hlwm = simulate_from_prior(
 	    100;
 		model = HLWM_collins_mk2,
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => DiscreteNonParametric(hlwm_ests_s1.a_pos, fill(1/np, np)),
+			:bWM => DiscreteNonParametric(hlwm_ests_s1.bWM, fill(1/np, np)),
+			:E => DiscreteNonParametric(hlwm_ests_s1.E, fill(1/np, np)),
 			:F_wm => DiscreteNonParametric(hlwm_ests_s1.F_wm, fill(1/np, np)),
 	        :w0 => DiscreteNonParametric(hlwm_ests_s1.w0, fill(1/np, np))
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		fixed_struct = sess1_str,
 		gq = true,
 		random_seed = 1
@@ -382,18 +390,26 @@ let
 	retest_df = leftjoin(hlwm_ests_s1, hlwm_ests_s2, on = :PID, makeunique=true)
 	dropmissing!(retest_df)
 
-	fig=Figure(;size=(1000, 300))
+	fig=Figure(;size=(800, 1000))
 	reliability_scatter!(
 		fig[1,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:a_pos, ycol=:a_pos_1, subtitle="HL learning rate"
+		xcol=:a_pos, ycol=:a_pos_1, subtitle="RL reward learning rate"
 	)
 	reliability_scatter!(
 		fig[1,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
+		xcol=:bWM, ycol=:bWM_1, subtitle="WM punishment learning rate bias"
+	)
+	reliability_scatter!(
+		fig[2,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
 		xcol=:F_wm, ycol=:F_wm_1, subtitle="WM forgetting"
 	)
 	reliability_scatter!(
-		fig[1,3]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:w0, ycol=:w0_1, subtitle="WM weighting"
+		fig[2,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
+		xcol=:w0, ycol=:w0_1, subtitle="WM initial weighting"
+	)
+	reliability_scatter!(
+		fig[3,1:2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
+		xcol=:E, ycol=:E_1, subtitle="Undirected policy noise"
 	)
 	fig
 end
@@ -426,10 +442,12 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
+	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
+			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		n_starts = 5
 	)
 
@@ -454,10 +472,12 @@ begin
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
+	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
+			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		n_starts = 5
 	)
 
@@ -477,10 +497,12 @@ let
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 2.), # RL reward learning rate
+	        :bWM => Normal(0., 2.), # punishment learning rate for working memory
+			:E => Normal(0., 3.), # undirected noise
 			:F_wm => Normal(0., 2.), # working memory forgetting rate
-	        :w0 => Beta(2, 2), # prop. of WM to RL weight (i.e., 0.5 ===)
+	        :w0 => Beta(2., 2.), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		fixed_struct = sess1_str,
 		gq = true,
 		random_seed = 1
@@ -493,10 +515,12 @@ let
 		priors = Dict(
 			:β => 25., # fixed inverse temperature
 	        :a => Normal(0., 4.), # RL reward learning rate
+	        :bWM => Normal(0., 4.), # punishment learning rate for working memory
+			:E => Normal(0., 4.), # undirected noise
 			:F_wm => Normal(0., 4.), # working memory forgetting rate
 	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
-		parameters = [:a_pos, :F_wm, :w0],
+		parameters = [:a_pos, :bWM, :E, :F_wm, :w0],
 		n_starts = 5
 	)
 
