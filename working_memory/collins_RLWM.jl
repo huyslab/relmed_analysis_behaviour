@@ -218,7 +218,7 @@ end
     # initial values
     n_actions = size(data.outcomes, 2)
     init = isnothing(initial) ? 1. / n_actions : initial
-    mss::Int64 = maximum(data.set_size) * n_actions
+    mss::Int64 = maximum(data.stimset) * n_actions
     initV::Matrix{Float64} = fill(init, 1, mss)
 
     # optimal outcomes in reward/punishment blocks
@@ -244,7 +244,7 @@ end
     W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
     
     # Initial set-size
-    ssz = data.set_size[data.block[1]]
+    # ssz = data.set_size[data.block[1]]
     N = length(data.block)
     loglike = zero(T)
 
@@ -255,7 +255,7 @@ end
         opts::UnitRange{Int64} = pri:(pri+n_actions-1)
 
         # setup RL and WM policies (softmax with directed and undirected noise)
-        π_hl = Turing.softmax(Qs[i, opts])
+        π_hl = Turing.softmax(β .* Qs[i, opts])
         π_wm = Turing.softmax(β .* Ws[i, opts])
         π = @. (1 - ε) * (w0 * π_wm + (1 - w0) * π_hl) + ε / n_actions
 
@@ -269,23 +269,22 @@ end
         # Updates
         choice_idx::Int = choice[i] + pri - 1
         choice_1id::Int = choice[i]
-        # outc_hl, outc_wm = 1.0, data.outcomes[i, choice_1id] # HLWM means 1.0 for chosen option, regardless of valence
-        outc = data.outcomes[i, choice_1id]
-        α_hl, α_wm = in(outc, opt_outc) ? (α_pos, 1.0) : (α_neg, α_neg_wm)
+        outc_hl, outc_wm = 1.0, data.outcomes[i, choice_1id] # HLWM means 1.0 for chosen option, regardless of valence
+        α_hl, α_wm = in(outc_wm, opt_outc) ? (α_pos, 1.0) : (α_neg, α_neg_wm)
         
         if (i != N) && (data.block[i] == data.block[i+1])
             # In-place updates
             @views begin
                 copyto!(Qs[i + 1, :], Qs[i, :])
-                Qs[i + 1, choice_idx] += α_hl * (outc - Qs[i, choice_idx])
+                Qs[i + 1, choice_idx] += α_hl * (outc_hl - Qs[i, choice_idx])
                 
                 copyto!(Ws[i + 1, :], Ws[i, :])
                 un_idx = setdiff(1:mss, choice_idx)
                 Ws[i + 1, un_idx] .+= φ_wm .* (W0[i, un_idx] .- Ws[i, un_idx])
-                Ws[i + 1, choice_idx] += α_wm * (outc - Ws[i, choice_idx])
+                Ws[i + 1, choice_idx] += α_wm * (outc_wm - Ws[i, choice_idx])
             end
-        elseif (i != N)
-            ssz = data.set_size[data.block[i+1]]
+        # elseif (i != N)
+        #     ssz = data.set_size[data.block[i+1]]
         end
         
         # Store values
@@ -337,7 +336,7 @@ end
     
     # Initial values
     Q = copy(Qs[:, 1:n_actions])
-    W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
+    Wv = copy(Ws[:, 1:n_actions])
     
     # Initial set-size
     ssz = data.set_size[data.block[1]]
@@ -350,9 +349,14 @@ end
         pri::Int = 1 + (n_actions * (data.stimset[i]-1))
         opts::UnitRange{Int64} = pri:(pri+n_actions-1)
 
-        # weightings inside the softmax
-        π = (1 - ε) * Turing.softmax(β * ((1 - w0) * Qs[i, opts] .+ w0 * Ws[i, opts])) .+ ε / n_actions
-        
+        # setup RL and WM policies (softmax with directed and undirected noise)
+        π_hl = Turing.softmax(Qs[i, opts])
+        π_wm = Turing.softmax(β .* Ws[i, opts])
+        π = @. (1 - ε) * (w0 * π_wm + (1 - w0) * π_hl) + ε / n_actions
+
+        # weightings inside the softmax?
+        # π = (1 - ε) * Turing.softmax(β * ((1 - w0) * Qs[i, opts] .+ w0 * Ws[i, opts])) .+ ε / n_actions
+                
         # Choice and likelihood
         choice[i] ~ Turing.Categorical(π)
         loglike += loglikelihood(Turing.Categorical(π), choice[i])

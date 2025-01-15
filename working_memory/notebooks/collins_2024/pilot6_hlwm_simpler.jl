@@ -49,6 +49,9 @@ begin
 	set_theme!(th)	
 end
 
+# ╔═╡ c28404fc-918e-49bf-8690-1fbbd7c4460c
+include("$(pwd())/working_memory/collins_RLWM.jl")
+
 # ╔═╡ 8e96fc42-2eda-4aca-a766-fe6793ebe2ed
 md"
 ### Forgetful habit models (simple)
@@ -272,6 +275,7 @@ md"
 
 # ╔═╡ 16215d5d-9ec9-40f4-b10a-2658297700bd
 begin
+	s1 = filter(x -> x.session == 1, pilot6_wm)
 	np = maximum(hlwm_ests_s1.PID)
 	prior_sample_hlwm = simulate_from_prior(
 	    100;
@@ -283,7 +287,7 @@ begin
 	        :w0 => DiscreteNonParametric(hlwm_ests_s1.w0, fill(1/np, np))
 		),
 		parameters = [:a_pos, :F_wm, :w0],
-		fixed_struct = sess1_str,
+		fixed_struct = s1,
 		gq = true,
 		random_seed = 1
 	)
@@ -378,7 +382,7 @@ function reliability_scatter!(
 end
 
 # ╔═╡ b338dfe6-96a6-4967-9932-35f64beabf64
-let
+begin
 	retest_df = leftjoin(hlwm_ests_s1, hlwm_ests_s2, on = :PID, makeunique=true)
 	dropmissing!(retest_df)
 
@@ -397,6 +401,9 @@ let
 	)
 	fig
 end
+
+# ╔═╡ 87ce0821-0711-4b12-903f-9cf3fd96ad4f
+CSV.write("working_memory/wm_test_retest_df.csv", retest_df)
 
 # ╔═╡ 45b2382b-fd20-4ad1-ae81-adef02767fd1
 md"
@@ -481,7 +488,7 @@ let
 	        :w0 => Beta(2, 2), # prop. of WM to RL weight (i.e., 0.5 ===)
 		),
 		parameters = [:a_pos, :F_wm, :w0],
-		fixed_struct = sess1_str,
+		fixed_struct = s1,
 		gq = true,
 		random_seed = 1
 	)
@@ -503,6 +510,41 @@ let
 	f_hlwm_broad
 end
 
+# ╔═╡ 05993957-992b-4ad2-a748-d824b8fbf2db
+let
+	prior_sample_hlwm_broad = simulate_from_prior(
+	    100;
+		model = HLWM_collins_mk2,
+		priors = Dict(
+			:β => 25., # fixed inverse temperature
+	        :a => Normal(0., 2.), # RL reward learning rate
+			:F_wm => Normal(0., 2.), # working memory forgetting rate
+	        :w0 => Beta(2, 2), # prop. of WM to RL weight (i.e., 0.5 ===)
+		),
+		parameters = [:a_pos, :F_wm, :w0],
+		fixed_struct = s1,
+		gq = true,
+		random_seed = 1
+	)
+	f_hlwm_broad = optimization_calibration(
+		prior_sample_hlwm_broad,
+		optimize_multiple,
+		estimate = "MAP",
+		model = HLWM_collins_mk2,
+		priors = Dict(
+			:β => 25., # fixed inverse temperature
+	        :a => Normal(0., 4.), # RL reward learning rate
+			:F_wm => Normal(0., 4.), # working memory forgetting rate
+	        :w0 => Beta(1.1, 1.1), # prop. of WM to RL weight (i.e., 0.5 ===)
+		),
+		parameters = [:a_pos, :F_wm, :w0],
+		n_starts = 5,
+		return_mles=true
+	)
+
+	CSV.write("wm_par_rec.csv", f_hlwm_broad)
+end
+
 # ╔═╡ Cell order:
 # ╟─8e96fc42-2eda-4aca-a766-fe6793ebe2ed
 # ╠═3647aaf8-becd-11ef-17b7-1348cec601a2
@@ -511,6 +553,7 @@ end
 # ╟─3b6d2229-7d15-448b-8062-fdf7f5a25d66
 # ╠═5f5ce9fe-c168-431e-bd48-19e06f81eabd
 # ╟─c4559cb4-98c2-4dae-b1d1-a163783855d1
+# ╠═c28404fc-918e-49bf-8690-1fbbd7c4460c
 # ╠═84fd6ba3-f471-4550-a9da-8e09ccd927a8
 # ╟─1e8120cc-e53b-4bb6-a39d-25d1997cc98c
 # ╠═8c4f9aeb-84e2-4942-814f-00284432bf2c
@@ -522,6 +565,7 @@ end
 # ╟─f1945034-b365-4ad8-b3b6-f518b7a91487
 # ╟─e26b9dc7-7135-421f-8885-d7d8bbd7ce66
 # ╠═b338dfe6-96a6-4967-9932-35f64beabf64
+# ╠═87ce0821-0711-4b12-903f-9cf3fd96ad4f
 # ╟─45b2382b-fd20-4ad1-ae81-adef02767fd1
 # ╟─fbd4949e-3851-4151-b5d1-76e750610565
 # ╟─5517c276-f736-4a2c-aea8-0e64d5dbb451
@@ -530,3 +574,4 @@ end
 # ╠═0d1aa1e3-abb1-42b9-8108-7acb156737f0
 # ╟─c43a557b-5706-4078-bbea-275f5b23b7a9
 # ╠═a3d84dde-b254-4e9a-bc6b-5372e88fa5ad
+# ╠═05993957-992b-4ad2-a748-d824b8fbf2db

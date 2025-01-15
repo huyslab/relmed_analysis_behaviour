@@ -90,8 +90,7 @@ end
 
 function random_outcomes_from_sequence(;
     n_blocks::Int64,
-    set_sizes::Vector{Int64},
-    n_options::Int64 = 2,
+    set_sizes::Union{Int64, Vector{Int64}},
     coins::Vector{Float64} = [0.01, 0.5, 1.],
     punish::Bool = true,
     kwargs...
@@ -109,7 +108,6 @@ function random_outcomes_from_sequence(;
                 optimal = mgnt[2], 
                 suboptimal = mgnt[1],
                 n_stimsets = set_sizes[i],
-                n_options = n_options,
                 kwargs...
             )
             for (i, mgnt) in enumerate(
@@ -138,7 +136,90 @@ function set_size_per_block(;
             )
         )
     end
-    return vcat(minimum(set_sizes), ssz)
+    if n_blocks == 1
+        return ssz
+    else
+        strt = minimum(ssz)
+        return vcat(strt, deleteat!(ssz, findfirst(x->x==strt, ssz)))
+    end
+end
+
+function generate_delay_sequence(;
+    no_sets::Int64, # number of sets to see at one time
+    max_count::Int64, # maximum number of trials per stimulus set
+    difficulty::Float64, # rate of increase in set size (> 0)
+    seed::Union{Int64, Nothing} = nothing,
+    tolerance::Int64 = 1
+) 
+    # generate a random array of delays
+    rng = isnothing(seed) ? Random.default_rng() : Xoshiro(seed)
+    ntt, mde = max_count*no_sets, 2*no_sets-1
+    delays = shuffle(rng, repeat(1:mde, ceil(Int, ntt/mde)))
+
+    # initialize arrays to track delay/count per stimulus (1-based indexing)
+    delay_per_stim = [1, -ones(Int, no_sets-1)...]
+    count_per_stim = zeros(Int, no_sets)
+    
+    # expected set size (active stimuli) to increase difficulty over time
+    nT = length(delays)
+    dft = 1 + .1 * difficulty
+    ess = floor.(Int, clamp.(dft.^(0:nT-1), 1, no_sets))
+
+    # prepare output arrays
+    sequence   = -ones(Int, nT)
+    true_delay = -ones(Int, nT)
+    true_ss    = -ones(Int, nT)
+    trial_no   = -ones(Int, nT)
+
+    for (i, d) in enumerate(delays)
+        # find valid stimuli (i.e., positive delay)
+        valid_stims = findall(x -> x >= 0, delay_per_stim)
+        if sum(delay_per_stim .== -99) == no_sets
+            nT = sum(sequence .!= -1)
+            break # if the first set of stimulus sets have been exhausted
+        elseif length(valid_stims) < ess[i]
+            # introduce a new stimulus if possible
+            if any(delay_per_stim .== -1)
+                new_stim_idx = findfirst(x -> x === -1, delay_per_stim)
+            else
+                # add new stimulus with delay -1
+                push!(delay_per_stim, -1)
+                push!(count_per_stim, 0)
+                new_stim_idx = length(delay_per_stim)
+            end
+            sequence[i]   = new_stim_idx
+            true_delay[i] = 0
+            true_ss[i] = length(valid_stims) + 1
+        else
+            c_idx = findall(
+                x -> abs(x - d) <= tolerance, delay_per_stim[valid_stims]
+            )
+            if !isempty(c_idx)
+                stim_idx = valid_stims[c_idx[rand(rng, 1:length(c_idx))]]
+            else
+                # fallback to nearest
+                stim_idx = valid_stims[argmin(abs.(delay_per_stim[valid_stims] .- d))]
+            end
+            sequence[i]   = stim_idx
+            true_delay[i] = delay_per_stim[stim_idx]
+            true_ss[i] = length(valid_stims)
+        end
+        
+        # reset chosen stimulus’s delay and increment all others
+        s = sequence[i]::Int
+        count_per_stim[s] += 1
+        trial_no[i] = count_per_stim[s]
+        delay_per_stim[s] = count_per_stim[s] < max_count ? 1 : -99
+        delay_per_stim[setdiff(valid_stims, s)] .+= 1
+    end
+
+    return DataFrame(
+        trial     = trial_no[1:nT], # for compatibility
+        trial_ovl = 1:nT,
+        stimset   = sequence[1:nT],
+        delay     = true_delay[1:nT],
+        set_size  = true_ss[1:nT]
+    )
 end
 
 function create_random_task(;
@@ -148,13 +229,13 @@ function create_random_task(;
     n_options::Int64 = 2, # number of options to choose from
     set_sizes::Union{Int64, Vector{Int64}} = 2,
     coins::Vector{Float64} = [0.01, 0.5, 1.],
-    punish::Bool = true
+    punish::Bool = true,
+    stims_extra::Bool = false
 )
-
     set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
 	# Create task sequence
 	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * set_sizes_blk[i])]...)
-	outcomes = random_outcomes_from_sequence(
+	outcomes = random_outcomes_from_sequence(;
         n_confusing = n_confusing,
         n_trials = n_trials,
         n_blocks = n_blocks,
@@ -184,89 +265,16 @@ function create_random_task(;
     else
         df[!, "feedback_suboptimal"] = outcomes[:, 1]
     end
-    df[!, "set_size"] = set_sizes_blk[block]
+    df[!, "set_size"] = typeof(set_sizes) == Int64 ? fill(set_sizes, nrow(df)) : set_sizes_blk[block]
     df[!, "action"] = action
 
-	return df
-end
-
-function generate_delay_sequence(
-    ns::Int,         # total number of stimulus sets
-    start::Int = 10; # number of trials to start with
-    seed::Union{Int, Nothing} = nothing,
-    tolerance::Int = 1
-)
-    rng = isnothing(seed) ? Random.default_rng() : Xoshiro(seed)
-    # 1. Generate a random array of delays
-    ess = ones(Int, start) # current set_size
-    delays = ones(Int, start) # we start with one stimulus
-    for i in 1:ns
-        d = repeat(1:2*i-1, i)
-        append!(ess, fill(i, length(d)))
-        append!(delays, shuffle!(rng, d))
+    if !stims_extra
+        return df
+    else
+        df2 = copy(df)
+        df2.stimset = df2.stimset .+ df2.set_size
+        return vcat(df, df2)
     end
-
-    # Initialize arrays to track delay/count per stimulus (1-based indexing)
-    delay_per_stim = [1, -ones(Int, ns-1)...]
-    count_per_stim, count_per_ss = zeros(Int, ns), zeros(Int, ns)
-
-    # Prepare output arrays
-    nT = length(delays)
-    sequence     = -ones(Int, nT)
-    true_delay   = -ones(Int, nT)
-    trial_no_set = -ones(Int, nT)
-    trial_no_ss  = -ones(Int, nT)
-
-    for (i, d) in enumerate(delays)
-        # Find valid stimuli (i.e., positive delay)
-        valid_stims = findall(x -> x >= 0, delay_per_stim)
-
-        if length(valid_stims) < ess[i]
-            # 8a(i). Introduce a new stimulus if possible
-            new_stim_idx = findfirst(x -> x === -1, delay_per_stim)
-            sequence[i]   = new_stim_idx
-            true_delay[i] = 0
-        else
-            c_idx = findall(
-                x -> abs(x - d) <= tolerance, delay_per_stim[valid_stims]
-            )
-            if !isempty(c_idx)
-                stim_idx = valid_stims[c_idx[rand(rng, 1:length(c_idx))]]
-            else
-                # fallback to nearest
-                stim_idx = valid_stims[argmin(abs.(delay_per_stim[valid_stims] .- d))]
-            end
-            sequence[i]   = stim_idx
-            true_delay[i] = delay_per_stim[stim_idx]
-        end
-
-        s = sequence[i]::Int
-        
-        # Reset chosen stimulus’s delay
-        delay_per_stim[s] = 1
-        delay_per_stim[setdiff(valid_stims, s)] .+= 1
-
-        # Update count & check max_count
-        count_per_stim[s] += 1
-        trial_no_set[i] = count_per_stim[s]
-        if i != nT && ess[i] == ess[i+1]
-            count_per_ss[s] += 1
-            trial_no_ss[i] = count_per_ss[s]
-        else
-            trial_no_ss[i] = count_per_ss[s] + 1
-            count_per_ss .= 0
-        end
-    end
-
-    return DataFrame(
-        trial     = 1:nT,
-        trial_set = trial_no_set,
-        trial_ss  = trial_no_ss,
-        stimset   = sequence,
-        delay     = true_delay,
-        delay_g   = delays,
-        set_size  = ess
-    )
 end
 
 

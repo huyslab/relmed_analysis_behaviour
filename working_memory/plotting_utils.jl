@@ -782,7 +782,8 @@ function optimization_calibration(
 	),
 	parameters::Vector{Symbol} = collect(keys(priors)),
 	n_starts::Int64 = 5,
-	ms::Float64 = 4.
+	ms::Float64 = 4.,
+	return_mles::Bool = false
 )
 	MLEs = optimize_func(
 		prior_sample;
@@ -796,6 +797,10 @@ function optimization_calibration(
 		n_starts = n_starts,
 		fit_only = true
 	)
+
+	if return_mles
+		return MLEs
+	end
 
 	# if parameter[i] in transformed, use transformed name, else use original
 	final_parameters = [haskey(transformed, p) ? transformed[p] : p for p in parameters]
