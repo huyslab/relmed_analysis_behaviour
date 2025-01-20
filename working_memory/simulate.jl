@@ -149,7 +149,9 @@ function generate_delay_sequence(;
     max_count::Int64, # maximum number of trials per stimulus set
     difficulty::Float64, # rate of increase in set size (> 0)
     seed::Union{Int64, Nothing} = nothing,
-    tolerance::Int64 = 1
+    tolerance::Int64 = 1,
+    return_struct::Bool = false,
+    kwargs... # additional arguments to pass to create_random_task
 ) 
     # generate a random array of delays
     rng = isnothing(seed) ? Random.default_rng() : Xoshiro(seed)
@@ -213,13 +215,39 @@ function generate_delay_sequence(;
         delay_per_stim[setdiff(valid_stims, s)] .+= 1
     end
 
-    return DataFrame(
+    dseq = DataFrame(
         trial     = trial_no[1:nT], # for compatibility
         trial_ovl = 1:nT,
         stimset   = sequence[1:nT],
         delay     = true_delay[1:nT],
         set_size  = true_ss[1:nT]
     )
+
+    if return_struct
+        outcomes = create_random_task(;
+        	n_trials = maximum(dseq.trial),
+        	n_blocks = length(unique(dseq.stimset)),
+            set_sizes = maximum(dseq.stimset),
+            n_confusing = 0, # only deterministic works
+            kwargs...
+        )
+
+        strct = combine(
+            groupby(
+                leftjoin(
+                    dseq,
+                    outcomes[!, Not(["stimset", "set_size", "action"])];
+                    on=[:trial, :stimset => :block],
+                    order=:left
+                ),
+                :trial_ovl
+            ),
+            first
+        )
+        strct.block .= 1
+    end
+
+    return return_struct ? strct : dseq
 end
 
 function create_random_task(;
@@ -229,8 +257,7 @@ function create_random_task(;
     n_options::Int64 = 2, # number of options to choose from
     set_sizes::Union{Int64, Vector{Int64}} = 2,
     coins::Vector{Float64} = [0.01, 0.5, 1.],
-    punish::Bool = true,
-    stims_extra::Bool = false
+    punish::Bool = true
 )
     set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
 	# Create task sequence
@@ -254,7 +281,7 @@ function create_random_task(;
 		block = block,
 		trial = trial,
         stimset = Int.(outcomes[:, n_options + 1]),
-		valence = valence[block],
+		valence = Int.(valence[block]),
 		feedback_optimal = outcomes[:, n_options]
 	)
 
@@ -268,13 +295,7 @@ function create_random_task(;
     df[!, "set_size"] = typeof(set_sizes) == Int64 ? fill(set_sizes, nrow(df)) : set_sizes_blk[block]
     df[!, "action"] = action
 
-    if !stims_extra
-        return df
-    else
-        df2 = copy(df)
-        df2.stimset = df2.stimset .+ df2.set_size
-        return vcat(df, df2)
-    end
+    return df
 end
 
 

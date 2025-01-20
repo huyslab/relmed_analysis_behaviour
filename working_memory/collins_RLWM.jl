@@ -244,7 +244,6 @@ end
     W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
     
     # Initial set-size
-    # ssz = data.set_size[data.block[1]]
     N = length(data.block)
     loglike = zero(T)
 
@@ -297,7 +296,7 @@ end
     return (choice = choice, Qs = Q, Ws = Wv, loglike = loglike)
 end
 
-@model function HLWM_collins_mk3(
+@model function HLWM_collins_continuous(
     data::NamedTuple,
     choice;
     priors::Dict = Dict(
@@ -313,7 +312,7 @@ end
     # initial values
     n_actions = size(data.outcomes, 2)
     init = isnothing(initial) ? 1. / n_actions : initial
-    mss::Int64 = maximum(data.set_size) * n_actions
+    mss::Int64 = maximum(data.stimset) * n_actions
     initV::Matrix{Float64} = fill(init, 1, mss)
 
     # optimal outcomes in reward/punishment blocks
@@ -331,16 +330,13 @@ end
     T = typeof(α_pos)
 
     # Initialize Q and W values
-    Qs = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
-    Ws = repeat(initV, length(data.block)) .* T.(data.valence[data.block])
-    
+    Qs = T.(repeat(initV .* repeat(data.valence, inner = n_actions)', length(data.block)))
+    Ws = T.(repeat(initV .* repeat(data.valence, inner = n_actions)', length(data.block)))
+
     # Initial values
     Q = copy(Qs[:, 1:n_actions])
-    Wv = copy(Ws[:, 1:n_actions])
-    
-    # Initial set-size
-    ssz = data.set_size[data.block[1]]
-    N = length(data.block)
+    W0, Wv = copy(Ws), copy(Ws[:, 1:n_actions])
+    N = length(data.stimset)
     loglike = zero(T)
 
     # Main loop
@@ -350,13 +346,13 @@ end
         opts::UnitRange{Int64} = pri:(pri+n_actions-1)
 
         # setup RL and WM policies (softmax with directed and undirected noise)
-        π_hl = Turing.softmax(Qs[i, opts])
+        π_hl = Turing.softmax(β .* Qs[i, opts])
         π_wm = Turing.softmax(β .* Ws[i, opts])
         π = @. (1 - ε) * (w0 * π_wm + (1 - w0) * π_hl) + ε / n_actions
 
         # weightings inside the softmax?
         # π = (1 - ε) * Turing.softmax(β * ((1 - w0) * Qs[i, opts] .+ w0 * Ws[i, opts])) .+ ε / n_actions
-                
+        
         # Choice and likelihood
         choice[i] ~ Turing.Categorical(π)
         loglike += loglikelihood(Turing.Categorical(π), choice[i])
@@ -367,7 +363,7 @@ end
         outc_hl, outc_wm = 1.0, data.outcomes[i, choice_1id] # HLWM means 1.0 for chosen option, regardless of valence
         α_hl, α_wm = in(outc_wm, opt_outc) ? (α_pos, 1.0) : (α_neg, α_neg_wm)
         
-        if (i != N) && (data.block[i] == data.block[i+1])
+        if (i != N)
             # In-place updates
             @views begin
                 copyto!(Qs[i + 1, :], Qs[i, :])
@@ -378,8 +374,6 @@ end
                 Ws[i + 1, un_idx] .+= φ_wm .* (W0[i, un_idx] .- Ws[i, un_idx])
                 Ws[i + 1, choice_idx] += α_wm * (outc_wm - Ws[i, choice_idx])
             end
-        elseif (i != N)
-            ssz = data.set_size[data.block[i+1]]
         end
         
         # Store values
@@ -813,13 +807,16 @@ function unpack_data(data::DataFrame)
         hcat([data[!, "feedback_suboptimal$i"] for i in 1:n_subopt]...)
 
     # renumber blocks if necessary to start at 1
+    data.val_grp = data.block
     if minimum(data.block) != 1
         data.block .-= minimum(data.block) - 1
+    elseif length(unique(data.block)) == 1
+        data.val_grp .= data.stimset
     end
 
     data_tuple = (
         block = data.block, # length = number of trials
-        valence = unique(data[!, [:block, :valence]]).valence, # length = number of blocks
+        valence = unique(data[!, [:val_grp, :valence]]).valence, # length = number of blocks
         stimset = data.stimset, # length = number of trials
         outcomes = hcat(feedback_suboptimal, data.feedback_optimal), # length = number of trials
         set_size = unique(data[!, [:block, :set_size]]).set_size # length = number of blocks
