@@ -1,5 +1,69 @@
 # This file contains general functions to work with models
 
+## Sample from prior ----------------------------------------------------------------------------
+function prior_sample(
+	task::NamedTuple; # Should contain the outocme measure as an array of missing values
+	model::Function,
+	n::Int64 = 1, # Number of samples to generate
+    priors::Dict,
+	outcome_name::Symbol,
+	rng::AbstractRNG = Random.default_rng(),
+	kwargs... # Key-word arguments to model
+)	
+	# Pass data to model
+    task_model = model(;
+        task...,
+        priors = priors,
+		kwargs... # Key-word arguments to model
+    )
+
+	# Draw parameters and simulate choice
+	prior_sample = sample(
+		rng,
+		task_model,
+		Prior(),
+		n
+	)
+
+	# Exctract result to array
+	result = prior_sample[:, [Symbol("$outcome_name[$i]") for i in 1:length(task[outcome_name])], 1] |>
+		Array |> transpose |> collect
+
+	# Flatter to vector if possible
+	if n == 1
+		result = vec(result)
+	end
+	
+	return result
+end
+
+function prior_sample(
+	task::AbstractDataFrame;
+	model::Function,
+	unpack_function::Function,
+	n::Int64 = 1, # Number of samples to generate
+    priors::Dict,
+	outcome_name::Symbol,
+	rng::AbstractRNG = Random.default_rng(),
+	kwargs... # Key-word arguments to model
+)
+
+	# Add placeholder for outcome
+	task_w_outcome = copy(task)
+	task_w_outcome[!, outcome_name] .= missing
+
+	# Simulate
+	return prior_sample(
+		unpack_function(task_w_outcome);
+		model,
+		n,
+		priors,
+		outcome_name,
+		rng,
+		kwargs... 
+	)
+end
+
 ## MLE / MAP estimation -------------------------------------------------------------------------
 """
     multistart_mode_estimator(model::Turing.Model; estimator::Union{MLE, MAP}, n_starts::Int64 = 5) -> OptimizationResult
@@ -283,7 +347,10 @@ function FI(;
 )
 
 	res = 0
-	for gdf in groupby(data, id_col)
+	for g in unique(data[!, id_col])
+
+		# Select data
+		gdf = filter(x -> x[id_col] == g, data)
 		
 		# Pass data to model
 		m = model(;
