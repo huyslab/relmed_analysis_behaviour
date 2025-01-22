@@ -164,8 +164,7 @@ function generate_delay_sequence(;
     
     # expected set size (active stimuli) to increase difficulty over time
     nT = length(delays)
-    dft = 1 + .1 * difficulty
-    ess = floor.(Int, clamp.(dft.^(0:nT-1), 1, no_sets))
+    ess = floor.(Int, clamp.(difficulty.*(0:nT-1), 1, no_sets))
 
     # prepare output arrays
     sequence   = -ones(Int, nT)
@@ -176,7 +175,7 @@ function generate_delay_sequence(;
     for (i, d) in enumerate(delays)
         # find valid stimuli (i.e., positive delay)
         valid_stims = findall(x -> x >= 0, delay_per_stim)
-        if sum(delay_per_stim .== -99) == no_sets
+        if sum(delay_per_stim .== -99) >= no_sets
             nT = sum(sequence .!= -1)
             break # if the first set of stimulus sets have been exhausted
         elseif length(valid_stims) < ess[i]
@@ -215,6 +214,12 @@ function generate_delay_sequence(;
         delay_per_stim[setdiff(valid_stims, s)] .+= 1
     end
 
+    # if the final trial is a brand new stimulus, remove it
+    if true_delay[nT] == 0
+        nT -= 1
+        deleteat!(count_per_stim, length(count_per_stim))
+    end
+
     dseq = DataFrame(
         trial     = trial_no[1:nT], # for compatibility
         trial_ovl = 1:nT,
@@ -228,16 +233,16 @@ function generate_delay_sequence(;
         	n_trials = maximum(dseq.trial),
         	n_blocks = length(unique(dseq.stimset)),
             set_sizes = maximum(dseq.stimset),
-            n_confusing = 0, # only deterministic works
             kwargs...
         )
+        dseq.block .= dseq.stimset
 
         strct = combine(
             groupby(
                 leftjoin(
                     dseq,
-                    outcomes[!, Not(["stimset", "set_size", "action"])];
-                    on=[:trial, :stimset => :block],
+                    outcomes[!, Not(["set_size"])];
+                    on=[:trial, :stimset, :block],
                     order=:left
                 ),
                 :trial_ovl
