@@ -51,10 +51,10 @@ end
 
 # ╔═╡ 82326a87-0cba-4027-97f7-1e0fa60e1549
 begin
-	function uniform_chi_squared(df::DataFrame, mss::Int)
+	function uniform_chi_squared(df::DataFrame, mdel::Int64)
 	    # Simple chi-squared helper
 	    chisq(o, e) = sum((o .- e).^2 .// e)
-		pds = 1:2*mss-1
+		pds = 1:mdel
 		cto = countmap(df.delay)
 		observed = [get(cto, d, 0) for d in pds]
 		expected = fill(nrow(df)÷length(pds), length(pds))
@@ -62,13 +62,13 @@ begin
 	end
 	
 	function best_seed_for_delays(;
-		ns::Int, mc::Int, d::Float64, ntries::Int, ntol::Int
+		ns::Int, mc::Int, d::Float64, ntries::Int, ntol::Int, md::Int
 	)
 	    best_seed  = -1
 	    best_score = Inf
 		best_tol = -1
 	
-	    for s in 1:ntries
+	    for s in 1:ntries #rand(1:1000000, ntries)
 			for tol in 1:ntol
 			    df = generate_delay_sequence(;
 					no_sets=ns,
@@ -76,10 +76,11 @@ begin
 				    difficulty=d,
 				    seed=s,
 				    tolerance=tol,
+				    max_delay=md,
 					return_struct=false
 				)
 		        # Example "score": mean absolute deviation from target "delay_g"
-		        score = uniform_chi_squared(df, maximum(df.set_size))
+		        score = uniform_chi_squared(df, md)
 		        if score < best_score
 		            best_score = score
 		            best_seed  = s
@@ -99,16 +100,12 @@ md"
 Here we try to optimise for an approximately uniform distribution of delays, by looping over seeds and tolerances and picking that with the lowest chi-squared test score compared to a perfectly uniform distribution of delay counts.
 "
 
-# ╔═╡ 4e536d50-d5f4-45df-9ee1-6e63d769bd2c
-md"
-For the purpose of the comparison, we go up to 7 simultaneous stimuli, a maximum of 14 times each, with a relatively quickly increasing difficulty (7 stimuli introduced by trial 15).
-"
-
 # ╔═╡ 3461ed6b-fa89-4bd9-b94a-6ef55f3bdf2c
 begin
-    se, nc, dd = 5, 20, .35
-	bse, bsc, bst = best_seed_for_delays(ns=se, mc=nc, d=dd, ntries=10000, ntol=5)
-	nothing
+    se, nc, dd, md = 7, 24, .3, 11
+	bse, bsc, bst = best_seed_for_delays(
+		ns=se, mc=nc, d=dd, ntries=10000, ntol=5, md=md
+	)
 end
 
 # ╔═╡ 878db40c-4b7a-45bb-bddd-a24d08202359
@@ -120,6 +117,7 @@ begin
 		difficulty=dd,
 		seed=bse,
 		tolerance=bst,
+		max_delay=md,
 		return_struct=true,
 		n_confusing=0,
 		n_options = 3, # number of options to choose from
@@ -132,84 +130,85 @@ begin
 		difficulty=dd,
 		seed=bse,
 		tolerance=bst,
+		max_delay=md,
 		return_struct=true,
 		n_confusing=0,
 		n_options = 3, # number of options to choose from
 	    coins = [0.01, 0.5, 1.0],
 	    punish = false
 	)
-	ts["rew_pun_detm"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing=0,
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 1.0],
-	    punish = true
-	)
-	ts["rew_pun_int_detm"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing=0,
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 0.5, 1.0],
-	    punish = true
-	)
-	ts["rew_conf"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing = floor(Int, 0.2*nc),
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 1.0],
-	    punish = false
-	)
-	ts["rew_int_conf"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing = floor(Int, 0.2*nc),
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 0.5, 1.0],
-	    punish = false
-	)
-	ts["rew_pun_conf"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing = floor(Int, 0.2*nc),
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 1.0],
-	    punish = true
-	)
-	ts["rew_pun_int_conf"] = generate_delay_sequence(
-		no_sets=se,
-		max_count=nc,
-		difficulty=dd,
-		seed=bse,
-		tolerance=bst,
-		return_struct=true,
-		n_confusing = floor(Int, 0.2*nc),
-		n_options = 3, # number of options to choose from
-	    coins = [0.01, 0.5, 1.0],
-	    punish = true
-	)
+	# ts["rew_pun_detm"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing=0,
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 1.0],
+	#     punish = true
+	# )
+	# ts["rew_pun_int_detm"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing=0,
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 0.5, 1.0],
+	#     punish = true
+	# )
+	# ts["rew_conf"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing = floor(Int, 0.2*nc),
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 1.0],
+	#     punish = false
+	# )
+	# ts["rew_int_conf"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing = floor(Int, 0.2*nc),
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 0.5, 1.0],
+	#     punish = false
+	# )
+	# ts["rew_pun_conf"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing = floor(Int, 0.2*nc),
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 1.0],
+	#     punish = true
+	# )
+	# ts["rew_pun_int_conf"] = generate_delay_sequence(
+	# 	no_sets=se,
+	# 	max_count=nc,
+	# 	difficulty=dd,
+	# 	seed=bse,
+	# 	tolerance=bst,
+	# 	return_struct=true,
+	# 	n_confusing = floor(Int, 0.2*nc),
+	# 	n_options = 3, # number of options to choose from
+	#     coins = [0.01, 0.5, 1.0],
+	#     punish = true
+	# )
 	for (task, df) in zip(keys(ts), values(ts))
        df[!, :task] .= task
     end;
@@ -230,16 +229,6 @@ let
 	legend!(fig[1, 2], draw!(fig[1,1], delay_pt))
 	draw!(fig[1, 3], delay_freq)
 	fig
-end
-
-# ╔═╡ 28ae0a5b-ca5d-4503-9d9d-1f0f149df9b2
-
-
-# ╔═╡ b6d1b8d2-9b3c-44d5-9779-571a8c04c294
-begin
-	fseq = filter(x->x.task == "rew_int_detm", tasks)
-	fseq_tr = fseq[:, 1:end-2]
-	CSV.write("wm_stimulus_sequence.csv", fseq_tr)
 end
 
 # ╔═╡ 0e288774-79bd-41bb-94be-911307356834
@@ -380,6 +369,13 @@ let
 		colors = Makie.colorschemes[:seaborn_pastel]
 	)
 	f
+end
+
+# ╔═╡ 3527b3e3-bf97-45fa-b962-0c66410f1acb
+begin
+	fseq = filter(x->x.task == "rew_int_detm", tasks)
+	fseq_tr = fseq[:, 1:end-2]
+	CSV.write("wm_stimulus_sequence_longer.csv", fseq_tr)
 end
 
 # ╔═╡ f00b9a42-70d6-44d7-8438-5efeb7b67585
@@ -805,14 +801,11 @@ end
 
 # ╔═╡ Cell order:
 # ╠═ef1a09ce-d1b5-11ef-2994-91cdad7ede58
-# ╟─82326a87-0cba-4027-97f7-1e0fa60e1549
+# ╠═82326a87-0cba-4027-97f7-1e0fa60e1549
 # ╟─2cfbbb2f-457a-40d3-b676-0eb9f99b805c
-# ╟─4e536d50-d5f4-45df-9ee1-6e63d769bd2c
 # ╠═3461ed6b-fa89-4bd9-b94a-6ef55f3bdf2c
 # ╠═878db40c-4b7a-45bb-bddd-a24d08202359
 # ╠═2f9398ce-6520-454d-b131-2d32082a9850
-# ╠═28ae0a5b-ca5d-4503-9d9d-1f0f149df9b2
-# ╠═b6d1b8d2-9b3c-44d5-9779-571a8c04c294
 # ╟─0e288774-79bd-41bb-94be-911307356834
 # ╟─0ec1b51c-64de-4dda-8257-06b3661c60ec
 # ╟─5ccea4c6-b470-49e7-92b4-4588a3283025
@@ -821,6 +814,7 @@ end
 # ╟─4a211644-d646-4465-ab7f-a30f49df897f
 # ╠═10799432-c9dc-4023-a3e6-ca5b4c65ddc6
 # ╠═e8afb04e-cee8-4a36-b74b-c9a667b1e760
+# ╠═3527b3e3-bf97-45fa-b962-0c66410f1acb
 # ╟─f00b9a42-70d6-44d7-8438-5efeb7b67585
 # ╠═4c5c7c1f-df1d-49f9-9202-388e4eb60d9d
 # ╠═3436bfb4-2850-4fd0-9529-06c8e37c244d

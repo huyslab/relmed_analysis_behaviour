@@ -150,12 +150,14 @@ function generate_delay_sequence(;
     difficulty::Float64, # rate of increase in set size (> 0)
     seed::Union{Int64, Nothing} = nothing,
     tolerance::Int64 = 1,
+    max_delay::Union{Int64, Nothing} = nothing,
     return_struct::Bool = false,
     kwargs... # additional arguments to pass to create_random_task
 ) 
     # generate a random array of delays
     rng = isnothing(seed) ? Random.default_rng() : Xoshiro(seed)
-    ntt, mde = max_count*no_sets, 2*no_sets-1
+    ntt = max_count*no_sets
+    mde = isnothing(max_delay) ? 2*no_sets-1 : max_delay
     delays = shuffle(rng, repeat(1:mde, ceil(Int, ntt/mde)))
 
     # initialize arrays to track delay/count per stimulus (1-based indexing)
