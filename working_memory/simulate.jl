@@ -97,7 +97,7 @@ function random_outcomes_from_sequence(;
 )
 
     min, max = [minimum(coins)], [maximum(coins)]
-    cycle = [(min, setdiff(coins, min)), (setdiff(coins, max), max)]
+    cycle = [(min, setdiff(coins, min))] # (setdiff(coins, max), max)]
     if punish
         push!(cycle, (setdiff(coins, min), min) .* -1)
         push!(cycle, (max, setdiff(coins, max)) .* -1)
@@ -142,6 +142,54 @@ function set_size_per_block(;
         strt = minimum(ssz)
         return vcat(strt, deleteat!(ssz, findfirst(x->x==strt, ssz)))
     end
+end
+
+function create_random_task(;
+    n_confusing::Int64,
+	n_trials::Int64,
+	n_blocks::Int64,
+    n_options::Int64 = 2, # number of options to choose from
+    set_sizes::Union{Int64, Vector{Int64}} = 2,
+    coins::Vector{Float64} = [0.01, 0.5, 1.],
+    punish::Bool = true
+)
+    set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
+	# Create task sequence
+	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * set_sizes_blk[i])]...)
+	outcomes = random_outcomes_from_sequence(;
+        n_confusing = n_confusing,
+        n_trials = n_trials,
+        n_blocks = n_blocks,
+        set_sizes = set_sizes_blk,
+        n_options = n_options,
+        coins = coins,
+        punish = punish
+    )
+	valence = sign.(outcomes[[findfirst(block .== i) for i in 1:n_blocks], 1])
+	trial = Int.(outcomes[:, n_options + 2])
+
+    # generate a random action (1 to n_options) for each trial
+    action = Int.(rand(1:n_options, size(outcomes, 1)))
+
+	df = DataFrame(
+		block = block,
+		trial = trial,
+        stimset = Int.(outcomes[:, n_options + 1]),
+		valence = Int.(valence[block]),
+		feedback_optimal = outcomes[:, n_options]
+	)
+
+    if n_options > 2
+        for idx in 1:(n_options - 1)
+            df[!, "feedback_suboptimal$(idx)"] = outcomes[:, idx]
+        end
+    else
+        df[!, "feedback_suboptimal"] = outcomes[:, 1]
+    end
+    df[!, "set_size"] = typeof(set_sizes) == Int64 ? fill(set_sizes, nrow(df)) : set_sizes_blk[block]
+    df[!, "action"] = action
+
+    return df
 end
 
 function generate_delay_sequence(;
@@ -256,55 +304,6 @@ function generate_delay_sequence(;
 
     return return_struct ? strct : dseq
 end
-
-function create_random_task(;
-    n_confusing::Int64,
-	n_trials::Int64,
-	n_blocks::Int64,
-    n_options::Int64 = 2, # number of options to choose from
-    set_sizes::Union{Int64, Vector{Int64}} = 2,
-    coins::Vector{Float64} = [0.01, 0.5, 1.],
-    punish::Bool = true
-)
-    set_sizes_blk = set_size_per_block(set_sizes = set_sizes, n_blocks = n_blocks)
-	# Create task sequence
-	block = vcat([i for i in 1:n_blocks for _ in 1:(n_trials * set_sizes_blk[i])]...)
-	outcomes = random_outcomes_from_sequence(;
-        n_confusing = n_confusing,
-        n_trials = n_trials,
-        n_blocks = n_blocks,
-        set_sizes = set_sizes_blk,
-        n_options = n_options,
-        coins = coins,
-        punish = punish
-    )
-	valence = sign.(outcomes[[findfirst(block .== i) for i in 1:n_blocks], 1])
-	trial = Int.(outcomes[:, n_options + 2])
-
-    # generate a random action (1 to n_options) for each trial
-    action = Int.(rand(1:n_options, size(outcomes, 1)))
-
-	df = DataFrame(
-		block = block,
-		trial = trial,
-        stimset = Int.(outcomes[:, n_options + 1]),
-		valence = Int.(valence[block]),
-		feedback_optimal = outcomes[:, n_options]
-	)
-
-    if n_options > 2
-        for idx in 1:(n_options - 1)
-            df[!, "feedback_suboptimal$(idx)"] = outcomes[:, idx]
-        end
-    else
-        df[!, "feedback_suboptimal"] = outcomes[:, 1]
-    end
-    df[!, "set_size"] = typeof(set_sizes) == Int64 ? fill(set_sizes, nrow(df)) : set_sizes_blk[block]
-    df[!, "action"] = action
-
-    return df
-end
-
 
 function simulate_from_prior(
     N::Int64; # number of simulated participants or repeats (depending on priors)

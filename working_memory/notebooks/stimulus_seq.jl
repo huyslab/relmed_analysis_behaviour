@@ -372,11 +372,14 @@ let
 end
 
 # ╔═╡ 3527b3e3-bf97-45fa-b962-0c66410f1acb
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	fseq = filter(x->x.task == "rew_int_detm", tasks)
 	fseq_tr = fseq[:, 1:end-2]
 	CSV.write("wm_stimulus_sequence_longer.csv", fseq_tr)
 end
+  ╠═╡ =#
 
 # ╔═╡ f00b9a42-70d6-44d7-8438-5efeb7b67585
 md"
