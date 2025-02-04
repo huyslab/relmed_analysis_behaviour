@@ -60,6 +60,9 @@ categories = let
 	categories
 end
 
+# ╔═╡ ffe06202-d829-4145-ae26-4a95449d64e6
+md"""# RLWM"""
+
 # ╔═╡ 05f25eb8-3a48-4d16-9837-84d1fdf5c806
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
@@ -79,6 +82,9 @@ begin
 	RLWM_shaping_n = 20
 end
 
+# ╔═╡ 25afe21f-71d2-45ca-b2db-5edf830a2d62
+"ABC" .== 'A'
+
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLWM(
 	categories::AbstractVector,
@@ -92,15 +98,15 @@ function assign_triplet_stimuli_RLWM(
 			:stimulus_A => popat!(
 				categories, 
 				rand(rng, 1:length(categories))
-			) * "1.jpg",
+			) * "_1.jpg",
 			:stimulus_B => popat!(
 				categories, 
 				rand(rng, 1:length(categories))
-			) * "1.jpg",
+			) * "_1.jpg",
 			:stimulus_C => popat!(
 					categories, 
 					rand(rng, 1:length(categories))
-			) * "1.jpg"
+			) * "_1.jpg"
 		)
 		for i in 1:n_triplets
 	]
@@ -362,6 +368,21 @@ RLWM = let
 
 	# Cumulative triplet index
 	RLWM.stimulus_group_id = RLWM.stimulus_group .+ (maximum(RLWM.stimulus_group) .* (RLWM.block .- 1))
+
+	# Create optimal_side variable
+	RLWM.optimal_side = [["left", "middle", "right"][findfirst('A', o)] for o in RLWM.stimulus_ordering]
+
+
+	# Add variables needed for experiment code
+	insertcols!(
+		RLWM,
+		:n_stimuli => 3,
+		:optimal_right => "",
+		:present_pavlovian => false,
+		:n_groups => maximum(RLWM.stimulus_group),
+		:early_stop => false
+	)
+
 	
 
 	RLWM
@@ -390,7 +411,7 @@ let
 	CSV.write("results/pilot7_WM.csv", RLWM)
 end
 
-# ╔═╡ 87035e3e-e7ce-4320-a440-c150c4547c02
+# ╔═╡ 2d860d01-17af-46df-909b-54faca2d2fe4
 # Visualize seuqnce
 let task = RLWM
 
@@ -431,6 +452,9 @@ let task = RLWM
 	f
 
 end
+
+# ╔═╡ 9e4e639f-c078-4000-9f01-63bded0dbd82
+md"""## PILT"""
 
 # ╔═╡ 85deb936-2204-4fe8-a0dd-a23f527f813d
 md"""## Post-PILT test"""
@@ -1080,17 +1104,20 @@ end
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
+# ╟─ffe06202-d829-4145-ae26-4a95449d64e6
 # ╠═05f25eb8-3a48-4d16-9837-84d1fdf5c806
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═f5916a9f-ddcc-4c03-9328-7dd76c4c74b2
 # ╠═6eec5cf5-5416-4158-a53f-5ea2b9c9e4a4
 # ╠═e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
+# ╠═25afe21f-71d2-45ca-b2db-5edf830a2d62
 # ╠═f9be1490-8e03-445f-b36e-d8ceff894751
 # ╠═eecaac0c-e051-4543-988c-e969de3a8567
+# ╠═2d860d01-17af-46df-909b-54faca2d2fe4
 # ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
-# ╠═87035e3e-e7ce-4320-a440-c150c4547c02
+# ╠═9e4e639f-c078-4000-9f01-63bded0dbd82
 # ╠═85deb936-2204-4fe8-a0dd-a23f527f813d
 # ╠═2b7204c6-4fc6-41d2-b446-1c6bf75750b7
 # ╠═0089db22-38ad-4d9c-88a2-12b82361384f
