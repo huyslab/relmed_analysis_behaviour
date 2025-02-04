@@ -82,9 +82,6 @@ begin
 	RLWM_shaping_n = 20
 end
 
-# ╔═╡ 25afe21f-71d2-45ca-b2db-5edf830a2d62
-"ABC" .== 'A'
-
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLWM(
 	categories::AbstractVector,
@@ -236,123 +233,8 @@ RLWM_det_block = let rng = Xoshiro(0)
 
 end
 
-# ╔═╡ 6eec5cf5-5416-4158-a53f-5ea2b9c9e4a4
-# Create probabilistic block
-RLWM_prob_block = let rng = Xoshiro(1)
-	n_trials = nrow(triplet_order)
-
-	# Basic variables
-	prob_block = DataFrame(
-		block = fill(2, n_trials),
-		trial = 1:n_trials,
-		stimulus_group = triplet_order.stimulus_group,
-		delay = triplet_order.delay
-	)
-
-	# Draw high feedback
-	DataFrames.transform!(
-		groupby(prob_block, :stimulus_group),
-		:trial => (x -> prop_fill_shuffle(
-			[1., 0.5],
-			[1 - RLWM_prop_fifty, RLWM_prop_fifty],
-			length(x),
-			rng = rng
-			)
-		) => :feedback_high
-	) 
-
-	@info "Proportion fifty pence: $(mean(prob_block.feedback_high .== 0.5))"
-
-	# Draw feedback_common
-	prob_block[!, :feedback_common] .= true
-	prob_block[[5, 17], :feedback_common] = [false, false]
-
-	prob_block[(RLWM_shaping_n + 1):end, :feedback_common] = DataFrames.transform(
-		groupby(prob_block[(RLWM_shaping_n + 1):end, :], :stimulus_group),
-		:trial => (x -> prop_fill_shuffle(
-			[true, false],
-			[0.8, 0.2],
-			length(x),
-			rng = rng
-		)) => :feedback_common
-	).feedback_common
-
-	# Create feedback optimal and suboptimal
-	prob_block.feedback_optimal = ifelse.(
-		prob_block.feedback_common,
-		prob_block.feedback_high,
-		fill(0.01, nrow(prob_block))
-	)
-
-	prob_block.feedback_suboptimal = ifelse.(
-		.!prob_block.feedback_common,
-		prob_block.feedback_high,
-		fill(0.01, nrow(prob_block))
-	)
-
-
-	# # Assign stimuli categories
-	stimuli = assign_triplet_stimuli_RLWM((categories),
-		maximum(prob_block.stimulus_group);
-		rng = rng
-	)
-
-	# Merge with trial structure
-	prob_block = innerjoin(
-		prob_block,
-		stimuli,
-		on = :stimulus_group,
-		order = :left
-	)
-
-	# Assign stimuli locations
-	orderings = [join(p) for p in permutations(["A", "B", "C"])]
-	DataFrames.transform!(
-		groupby(prob_block, :stimulus_group),
-		:trial => (
-			x -> shuffled_fill(orderings, length(x))
-		) => :stimulus_ordering
-	)
-
-	@info "Proportion optimal in each location: $([round(mean((x -> x[i] == 'A').(prob_block.stimulus_ordering)), digits = 3) for i in 1:3])"
-
-	# Assign stimulus identity to location
-	DataFrames.transform!(
-		prob_block,
-		[:stimulus_ordering, :stimulus_A, :stimulus_B, :stimulus_C] =>
-		((o, a, b, c) -> [[a b c][i, (Int(o[i][1]) - Int('A') + 1)] for i in 1:length(o)]) => :stimulus_left,
-		[:stimulus_ordering, :stimulus_A, :stimulus_B, :stimulus_C] =>
-		((o, a, b, c) -> [[a b c][i, (Int(o[i][2]) - Int('A') + 1)] for i in 1:length(o)]) => :stimulus_middle,
-		[:stimulus_ordering, :stimulus_A, :stimulus_B, :stimulus_C] =>
-		((o, a, b, c) -> [[a b c][i, (Int(o[i][3]) - Int('A') + 1)] for i in 1:length(o)]) => :stimulus_right		
-	)
-
-	# Assign feedback to location, by covention stimulus_A is optimal
-	prob_block.feedback_left = ifelse.(
-		(x -> x[1] == 'A').(prob_block.stimulus_ordering),
-		prob_block.feedback_optimal,
-		prob_block.feedback_suboptimal
-	)
-	
-	prob_block.feedback_middle = ifelse.(
-		(x -> x[2] == 'A').(prob_block.stimulus_ordering),
-		prob_block.feedback_optimal,
-		prob_block.feedback_suboptimal
-	)
-
-	prob_block.feedback_right = ifelse.(
-		(x -> x[3] == 'A').(prob_block.stimulus_ordering),
-		prob_block.feedback_optimal,
-		prob_block.feedback_suboptimal
-	)
-
-	prob_block
-
-end
-
 # ╔═╡ e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
-RLWM = let
-	RLWM = vcat(RLWM_det_block, RLWM_prob_block, cols = :union)
+RLWM = let RLWM = RLWM_det_block
 
 	# Session variable
 	RLWM.session .= 1
@@ -409,48 +291,6 @@ end
 let
 	save_to_JSON(RLWM, "results/pilot7_WM.json")
 	CSV.write("results/pilot7_WM.csv", RLWM)
-end
-
-# ╔═╡ 2d860d01-17af-46df-909b-54faca2d2fe4
-# Visualize seuqnce
-let task = RLWM
-
-	f = Figure(size = (700, 300))
-
-	# Proportion of confusing by trial number
-	confusing_location = combine(
-		groupby(task, :appearance),
-		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
-	)
-
-	mp1 = data(confusing_location) * mapping(
-		:appearance => "Appearance", 
-		:feedback_confusing => "Prop. confusing feedback"
-	) * visual(ScatterLines)
-
-	plt1 = draw!(f[1,1], mp1)
-
-	# Plot confusing trials by block
-	fp = insertcols(
-		task,
-		:color => ifelse.(
-			task.feedback_common,
-			(task.valence .+ 1) .÷ 2,
-			fill(3, nrow(task))
-		)
-	)
-
-	# Plot confusing appearnce by triplet
-	mp = data(fp) * mapping(
-		:appearance => "Appearance",
-		:stimulus_group_id => "Triplet",
-		:color
-	) * visual(Heatmap)
-
-	draw!(f[1,2], mp, axis = (; yreversed = true))
-
-	f
-
 end
 
 # ╔═╡ 9e4e639f-c078-4000-9f01-63bded0dbd82
@@ -1108,12 +948,9 @@ end
 # ╠═05f25eb8-3a48-4d16-9837-84d1fdf5c806
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═f5916a9f-ddcc-4c03-9328-7dd76c4c74b2
-# ╠═6eec5cf5-5416-4158-a53f-5ea2b9c9e4a4
 # ╠═e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
-# ╠═25afe21f-71d2-45ca-b2db-5edf830a2d62
 # ╠═f9be1490-8e03-445f-b36e-d8ceff894751
 # ╠═eecaac0c-e051-4543-988c-e969de3a8567
-# ╠═2d860d01-17af-46df-909b-54faca2d2fe4
 # ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
