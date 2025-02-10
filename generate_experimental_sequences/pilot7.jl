@@ -82,6 +82,9 @@ begin
 	RLWM_shaping_n = 20
 end
 
+# ╔═╡ 6eadaa9d-5ed0-429b-b446-9cc7fbfb52dc
+length(categories)
+
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLWM(
 	categories::AbstractVector,
@@ -295,6 +298,425 @@ end
 
 # ╔═╡ 9e4e639f-c078-4000-9f01-63bded0dbd82
 md"""## PILT"""
+
+# ╔═╡ 6dc75f3f-7a69-428e-8db8-98e6a40b571b
+# PILT parameters
+begin
+	# PILT Parameters
+	PILT_blocks_per_valence = 10
+	PILT_trials_per_block = 10
+	
+	PILT_total_blocks = PILT_blocks_per_valence * 2
+	PILT_n_confusing = vcat([0, 0, 1, 1], fill(2, PILT_total_blocks ÷ 2 - 4)) # Per valence
+		
+	# Post-PILT test parameters
+	PILT_test_n_blocks = 2
+end
+
+# ╔═╡ 8e137a1d-5261-476d-9921-bc024f9b4382
+function has_consecutive_repeats(vec::Vector, n::Int = 3)
+    count = 1
+    for i in 2:length(vec)
+        if vec[i] == vec[i - 1]
+            count += 1
+            if count > n
+                return true
+            end
+        else
+            count = 1
+        end
+    end
+    return false
+end
+
+# ╔═╡ 57de85ad-4626-43e0-b7a0-54a70131eb83
+# Assign valence and set size per block
+PILT_block_attr = let random_seed = 5
+	
+	# # All combinations of set sizes and valence
+	block_attr = DataFrame(
+		block = repeat(1:PILT_total_blocks),
+		valence = repeat([1, -1], inner = PILT_blocks_per_valence),
+		fifty_high = fill(true, PILT_total_blocks)
+	)
+
+	# Shuffle set size and valence, making sure valence is varied, and positive in the first block and any time noise is introduced, and shaping doesn't extend too far into the task
+	rng = Xoshiro(random_seed)
+
+	first_three_same = true
+	first_block_punishement = true
+	too_many_repeats = true
+	first_confusing_punishment = true
+	shaping_too_long = true
+	while first_three_same || first_block_punishement || too_many_repeats ||
+		first_confusing_punishment || shaping_too_long
+
+		DataFrames.transform!(
+			block_attr,
+			:block => (x -> shuffle(rng, x)) => :block
+		)
+		
+		sort!(block_attr, :block)
+
+		# Add n_confusing
+		DataFrames.transform!(
+			groupby(block_attr, :valence),
+			:block => (x -> PILT_n_confusing) => :n_confusing
+		)
+
+		# Compute criterion variables
+		first_three_same = allequal(block_attr[1:3, :valence])
+		
+		first_block_punishement = block_attr.valence[1] == -1
+
+		too_many_repeats = has_consecutive_repeats(block_attr.valence)
+
+		first_confusing_punishment = 
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 1)] == -1) |
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 2)] == -1)
+
+		shaping_too_long = 
+			!all(block_attr.n_confusing[11:end] .== maximum(PILT_n_confusing))
+	end
+
+	# Return
+	block_attr
+end
+
+# ╔═╡ 10ee1c0b-46ef-4ec5-8bf7-23ca95cf1e57
+# Create feedback sequences per pair
+PILT_sequences, common_per_pos, EV_per_pos = 
+	let random_seed = 2
+	
+	# Compute how much we need of each sequence category
+	n_confusing_wanted = combine(
+		groupby(PILT_block_attr, [:n_confusing, :fifty_high]),
+		:block => length => :n
+	)
+	
+	# Generate all sequences and compute FI
+	FI_seqs = [compute_save_FIs_for_all_seqs(;
+		n_trials = 10,
+		n_confusing = r.n_confusing,
+		fifty_high = r.fifty_high,
+		model = single_p_QL_recip,
+		model_name = "QL_recip",
+		unpack_function = unpack_single_p_QL,
+		prop_fifty = 0.2,
+	) for r in eachrow(n_confusing_wanted)]
+
+	# Unpack results
+	common_seqs = [x[2] for x in FI_seqs]
+	magn_seqs = [x[3] for x in FI_seqs]
+
+	# # Choose sequences optimizing FI under contraints
+	chosen_idx, common_per_pos, EV_per_pos = optimize_FI_distribution(
+		n_wanted = n_confusing_wanted.n,
+		FIs = [x[1] for x in FI_seqs],
+		common_seqs = common_seqs,
+		magn_seqs = magn_seqs,
+		ω_FI = .15,
+		constrain_pairs = false,
+		filename = "results/exp_sequences/pilot7_opt.jld2"
+	)
+
+	@assert length(vcat(chosen_idx...)) == nrow(PILT_block_attr) "Number of saved optimize sequences does not match number of sequences needed. Delete file and rerun."
+
+	# Shuffle chosen sequences
+	rng = Xoshiro(random_seed)
+	shuffle!.(rng, chosen_idx)
+
+	# Unpack chosen sequences
+	chosen_common = [[common_seqs[s][idx[1]] for idx in chosen_idx[s]]
+		for s in eachindex(common_seqs)]
+
+	chosen_magn = [[magn_seqs[s][idx[2]] for idx in chosen_idx[s]]
+		for s in eachindex(magn_seqs)]
+
+	# Repack into DataFrame	
+	n_sequences = sum(length.(chosen_common))
+	task = DataFrame(
+		idx = repeat(1:n_sequences, inner = PILT_trials_per_block),
+		sequence = repeat(vcat([1:length(x) for x in chosen_common]...), 
+			inner = PILT_trials_per_block),
+		trial = repeat(1:PILT_trials_per_block, n_sequences),
+		feedback_common = vcat(vcat(chosen_common...)...),
+		variable_magnitude = vcat(vcat(chosen_magn...)...)
+	)
+
+	# Create n_confusing and fifty_high varaibles
+	DataFrames.transform!(
+		groupby(task, :idx),
+		:feedback_common => (x -> PILT_trials_per_block - sum(x)) => :n_confusing,
+		:variable_magnitude => (x -> 1. in x) => :fifty_high
+	)
+
+	# Add sequnces variable to PILT_block_attr
+	DataFrames.transform!(
+		groupby(PILT_block_attr, [:n_confusing, :fifty_high]),
+		:block => (x -> shuffle(rng, 1:length(x))) => :sequence
+	)
+
+
+	# Combine with block attributes
+	task = innerjoin(
+		task,
+		PILT_block_attr,
+		on = [:n_confusing, :fifty_high, :sequence],
+		order = :left
+	)
+
+
+	@assert nrow(task) == length(vcat(vcat(chosen_common...)...)) "Problem with join operation"
+	@assert nrow(unique(task[!, [:block]])) == PILT_total_blocks "Problem with join operation"
+		
+	@assert mean(task.fifty_high) == 1. "Proportion of blocks with 50 pence in high magnitude option expected to be 1."
+
+	# Sort by block
+	sort!(task, [:block, :trial])
+
+	# Remove auxillary variables
+	select!(task, Not([:sequence, :idx]))
+
+	# Compute low and high feedback
+	task.feedback_high = ifelse.(
+		task.valence .> 0,
+		ifelse.(
+			task.fifty_high,
+			task.variable_magnitude,
+			fill(1., nrow(task))
+		),
+		ifelse.(
+			task.fifty_high,
+			fill(-0.01, nrow(task)),
+			.- task.variable_magnitude
+		)
+	)
+
+	task.feedback_low = ifelse.(
+		task.valence .> 0,
+		ifelse.(
+			.!task.fifty_high,
+			task.variable_magnitude,
+			fill(0.01, nrow(task))
+		),
+		ifelse.(
+			.!task.fifty_high,
+			fill(-1, nrow(task)),
+			.- task.variable_magnitude
+		)
+	)
+
+	# Compute feedback optimal and suboptimal
+	task.feedback_optimal = ifelse.(
+		task.feedback_common,
+		task.feedback_high,
+		task.feedback_low
+	)
+
+	task.feedback_suboptimal = ifelse.(
+		.!task.feedback_common,
+		task.feedback_high,
+		task.feedback_low
+	)
+
+	task, common_per_pos, EV_per_pos
+end
+
+# ╔═╡ 3fb28c3e-4fe1-4476-9362-6bb8d69db60f
+# Assign stimulus images
+PILT_stimuli = let random_seed = 0
+
+	# Shuffle categories
+	shuffle!(Xoshiro(random_seed), categories)
+
+	@info length(categories)
+
+	# Assign stimulus pairs
+	stimuli = assign_stimuli_and_optimality(;
+		n_phases = 1,
+		n_pairs = fill(1, PILT_total_blocks),
+		categories = categories,
+		random_seed = random_seed
+	)
+
+	@info "Proportion of blocks on which the novel category is optimal : $(mean(stimuli.optimal_A))"
+
+	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+
+	stimuli
+end
+
+# ╔═╡ 52c5560f-ac07-44f3-b8ba-42940d10c600
+# Add stimulus assignments to sequences DataFrame, and assign right / left
+PILT_task = let random_seed = 1
+
+	# Join stimuli and sequences
+	task = innerjoin(
+		vcat(
+			insertcols(PILT_sequences, 1, :session => 1), 
+			insertcols(PILT_sequences, 1, :session => 2)),
+		PILT_stimuli,
+		on = [:session, :block],
+		order = :left
+	)
+
+	@assert nrow(task) == nrow(PILT_sequences)  "Problem in join operation"
+
+	# Assign right / left, equal proportions within each pair
+	rng = Xoshiro(random_seed)
+
+	DataFrames.transform!(
+		groupby(task, [:session, :block]),
+		:block => 
+			(x -> shuffled_fill([true, false], length(x); rng = rng)) =>
+			:A_on_right
+	)
+
+	# Create stimulus_right and stimulus_left variables
+	task.stimulus_right = ifelse.(
+		task.A_on_right,
+		task.stimulus_A,
+		task.stimulus_B
+	)
+
+	task.stimulus_left = ifelse.(
+		.!task.A_on_right,
+		task.stimulus_A,
+		task.stimulus_B
+	)
+
+	# Create optimal_right variable
+	task.optimal_right = (task.A_on_right .& task.optimal_A) .| (.!task.A_on_right .& .!task.optimal_A)
+
+	# Create feedback_right and feedback_left variables
+	task.feedback_right = ifelse.(
+		task.optimal_right,
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	task.feedback_left = ifelse.(
+		.!task.optimal_right,
+		task.feedback_optimal,
+		task.feedback_suboptimal
+	)
+
+	# Add empty variables needed for experiment script
+	insertcols!(
+		task,
+		:n_stimuli => 2,
+		:n_groups => 1,
+		:stimulus_group => 1,
+		:stimulus_group_id => task.block,
+		:stimulus_middle => "",
+		:feedback_middle => "",
+		:optimal_side => "",
+		:present_pavlovian => true,
+		:early_stop => false
+	)
+
+	task
+end
+
+# ╔═╡ f5972e81-839b-4c83-b5d6-435a8dcfe83c
+# Validate task DataFrame
+let task = PILT_task
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert all(combine(groupby(task, :session), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	@assert all((task.variable_magnitude .== abs.(task.feedback_right)) .| 
+		(task.variable_magnitude .== abs.(task.feedback_left))) ":variable_magnitude, which is used for sequnece optimization, doesn't match end result column :feedback_right no :feedback_left"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence == -1, task) |> 
+		df -> ifelse.(
+			df.feedback_right .< df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+# ╔═╡ af7a2a50-ec27-481a-b998-8930b3e945d8
+let
+	save_to_JSON(PILT_task, "results/pilot7_PILT.json")
+	CSV.write("results/pilot7_PILT.csv", PILT_task)
+end
+
+# ╔═╡ 98ca19c7-a0b3-447a-984d-cae804e36513
+# Visualize PILT seuqnce
+let task = PILT_task
+
+	f = Figure(size = (700, 300))
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, [:session, :trial]),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	mp1 = data(confusing_location) * mapping(
+		:trial => "Trial", 
+		:feedback_confusing => "Prop. confusing feedback",
+		color = :session => nonnumeric => "Session",
+		group = :session => nonnumeric
+	) * visual(ScatterLines)
+
+	plt1 = draw!(f[1,1], mp1)
+
+	legend!(
+		f[1,1], 
+		plt1,
+		tellwidth = false,
+		tellheight = false,
+		valign = 1.2,
+		halign = 0.,
+		framevisible = false
+	)
+
+	# Plot confusing trials by block
+	fp = insertcols(
+		task,
+		:color => ifelse.(
+			task.feedback_common,
+			(task.valence .+ 1) .÷ 2,
+			fill(3, nrow(task))
+		)
+	)
+
+	for (i, s) in enumerate(unique(fp.session))
+		mp = data(filter(x -> x.session == s, fp)) * mapping(
+			:trial => "Trial",
+			:block => "Block",
+			:color
+		) * visual(Heatmap)
+
+		draw!(f[1,i+1], mp, axis = (; yreversed = true, subtitle = "Session $i"))
+	end
+	
+
+
+	save("results/pilot7_pilt_trial_plan.png", f, pt_per_unit = 1)
+
+	f
+
+end
 
 # ╔═╡ 85deb936-2204-4fe8-a0dd-a23f527f813d
 md"""## Post-PILT test"""
@@ -948,6 +1370,7 @@ end
 # ╠═05f25eb8-3a48-4d16-9837-84d1fdf5c806
 # ╠═c05d90b6-61a7-4f9e-a03e-3e11791da6d0
 # ╠═f5916a9f-ddcc-4c03-9328-7dd76c4c74b2
+# ╠═6eadaa9d-5ed0-429b-b446-9cc7fbfb52dc
 # ╠═e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
 # ╠═f9be1490-8e03-445f-b36e-d8ceff894751
 # ╠═eecaac0c-e051-4543-988c-e969de3a8567
@@ -955,6 +1378,15 @@ end
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
 # ╠═9e4e639f-c078-4000-9f01-63bded0dbd82
+# ╠═6dc75f3f-7a69-428e-8db8-98e6a40b571b
+# ╠═8e137a1d-5261-476d-9921-bc024f9b4382
+# ╠═57de85ad-4626-43e0-b7a0-54a70131eb83
+# ╠═10ee1c0b-46ef-4ec5-8bf7-23ca95cf1e57
+# ╠═3fb28c3e-4fe1-4476-9362-6bb8d69db60f
+# ╠═52c5560f-ac07-44f3-b8ba-42940d10c600
+# ╠═f5972e81-839b-4c83-b5d6-435a8dcfe83c
+# ╠═af7a2a50-ec27-481a-b998-8930b3e945d8
+# ╠═98ca19c7-a0b3-447a-984d-cae804e36513
 # ╠═85deb936-2204-4fe8-a0dd-a23f527f813d
 # ╠═2b7204c6-4fc6-41d2-b446-1c6bf75750b7
 # ╠═0089db22-38ad-4d9c-88a2-12b82361384f
