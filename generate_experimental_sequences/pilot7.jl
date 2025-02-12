@@ -80,6 +80,7 @@ end
 begin
 	RLWM_prop_fifty = 0.2
 	RLWM_shaping_n = 20
+	WM_test_n_blocks = 2
 end
 
 # ╔═╡ 6eadaa9d-5ed0-429b-b446-9cc7fbfb52dc
@@ -294,6 +295,230 @@ end
 let
 	save_to_JSON(RLWM, "results/pilot7_WM.json")
 	CSV.write("results/pilot7_WM.csv", RLWM)
+end
+
+# ╔═╡ 414c9032-6458-4ad4-bd95-e756d221912f
+md"""Post-WM test"""
+
+# ╔═╡ f486d436-006a-49e0-9f86-75c8bed2b04b
+RLWM 
+
+# ╔═╡ 20ae4c97-adfb-43ec-a10b-ac2bb657e7e0
+combine(groupby(RLWM, :stimulus_group_id),
+:trial => length => :n,
+	:delay => (x -> [sort((x))]) => :delay_range
+)
+
+# ╔═╡ 56fcba3a-da77-42a4-bf91-f5c0962bdbf4
+function prepare_for_finding_wm_test_sequence(
+	task::DataFrame;
+	stimulus_locations::Vector{String} = ["right", "middle", "left"]
+)
+
+	# Extract stimuli and their common feedback from task structure
+	stimuli = vcat([rename(
+		task[task.feedback_common, [:session, :block, :n_groups, :stimulus_group_id,  Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in stimulus_locations]...)
+
+	# Summarize magnitude per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :block, :n_groups, :stimulus_group_id, :stimulus]),
+		:feedback => (x -> mean(unique(x))) => :magnitude
+	)
+
+	# Create Dict of unique stimuli by magnitude
+	magnitudes = unique(stimuli.magnitude)
+	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus) for m in magnitudes)
+
+	#  Define existing pairs
+	pairer(v) = [[v[i], v[j]] for i in 1:length(v) for j in i+1:length(v)]
+	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus) 
+		for p in unique(stimuli.stimulus_group_id)]...)
+
+	existing_pairs = create_pair_list(stimuli)
+
+	existing_pairs = sort.(existing_pairs)
+
+	return stimuli_magnitude, existing_pairs
+
+end
+
+# ╔═╡ b514eb90-a26c-4c44-82ce-d0d962fc940a
+function create_wm_test_pairs(stimuli::Dict{Float64, Vector{String}}, 
+                            existing_pairs::Vector{Vector{String}}, 
+                            target_n_different::Int64, 
+                            target_n_same::Int64)
+
+	@assert all(issorted.(existing_pairs)) "Pairs not sorted within `existing_pairs`"
+        
+    # Extract unique magnitude values
+    magnitudes = collect(keys(stimuli))
+    
+    # Initialize storage for results
+    new_pairs = DataFrame(stimulus_A = String[], stimulus_B = String[],
+                          magnitude_A = Float64[], magnitude_B = Float64[])
+    
+    # Track stimulus usage
+    stim_usage = Dict(s => 0 for m in magnitudes for s in stimuli[m])
+    
+    # Function to sample a pair of stimuli from given magnitude categories
+    function sample_pair(mag1, mag2)
+        available_stim1 = sort(stimuli[mag1], by=s -> stim_usage[s])
+        available_stim2 = sort(stimuli[mag2], by=s -> stim_usage[s])
+        
+        for stim1 in available_stim1, stim2 in available_stim2
+            if stim1 != stim2 && !(sort([stim1, stim2]) in existing_pairs)
+                return stim1, stim2
+            end
+        end
+        return rand(available_stim1), rand(available_stim2)
+    end
+    
+    # Generate different-magnitude pairs
+    for (i, mag1) in enumerate(magnitudes), mag2 in magnitudes[i+1:end]
+        for _ in 1:target_n_different
+            stim1, stim2 = sample_pair(mag1, mag2)
+            push!(new_pairs, (stim1, stim2, mag1, mag2))
+            push!(existing_pairs, sort([stim1, stim2]))
+            stim_usage[stim1] += 1
+            stim_usage[stim2] += 1
+        end
+    end
+    
+    # Generate same-magnitude pairs
+    for mag in magnitudes
+        if length(stimuli[mag]) > 1  # Ensure at least two stimuli exist
+            for _ in 1:target_n_same
+                stim1, stim2 = sample_pair(mag, mag)
+                push!(new_pairs, (stim1, stim2, mag, mag))
+                push!(existing_pairs, sort([stim1, stim2]))
+                stim_usage[stim1] += 1
+                stim_usage[stim2] += 1
+            end
+        end
+    end
+    
+    return new_pairs
+end
+
+
+# ╔═╡ a8fb4243-2bd2-4ca4-b936-842d423c55e6
+# Create WM test sequence
+RLWM_test = let rng = Xoshiro(0)
+
+	# Process WM sequence to be able to find test pairs
+	stimuli_magnitude, existing_pairs = prepare_for_finding_wm_test_sequence(
+		RLWM
+	)
+
+	# Find test pairs
+	RLWM_test = create_wm_test_pairs(stimuli_magnitude, 
+						existing_pairs, 
+						60, 
+						20)
+
+	# Shuffle
+	RLWM_test.trial = shuffle(rng, 1:nrow(RLWM_test))
+
+	sort!(RLWM_test, :trial)
+
+	# Add needed variables
+	insertcols!(
+		RLWM_test,
+		1,
+		:session => 1,
+		:block => 1,
+		:original_block_right => 1,
+		:original_block_left => 1,
+		:same_block => true,
+		:valence_left => 1,
+		:valence_right => 1
+	)
+
+	# Add magnitude pair variable
+	RLWM_test.magnitude_pair = [sort([r.magnitude_A, r.magnitude_B]) for r in eachrow(RLWM_test)]
+
+
+	# Assign left / right
+	DataFrames.transform!(
+		groupby(RLWM_test, :magnitude_pair),
+		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
+	)
+
+	RLWM_test.stimulus_right = ifelse.(
+		RLWM_test.A_on_right,
+		RLWM_test.stimulus_A,
+		RLWM_test.stimulus_B
+	)
+
+	RLWM_test.stimulus_left = ifelse.(
+		.!RLWM_test.A_on_right,
+		RLWM_test.stimulus_A,
+		RLWM_test.stimulus_B
+	)
+
+	RLWM_test.magnitude_right = ifelse.(
+		RLWM_test.A_on_right,
+		RLWM_test.magnitude_A,
+		RLWM_test.magnitude_B
+	)
+
+	RLWM_test.magnitude_left = ifelse.(
+		.!RLWM_test.A_on_right,
+		RLWM_test.magnitude_A,
+		RLWM_test.magnitude_B
+	)
+
+
+	RLWM_test
+
+end
+
+# ╔═╡ 16711c7d-4548-4ea3-b7fb-019d2fe80827
+# Tests for RLWM_test
+let
+	# Test even distribution of stimuli appearances
+	long_test = vcat(
+		select(
+			RLWM_test,
+			:stimulus_A => :stimulus,
+			:magnitude_A => :magnitude
+		),
+		select(
+			RLWM_test,
+			:stimulus_B => :stimulus,
+			:magnitude_B => :magnitude
+		)
+	)
+
+	test_n = combine(
+		groupby(
+			long_test,
+			:stimulus
+		),
+		:stimulus => length => :n,
+		:magnitude => unique => :magnitude
+	)
+
+	@assert all(combine(
+		groupby(
+			test_n,
+			:magnitude
+		),
+		:n => (x -> (maximum(x) - minimum(x)) == 1) => :n_diff
+	).n_diff) "Number of appearances for each stimulus not balanced"
+
+	# Test left right counterbalancing of magnitude
+	@assert mean(RLWM_test.magnitude_left) == mean(RLWM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
+
+end
+
+# ╔═╡ dbed9ea8-da67-41e9-8cfa-42dac8712dfc
+let
+	save_to_JSON(RLWM_test, "results/pilot7_WM_test.json")
+	CSV.write("results/pilot7_WM_test.csv", RLWM_test)
 end
 
 # ╔═╡ 9e4e639f-c078-4000-9f01-63bded0dbd82
@@ -985,6 +1210,20 @@ let
 	CSV.write("results/pilot7_PILT_test.csv", PILT_test)
 end
 
+# ╔═╡ cbe8ce1d-b48b-4396-b924-551ce8bbfc14
+let
+	cat_extract = x -> split(x, "_")[1]
+	
+	vcat(
+		cat_extract.(RLWM.stimulus_A),
+		cat_extract.(RLWM.stimulus_B),
+		cat_extract.(RLWM.stimulus_C),
+		cat_extract.(PILT_task.stimulus_A),
+		cat_extract.(PILT_task.stimulus_B)
+	) |> unique |> length
+
+end
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
@@ -1000,6 +1239,14 @@ end
 # ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
+# ╠═414c9032-6458-4ad4-bd95-e756d221912f
+# ╠═f486d436-006a-49e0-9f86-75c8bed2b04b
+# ╠═20ae4c97-adfb-43ec-a10b-ac2bb657e7e0
+# ╠═a8fb4243-2bd2-4ca4-b936-842d423c55e6
+# ╠═16711c7d-4548-4ea3-b7fb-019d2fe80827
+# ╠═dbed9ea8-da67-41e9-8cfa-42dac8712dfc
+# ╠═56fcba3a-da77-42a4-bf91-f5c0962bdbf4
+# ╠═b514eb90-a26c-4c44-82ce-d0d962fc940a
 # ╠═9e4e639f-c078-4000-9f01-63bded0dbd82
 # ╠═6dc75f3f-7a69-428e-8db8-98e6a40b571b
 # ╠═8e137a1d-5261-476d-9921-bc024f9b4382
@@ -1016,3 +1263,4 @@ end
 # ╠═0089db22-38ad-4d9c-88a2-12b82361384f
 # ╠═6dff1b52-b0f0-4895-89d3-f732791e11c5
 # ╠═62ca4f41-0b0d-4125-a85b-0a9752714d64
+# ╠═cbe8ce1d-b48b-4396-b924-551ce8bbfc14
