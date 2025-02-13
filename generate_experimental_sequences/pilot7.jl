@@ -300,15 +300,6 @@ end
 # ╔═╡ 414c9032-6458-4ad4-bd95-e756d221912f
 md"""Post-WM test"""
 
-# ╔═╡ f486d436-006a-49e0-9f86-75c8bed2b04b
-RLWM 
-
-# ╔═╡ 20ae4c97-adfb-43ec-a10b-ac2bb657e7e0
-combine(groupby(RLWM, :stimulus_group_id),
-:trial => length => :n,
-	:delay => (x -> [sort((x))]) => :delay_range
-)
-
 # ╔═╡ 56fcba3a-da77-42a4-bf91-f5c0962bdbf4
 function prepare_for_finding_wm_test_sequence(
 	task::DataFrame;
@@ -434,7 +425,8 @@ RLWM_test = let rng = Xoshiro(0)
 		:original_block_left => 1,
 		:same_block => true,
 		:valence_left => 1,
-		:valence_right => 1
+		:valence_right => 1,
+		:same_valence => true
 	)
 
 	# Add magnitude pair variable
@@ -469,6 +461,19 @@ RLWM_test = let rng = Xoshiro(0)
 		.!RLWM_test.A_on_right,
 		RLWM_test.magnitude_A,
 		RLWM_test.magnitude_B
+	)
+
+	# Add feedback_right and feedback_left variables - these determine the coins added to the safe for the trial
+	RLWM_test.feedback_right = ifelse.(
+		RLWM_test.magnitude_right .== 0.75,
+		fill(1., nrow(RLWM_test)),
+		fill(0.01, nrow(RLWM_test))
+	)
+
+	RLWM_test.feedback_left = ifelse.(
+		RLWM_test.magnitude_left .== 0.75,
+		fill(1., nrow(RLWM_test)),
+		fill(0.01, nrow(RLWM_test))
 	)
 
 
@@ -1195,6 +1200,11 @@ PILT_test = let task = PILT_task
 	# Create magnitude_pair variable
 	PILT_test.magnitude_pair = [sort([r.magnitude_left, r.magnitude_right]) for r in eachrow(PILT_test)]
 
+	# Create feedback_right and feedback_left variables - these determine coins given on this trial
+	PILT_test.feedback_left = (x -> abs(x) == 0.01 ? x : sign(x)).(PILT_test.magnitude_left)
+
+	PILT_test.feedback_right = (x -> abs(x) == 0.01 ? x : sign(x)).(PILT_test.magnitude_right)
+
 	PILT_test
 end
 
@@ -1240,8 +1250,6 @@ end
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
 # ╠═414c9032-6458-4ad4-bd95-e756d221912f
-# ╠═f486d436-006a-49e0-9f86-75c8bed2b04b
-# ╠═20ae4c97-adfb-43ec-a10b-ac2bb657e7e0
 # ╠═a8fb4243-2bd2-4ca4-b936-842d423c55e6
 # ╠═16711c7d-4548-4ea3-b7fb-019d2fe80827
 # ╠═dbed9ea8-da67-41e9-8cfa-42dac8712dfc
