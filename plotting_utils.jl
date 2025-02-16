@@ -133,6 +133,66 @@ function workshop_reliability_scatter!(
 
 end
 
+function RLDM_reliability_scatter!(
+	f::GridPosition;
+	df::AbstractDataFrame,
+	xlabel::AbstractString,
+	ylabel::AbstractString,
+	xcol::Symbol = :x,
+	ycol::Symbol = :y,
+	subtitle::AbstractString = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+	correct_r::Bool = true, # Whether to apply Spearman Brown
+	markersize::Int64 = 3 * 4/3
+)	
+
+    inch = 96
+    pt = 4/3
+    cm = inch / 2.54
+    
+	# Compute correlation
+	r = cor(df[!, xcol], df[!, ycol])
+	
+	# Spearman-Brown correction
+	if correct_r
+		r = spearman_brown(r)
+	end
+
+	# Text
+	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
+
+	# Plot
+	mp = data(df) *
+			mapping(xcol, ycol) *
+			(visual(Scatter; markersize = markersize) + linear()) +
+		mapping([0], [1]) *
+			visual(ABLines, linestyle = :dash, color = :gray70)
+	
+	draw!(f, mp; axis=(;
+		xlabel = xlabel, 
+		ylabel = ylabel,
+        xticklabelsize = 5pt,
+        yticklabelsize = 5pt,
+		xtickformat = tickformat,
+		ytickformat = tickformat,
+		subtitle = subtitle
+	))
+
+	if r > 0
+		Label(
+			f,
+			r_text,
+			fontsize = 7pt,
+			font = :bold,
+			halign = 0.975,
+			valign = 0.025,
+			tellheight = false,
+			tellwidth = false
+		)
+	end
+
+end
+
 # Plot unit line
 unit_line!(ax; color = :grey, linestyle = :dash, linewidth = 2) = ablines!(
 	0., 
