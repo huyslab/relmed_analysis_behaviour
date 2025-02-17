@@ -509,6 +509,45 @@ function safe_median(arr)
 	end
 end
 
+function prepare_max_press_data(data::DataFrame)
+	# Define required columns for vigour data
+	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(data))
+            insertcols!(data, col => missing)
+        end
+    end
+
+	# Prepare vigour data
+	max_press_data = data |>
+		x -> select(x, 
+			:prolific_pid,
+			:record_id,
+			:version,
+			:exp_start_time,
+			:session,
+			:trialphase,
+			:trial_number,
+			:trial_duration,
+			:avgSpeed => :avg_speed,
+			:responseTime,
+			:trialPresses => :trial_presses
+		) |>
+		x -> subset(x, 
+				[:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["max_press_rate"]) || (!ismissing(y)))
+		) |>
+		x -> DataFrames.transform(x,
+			:responseTime => ByRow(JSON.parse) => :response_times
+		) |>
+		x -> select(x, 
+			Not([:responseTime])
+		)
+		max_press_data = exclude_double_takers!(max_press_data)
+	return max_press_data
+end
+
 function prepare_vigour_data(data::DataFrame)
 	# Define required columns for vigour data
 	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
