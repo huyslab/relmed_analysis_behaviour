@@ -572,6 +572,7 @@ function prepare_max_press_data(data::DataFrame)
 
 	# Prepare vigour data
 	max_press_data = data |>
+		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			:prolific_pid,
 			:record_id,
