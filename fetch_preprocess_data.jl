@@ -470,19 +470,19 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	end
 
 	# Compute chosen stimulus
-	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", nothing]) "Unexected responses in PILT test data"
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
 	
 	test_data.chosen_stimulus = ifelse.(
-		test_data.response .== "ArrowRight",
+		test_data.response .== "ArrowRight" .| test_data.response .== "right",
 		test_data.stimulus_right,
 		ifelse.(
-			test_data.response .== "ArrowLeft",
+			test_data.response .== "ArrowLeft" .| test_data.response .== "left",
 			test_data.stimulus_left,
 			missing
 		)
 	)
 
-	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "ArrowLeft" => false, "null" => missing), x, missing)).(test_data.response)
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
 
 	return test_data
 
