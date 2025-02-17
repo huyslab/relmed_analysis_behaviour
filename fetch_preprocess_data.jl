@@ -473,10 +473,10 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
 	
 	test_data.chosen_stimulus = ifelse.(
-		test_data.response .== "ArrowRight" .| test_data.response .== "right",
+		test_data.response .∈ (["ArrowRight", "right"],),
 		test_data.stimulus_right,
 		ifelse.(
-			test_data.response .== "ArrowLeft" .| test_data.response .== "left",
+			test_data.response .∈ (["ArrowLeft", "left"],),
 			test_data.stimulus_left,
 			missing
 		)
