@@ -176,12 +176,13 @@ function load_pilot7_data(; force_download = false, return_version = "6.01")
 	PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Exctract reversal
-	reversal_data = prepare_reversal_data(jspsych_data)
+	# No reversal task in Pilot7
+	# reversal_data = prepare_reversal_data(jspsych_data)
 
 	# Extract max press rate data
 	max_press_data = prepare_max_press_data(jspsych_data)
 
-	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, reversal_data, max_press_data, jspsych_data
+	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data
 end
 
 function load_pilot6_data(; force_download = false, return_version = "6.01")
