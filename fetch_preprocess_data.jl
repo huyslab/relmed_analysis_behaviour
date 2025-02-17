@@ -471,19 +471,19 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	end
 
 	# Compute chosen stimulus
-	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", nothing]) "Unexected responses in PILT test data"
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
 	
 	test_data.chosen_stimulus = ifelse.(
-		test_data.response .== "ArrowRight",
+		test_data.response .∈ (["ArrowRight", "right"],),
 		test_data.stimulus_right,
 		ifelse.(
-			test_data.response .== "ArrowLeft",
+			test_data.response .∈ (["ArrowLeft", "left"],),
 			test_data.stimulus_left,
 			missing
 		)
 	)
 
-	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "ArrowLeft" => false, "null" => missing), x, missing)).(test_data.response)
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
 
 	return test_data
 
@@ -573,6 +573,7 @@ function prepare_max_press_data(data::DataFrame)
 
 	# Prepare vigour data
 	max_press_data = data |>
+		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			:prolific_pid,
 			:record_id,
