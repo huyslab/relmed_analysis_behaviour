@@ -119,7 +119,7 @@ remove_testing!(data::DataFrame) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|
 function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	# Select rows
-	PLT_data = filter(x -> x.trial_type == trial_type, data)
+	PLT_data = filter(x -> (x.trial_type == trial_type) && (x.trialphase != "PILT_test"), data)
 
 	# Select columns
 	PLT_data = PLT_data[:, Not(map(col -> all(ismissing, col), eachcol(PLT_data)))]

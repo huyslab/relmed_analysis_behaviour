@@ -56,6 +56,15 @@ begin
 end
   ╠═╡ =#
 
+# ╔═╡ 0be6fc30-dd80-4f08-97b6-4f4929a96ee0
+#=╠═╡
+let
+	a = filter(x -> !ismissing(x.trialphase) && (x.trialphase == "PILT_test"), jspsych_data)
+
+	unique(a.trial_type)
+end
+  ╠═╡ =#
+
 # ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 md""" ## Sanity checks"""
 
@@ -544,12 +553,12 @@ function summarize_participation(data::DataFrame)
 		:trialphase => (x -> "kick-out" in x) => :kick_out,
 		:outcomes => extract_PILT_bonus => :PILT_bonus,
 		:vigour_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :vigour_bonus,
-		[:trial_type, :block, :n_stimuli] => 
-			((t, b, n) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
+		[:trial_type, :trialphase, :block, :n_stimuli] => 
+			((t, p, b, n) -> sum((t .== "PILT") .& (.!ismissing.(p) .&& p .!= "PILT_test") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
 		[:trial_type, :block, :n_stimuli] => 
 			((t, b, n) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (n .== 3))) => :n_trial_WM,
-		[:block, :trial_type, :n_stimuli] => 
-			((x, t, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2)])))) => :n_blocks_PILT,
+		[:block, :trial_type, :trialphase, :n_stimuli] => 
+			((x, t, p, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2) .& (.!ismissing.(p) .&& p .!= "PILT_test")])))) => :n_blocks_PILT,
 		[:block, :trial_type, :n_stimuli] => 
 			((x, t, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 3)])))) => :n_blocks_WM,
 		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "vigour_trial"))) => :n_trials_vigour,
@@ -747,6 +756,7 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═e60b5430-adef-4f12-906c-9b70de436833
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+# ╠═0be6fc30-dd80-4f08-97b6-4f4929a96ee0
 # ╠═eeffa44e-a9e6-43dd-b47d-00670299e0f2
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
