@@ -52,7 +52,7 @@ md"""## Participant management"""
 # ╠═╡ skip_as_script = true
 #=╠═╡
 begin
-	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "6.01")
+	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "7.0")
 end
   ╠═╡ =#
 
@@ -65,7 +65,7 @@ md""" ### PILT"""
 # ╔═╡ 2ff04c44-5f86-4617-9a13-6d4228dff359
 #=╠═╡
 let
-	@assert sort(unique(PILT_data.response)) == sort(["right", "left", "noresp"]) "Unexpected values in response"
+	@assert all((x -> x in ["right", "left", "noresp"]).(unique(PILT_data.response))) "Unexpected values in response"
 	
 	@assert all(PILT_data.chosen_feedback .== ifelse.(
 		PILT_data.response .== "right",
@@ -130,7 +130,7 @@ md"""### WM"""
 # ╔═╡ 18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 #=╠═╡
 let
-	@assert sort(unique(WM_data.response)) == sort(["right", "middle", "left", "noresp"]) "Unexpected values in response"
+	@assert all((x -> x in ["right", "middle", "left", "noresp"]).(unique(WM_data.response))) "Unexpected values in response"
 	
 	@assert all(WM_data.chosen_feedback .== ifelse.(
 		WM_data.response .== "right",
@@ -718,14 +718,24 @@ function sanity_check_test(test_data_clean::DataFrame)
 		)
 	
 		sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
-	
+
+		if length(unique(test_data_clean.prolific_pid)) > 1
+			mp = mapping(
+				:magnitude_high => nonnumeric => "High magntidue",
+				:acc => "Prop. chosen high",
+				:se,
+				layout = :magnitude_low => nonnumeric
+			) * (visual(Errorbars) + visual(ScatterLines))
+		else
+			mp = mapping(
+				:magnitude_high => nonnumeric => "High magntidue",
+				:acc => "Prop. chosen high",
+				layout = :magnitude_low => nonnumeric
+			) * (visual(Scatter) + visual(ScatterLines))
+		end
+				
 		mp = data(test_sum_sum) *
-		mapping(
-			:magnitude_high => nonnumeric => "High magntidue",
-			:acc => "Prop. chosen high",
-			:se,
-			layout = :magnitude_low => nonnumeric
-		) * (visual(Errorbars) + visual(ScatterLines))
+			mp
 	
 		draw(mp)
 	end
