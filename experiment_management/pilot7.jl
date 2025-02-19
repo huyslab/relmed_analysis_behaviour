@@ -129,67 +129,6 @@ md"""### Post-PILT test"""
 test_data.response |> Set
   ╠═╡ =#
 
-# ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
-#=╠═╡
-let
-	# Select post-PILT test
-	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
-
-	@assert Set(test_data_clean.response) == 
-	Set(["right", "left", "noresp"]) "Unexpected values in respones: $(unique(test_data_clean.response))"
-
-	# Remove missing values
-	filter!(x -> !(x.response .== "noresp"), test_data_clean)
-
-	# Create magnitude high and low varaibles
-	test_data_clean.magnitude_high = maximum.(eachrow((hcat(
-		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
-
-	test_data_clean.magnitude_low = minimum.(eachrow((hcat(
-		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
-
-	# Create high_chosen variable
-	test_data_clean.high_chosen = ifelse.(
-		test_data_clean.right_chosen,
-		test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
-		test_data_clean.magnitude_left .== test_data_clean.magnitude_high
-	)
-
-	high_chosen_sum = combine(
-		groupby(test_data_clean, :prolific_pid),
-		:high_chosen => mean => :acc
-	)
-
-	@info "Proportion high magnitude chosen: 
-		$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
-
-	# Summarize by participant and magnitude
-	test_sum = combine(
-		groupby(test_data_clean, [:prolific_pid, :magnitude_low, :magnitude_high]),
-		:high_chosen => mean => :acc
-	)
-
-	test_sum_sum = combine(
-		groupby(test_sum, [:magnitude_low, :magnitude_high]),
-		:acc => mean => :acc,
-		:acc => sem => :se
-	)
-
-	sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
-
-	mp = data(test_sum_sum) *
-	mapping(
-		:magnitude_high => nonnumeric => "High magntidue",
-		:acc => "Prop. chosen high",
-		:se,
-		layout = :magnitude_low => nonnumeric
-	) * (visual(Errorbars) + visual(ScatterLines))
-
-	draw(mp)
-
-end
-  ╠═╡ =#
-
 # ╔═╡ 18956db1-4ad1-4881-a1e7-8362cf59f011
 md"""### WM"""
 
@@ -220,7 +159,7 @@ end
 #=╠═╡
 let
 	# Clean data
-	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 10)
+	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 1)
 	WM_data_clean = filter(x -> x.response != "noresp", WM_data_clean)
 
 	# Sumarrize by participant, trial, n_groups
@@ -741,6 +680,83 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ cd627424-5926-4c99-a515-1dc320d49c65
+function sanity_check_test(test_data_clean::DataFrame)
+		@assert Set(test_data_clean.response) in 
+		[Set(["right", "left", "noresp"]), Set(["right", "left"])] "Unexpected values in respones: $(unique(test_data_clean.response))"
+	
+		# Remove missing values
+		filter!(x -> !(x.response .== "noresp"), test_data_clean)
+	
+		# Create magnitude high and low varaibles
+		test_data_clean.magnitude_high = maximum.(eachrow((hcat(
+			test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+	
+		test_data_clean.magnitude_low = minimum.(eachrow((hcat(
+			test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+	
+		# Create high_chosen variable
+		test_data_clean.high_chosen = ifelse.(
+			test_data_clean.right_chosen,
+			test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
+			test_data_clean.magnitude_left .== test_data_clean.magnitude_high
+		)
+	
+		high_chosen_sum = combine(
+			groupby(filter(x -> x.magnitude_high != x.magnitude_low, test_data_clean), :prolific_pid),
+			:high_chosen => mean => :acc
+		)
+	
+		@info "Proportion high magnitude chosen: 
+			$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
+	
+		# Summarize by participant and magnitude
+		test_sum = combine(
+			groupby(test_data_clean, [:prolific_pid, :magnitude_low, :magnitude_high]),
+			:high_chosen => mean => :acc
+		)
+	
+		test_sum_sum = combine(
+			groupby(test_sum, [:magnitude_low, :magnitude_high]),
+			:acc => mean => :acc,
+			:acc => sem => :se
+		)
+	
+		sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
+	
+		mp = data(test_sum_sum) *
+		mapping(
+			:magnitude_high => nonnumeric => "High magntidue",
+			:acc => "Prop. chosen high",
+			:se,
+			layout = :magnitude_low => nonnumeric
+		) * (visual(Errorbars) + visual(ScatterLines))
+	
+		draw(mp)
+	end
+
+# ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
+#=╠═╡
+let
+	# Select post-PILT test
+	test_data_clean = filter(x -> isa(x.block, Int64) && (x.block < 6), test_data)
+
+	sanity_check_test(test_data_clean)
+
+end
+  ╠═╡ =#
+
+# ╔═╡ 9405f724-0fd7-40fe-85bc-bef22707e6fa
+#=╠═╡
+let
+	# Select post-WM test
+	test_data_clean = filter(x -> isa(x.block, Int64) && (x.block == 6), test_data)
+
+	sanity_check_test(test_data_clean)
+
+end
+  ╠═╡ =#
+
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
@@ -754,10 +770,11 @@ end
 # ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
-# ╟─176c54de-e84c-45e5-872e-2471e575776d
+# ╠═176c54de-e84c-45e5-872e-2471e575776d
+# ╠═9405f724-0fd7-40fe-85bc-bef22707e6fa
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
-# ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
-# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+# ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 # ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
@@ -774,3 +791,4 @@ end
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
+# ╠═cd627424-5926-4c99-a515-1dc320d49c65
