@@ -143,9 +143,6 @@ function load_pilot7_data(; force_download = false, return_version = "6.01")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records)
 
-		# Use "6.01" because in the experimental.html for pilot7 it's written as "6.01"
-		filter!(x -> x.version ∈ ["6.01"], jspsych_data)
-
 		remove_testing!(jspsych_data)
 
 		JLD2.@save datafile jspsych_data
@@ -171,28 +168,6 @@ function load_pilot7_data(; force_download = false, return_version = "6.01")
 
 	# Extract post-vigour test
 	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
-
-	# In Pilot7 the label for WM_test and PILT_test was the same
-	sort!(post_vigour_test_data, [:prolific_pid, :trial_index])
-
-	function replace_last_block!(vec, target, replacement)
-		rev_idx = findlast(==(target), vec)  # Find the last occurrence of the target
-		if rev_idx === nothing
-			return vec  # If target is not found, return the original vector
-		end
-		# Find the start of the last block of `target`
-		start_idx = rev_idx
-		while start_idx > 1 && vec[start_idx - 1] == target
-			start_idx -= 1
-		end
-		vec[start_idx:rev_idx] .= replacement  # Replace the block
-		return vec
-	end
-
-	DataFrames.transform!(
-		groupby(post_vigour_test_data, :prolific_pid),
-		:block => (x -> x[end] == 1 ? replace_last_block!(x, 1, 6) : x) => :block
-	)
 			
 	# Extract PIT
 	PIT_data = prepare_PIT_data(jspsych_data)
