@@ -122,12 +122,7 @@ end
   ╠═╡ =#
 
 # ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
-md"""### Post-PILT test"""
-
-# ╔═╡ 6244dd22-7c58-4e87-84ed-004b076bc4cb
-#=╠═╡
-test_data.response |> Set
-  ╠═╡ =#
+md"""### Post learning test phases"""
 
 # ╔═╡ 18956db1-4ad1-4881-a1e7-8362cf59f011
 md"""### WM"""
@@ -768,8 +763,7 @@ end
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
 # ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
-# ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
-# ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
+# ╠═2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╠═176c54de-e84c-45e5-872e-2471e575776d
 # ╠═9405f724-0fd7-40fe-85bc-bef22707e6fa
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
