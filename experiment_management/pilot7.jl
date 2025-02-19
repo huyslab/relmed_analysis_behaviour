@@ -558,10 +558,6 @@ function summarize_participation(data::DataFrame)
 			:vigour_average_presses,
 		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial"))) => 
 			:n_trials_pit,
-		[:trialphase, :block] => 
-			((t, b) -> length(unique(b[(.!ismissing.(t)) .&& (t .== "reversal")])) - 1) => :n_reversals,
-		[:trialphase, :block] => 
-			((t, b) -> length(b[(.!ismissing.(t)) .&& (t .== "reversal")])) => :n_trials_reversals,
 		:n_warnings => maximum => :n_warnings
 	)
 
@@ -754,8 +750,8 @@ end
 # ╠═eeffa44e-a9e6-43dd-b47d-00670299e0f2
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
-# ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
+# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
 # ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
 # ╟─176c54de-e84c-45e5-872e-2471e575776d
@@ -774,7 +770,7 @@ end
 # ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
 # ╟─8f6d8e98-6d73-4913-a02d-97525176549a
 # ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
-# ╟─dc957d66-1219-4a97-be46-c6c5c189c8ba
+# ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
