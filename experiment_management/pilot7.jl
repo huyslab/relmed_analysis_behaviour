@@ -389,6 +389,11 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
+#=╠═╡
+jspsych_data |> names
+  ╠═╡ =#
+
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
 """
     extract_debrief_responses(data::DataFrame) -> DataFrame
@@ -492,7 +497,8 @@ function summarize_participation(data::DataFrame)
 			:vigour_average_presses,
 		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial"))) => 
 			:n_trials_pit,
-		:n_warnings => maximum => :n_warnings
+		:n_warnings => maximum => :n_warnings,
+		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration
 	)
 
 	# Compute totla bonus
@@ -792,6 +798,7 @@ end
 # ╟─8f6d8e98-6d73-4913-a02d-97525176549a
 # ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
+# ╠═29d320df-c984-496a-8d81-6967dd72e964
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
