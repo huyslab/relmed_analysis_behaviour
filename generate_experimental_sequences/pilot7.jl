@@ -298,7 +298,7 @@ let
 end
 
 # ╔═╡ 414c9032-6458-4ad4-bd95-e756d221912f
-md"""Post-WM test"""
+md"""## Post-WM test"""
 
 # ╔═╡ 56fcba3a-da77-42a4-bf91-f5c0962bdbf4
 function prepare_for_finding_wm_test_sequence(
@@ -394,137 +394,6 @@ function create_wm_test_pairs(stimuli::Dict{Float64, Vector{String}},
     return new_pairs
 end
 
-
-# ╔═╡ a8fb4243-2bd2-4ca4-b936-842d423c55e6
-# Create WM test sequence
-RLWM_test = let rng = Xoshiro(0)
-
-	# Process WM sequence to be able to find test pairs
-	stimuli_magnitude, existing_pairs = prepare_for_finding_wm_test_sequence(
-		RLWM
-	)
-
-	# Find test pairs
-	RLWM_test = create_wm_test_pairs(stimuli_magnitude, 
-						existing_pairs, 
-						60, 
-						20)
-
-	# Shuffle
-	RLWM_test.trial = shuffle(rng, 1:nrow(RLWM_test))
-
-	sort!(RLWM_test, :trial)
-
-	# Add needed variables
-	insertcols!(
-		RLWM_test,
-		1,
-		:session => 1,
-		:block => 1,
-		:original_block_right => 1,
-		:original_block_left => 1,
-		:same_block => true,
-		:valence_left => 1,
-		:valence_right => 1,
-		:same_valence => true
-	)
-
-	# Add magnitude pair variable
-	RLWM_test.magnitude_pair = [sort([r.magnitude_A, r.magnitude_B]) for r in eachrow(RLWM_test)]
-
-
-	# Assign left / right
-	DataFrames.transform!(
-		groupby(RLWM_test, :magnitude_pair),
-		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
-	)
-
-	RLWM_test.stimulus_right = ifelse.(
-		RLWM_test.A_on_right,
-		RLWM_test.stimulus_A,
-		RLWM_test.stimulus_B
-	)
-
-	RLWM_test.stimulus_left = ifelse.(
-		.!RLWM_test.A_on_right,
-		RLWM_test.stimulus_A,
-		RLWM_test.stimulus_B
-	)
-
-	RLWM_test.magnitude_right = ifelse.(
-		RLWM_test.A_on_right,
-		RLWM_test.magnitude_A,
-		RLWM_test.magnitude_B
-	)
-
-	RLWM_test.magnitude_left = ifelse.(
-		.!RLWM_test.A_on_right,
-		RLWM_test.magnitude_A,
-		RLWM_test.magnitude_B
-	)
-
-	# Add feedback_right and feedback_left variables - these determine the coins added to the safe for the trial
-	RLWM_test.feedback_right = ifelse.(
-		RLWM_test.magnitude_right .== 0.75,
-		fill(1., nrow(RLWM_test)),
-		fill(0.01, nrow(RLWM_test))
-	)
-
-	RLWM_test.feedback_left = ifelse.(
-		RLWM_test.magnitude_left .== 0.75,
-		fill(1., nrow(RLWM_test)),
-		fill(0.01, nrow(RLWM_test))
-	)
-
-
-	RLWM_test
-
-end
-
-# ╔═╡ 16711c7d-4548-4ea3-b7fb-019d2fe80827
-# Tests for RLWM_test
-let
-	# Test even distribution of stimuli appearances
-	long_test = vcat(
-		select(
-			RLWM_test,
-			:stimulus_A => :stimulus,
-			:magnitude_A => :magnitude
-		),
-		select(
-			RLWM_test,
-			:stimulus_B => :stimulus,
-			:magnitude_B => :magnitude
-		)
-	)
-
-	test_n = combine(
-		groupby(
-			long_test,
-			:stimulus
-		),
-		:stimulus => length => :n,
-		:magnitude => unique => :magnitude
-	)
-
-	@assert all(combine(
-		groupby(
-			test_n,
-			:magnitude
-		),
-		:n => (x -> (maximum(x) - minimum(x)) == 1) => :n_diff
-	).n_diff) "Number of appearances for each stimulus not balanced"
-
-	# Test left right counterbalancing of magnitude
-	@assert mean(RLWM_test.magnitude_left) == mean(RLWM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
-
-end
-
-# ╔═╡ dbed9ea8-da67-41e9-8cfa-42dac8712dfc
-let
-	save_to_JSON(RLWM_test, "results/pilot7_WM_test.json")
-	CSV.write("results/pilot7_WM_test.csv", RLWM_test)
-end
 
 # ╔═╡ 9e4e639f-c078-4000-9f01-63bded0dbd82
 md"""## PILT"""
@@ -1206,6 +1075,159 @@ PILT_test = let task = PILT_task
 	PILT_test.feedback_right = (x -> abs(x) == 0.01 ? x : sign(x)).(PILT_test.magnitude_right)
 
 	PILT_test
+end
+
+# ╔═╡ a8fb4243-2bd2-4ca4-b936-842d423c55e6
+# Create WM test sequence
+RLWM_test = let rng = Xoshiro(0)
+
+	# Process WM sequence to be able to find test pairs
+	stimuli_magnitude, existing_pairs = prepare_for_finding_wm_test_sequence(
+		RLWM
+	)
+
+	# Find test pairs
+	RLWM_test = create_wm_test_pairs(stimuli_magnitude, 
+						existing_pairs, 
+						60, 
+						20)
+
+	# Shuffle
+	RLWM_test.trial = shuffle(rng, 1:nrow(RLWM_test))
+
+	sort!(RLWM_test, :trial)
+
+	# Add needed variables
+	insertcols!(
+		RLWM_test,
+		1,
+		:session => 1,
+		:block => 1,
+		:original_block_right => 1,
+		:original_block_left => 1,
+		:same_block => true,
+		:valence_left => 1,
+		:valence_right => 1,
+		:same_valence => true
+	)
+
+	# Add magnitude pair variable
+	RLWM_test.magnitude_pair = [sort([r.magnitude_A, r.magnitude_B]) for r in eachrow(RLWM_test)]
+
+
+	# Assign left / right
+	DataFrames.transform!(
+		groupby(RLWM_test, :magnitude_pair),
+		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
+	)
+
+	RLWM_test.stimulus_right = ifelse.(
+		RLWM_test.A_on_right,
+		RLWM_test.stimulus_A,
+		RLWM_test.stimulus_B
+	)
+
+	RLWM_test.stimulus_left = ifelse.(
+		.!RLWM_test.A_on_right,
+		RLWM_test.stimulus_A,
+		RLWM_test.stimulus_B
+	)
+
+	RLWM_test.magnitude_right = ifelse.(
+		RLWM_test.A_on_right,
+		RLWM_test.magnitude_A,
+		RLWM_test.magnitude_B
+	)
+
+	RLWM_test.magnitude_left = ifelse.(
+		.!RLWM_test.A_on_right,
+		RLWM_test.magnitude_A,
+		RLWM_test.magnitude_B
+	)
+
+	# Add feedback_right and feedback_left variables - these determine the coins added to the safe for the trial
+	RLWM_test.feedback_right = ifelse.(
+		RLWM_test.magnitude_right .== 0.75,
+		fill(1., nrow(RLWM_test)),
+		fill(0.01, nrow(RLWM_test))
+	)
+
+	RLWM_test.feedback_left = ifelse.(
+		RLWM_test.magnitude_left .== 0.75,
+		fill(1., nrow(RLWM_test)),
+		fill(0.01, nrow(RLWM_test))
+	)
+
+	RLWM_test.block .+= maximum(PILT_test.block)
+
+
+	RLWM_test
+
+end
+
+# ╔═╡ 16711c7d-4548-4ea3-b7fb-019d2fe80827
+# Tests for RLWM_test
+let
+	# Test even distribution of stimuli appearances
+	long_test = vcat(
+		select(
+			RLWM_test,
+			:stimulus_A => :stimulus,
+			:magnitude_A => :magnitude
+		),
+		select(
+			RLWM_test,
+			:stimulus_B => :stimulus,
+			:magnitude_B => :magnitude
+		)
+	)
+
+	test_n = combine(
+		groupby(
+			long_test,
+			:stimulus
+		),
+		:stimulus => length => :n,
+		:magnitude => unique => :magnitude
+	)
+
+	@assert all(combine(
+		groupby(
+			test_n,
+			:magnitude
+		),
+		:n => (x -> (maximum(x) - minimum(x)) == 1) => :n_diff
+	).n_diff) "Number of appearances for each stimulus not balanced"
+
+	# Test left right counterbalancing of magnitude
+	@assert mean(RLWM_test.magnitude_left) == mean(RLWM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
+
+	# Make sure all stimuli are in RLWM
+	test_stimuli = unique(
+		vcat(
+			RLWM_test.stimulus_left,
+			RLWM_test.stimulus_right
+		)
+	)
+
+	RLWM_stimuli =  unique(
+		vcat(
+			RLWM.stimulus_left,
+			RLWM.stimulus_right
+		)
+	)
+
+	@assert all((x -> x in RLWM_stimuli).(test_stimuli)) "Test stimuli not in RLWM sequence"
+
+	@assert all((x -> x in test_stimuli).(RLWM_stimuli)) "Not all RLWM stimuli appear in test"
+
+
+end
+
+# ╔═╡ dbed9ea8-da67-41e9-8cfa-42dac8712dfc
+let
+	save_to_JSON(RLWM_test, "results/pilot7_WM_test.json")
+	CSV.write("results/pilot7_WM_test.csv", RLWM_test)
 end
 
 # ╔═╡ 5a37f9d4-9c27-456e-b9f0-8601dbfee7ca

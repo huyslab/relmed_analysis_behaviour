@@ -1,20 +1,8 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
-
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
 
 # ╔═╡ 237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 begin
@@ -61,9 +49,12 @@ end
 md"""## Participant management"""
 
 # ╔═╡ e60b5430-adef-4f12-906c-9b70de436833
+# ╠═╡ skip_as_script = true
+#=╠═╡
 begin
-	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "6.01")
+	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "7.0")
 end
+  ╠═╡ =#
 
 # ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 md""" ## Sanity checks"""
@@ -72,8 +63,9 @@ md""" ## Sanity checks"""
 md""" ### PILT"""
 
 # ╔═╡ 2ff04c44-5f86-4617-9a13-6d4228dff359
+#=╠═╡
 let
-	@assert sort(unique(PILT_data.response)) == sort(["right", "left", "noresp"]) "Unexpected values in response"
+	@assert all((x -> x in ["right", "left", "noresp"]).(unique(PILT_data.response))) "Unexpected values in response"
 	
 	@assert all(PILT_data.chosen_feedback .== ifelse.(
 		PILT_data.response .== "right",
@@ -87,8 +79,10 @@ let
 
 
 end
+  ╠═╡ =#
 
 # ╔═╡ d0a2ba1e-8413-48f8-8bbc-542f3555a296
+#=╠═╡
 let
 	# Clean data
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
@@ -125,78 +119,18 @@ let
 	
 	draw(mp; legend = (; show = false))
 end
+  ╠═╡ =#
 
 # ╔═╡ 2897a681-e8dd-4091-a2a0-bd3d4cd23209
-md"""### Post-PILT test"""
-
-# ╔═╡ 6244dd22-7c58-4e87-84ed-004b076bc4cb
-test_data.response |> Set
-
-# ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
-let
-	# Select post-PILT test
-	test_data_clean = filter(x -> isa(x.block, Int64), test_data)
-
-	@assert Set(test_data_clean.response) == 
-	Set(["right", "left", "noresp"]) "Unexpected values in respones: $(unique(test_data_clean.response))"
-
-	# Remove missing values
-	filter!(x -> !(x.response .== "noresp"), test_data_clean)
-
-	# Create magnitude high and low varaibles
-	test_data_clean.magnitude_high = maximum.(eachrow((hcat(
-		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
-
-	test_data_clean.magnitude_low = minimum.(eachrow((hcat(
-		test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
-
-	# Create high_chosen variable
-	test_data_clean.high_chosen = ifelse.(
-		test_data_clean.right_chosen,
-		test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
-		test_data_clean.magnitude_left .== test_data_clean.magnitude_high
-	)
-
-	high_chosen_sum = combine(
-		groupby(test_data_clean, :prolific_pid),
-		:high_chosen => mean => :acc
-	)
-
-	@info "Proportion high magnitude chosen: 
-		$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
-
-	# Summarize by participant and magnitude
-	test_sum = combine(
-		groupby(test_data_clean, [:prolific_pid, :magnitude_low, :magnitude_high]),
-		:high_chosen => mean => :acc
-	)
-
-	test_sum_sum = combine(
-		groupby(test_sum, [:magnitude_low, :magnitude_high]),
-		:acc => mean => :acc,
-		:acc => sem => :se
-	)
-
-	sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
-
-	mp = data(test_sum_sum) *
-	mapping(
-		:magnitude_high => nonnumeric => "High magntidue",
-		:acc => "Prop. chosen high",
-		:se,
-		layout = :magnitude_low => nonnumeric
-	) * (visual(Errorbars) + visual(ScatterLines))
-
-	draw(mp)
-
-end
+md"""### Post learning test phases"""
 
 # ╔═╡ 18956db1-4ad1-4881-a1e7-8362cf59f011
 md"""### WM"""
 
 # ╔═╡ 18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+#=╠═╡
 let
-	@assert sort(unique(WM_data.response)) == sort(["right", "middle", "left", "noresp"]) "Unexpected values in response"
+	@assert all((x -> x in ["right", "middle", "left", "noresp"]).(unique(WM_data.response))) "Unexpected values in response"
 	
 	@assert all(WM_data.chosen_feedback .== ifelse.(
 		WM_data.response .== "right",
@@ -214,11 +148,13 @@ let
 
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+#=╠═╡
 let
 	# Clean data
-	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 10)
+	WM_data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 1)
 	WM_data_clean = filter(x -> x.response != "noresp", WM_data_clean)
 
 	# Sumarrize by participant, trial, n_groups
@@ -314,6 +250,7 @@ let
 
 	f
 end
+  ╠═╡ =#
 
 # ╔═╡ 7559e78d-7bd8-4450-a215-d74a0b1d670a
 md"""
@@ -321,21 +258,26 @@ md"""
 """
 
 # ╔═╡ 7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+#=╠═╡
 begin
 	filter!(x -> !(x.prolific_pid in []), vigour_data);
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
+  ╠═╡ =#
 
 # ╔═╡ 243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
+#=╠═╡
 begin
 	@chain vigour_data begin
 		@filter(press_per_sec > 11)
 		@count(prolific_pid)
 	end
 end
+  ╠═╡ =#
 
 # ╔═╡ 0312ce5f-be36-4d9b-aee3-04497f846537
+#=╠═╡
 let
 	n_miss_df = @chain vigour_data begin
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
@@ -358,8 +300,10 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in Vigour task"))
 end
+  ╠═╡ =#
 
 # ╔═╡ 3d05e879-aa5c-4840-9f4f-ad35b8d9519a
+#=╠═╡
 let
 	test_acc_df = @chain post_vigour_test_data begin
 		@mutate(
@@ -379,6 +323,7 @@ let
 	visual(Hist) |>
 	draw(;axis=(;xlabel="Accuracy",ylabel="Count (#Participant)"))
 end
+  ╠═╡ =#
 
 # ╔═╡ 665aa690-4f37-4a31-b87e-3b4aee66b3b1
 md"""
@@ -386,13 +331,16 @@ md"""
 """
 
 # ╔═╡ 43d5b727-9761-48e3-bbc6-89af0c4f3116
+#=╠═╡
 begin
 	filter!(x -> !(x.prolific_pid in []), PIT_data);
 	transform!(PIT_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
+  ╠═╡ =#
 
 # ╔═╡ 89258a40-d4c6-4831-8cf3-d69d984c4f6e
+#=╠═╡
 let
 	n_miss_df =  @chain PIT_data begin
 		# @filter(coin != 0)
@@ -417,8 +365,10 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in PIT task"))
 end
+  ╠═╡ =#
 
 # ╔═╡ ffd08086-f12c-4b8a-afb6-435c8729241e
+#=╠═╡
 let
 	PIT_acc_df = @chain test_data begin
 		@filter(block == "pavlovian")
@@ -437,6 +387,12 @@ let
 		draw()
 	end
 end
+  ╠═╡ =#
+
+# ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
+#=╠═╡
+jspsych_data |> names
+  ╠═╡ =#
 
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
 """
@@ -527,12 +483,12 @@ function summarize_participation(data::DataFrame)
 		:trialphase => (x -> "kick-out" in x) => :kick_out,
 		:outcomes => extract_PILT_bonus => :PILT_bonus,
 		:vigour_bonus => (x -> all(ismissing.(x)) ? missing : (filter(y -> !ismissing(y), unique(x))[1])) => :vigour_bonus,
-		[:trial_type, :block, :n_stimuli] => 
-			((t, b, n) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
+		[:trial_type, :trialphase, :block, :n_stimuli] => 
+			((t, p, b, n) -> sum((t .== "PILT") .& (.!ismissing.(p) .&& p .!= "PILT_test") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
 		[:trial_type, :block, :n_stimuli] => 
 			((t, b, n) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (n .== 3))) => :n_trial_WM,
-		[:block, :trial_type, :n_stimuli] => 
-			((x, t, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2)])))) => :n_blocks_PILT,
+		[:block, :trial_type, :trialphase, :n_stimuli] => 
+			((x, t, p, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2) .& (.!ismissing.(p) .&& p .!= "PILT_test")])))) => :n_blocks_PILT,
 		[:block, :trial_type, :n_stimuli] => 
 			((x, t, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 3)])))) => :n_blocks_WM,
 		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "vigour_trial"))) => :n_trials_vigour,
@@ -541,11 +497,8 @@ function summarize_participation(data::DataFrame)
 			:vigour_average_presses,
 		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial"))) => 
 			:n_trials_pit,
-		[:trialphase, :block] => 
-			((t, b) -> length(unique(b[(.!ismissing.(t)) .&& (t .== "reversal")])) - 1) => :n_reversals,
-		[:trialphase, :block] => 
-			((t, b) -> length(b[(.!ismissing.(t)) .&& (t .== "reversal")])) => :n_trials_reversals,
-		:n_warnings => maximum => :n_warnings
+		:n_warnings => maximum => :n_warnings,
+		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration
 	)
 
 	# Compute totla bonus
@@ -570,13 +523,25 @@ function summarize_participation(data::DataFrame)
 end
 
 # ╔═╡ c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+#=╠═╡
 begin
 	p_sum = summarize_participation(jspsych_data)
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
+  ╠═╡ =#
 
 # ╔═╡ eeffa44e-a9e6-43dd-b47d-00670299e0f2
-p_sum
+#=╠═╡
+let
+
+	for r in eachrow(filter(x -> !ismissing(x.finished), p_sum))
+		println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
+	end
+
+	
+	p_sum
+end
+  ╠═╡ =#
 
 # ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
 function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
@@ -604,6 +569,7 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
 end
 
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
+#=╠═╡
 let
 	df = @chain PIT_data begin
 		@mutate(session=if_else(trial_number <= 36, "Trial: 1-36", "Trial: 37-72"))
@@ -623,6 +589,7 @@ let
 	)
 	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
 end
+  ╠═╡ =#
 
 # ╔═╡ e3f88292-fdb9-4628-88ee-8d935f00a761
 function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{Symbol, typeof(AlgebraOfGraphics.nonnumeric)}}=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
@@ -693,11 +660,14 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 end
 
 # ╔═╡ 814aec54-eb08-4627-9022-19f41bcdac9f
+#=╠═╡
 let
 	plot_presses_vs_var(@filter(vigour_data, trial_number > 0); x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
+  ╠═╡ =#
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
+#=╠═╡
 let
 	common_rpp = unique(PIT_data.reward_per_press)
 	instrumental_data = @chain PIT_data begin
@@ -709,24 +679,112 @@ let
 	end
 	plot_presses_vs_var(PIT_data; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
+  ╠═╡ =#
+
+# ╔═╡ cd627424-5926-4c99-a515-1dc320d49c65
+function sanity_check_test(test_data_clean::DataFrame)
+		@assert Set(test_data_clean.response) in 
+		[Set(["right", "left", "noresp"]), Set(["right", "left"])] "Unexpected values in respones: $(unique(test_data_clean.response))"
+	
+		# Remove missing values
+		filter!(x -> !(x.response .== "noresp"), test_data_clean)
+	
+		# Create magnitude high and low varaibles
+		test_data_clean.magnitude_high = maximum.(eachrow((hcat(
+			test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+	
+		test_data_clean.magnitude_low = minimum.(eachrow((hcat(
+			test_data_clean.magnitude_left, test_data_clean.magnitude_right))))
+	
+		# Create high_chosen variable
+		test_data_clean.high_chosen = ifelse.(
+			test_data_clean.right_chosen,
+			test_data_clean.magnitude_right .== test_data_clean.magnitude_high,
+			test_data_clean.magnitude_left .== test_data_clean.magnitude_high
+		)
+	
+		high_chosen_sum = combine(
+			groupby(filter(x -> x.magnitude_high != x.magnitude_low, test_data_clean), :prolific_pid),
+			:high_chosen => mean => :acc
+		)
+	
+		@info "Proportion high magnitude chosen: 
+			$(round(mean(high_chosen_sum.acc), digits = 2)), SE=$(round(sem(high_chosen_sum.acc), digits = 2))"
+	
+		# Summarize by participant and magnitude
+		test_sum = combine(
+			groupby(test_data_clean, [:prolific_pid, :magnitude_low, :magnitude_high]),
+			:high_chosen => mean => :acc
+		)
+	
+		test_sum_sum = combine(
+			groupby(test_sum, [:magnitude_low, :magnitude_high]),
+			:acc => mean => :acc,
+			:acc => sem => :se
+		)
+	
+		sort!(test_sum_sum, [:magnitude_low, :magnitude_high])
+
+		if length(unique(test_data_clean.prolific_pid)) > 1
+			mp = mapping(
+				:magnitude_high => nonnumeric => "High magntidue",
+				:acc => "Prop. chosen high",
+				:se,
+				layout = :magnitude_low => nonnumeric
+			) * (visual(Errorbars) + visual(ScatterLines))
+		else
+			mp = mapping(
+				:magnitude_high => nonnumeric => "High magntidue",
+				:acc => "Prop. chosen high",
+				layout = :magnitude_low => nonnumeric
+			) * (visual(Scatter) + visual(ScatterLines))
+		end
+				
+		mp = data(test_sum_sum) *
+			mp
+	
+		draw(mp)
+	end
+
+# ╔═╡ 176c54de-e84c-45e5-872e-2471e575776d
+#=╠═╡
+let
+	# Select post-PILT test
+	test_data_clean = filter(x -> isa(x.block, Int64) && (x.block < 6), test_data)
+
+	sanity_check_test(test_data_clean)
+
+end
+  ╠═╡ =#
+
+# ╔═╡ 9405f724-0fd7-40fe-85bc-bef22707e6fa
+#=╠═╡
+let
+	# Select post-WM test
+	test_data_clean = filter(x -> isa(x.block, Int64) && (x.block == 6), test_data)
+
+	sanity_check_test(test_data_clean)
+
+end
+  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
-# ╟─e60b5430-adef-4f12-906c-9b70de436833
-# ╟─c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-# ╟─eeffa44e-a9e6-43dd-b47d-00670299e0f2
+# ╠═e60b5430-adef-4f12-906c-9b70de436833
+# ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+# ╠═eeffa44e-a9e6-43dd-b47d-00670299e0f2
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
-# ╟─2ff04c44-5f86-4617-9a13-6d4228dff359
-# ╟─d0a2ba1e-8413-48f8-8bbc-542f3555a296
-# ╟─2897a681-e8dd-4091-a2a0-bd3d4cd23209
-# ╠═6244dd22-7c58-4e87-84ed-004b076bc4cb
-# ╟─176c54de-e84c-45e5-872e-2471e575776d
+# ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
+# ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╠═2897a681-e8dd-4091-a2a0-bd3d4cd23209
+# ╠═176c54de-e84c-45e5-872e-2471e575776d
+# ╠═9405f724-0fd7-40fe-85bc-bef22707e6fa
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
-# ╟─18e9fccd-cc0d-4e8f-9e02-9782a03093d7
-# ╟─17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
+# ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
 # ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
@@ -739,7 +797,9 @@ end
 # ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
 # ╟─8f6d8e98-6d73-4913-a02d-97525176549a
 # ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
-# ╟─dc957d66-1219-4a97-be46-c6c5c189c8ba
+# ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
+# ╠═29d320df-c984-496a-8d81-6967dd72e964
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b
 # ╟─e3f88292-fdb9-4628-88ee-8d935f00a761
+# ╠═cd627424-5926-4c99-a515-1dc320d49c65
