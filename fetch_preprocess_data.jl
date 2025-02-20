@@ -119,7 +119,7 @@ remove_testing!(data::DataFrame) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|
 function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	# Select rows
-	PLT_data = filter(x -> x.trial_type == trial_type, data)
+	PLT_data = filter(x -> (x.trial_type == trial_type) && (x.trialphase != "PILT_test"), data)
 
 	# Select columns
 	PLT_data = PLT_data[:, Not(map(col -> all(ismissing, col), eachcol(PLT_data)))]
@@ -142,9 +142,6 @@ function load_pilot7_data(; force_download = false, return_version = "6.01")
 		jspsych_json, records = get_REDCap_data("pilot7"; file_field = "file_data")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records)
-
-		# Use "6.01" because in the experimental.html for pilot7 it's written as "6.01"
-		filter!(x -> x.version ∈ ["6.01"], jspsych_data)
 
 		remove_testing!(jspsych_data)
 
@@ -171,7 +168,7 @@ function load_pilot7_data(; force_download = false, return_version = "6.01")
 
 	# Extract post-vigour test
 	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
-
+			
 	# Extract PIT
 	PIT_data = prepare_PIT_data(jspsych_data)
 
