@@ -563,7 +563,8 @@ let tdf = value_test_data
 			ylabel = "Prop. right chosen",
 			xticks = sort(unique(tsum.Δ_val_bin)),
 			xticklabelrotation = 45,
-			limits = (nothing, (0., 1.))
+			limits = (nothing, (0., 1.)),
+			yticks = 0.:0.25:1.
 		)
 	)
 	
