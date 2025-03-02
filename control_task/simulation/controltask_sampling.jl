@@ -7,7 +7,7 @@ using ForwardDiff, Optim
 using LaTeXStrings, Plots #PlotlyJS
 using Random, Distributions, StatsBase, GLM
 using Debugger
-
+Random.seed!(1234)
 #------------------------------------------
 # generate some experiments 
 #
@@ -105,7 +105,7 @@ function infer()
       # generate random choices 
 
       a[t] = b[t, Int(rand() > 0.5)+1] # choice 
-      e[t] = rand(DiscreteUniform(0, 30))
+      e[t] = rand(DiscreteUniform(0, 35))
       # e[t] = rand(truncated(Normal(15, 1);lower=0))
       # e[t] = rand(DiscreteUniform(max(betatrue[n[t]+1]-5,0),betatrue[n[t]+1]+5))
 
