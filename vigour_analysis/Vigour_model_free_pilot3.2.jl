@@ -15,7 +15,7 @@ begin
 	Pkg.add("MixedModels")
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier, MixedModels, Printf, CategoricalArrays
 	include("fetch_preprocess_data.jl")
-	include("vigour_analysis/Vigour_utlis_fn.jl")
+	include("vigour_utils.jl")
 	set_theme!(theme_minimal())
 end
 

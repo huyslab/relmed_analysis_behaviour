@@ -14,7 +14,7 @@ begin
     Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, AlgebraOfGraphics, CairoMakie, Tidier
 	include("fetch_preprocess_data.jl")
-	include("vigour_analysis/Vigour_utlis_fn.jl")
+	include("vigour_utils.jl")
 	set_theme!(theme_minimal())
 	nothing
 end
