@@ -152,6 +152,57 @@ function generate_dataset(pars::TaskParameters;
     return convert(Vector{NamedTuple},trials)
 end
 
+# Generate stimulus sequence
+function generate_stimuli(pars::TaskParameters;
+                         mode::Symbol=:random,
+                         csv_path::Union{String,Nothing}=nothing,
+                         shuffle::Bool=true)
+    
+    stimuli = if mode == :random
+        [
+            (; current_state=rand(1:4), boats=rand(1:4, 2), wind=rand(1:3)) 
+            for _ in 1:pars.n_trials
+        ]
+        
+    elseif mode == :factorial
+        stimuli_list = []
+        for current_state in 1:pars.n_states
+            for wind in 1:3
+                for (boat1, boat2) in permutations(1:pars.n_states, 2)
+                    push!(stimuli_list, (;current_state, boats=[boat1, boat2], wind))
+                end
+            end
+        end
+        stimuli_list
+        
+    elseif mode == :csv
+        isnothing(csv_path) && error("CSV path must be provided when mode=:csv")
+        
+        # Read CSV file
+        df = CSV.read(csv_path, DataFrame)
+        required_cols = ["current_state", "boat1", "boat2", "wind"]
+        
+        # Verify required columns exist
+        missing_cols = setdiff(required_cols, names(df))
+        if !isempty(missing_cols)
+            error("Missing required columns in CSV: $(join(missing_cols, ", "))")
+        end
+        
+        # Generate stimuli from CSV data
+        [
+            (;current_state=row.current_state, boats=[row.boat1, row.boat2], wind=row.wind)
+            for row in eachrow(df)
+        ]
+    else
+        error("Invalid mode: $mode. Must be :random, :factorial, or :csv")
+    end
+    
+    shuffle && shuffle!(stimuli)
+    return stimuli
+end
+
+
+
 #==========================================================
 Particle Filter Functions
 ==========================================================#
