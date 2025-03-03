@@ -201,7 +201,20 @@ function generate_stimuli(pars::TaskParameters;
     return stimuli
 end
 
-
+# Generate action sequence either randomly or based on stimuli
+function generate_actions(stimulus::Union{Nothing, NamedTuple}; actor::Function=nothing)
+    if isnothing(actor)
+        # Default random action generator
+        chosen_boat = stimulus.boats[rand(1:2)]
+        effort = rand(DiscreteUniform(0, 35))
+        return (;chosen_boat, effort)
+    else
+        # Custom action generator provided as a function
+        # This function should return an tuple that contained
+        # the chosen boat and effort level
+        return actor(stimulus)
+    end
+end
 
 #==========================================================
 Particle Filter Functions
