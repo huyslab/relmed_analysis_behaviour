@@ -5,9 +5,9 @@ using DataFrames, LinearAlgebra, LogExpFunctions, Distributions, StatsBase, Para
 using AlgebraOfGraphics, ColorSchemes, CairoMakie
 
 set_theme!(theme_minimal())
-colors = ColorSchemes.Paired_10.colors;
+colors = ColorSchemes.Paired_10.colors
 inch = 96
-pt = 4/3
+pt = 4 / 3
 cm = inch / 2.54
 
 #==========================================================
@@ -50,7 +50,7 @@ function initialize_transition_matrices(pars::TaskParameters)
     matrices = zeros(n_states, n_states, n_matrices) # r: next state by c: current state by n_matrices
     matrix_index = 1
     true_index = 0
-    
+
     for perms in permutations(1:n_states)
         matrices[:, :, matrix_index] = Float64.(I(n_states)[:, perms])
         if perms == Tc
@@ -58,7 +58,7 @@ function initialize_transition_matrices(pars::TaskParameters)
         end
         matrix_index += 1
     end
-    
+
     return matrices, true_index
 end
 
@@ -92,60 +92,60 @@ trials = generate_dataset(pars, mode=:csv, csv_path="trials.csv")
 
 # Generate stimulus sequence
 function generate_stimuli(pars::TaskParameters;
-                         mode::Symbol=:factorial,
-                         csv_path::Union{String,Nothing}=nothing,
-                         shuffle::Bool=true)
-    
+    mode::Symbol=:factorial,
+    csv_path::Union{String,Nothing}=nothing,
+    shuffle::Bool=true)
+
     stimuli = if mode == :random
         [
-            (; current_state=rand(1:4), boats=rand(1:4, 2), wind=rand(1:3)) 
+            (; current_state=rand(1:4), boats=rand(1:4, 2), wind=rand(1:3))
             for _ in 1:pars.n_trials
         ]
-        
+
     elseif mode == :factorial
         stimuli_list = []
         for current_state in 1:pars.n_states
             for wind in 1:3
                 for (boat1, boat2) in permutations(1:pars.n_states, 2)
-                    push!(stimuli_list, (;current_state, boats=[boat1, boat2], wind))
+                    push!(stimuli_list, (; current_state, boats=[boat1, boat2], wind))
                 end
             end
         end
         stimuli_list
-        
+
     elseif mode == :csv
         isnothing(csv_path) && error("CSV path must be provided when mode=:csv")
-        
+
         # Read CSV file
         df = CSV.read(csv_path, DataFrame)
         required_cols = ["current_state", "boat1", "boat2", "wind"]
-        
+
         # Verify required columns exist
         missing_cols = setdiff(required_cols, names(df))
         if !isempty(missing_cols)
             error("Missing required columns in CSV: $(join(missing_cols, ", "))")
         end
-        
+
         # Generate stimuli from CSV data
         [
-            (;current_state=row.current_state, boats=[row.boat1, row.boat2], wind=row.wind)
+            (; current_state=row.current_state, boats=[row.boat1, row.boat2], wind=row.wind)
             for row in eachrow(df)
         ]
     else
         error("Invalid mode: $mode. Must be :random, :factorial, or :csv")
     end
-    
+
     shuffle && shuffle!(stimuli)
     return stimuli
 end
 
 # Generate action sequence either randomly or based on stimuli
-function generate_actions(stimulus::Union{Nothing, NamedTuple}; actor::Function=nothing)
+function generate_actions(stimulus::Union{Nothing,NamedTuple}; actor::Function=nothing)
     if isnothing(actor)
         # Default random action generator
         chosen_boat = stimulus.boats[rand(1:2)]
         effort = rand(DiscreteUniform(0, 35))
-        return (;chosen_boat, effort)
+        return (; chosen_boat, effort)
     else
         # Custom action generator provided as a function
         # This function should return an tuple that contained
@@ -159,31 +159,31 @@ function compute_outcomes(stimulus::NamedTuple, actions::NamedTuple, pars::TaskP
     beta = pars.beta_true[stimulus.wind]
     p_control = 1.0 / (1.0 + exp(-2.0 * (actions.effort - beta)))
     is_controlled = rand() < p_control
-    
+
     next_state = is_controlled ? pars.Tc[actions.chosen_boat] : pars.Tu[stimulus.current_state]
-    
-    return (;controlled=is_controlled, p_control, next_state)
+
+    return (; controlled=is_controlled, p_control, next_state)
 end
 
 # Generate a full dataset based on parameters and actor function
 function generate_dataset(pars::TaskParameters;
-                          mode::Symbol=:factorial,
-                          csv_path::Union{String,Nothing}=nothing,
-                          shuffle::Bool=true,
-                          actor::Union{Function,Nothing}=nothing)
-    
+    mode::Symbol=:factorial,
+    csv_path::Union{String,Nothing}=nothing,
+    shuffle::Bool=true,
+    actor::Union{Function,Nothing}=nothing)
+
     # Generate or load stimuli
     stimuli = generate_stimuli(pars; mode=mode, csv_path=csv_path, shuffle=shuffle)
-    
+
     # Generate complete trials by adding actions and outcomes
     trials = map(stimuli) do stimulus
         actions = generate_actions(stimulus; actor=actor)
         outcomes = compute_outcomes(stimulus, actions, pars)
-        
+
         # Combine stimulus, actions, and outcomes into a single trial
         return merge(stimulus, actions, outcomes)
     end
-    
+
     return convert(Vector{NamedTuple}, trials)
 end
 
@@ -192,14 +192,14 @@ Particle Filter Functions
 ==========================================================#
 
 function compute_trial_diagnostics(particle_weights::Vector{Float64}, likelihood::Vector{Float64}, resampled::Bool)
-    ll = sum(log.(likelihood .+ eps()))/length(particle_weights)
+    ll = sum(log.(likelihood .+ eps())) / length(particle_weights)
     ess = 1.0 / sum(particle_weights .^ 2)
     diversity = -sum(w * log(w + eps()) for w in particle_weights)
 
     return TrialDiagnostics(ess, diversity, ll, resampled)
 end
 
-function update_particles!(betas::Matrix{Float64}, weights::Matrix{Float64}, particle_weights::Vector{Float64}, trial_data::NamedTuple, Tcs::Array{Float64, 3}, pars::TaskParameters)
+function update_particles!(betas::Matrix{Float64}, weights::Matrix{Float64}, particle_weights::Vector{Float64}, trial_data::NamedTuple, Tcs::Array{Float64,3}, pars::TaskParameters)
     @unpack n_samples, sigma, alpha, Tu = pars
     p_controls = zeros(n_samples, 2) # pcx
     p_next_states = zeros(n_samples) # prx
@@ -222,7 +222,7 @@ function update_particles!(betas::Matrix{Float64}, weights::Matrix{Float64}, par
         p_controls[i, :] = [p_next_state_given_control * p_control, p_next_state_given_uncont * (1.0 - p_control)]
         p_controls[i, :] ./= sum(p_controls[i, :])
     end
-    
+
     # Normalize weights
     total_weight = sum(particle_weights)
     if total_weight > 0
@@ -250,7 +250,7 @@ function particle_filter(pars::TaskParameters, dataset::Vector{<:NamedTuple})
 
     n_betas = length(beta_true)
     betas = randn(n_betas, n_samples) .+ beta_true * 0.1 .+ 10.0 # bx - 0.1 * betatrue'; betatrue' could be the prior mean?; n_samples by n_betas
-    
+
     n_transmats = factorial(n_states)
     Tcs, _ = initialize_transition_matrices(pars)
     weights = zeros(n_transmats, n_samples) # wx
@@ -258,7 +258,7 @@ function particle_filter(pars::TaskParameters, dataset::Vector{<:NamedTuple})
     for i in 1:n_transmats
         alpha = ones(n_transmats)
         alpha[i] = 10
-        weights[:, (1:n_particles) .+ (i - 1) * n_particles] = rand(Dirichlet(alpha * 100), n_particles)
+        weights[:, (1:n_particles).+(i-1)*n_particles] = rand(Dirichlet(alpha * 100), n_particles)
     end
 
     beta_estimates = zeros(n_betas, n_trials) # betahat
@@ -416,7 +416,38 @@ function run_experiment(pars::TaskParameters, dataset::Vector{<:NamedTuple}; sho
     return results
 end
 
+# Run batch experiments for multiple simulated participants but with fixed stimulus sequence
+function run_batch_experiment(pars::TaskParameters, stimuli::NamedTuple;
+    n_participants::Int=25,
+    show_plots::Bool=false)
+
+    # Use fixed stimuli sequence
+    @assert stimuli isa NamedTuple "Stimuli must be a NamedTuple"
+
+    # Run experiments for multiple simulated participants
+    results = []
+
+    @showprogress "Running batch experiments..." for i in 1:n_participants
+        # Generate dataset with fixed stimuli but random actions
+        dataset = map(stimuli) do stimulus
+            actions = generate_actions(stimulus)
+            outcomes = compute_outcomes(stimulus, actions, pars)
+            merge(stimulus, actions, outcomes)
+        end
+
+        # Run experiment
+        result = particle_filter(pars, dataset)
+        push!(results, result)
+
+        if show_plots  # Only show plot for first participant
+            display(plot_batch_estimates(results, pars))
+        end
+    end
+
+    return results, stimuli
+end
+
 # Export main functions
-export TaskParameters, run_experiment, generate_dataset, particle_filter, plot_estimates
+export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, particle_filter, plot_estimates
 
 end # module
