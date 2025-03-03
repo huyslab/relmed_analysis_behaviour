@@ -216,6 +216,17 @@ function generate_actions(stimulus::Union{Nothing, NamedTuple}; actor::Function=
     end
 end
 
+# Generate outcomes based on stimulus and action
+function compute_outcomes(stimulus::NamedTuple, actions::NamedTuple, pars::TaskParameters)
+    beta = pars.beta_true[stimulus.wind]
+    p_control = 1.0 / (1.0 + exp(-2.0 * (actions.effort - beta)))
+    is_controlled = rand() < p_control
+    
+    next_state = is_controlled ? pars.Tc[actions.chosen_boat] : pars.Tu[stimulus.current_state]
+    
+    return (;controlled=is_controlled, p_control, next_state)
+end
+
 #==========================================================
 Particle Filter Functions
 ==========================================================#
