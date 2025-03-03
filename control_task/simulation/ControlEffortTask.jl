@@ -154,7 +154,7 @@ end
 
 # Generate stimulus sequence
 function generate_stimuli(pars::TaskParameters;
-                         mode::Symbol=:random,
+                         mode::Symbol=:factorial,
                          csv_path::Union{String,Nothing}=nothing,
                          shuffle::Bool=true)
     
@@ -225,6 +225,28 @@ function compute_outcomes(stimulus::NamedTuple, actions::NamedTuple, pars::TaskP
     next_state = is_controlled ? pars.Tc[actions.chosen_boat] : pars.Tu[stimulus.current_state]
     
     return (;controlled=is_controlled, p_control, next_state)
+end
+
+# Generate a full dataset based on parameters and actor function
+function generate_dataset(pars::TaskParameters;
+                          mode::Symbol=:factorial,
+                          csv_path::Union{String,Nothing}=nothing,
+                          shuffle::Bool=true,
+                          actor::Union{Function,Nothing}=nothing)
+    
+    # Generate or load stimuli
+    stimuli = generate_stimuli(pars; mode=mode, csv_path=csv_path, shuffle=shuffle)
+    
+    # Generate complete trials by adding actions and outcomes
+    trials = map(stimuli) do stimulus
+        actions = generate_actions(stimulus; actor=actor)
+        outcomes = compute_outcomes(stimulus, actions, pars)
+        
+        # Combine stimulus, actions, and outcomes into a single trial
+        return merge(stimulus, actions, outcomes)
+    end
+    
+    return convert(Vector{NamedTuple}, trials)
 end
 
 #==========================================================
