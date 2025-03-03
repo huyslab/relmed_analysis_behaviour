@@ -68,9 +68,10 @@ Generates a trial dataset either randomly, from a factorial design, or from a CS
 
 Parameters:
 - pars: TaskParameters struct
-- mode: :random, :factorial, or :csv
+- mode: :random, :factorial, or :csv (default: :factorial)
 - csv_path: path to CSV file (only used if mode=:csv)
 - shuffle: whether to shuffle the trials (default: true)
+- actor: custom function to generate actions (default: nothing)
 
 Usage:
 ```julia
@@ -88,69 +89,6 @@ trials = generate_dataset(pars, mode=:factorial, shuffle=false)
 trials = generate_dataset(pars, mode=:csv, csv_path="trials.csv")
 ```
 """
-function generate_dataset(pars::TaskParameters;
-    mode::Symbol=:random,
-    csv_path::Union{String,Nothing}=nothing,
-    shuffle::Bool=true)
-
-    # @unpack n_trials, n_states, beta_true, Tc, Tu = pars
-
-    function generate_trial(current_state, boats, wind)
-        # Action model part
-        chosen_boat = boats[rand(1:2)]
-        effort = rand(DiscreteUniform(0, 35))
-
-        beta = pars.beta_true[wind]
-        p_control = 1.0 / (1.0 + exp(-2.0 * (effort - beta)))
-        is_controlled = rand() < p_control
-
-        next_state = is_controlled ? pars.Tc[chosen_boat] : pars.Tu[current_state]
-
-        return (; current_state, boats, wind, chosen_boat, effort,
-            next_state, controlled=is_controlled, p_control)
-    end
-
-    trials = if mode == :random
-        [generate_trial(rand(1:4), rand(1:4, 2), rand(1:3)) 
-        for _ in 1:pars.n_trials]
-
-    elseif mode == :factorial
-        trials = []
-        for current_state in 1:pars.n_states
-            for wind in 1:3
-                for (boat1, boat2) in permutations(1:pars.n_states, 2)
-                    push!(trials, generate_trial(current_state, [boat1, boat2], wind))
-                end
-            end
-        end
-        trials
-
-    elseif mode == :csv
-        isnothing(csv_path) && error("CSV path must be provided when mode=:csv")
-
-        # Read CSV file
-        df = CSV.read(csv_path, DataFrame)
-        required_cols = ["current_state", "boat1", "boat2", "wind"]
-
-        # Verify required columns exist
-        missing_cols = setdiff(required_cols, names(df))
-        if !isempty(missing_cols)
-            error("Missing required columns in CSV: $(join(missing_cols, ", "))")
-        end
-
-        # Generate trials from CSV data
-        [generate_trial(row.current_state,
-            [row.boat1, row.boat2],
-            row.wind)
-        for row in eachrow(df)]
-
-    else
-        error("Invalid mode: $mode. Must be :random, :factorial, or :csv")
-    end
-
-    shuffle && shuffle!(trials)
-    return convert(Vector{NamedTuple},trials)
-end
 
 # Generate stimulus sequence
 function generate_stimuli(pars::TaskParameters;
