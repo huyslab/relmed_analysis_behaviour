@@ -53,8 +53,26 @@ end
 # ╔═╡ f081f2d7-bef3-476c-ad14-ebc4f0a35e77
 md"""## Test Performance"""
 
-# ╔═╡ 6ab2f6d7-186d-435d-9bc1-a50b079e4eda
-filter(x -> x.block == 6, test_data)
+# ╔═╡ f4326f65-445b-49d9-97ed-7dab8d468ed8
+function count_unique_between(v::Vector{Int})
+    unique_vals = unique(v)
+    result = Dict{Int, Int}()
+    
+    for val in unique_vals
+        first_idx = findfirst(==(val), v)
+        last_idx = findlast(==(val), v)
+        
+        if first_idx !== nothing && last_idx !== nothing
+            unique_count = length(unique(v[first_idx:last_idx]))
+            result[val] = unique_count
+        end
+    end
+    
+    return result
+end
+
+# ╔═╡ d70ebd6f-1ade-4b64-a5f2-4285ea62d65e
+count_unique_between([1, 1, 2, 1, 2, 3, 3, 2, 1])
 
 # ╔═╡ 01255688-ee82-4f77-95ba-5fb2c1d5a717
 	function equi_groups(x::AbstractVector; n::Int = 3, labels = ["Early", "Mid", "Late"])
@@ -573,6 +591,19 @@ let tdf = value_test_data
 
 end
 
+# ╔═╡ 6f365098-fce4-4c88-995f-2d85ccbf061b
+let
+
+	combine(
+		groupby(
+			WM_data_clean,
+			:prolific_pid
+		),
+		:time_elapsed => (x -> (maximum(x) - minimum(x)) / 60000) => :duration
+	)
+
+end
+
 # ╔═╡ Cell order:
 # ╠═fb93a03b-8ae6-4395-bae3-4183fbe45cc5
 # ╠═b4067011-f52b-4da7-a278-063d8743bcaf
@@ -586,8 +617,10 @@ end
 # ╟─f081f2d7-bef3-476c-ad14-ebc4f0a35e77
 # ╠═0da6af42-ef20-4d28-8818-92abd077ecf7
 # ╠═9382247e-d825-4e3f-89f8-959683b0fe62
+# ╠═6f365098-fce4-4c88-995f-2d85ccbf061b
 # ╠═7b97683e-ba34-4e48-8fca-fd863dde343e
-# ╠═6ab2f6d7-186d-435d-9bc1-a50b079e4eda
+# ╠═d70ebd6f-1ade-4b64-a5f2-4285ea62d65e
+# ╠═f4326f65-445b-49d9-97ed-7dab8d468ed8
 # ╠═01255688-ee82-4f77-95ba-5fb2c1d5a717
 # ╠═ff992cf9-e256-4ebc-a661-e13780cb99a0
 # ╠═8f52df1d-598a-43e3-bd07-2e2bdf458c93
