@@ -16,6 +16,7 @@ begin
 	using CairoMakie, Random, DataFrames, Distributions, StatsBase,
 		ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, Printf, Combinatorics, JuMP, HiGHS, AlgebraOfGraphics
 	using LogExpFunctions: logistic, logit
+	using IterTools: product
 
 	Turing.setprogress!(false)
 
@@ -88,104 +89,6 @@ md"""### Post-WM test"""
 
 # ╔═╡ ffe06202-d829-4145-ae26-4a95449d64e6
 md"""# RLLTM"""
-
-# ╔═╡ bcb73e19-8bf9-4e75-a9f7-8152e3d23201
-md"""## Post-LTM test"""
-
-# ╔═╡ df5baa98-27b9-4bbc-9ab0-03ea66e91970
-function prepare_for_finding_ltm_test_sequence(
-	task::DataFrame;
-	stimulus_locations::Vector{String} = ["right", "middle", "left"]
-)
-
-	# Extract stimuli and their common feedback from task structure
-	stimuli = vcat([rename(
-		task[task.feedback_common, [:session, :block, :n_groups, :stimulus_group_id,  Symbol("stimulus_$s"), Symbol("feedback_$s")]],
-		Symbol("stimulus_$s") => :stimulus,
-		Symbol("feedback_$s") => :feedback
-	) for s in stimulus_locations]...)
-
-	# Summarize magnitude per stimulus
-	stimuli = combine(
-		groupby(stimuli, [:session, :block, :n_groups, :stimulus_group_id, :stimulus]),
-		:feedback => (x -> mean(unique(x))) => :magnitude
-	)
-
-	# Create Dict of unique stimuli by magnitude
-	magnitudes = unique(stimuli.magnitude)
-	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus) for m in magnitudes)
-
-	#  Define existing pairs
-	pairer(v) = [[v[i], v[j]] for i in 1:length(v) for j in i+1:length(v)]
-	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus) 
-		for p in unique(stimuli.stimulus_group_id)]...)
-
-	existing_pairs = create_pair_list(stimuli)
-
-	existing_pairs = sort.(existing_pairs)
-
-	return stimuli_magnitude, existing_pairs
-
-end
-
-# ╔═╡ 391f3f2a-74ae-463b-b109-a47eaaafdf97
-function create_ltm_test_pairs(stimuli::Dict{Float64, Vector{String}}, 
-                            existing_pairs::Vector{Vector{String}}, 
-                            target_n_different::Int64, 
-                            target_n_same::Int64)
-
-	@assert all(issorted.(existing_pairs)) "Pairs not sorted within `existing_pairs`"
-        
-    # Extract unique magnitude values
-    magnitudes = collect(keys(stimuli))
-    
-    # Initialize storage for results
-    new_pairs = DataFrame(stimulus_A = String[], stimulus_B = String[],
-                          magnitude_A = Float64[], magnitude_B = Float64[])
-    
-    # Track stimulus usage
-    stim_usage = Dict(s => 0 for m in magnitudes for s in stimuli[m])
-    
-    # Function to sample a pair of stimuli from given magnitude categories
-    function sample_pair(mag1, mag2)
-        available_stim1 = sort(stimuli[mag1], by=s -> stim_usage[s])
-        available_stim2 = sort(stimuli[mag2], by=s -> stim_usage[s])
-        
-        for stim1 in available_stim1, stim2 in available_stim2
-            if stim1 != stim2 && !(sort([stim1, stim2]) in existing_pairs)
-                return stim1, stim2
-            end
-        end
-        return rand(available_stim1), rand(available_stim2)
-    end
-    
-    # Generate different-magnitude pairs
-    for (i, mag1) in enumerate(magnitudes), mag2 in magnitudes[i+1:end]
-        for _ in 1:target_n_different
-            stim1, stim2 = sample_pair(mag1, mag2)
-            push!(new_pairs, (stim1, stim2, mag1, mag2))
-            push!(existing_pairs, sort([stim1, stim2]))
-            stim_usage[stim1] += 1
-            stim_usage[stim2] += 1
-        end
-    end
-    
-    # Generate same-magnitude pairs
-    for mag in magnitudes
-        if length(stimuli[mag]) > 1  # Ensure at least two stimuli exist
-            for _ in 1:target_n_same
-                stim1, stim2 = sample_pair(mag, mag)
-                push!(new_pairs, (stim1, stim2, mag, mag))
-                push!(existing_pairs, sort([stim1, stim2]))
-                stim_usage[stim1] += 1
-                stim_usage[stim2] += 1
-            end
-        end
-    end
-    
-    return new_pairs
-end
-
 
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLLTM(
@@ -650,6 +553,104 @@ let
 	CSV.write("results/pilot8_LTM.csv", RLLTM)
 end
 
+# ╔═╡ bcb73e19-8bf9-4e75-a9f7-8152e3d23201
+md"""## Post-LTM test"""
+
+# ╔═╡ df5baa98-27b9-4bbc-9ab0-03ea66e91970
+function prepare_for_finding_ltm_test_sequence(
+	task::DataFrame;
+	stimulus_locations::Vector{String} = ["right", "middle", "left"]
+)
+
+	# Extract stimuli and their common feedback from task structure
+	stimuli = vcat([rename(
+		task[task.feedback_common, [:session, :block, :n_groups, :stimulus_group_id,  Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in stimulus_locations]...)
+
+	# Summarize magnitude per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :block, :n_groups, :stimulus_group_id, :stimulus]),
+		:feedback => (x -> mean(unique(x))) => :magnitude
+	)
+
+	# Create Dict of unique stimuli by magnitude
+	magnitudes = unique(stimuli.magnitude)
+	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus) for m in magnitudes)
+
+	#  Define existing pairs
+	pairer(v) = [[v[i], v[j]] for i in 1:length(v) for j in i+1:length(v)]
+	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus) 
+		for p in unique(stimuli.stimulus_group_id)]...)
+
+	existing_pairs = create_pair_list(stimuli)
+
+	existing_pairs = sort.(existing_pairs)
+
+	return stimuli_magnitude, existing_pairs
+
+end
+
+# ╔═╡ 391f3f2a-74ae-463b-b109-a47eaaafdf97
+function create_ltm_test_pairs(stimuli::Dict{Float64, Vector{String}}, 
+                            existing_pairs::Vector{Vector{String}}, 
+                            target_n_different::Int64, 
+                            target_n_same::Int64)
+
+	@assert all(issorted.(existing_pairs)) "Pairs not sorted within `existing_pairs`"
+        
+    # Extract unique magnitude values
+    magnitudes = collect(keys(stimuli))
+    
+    # Initialize storage for results
+    new_pairs = DataFrame(stimulus_A = String[], stimulus_B = String[],
+                          magnitude_A = Float64[], magnitude_B = Float64[])
+    
+    # Track stimulus usage
+    stim_usage = Dict(s => 0 for m in magnitudes for s in stimuli[m])
+    
+    # Function to sample a pair of stimuli from given magnitude categories
+    function sample_pair(mag1, mag2)
+        available_stim1 = sort(stimuli[mag1], by=s -> stim_usage[s])
+        available_stim2 = sort(stimuli[mag2], by=s -> stim_usage[s])
+        
+        for stim1 in available_stim1, stim2 in available_stim2
+            if stim1 != stim2 && !(sort([stim1, stim2]) in existing_pairs)
+                return stim1, stim2
+            end
+        end
+        return rand(available_stim1), rand(available_stim2)
+    end
+    
+    # Generate different-magnitude pairs
+    for (i, mag1) in enumerate(magnitudes), mag2 in magnitudes[i+1:end]
+        for _ in 1:target_n_different
+            stim1, stim2 = sample_pair(mag1, mag2)
+            push!(new_pairs, (stim1, stim2, mag1, mag2))
+            push!(existing_pairs, sort([stim1, stim2]))
+            stim_usage[stim1] += 1
+            stim_usage[stim2] += 1
+        end
+    end
+    
+    # Generate same-magnitude pairs
+    for mag in magnitudes
+        if length(stimuli[mag]) > 1  # Ensure at least two stimuli exist
+            for _ in 1:target_n_same
+                stim1, stim2 = sample_pair(mag, mag)
+                push!(new_pairs, (stim1, stim2, mag, mag))
+                push!(existing_pairs, sort([stim1, stim2]))
+                stim_usage[stim1] += 1
+                stim_usage[stim2] += 1
+            end
+        end
+    end
+    
+    return new_pairs
+end
+
+
 # ╔═╡ c65d7f1f-224d-4144-aa46-d48a482db95a
 # Create LTM test sequence
 RLLTM_test = let rng = Xoshiro(0)
@@ -739,12 +740,6 @@ RLLTM_test = let rng = Xoshiro(0)
 
 end
 
-# ╔═╡ 832ccb61-b588-4614-9f5a-efa0f9a6087d
-let
-	save_to_JSON(RLLTM_test, "results/pilot8_LTM_test.json")
-	CSV.write("results/pilot8_LTM_test.csv", RLLTM_test)
-end
-
 # ╔═╡ 63b74bde-4a28-4ff8-ae15-a37c891c3166
 # Tests for RLWM_test
 let
@@ -805,6 +800,170 @@ let
 
 end
 
+# ╔═╡ 832ccb61-b588-4614-9f5a-efa0f9a6087d
+let
+	save_to_JSON(RLLTM_test, "results/pilot8_LTM_test.json")
+	CSV.write("results/pilot8_LTM_test.csv", RLLTM_test)
+end
+
+# ╔═╡ 7a100e62-c028-4a24-a200-658bbca1945a
+md"""## PILT"""
+
+# ╔═╡ 18f41358-8554-4142-83f8-1c1c3f38b6fa
+# PILT parameters
+begin
+	# PILT Parameters
+	PILT_trials_per_block = 10
+			
+	# Post-PILT test parameters
+	PILT_test_n_blocks = 5
+end
+
+# ╔═╡ 84d2f787-aba2-40be-9816-4924968f5790
+PILT_blocks = let rng = Xoshiro(0)
+
+	coins = [-1., -0.5, -0.01, 0.01, 0.5, 1.]
+
+	# Create all magnitdue combinations
+	outcome_combinations = collect(product(coins, coins))
+
+	# Select only upper triangular
+	outcome_combinations = 
+		outcome_combinations[triu(trues(size(outcome_combinations)))]
+
+	# Shuffle, under constraints
+	criteria = false 
+	
+	while !criteria
+		shuffle!(rng, outcome_combinations)
+
+		criteria = all(outcome_combinations[1] .> 0) &&
+			all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
+			all(outcome_combinations[4] .< 0) 
+
+	end
+
+	# Arrange into DataFrame
+	PILT_blocks_long = DataFrame(
+		block = repeat(1:length(outcome_combinations), outer = 2),
+		stimulus = repeat(["A", "B"], inner = length(outcome_combinations)),
+		primary_outcome = vcat(
+			[x[1] for x in outcome_combinations], 
+			[x[2] for x in outcome_combinations]
+		)
+	)
+
+	sort!(PILT_blocks_long, [:block, :stimulus])
+
+	# Function to assign secondary outcomes
+	function shuffle_secondary_outcome(n::Int64, primary::Float64)
+
+		secondary = repeat(
+			filter(x -> x != primary, coins), 
+			n ÷ (length(coins) - 1)
+		)
+
+		distances = abs.(coins .- primary)
+
+		furthest = coins[partialsortperm(distances, 1:(rem(n, length(coins) - 1)), rev=true)]
+
+		secondary = vcat(secondary, furthest)
+
+		return shuffle(rng, secondary)
+
+	end
+
+	# Add secondary outcome, shuffle under contraints such that the first two blocks primary outcome matches secondary in sign
+	criteria2 = false
+	while !criteria2
+		DataFrames.transform!(
+			groupby(PILT_blocks_long, :primary_outcome),
+			:primary_outcome => (x -> shuffle_secondary_outcome(length(x), unique(x)[1])) => :secondary_outcome
+		)
+
+		criteria2 = all((r -> sign(r.primary_outcome) == 
+			sign(r.secondary_outcome)).(eachrow(filter(x -> x.block <= 2, PILT_blocks_long))))
+
+	end
+	
+	# Long to wide
+	leftjoin!(
+		unstack(
+			PILT_blocks_long,
+			:block,
+			:stimulus,
+			:primary_outcome,
+			renamecols = x -> "primary_outcome_$(x)"
+		),
+		unstack(
+			PILT_blocks_long,
+			:block,
+			:stimulus,
+			:secondary_outcome,
+			renamecols = x -> "secondary_outcome_$(x)"
+		),
+		on = :block
+	)
+
+end
+
+# ╔═╡ cbe94f65-56f2-4262-8b6a-76b348ee1f8b
+# ╠═╡ disabled = true
+#=╠═╡
+# Assign valence and set size per block
+PILT_block_attr = let random_seed = 5
+	
+	# # All combinations of set sizes and valence
+	block_attr = DataFrame(
+		block = repeat(1:PILT_total_blocks),
+		valence = repeat([1, -1], inner = PILT_blocks_per_valence),
+		fifty_high = fill(true, PILT_total_blocks)
+	)
+
+	# Shuffle set size and valence, making sure valence is varied, and positive in the first block and any time noise is introduced, and shaping doesn't extend too far into the task
+	rng = Xoshiro(random_seed)
+
+	first_three_same = true
+	first_block_punishement = true
+	too_many_repeats = true
+	first_confusing_punishment = true
+	shaping_too_long = true
+	while first_three_same || first_block_punishement || too_many_repeats ||
+		first_confusing_punishment || shaping_too_long
+
+		DataFrames.transform!(
+			block_attr,
+			:block => (x -> shuffle(rng, x)) => :block
+		)
+		
+		sort!(block_attr, :block)
+
+		# Add n_confusing
+		DataFrames.transform!(
+			groupby(block_attr, :valence),
+			:block => (x -> PILT_n_confusing) => :n_confusing
+		)
+
+		# Compute criterion variables
+		first_three_same = allequal(block_attr[1:3, :valence])
+		
+		first_block_punishement = block_attr.valence[1] == -1
+
+		too_many_repeats = has_consecutive_repeats(block_attr.valence)
+
+		first_confusing_punishment = 
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 1)] == -1) |
+			(block_attr.valence[findfirst(block_attr.n_confusing .== 2)] == -1)
+
+		shaping_too_long = 
+			!all(block_attr.n_confusing[11:end] .== maximum(PILT_n_confusing))
+	end
+
+	# Return
+	block_attr
+end
+  ╠═╡ =#
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
@@ -834,3 +993,7 @@ end
 # ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
 # ╠═df5baa98-27b9-4bbc-9ab0-03ea66e91970
 # ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
+# ╠═7a100e62-c028-4a24-a200-658bbca1945a
+# ╠═18f41358-8554-4142-83f8-1c1c3f38b6fa
+# ╠═84d2f787-aba2-40be-9816-4924968f5790
+# ╠═cbe94f65-56f2-4262-8b6a-76b348ee1f8b
