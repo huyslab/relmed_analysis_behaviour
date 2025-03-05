@@ -71,7 +71,7 @@ end
 # ╔═╡ 9f300301-b018-4bea-8fc4-4bc889b11afd
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
-		"generate_experimental_sequences/pilot7_wm_stimulus_sequence_longer.csv"))
+		"generate_experimental_sequences/pilot8_wm_stimulus_sequence.csv"))
 
 	select!(
 		triplet_order, 
@@ -83,8 +83,112 @@ end
 # ╔═╡ 184a054c-5a88-44f8-865e-da75a10191ec
 md"""## RLWM"""
 
+# ╔═╡ 60c50147-708a-46f8-a813-7667116fc8d2
+md"""### Post-WM test"""
+
 # ╔═╡ ffe06202-d829-4145-ae26-4a95449d64e6
 md"""# RLLTM"""
+
+# ╔═╡ bcb73e19-8bf9-4e75-a9f7-8152e3d23201
+md"""## Post-LTM test"""
+
+# ╔═╡ df5baa98-27b9-4bbc-9ab0-03ea66e91970
+function prepare_for_finding_ltm_test_sequence(
+	task::DataFrame;
+	stimulus_locations::Vector{String} = ["right", "middle", "left"]
+)
+
+	# Extract stimuli and their common feedback from task structure
+	stimuli = vcat([rename(
+		task[task.feedback_common, [:session, :block, :n_groups, :stimulus_group_id,  Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in stimulus_locations]...)
+
+	# Summarize magnitude per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :block, :n_groups, :stimulus_group_id, :stimulus]),
+		:feedback => (x -> mean(unique(x))) => :magnitude
+	)
+
+	# Create Dict of unique stimuli by magnitude
+	magnitudes = unique(stimuli.magnitude)
+	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus) for m in magnitudes)
+
+	#  Define existing pairs
+	pairer(v) = [[v[i], v[j]] for i in 1:length(v) for j in i+1:length(v)]
+	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus) 
+		for p in unique(stimuli.stimulus_group_id)]...)
+
+	existing_pairs = create_pair_list(stimuli)
+
+	existing_pairs = sort.(existing_pairs)
+
+	return stimuli_magnitude, existing_pairs
+
+end
+
+# ╔═╡ 391f3f2a-74ae-463b-b109-a47eaaafdf97
+function create_ltm_test_pairs(stimuli::Dict{Float64, Vector{String}}, 
+                            existing_pairs::Vector{Vector{String}}, 
+                            target_n_different::Int64, 
+                            target_n_same::Int64)
+
+	@assert all(issorted.(existing_pairs)) "Pairs not sorted within `existing_pairs`"
+        
+    # Extract unique magnitude values
+    magnitudes = collect(keys(stimuli))
+    
+    # Initialize storage for results
+    new_pairs = DataFrame(stimulus_A = String[], stimulus_B = String[],
+                          magnitude_A = Float64[], magnitude_B = Float64[])
+    
+    # Track stimulus usage
+    stim_usage = Dict(s => 0 for m in magnitudes for s in stimuli[m])
+    
+    # Function to sample a pair of stimuli from given magnitude categories
+    function sample_pair(mag1, mag2)
+        available_stim1 = sort(stimuli[mag1], by=s -> stim_usage[s])
+        available_stim2 = sort(stimuli[mag2], by=s -> stim_usage[s])
+        
+        for stim1 in available_stim1, stim2 in available_stim2
+            if stim1 != stim2 && !(sort([stim1, stim2]) in existing_pairs)
+                return stim1, stim2
+            end
+        end
+        return rand(available_stim1), rand(available_stim2)
+    end
+    
+    # Generate different-magnitude pairs
+    for (i, mag1) in enumerate(magnitudes), mag2 in magnitudes[i+1:end]
+        for _ in 1:target_n_different
+            stim1, stim2 = sample_pair(mag1, mag2)
+            push!(new_pairs, (stim1, stim2, mag1, mag2))
+            push!(existing_pairs, sort([stim1, stim2]))
+            stim_usage[stim1] += 1
+            stim_usage[stim2] += 1
+        end
+    end
+    
+    # Generate same-magnitude pairs
+    for mag in magnitudes
+        if length(stimuli[mag]) > 1  # Ensure at least two stimuli exist
+            for _ in 1:target_n_same
+                stim1, stim2 = sample_pair(mag, mag)
+                push!(new_pairs, (stim1, stim2, mag, mag))
+                push!(existing_pairs, sort([stim1, stim2]))
+                stim_usage[stim1] += 1
+                stim_usage[stim2] += 1
+            end
+        end
+    end
+    
+    return new_pairs
+end
+
+
+# ╔═╡ cd0c0721-41cd-4621-aa3b-0ad13823f3a9
+md"""## Functions"""
 
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLLTM(
@@ -186,7 +290,7 @@ RLWM = let RLWM = copy(RLX_block),
 
 	# Assign stimuli --------
 	stimuli = [
-		categories[rand(rng, 1:length(categories))] * "_1.jpg" for _ in 1:length(unique(RLWM.stimulus_group))
+		popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:length(unique(RLWM.stimulus_group))
 	]
 
 	stimuli = DataFrame(
@@ -311,10 +415,84 @@ let
 	CSV.write("results/pilot8_WM.csv", RLWM)
 end
 
+# ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
+RLWM_test = let rng = Xoshiro(0)
+
+	# Get unique stimuli
+	RLWM_stimuli = unique(RLWM.stimulus_left)
+
+	# Get all combinations
+	RLWM_pairs = collect(combinations(RLWM_stimuli, 2))
+
+	# Shuffle order within pair
+	shuffle!.(rng, RLWM_pairs)
+
+	# Repeat flipped
+	RWLM_blocks = [iseven(i) ? reverse.(RLWM_pairs) : RLWM_pairs for i in 1:RLX_test_n_blocks]
+
+	# Assemble into DataFrame
+	RLWM_test = vcat([DataFrame(
+			block = fill(i, length(stims)),
+			stimulus_left = [x[1] for x in stims],
+			stimulus_right = [x[2] for x in stims]
+		) for (i, stims) in enumerate(RWLM_blocks)]...)
+
+	# Shuffle trial order within block
+	DataFrames.transform!(
+		groupby(RLWM_test, :block),
+		:block => (x -> shuffle(rng, 1:length(x))) => :trial
+	)
+
+	sort!(RLWM_test, [:block, :trial])
+
+	# Add variables needed for JS ------------------
+	insertcols!(
+		RLWM_test,
+		:session => 1,
+		:feedback_left => 1.,
+		:feedback_right => 1.,
+		:magnitude_left => 1.,
+		:magnitude_right => 1.,
+		:same_valence => true,
+		:same_block => true,
+		:original_block_left => 1,
+		:original_block_right => 1
+	)
+	
+
+end
+
+# ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
+let
+	save_to_JSON(RLWM_test, "results/pilot8_WM_test.json")
+	CSV.write("results/pilot8_WM_test.csv", RLWM_test)
+end
+
+# ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
+# Tests for RLWM_test
+let
+
+	# Make sure all stimuli are in RLWM
+	test_stimuli = unique(
+		vcat(
+			RLWM_test.stimulus_left,
+			RLWM_test.stimulus_right
+		)
+	)
+
+	RLWM_stimuli =  unique(RLWM.stimulus_left)
+
+	@assert all((x -> x in RLWM_stimuli).(test_stimuli)) "Test stimuli not in RLWM sequence"
+
+	@assert all((x -> x in test_stimuli).(RLWM_stimuli)) "Not all RLWM stimuli appear in test"
+
+
+end
+
 # ╔═╡ f5916a9f-ddcc-4c03-9328-7dd76c4c74b2
 # Create deterministic block
 RLLTM_det_block = let det_block = copy(RLX_block),
-	rng = Xoshiro(0)
+	rng = Xoshiro(1)
 	
 	# Assign stimuli categories
 	stimuli = assign_triplet_stimuli_RLLTM((categories),
@@ -463,7 +641,7 @@ let task = RLLTM
 
 	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
 
-	@assert !all(RLWM.feedback_left .== RLLTM.feedback_left) "Optimal actions should be different on RLWM and RLLTM"
+	@assert !all(RLWM.feedback_right .== RLLTM.feedback_right) "Optimal actions should be different on RLWM and RLLTM"
 
 	@assert all(RLWM.stimulus_group .== RLLTM.stimulus_group) "Stimuli sequence not identical in RLWM and RLLTM"
 
@@ -473,6 +651,161 @@ end
 let
 	save_to_JSON(RLLTM, "results/pilot8_LTM.json")
 	CSV.write("results/pilot8_LTM.csv", RLLTM)
+end
+
+# ╔═╡ c65d7f1f-224d-4144-aa46-d48a482db95a
+# Create LTM test sequence
+RLLTM_test = let rng = Xoshiro(0)
+
+	# Process WM sequence to be able to find test pairs
+	stimuli_magnitude, existing_pairs = prepare_for_finding_ltm_test_sequence(
+		RLLTM
+	)
+	
+
+	# Find test pairs
+	RLLTM_test = create_ltm_test_pairs(stimuli_magnitude, 
+						existing_pairs, 
+						60, 
+						20)
+
+	# Shuffle
+	RLLTM_test.trial = shuffle(rng, 1:nrow(RLLTM_test))
+
+	sort!(RLLTM_test, :trial)
+
+	# Add needed variables
+	insertcols!(
+		RLLTM_test,
+		1,
+		:session => 1,
+		:block => 1,
+		:original_block_right => 1,
+		:original_block_left => 1,
+		:same_block => true,
+		:valence_left => 1,
+		:valence_right => 1,
+		:same_valence => true
+	)
+
+	# Add magnitude pair variable
+	RLLTM_test.magnitude_pair = [sort([r.magnitude_A, r.magnitude_B]) for r in eachrow(RLLTM_test)]
+
+
+	# Assign left / right
+	DataFrames.transform!(
+		groupby(RLLTM_test, :magnitude_pair),
+		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
+	)
+
+	RLLTM_test.stimulus_right = ifelse.(
+		RLLTM_test.A_on_right,
+		RLLTM_test.stimulus_A,
+		RLLTM_test.stimulus_B
+	)
+
+	RLLTM_test.stimulus_left = ifelse.(
+		.!RLLTM_test.A_on_right,
+		RLLTM_test.stimulus_A,
+		RLLTM_test.stimulus_B
+	)
+
+	RLLTM_test.magnitude_right = ifelse.(
+		RLLTM_test.A_on_right,
+		RLLTM_test.magnitude_A,
+		RLLTM_test.magnitude_B
+	)
+
+	RLLTM_test.magnitude_left = ifelse.(
+		.!RLLTM_test.A_on_right,
+		RLLTM_test.magnitude_A,
+		RLLTM_test.magnitude_B
+	)
+
+	# Add feedback_right and feedback_left variables - these determine the coins added to the safe for the trial
+	RLLTM_test.feedback_right = ifelse.(
+		RLLTM_test.magnitude_right .== 0.75,
+		fill(1., nrow(RLLTM_test)),
+		fill(0.01, nrow(RLLTM_test))
+	)
+
+	RLLTM_test.feedback_left = ifelse.(
+		RLLTM_test.magnitude_left .== 0.75,
+		fill(1., nrow(RLLTM_test)),
+		fill(0.01, nrow(RLLTM_test))
+	)
+
+	RLLTM_test.block .+= 5 #maximum(PILT_test.block)
+
+
+	RLLTM_test
+
+end
+
+# ╔═╡ 832ccb61-b588-4614-9f5a-efa0f9a6087d
+let
+	save_to_JSON(RLLTM_test, "results/pilot8_LTM_test.json")
+	CSV.write("results/pilot8_LTM_test.csv", RLLTM_test)
+end
+
+# ╔═╡ 63b74bde-4a28-4ff8-ae15-a37c891c3166
+# Tests for RLWM_test
+let
+	# Test even distribution of stimuli appearances
+	long_test = vcat(
+		select(
+			RLLTM_test,
+			:stimulus_A => :stimulus,
+			:magnitude_A => :magnitude
+		),
+		select(
+			RLLTM_test,
+			:stimulus_B => :stimulus,
+			:magnitude_B => :magnitude
+		)
+	)
+
+	test_n = combine(
+		groupby(
+			long_test,
+			:stimulus
+		),
+		:stimulus => length => :n,
+		:magnitude => unique => :magnitude
+	)
+
+	@assert all(combine(
+		groupby(
+			test_n,
+			:magnitude
+		),
+		:n => (x -> (maximum(x) - minimum(x)) == 1) => :n_diff
+	).n_diff) "Number of appearances for each stimulus not balanced"
+
+	# Test left right counterbalancing of magnitude
+	@assert mean(RLLTM_test.magnitude_left) == mean(RLLTM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
+
+	# Make sure all stimuli are in RLWM
+	test_stimuli = unique(
+		vcat(
+			RLLTM_test.stimulus_left,
+			RLLTM_test.stimulus_right
+		)
+	)
+
+	RLLTM_stimuli =  unique(
+		vcat(
+			RLLTM.stimulus_left,
+			RLLTM.stimulus_right,
+			RLLTM.stimulus_middle
+		)
+	)
+
+	@assert all((x -> x in RLLTM_stimuli).(test_stimuli)) "Test stimuli not in RLLTM sequence"
+
+	@assert all((x -> x in test_stimuli).(RLLTM_stimuli)) "Not all RLLTM stimuli appear in test"
+
+
 end
 
 # ╔═╡ Cell order:
@@ -486,11 +819,22 @@ end
 # ╠═6417ad94-1852-4cce-867e-a856295ec782
 # ╠═e6f984aa-20dc-4a7d-8a3b-75728995a1f7
 # ╠═efdfdeb0-2b56-415e-acf7-d6236ee7b199
+# ╟─60c50147-708a-46f8-a813-7667116fc8d2
+# ╠═1491f0f9-0c40-41ca-b7a9-055259f66eb3
+# ╠═1a6d525f-5317-4b2b-a631-ea646ee20c9f
+# ╠═b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
 # ╟─ffe06202-d829-4145-ae26-4a95449d64e6
 # ╠═f5916a9f-ddcc-4c03-9328-7dd76c4c74b2
 # ╠═e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
 # ╠═f9be1490-8e03-445f-b36e-d8ceff894751
 # ╠═eecaac0c-e051-4543-988c-e969de3a8567
+# ╟─bcb73e19-8bf9-4e75-a9f7-8152e3d23201
+# ╠═c65d7f1f-224d-4144-aa46-d48a482db95a
+# ╠═63b74bde-4a28-4ff8-ae15-a37c891c3166
+# ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
+# ╠═df5baa98-27b9-4bbc-9ab0-03ea66e91970
+# ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
+# ╟─cd0c0721-41cd-4621-aa3b-0ad13823f3a9
 # ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
