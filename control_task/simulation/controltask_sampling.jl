@@ -7,7 +7,7 @@ using ForwardDiff, Optim
 using LaTeXStrings, Plots #PlotlyJS
 using Random, Distributions, StatsBase, GLM
 using Debugger
-Random.seed!(1234)
+Random.seed!(123)
 #------------------------------------------
 # generate some experiments 
 #
@@ -20,7 +20,8 @@ sigma = 1     # beta variance
 
 #betatrue = 1 .* [1 5 10 20] # true control parameters 
 #betatrue = 1 .* [.5 5] # true control parameters 
-betatrue = [5 10 20] # true control parameters 
+# betatrue = [5 10 20] # true control parameters 
+betatrue = [2 5 8] .* 3 # true control parameters 
 nbeta = length(betatrue)
 
 Tc = [4 3 2 1] # true controlled transition matrix 
@@ -293,7 +294,7 @@ myplots()
 # now run it over a few iterations to see how it tends to do on average, rather
 # than on individual trials
 
-niterations = 25
+niterations = 100
 betahat_it = zeros(nbeta, niterations)
 for i = 1:niterations
    print("iteration ", i, "\r")
