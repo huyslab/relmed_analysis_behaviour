@@ -136,11 +136,11 @@ function generate_stimuli(pars::TaskParameters;
     end
 
     shuffle && shuffle!(stimuli)
-    return stimuli
+    return convert(Vector{NamedTuple}, stimuli)
 end
 
 # Generate action sequence either randomly or based on stimuli
-function generate_actions(stimulus::Union{Nothing,NamedTuple}; actor::Function=nothing)
+function generate_actions(stimulus::Union{Nothing,NamedTuple}; actor::Union{Nothing,Function}=nothing)
     if isnothing(actor)
         # Default random action generator
         chosen_boat = stimulus.boats[rand(1:2)]
@@ -417,12 +417,9 @@ function run_experiment(pars::TaskParameters, dataset::Vector{<:NamedTuple}; sho
 end
 
 # Run batch experiments for multiple simulated participants but with fixed stimulus sequence
-function run_batch_experiment(pars::TaskParameters, stimuli::NamedTuple;
+function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple};
     n_participants::Int=25,
     show_plots::Bool=false)
-
-    # Use fixed stimuli sequence
-    @assert stimuli isa NamedTuple "Stimuli must be a NamedTuple"
 
     # Run experiments for multiple simulated participants
     results = []
@@ -430,7 +427,7 @@ function run_batch_experiment(pars::TaskParameters, stimuli::NamedTuple;
     @showprogress "Running batch experiments..." for i in 1:n_participants
         # Generate dataset with fixed stimuli but random actions
         dataset = map(stimuli) do stimulus
-            actions = generate_actions(stimulus)
+            actions = generate_actions(stimulus; actor=nothing)
             outcomes = compute_outcomes(stimulus, actions, pars)
             merge(stimulus, actions, outcomes)
         end
@@ -444,10 +441,10 @@ function run_batch_experiment(pars::TaskParameters, stimuli::NamedTuple;
         end
     end
 
-    return results, stimuli
+    return results
 end
 
 # Export main functions
-export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, particle_filter, plot_estimates
+export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, generate_stimuli, particle_filter, plot_estimates
 
 end # module
