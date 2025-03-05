@@ -422,7 +422,8 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
     show_plots::Bool=false)
 
     # Run experiments for multiple simulated participants
-    results = []
+    results::Vector{ExperimentResults} = []
+    datasets = []
 
     @showprogress "Running batch experiments..." for i in 1:n_participants
         # Generate dataset with fixed stimuli but random actions
@@ -435,13 +436,15 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
         # Run experiment
         result = particle_filter(pars, dataset)
         push!(results, result)
+        push!(datasets, dataset)
+    end
 
         if show_plots  # Only show plot for first participant
             display(plot_batch_estimates(results, pars))
         end
     end
 
-    return results
+    return results, datasets
 end
 
 # Export main functions
