@@ -887,7 +887,7 @@ PILT_blocks = let rng = Xoshiro(0)
 	end
 	
 	# Long to wide
-	leftjoin!(
+	PILT_blocks = leftjoin(
 		unstack(
 			PILT_blocks_long,
 			:block,
@@ -904,6 +904,52 @@ PILT_blocks = let rng = Xoshiro(0)
 		),
 		on = :block
 	)
+
+	# Add n_confusing
+	PILT_blocks.n_confusing = vcat(
+		fill(0, 4), 
+		fill(1, 4), 
+		fill(2, nrow(PILT_blocks) - 8)
+	)
+
+	PILT_blocks
+
+end
+
+# ╔═╡ 926053c8-df86-440f-b397-47c9ed2a6000
+PILT = let rng = Xoshiro(1)
+
+	blocks = groupby(PILT_blocks, :block)
+    n_blocks = length(blocks)
+
+    # Pre-allocate best sequence storage
+    sequence = DataFrame()
+	score = Inf
+    while score > 0.0001
+        trials_per_block = [
+            DataFrame(
+                block = first(b.block),
+                trial = 1:PILT_trials_per_block,
+                feedback_common = shuffle(
+					rng, vcat(
+						fill(true, PILT_trials_per_block - b.n_confusing[1]),
+						fill(false, b.n_confusing[1])
+					))
+            )
+            for b in blocks
+        ]
+
+        sequence = vcat(trials_per_block...)
+
+        # Compute trial-wise feedback mean efficiently
+        trial_means = combine(
+			groupby(sequence, :trial), :feedback_common => mean => :m).m
+        score = std(trial_means)
+
+    end
+
+    sequence
+
 
 end
 
@@ -996,4 +1042,5 @@ end
 # ╠═7a100e62-c028-4a24-a200-658bbca1945a
 # ╠═18f41358-8554-4142-83f8-1c1c3f38b6fa
 # ╠═84d2f787-aba2-40be-9816-4924968f5790
+# ╠═926053c8-df86-440f-b397-47c9ed2a6000
 # ╠═cbe94f65-56f2-4262-8b6a-76b348ee1f8b
