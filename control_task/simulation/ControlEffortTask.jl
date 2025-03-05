@@ -545,7 +545,7 @@ end
 
 # Run batch experiments for multiple simulated participants but with fixed stimulus sequence
 function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple};
-    n_participants::Int=25,
+    n_participants::Int=25, actor::Union{Nothing,Function}=nothing,
     show_plots::Bool=false)
 
     # Run experiments for multiple simulated participants
@@ -555,7 +555,7 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
     @showprogress "Running batch experiments..." for i in 1:n_participants
         # Generate dataset with fixed stimuli but random actions
         dataset = map(stimuli) do stimulus
-            actions = generate_actions(stimulus; actor=nothing)
+            actions = generate_actions(stimulus; actor)
             outcomes = compute_outcomes(stimulus, actions, pars)
             merge(stimulus, actions, outcomes)
         end
