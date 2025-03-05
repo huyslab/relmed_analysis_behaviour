@@ -187,9 +187,6 @@ function create_ltm_test_pairs(stimuli::Dict{Float64, Vector{String}},
 end
 
 
-# ╔═╡ cd0c0721-41cd-4621-aa3b-0ad13823f3a9
-md"""## Functions"""
-
 # ╔═╡ 3fa8c293-ac47-4acd-bdb7-9313286ee464
 function assign_triplet_stimuli_RLLTM(
 	categories::AbstractVector,
@@ -828,13 +825,12 @@ end
 # ╠═e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
 # ╠═f9be1490-8e03-445f-b36e-d8ceff894751
 # ╠═eecaac0c-e051-4543-988c-e969de3a8567
+# ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
+# ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
+# ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
 # ╟─bcb73e19-8bf9-4e75-a9f7-8152e3d23201
 # ╠═c65d7f1f-224d-4144-aa46-d48a482db95a
 # ╠═63b74bde-4a28-4ff8-ae15-a37c891c3166
 # ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
 # ╠═df5baa98-27b9-4bbc-9ab0-03ea66e91970
 # ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
-# ╟─cd0c0721-41cd-4621-aa3b-0ad13823f3a9
-# ╠═3fa8c293-ac47-4acd-bdb7-9313286ee464
-# ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
-# ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
