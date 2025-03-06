@@ -98,7 +98,7 @@ function generate_stimuli(pars::TaskParameters;
 
     stimuli = if mode == :random
         [
-            (; current_state=rand(1:4), boats=rand(1:4, 2), wind=rand(1:3))
+            (; current_state=rand(1:4), boats=sample(1:4, 2; replace=false), wind=rand(1:3))
             for _ in 1:pars.n_trials
         ]
 
@@ -494,7 +494,7 @@ function plot_batch_estimates(results_list::Vector{ExperimentResults}, datasets_
     draw!(fig[2, 1][1, 1], p4, scales(Color=(; palette=:Reds_3)); axis=(; title="Betas over time", xlabel="Trial", ylabel="Estimated β"))
 
     # Effort functions
-    estimated_beta_df = filter(x -> x.trial .== 144, betas_df)
+    estimated_beta_df = filter(x -> x.trial .== pars.n_trials, betas_df)
     transform!(estimated_beta_df, :variable => ByRow(x -> pars.beta_true[parse(Int, match(r"[0-9]+", x).match)]) => :true_beta)
     select!(estimated_beta_df, :experiment, :value => :estimated_beta, :true_beta, :labels)
     effort_df = crossjoin(
