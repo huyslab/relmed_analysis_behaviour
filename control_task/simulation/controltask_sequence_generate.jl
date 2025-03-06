@@ -106,6 +106,8 @@ combine(groupby(reward_df, [:left_viable, :right_viable, :island_viable]), nrow)
 
 # Only island viable
 island_viable_df = filter(row -> !row.ship_viable && row.island_viable, reward_df)
+# Both island and ship viable
+both_viable_df = filter(row -> row.ship_viable && row.island_viable, reward_df)
 # Only ship viable
 ship_viable_df = filter(row -> row.ship_viable && !row.island_viable, reward_df)
 unique_combinations = combine(
@@ -115,8 +117,9 @@ unique_combinations = combine(
     return group_df[rand(1:nrow(group_df)), :]
 end
 
-reward_sequence = vcat(island_viable_df, unique_combinations)
+reward_sequence = vcat(both_viable_df, unique_combinations)
 combine(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), nrow)
+transform!(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x)/3)), length(x), replace=false)) => :current)
 shuffle!(reward_sequence)
 
 # Convert to vector of NamedTuples for saving
@@ -125,7 +128,11 @@ reward_sequence_tuples = map(eachrow(reward_sequence)) do row
     target=island_name[row.target_island], 
     near=island_name[row.near_island], 
     left=ship_name[row.left], 
-    right=ship_name[row.right]
+    right=ship_name[row.right],
+    current=row.current,
+    island_viable=row.island_viable,
+    left_viable=row.left_viable,
+    right_viable=row.right_viable
   )
 end
 
