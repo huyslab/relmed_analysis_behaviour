@@ -13,6 +13,9 @@ pars = TaskParameters(
   beta_true=[2, 5, 8] .* 3,
 )
 
+ship_name = ["green", "blue", "red", "yellow"]
+island_name = ["banana", "coconut", "grape", "orange"]
+
 # Set random seed for reproducibility
 Random.seed!(123)
 
@@ -24,7 +27,7 @@ flattened_stimuli_sequence = map(stimuli_sequence) do s
   # Extract boat values
   left, right = s.boats
   # Create new NamedTuple with flattened structure
-  return (; left=left, right=right, near=s.current_state, current=s.wind)
+  return (; left=ship_name[left], right=ship_name[right], near=island_name[s.current_state], current=s.wind)
 end
 
 CSV.write("exploration_sequence.csv", DataFrame(flattened_stimuli_sequence))
@@ -79,7 +82,7 @@ perms = collect(permutations(1:pars.n_states, 2))
 shuffled_perms = shuffle_with_no_identical_pairs(perms)
 prediction_sequence = [];
 for (i, perm) in enumerate(shuffled_perms)
-  append!(prediction_sequence, [(;ship=perm[1]), (;ship=perm[2])])
+  append!(prediction_sequence, [(;ship=ship_name[perm[1]]), (;ship=ship_name[perm[2]])])
 end
 CSV.write("prediction_sequence.csv", DataFrame(prediction_sequence))
 open("prediction_sequence.json", "w") do io
@@ -119,10 +122,10 @@ shuffle!(reward_sequence)
 # Convert to vector of NamedTuples for saving
 reward_sequence_tuples = map(eachrow(reward_sequence)) do row
   return (
-    target=row.target_island, 
-    near=row.near_island, 
-    left=row.left, 
-    right=row.right
+    target=island_name[row.target_island], 
+    near=island_name[row.near_island], 
+    left=ship_name[row.left], 
+    right=ship_name[row.right]
   )
 end
 
