@@ -21,4 +21,4 @@ Random.seed!(123)
 
 # Run batch experiments
 stimuli_sequence = generate_stimuli(pars; mode=:factorial, shuffle=true)
-results_list, datasets_list = run_batch_experiment(pars, stimuli_sequence; n_participants=100, show_plots=true);
+results_list, datasets_list, batch_fig = run_batch_experiment(pars, stimuli_sequence; n_participants=100, show_plots=true);

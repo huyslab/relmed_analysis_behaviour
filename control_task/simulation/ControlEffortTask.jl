@@ -3,7 +3,7 @@ module ControlEffortTask
 using DataFrames, LinearAlgebra, LogExpFunctions, Distributions, StatsBase, Parameters, Combinatorics, Plots, ProgressMeter, CSV, Random, Debugger
 
 using AlgebraOfGraphics, ColorSchemes, CairoMakie
-
+CairoMakie.activate!(type = "svg")
 set_theme!(theme_minimal())
 colors = ColorSchemes.Paired_10.colors
 inch = 96
@@ -290,7 +290,7 @@ function particle_filter(pars::TaskParameters, dataset::Vector{<:NamedTuple})
         # next!(progress)
     end
 
-    @info "Resampled $(sum([d.resampled for d in diagnostics])) trials\n"
+    # @info "Resampled $(sum([d.resampled for d in diagnostics])) trials\n"
 
     return ExperimentResults(beta_estimates, weight_estimates, control_estimates, diagnostics)
 end
@@ -487,7 +487,7 @@ function plot_batch_estimates(results_list::Vector{ExperimentResults}, datasets_
          visual(HLines, linestyle=:dash, label="Ground\ntruth") +
          data(betas_df) *
          mapping(:trial, :value => "β", color=:labels => presorted => "", group=:experiment => nonnumeric) *
-         visual(Lines, alpha=0.1, label="Estimated") +
+         visual(Lines, alpha=0.05, label="Estimated") +
          data(combine(groupby(betas_df, [:trial, :labels]), :value => mean => :value)) *
          mapping(:trial, :value => "β", color=:labels => presorted => "") *
          visual(Lines, linewidth=2, label="Averaged response")
@@ -510,7 +510,7 @@ function plot_batch_estimates(results_list::Vector{ExperimentResults}, datasets_
          visual(Lines, linestyle=:dash, label="Ground\ntruth") +
          data(effort_df) *
          mapping(:effort, :p_control_estimated, color=:labels => presorted => "", group=:experiment => nonnumeric) *
-         visual(Lines, alpha=0.1, linestyle=:solid, label="Estimated")
+         visual(Lines, alpha=0.05, linestyle=:solid, label="Estimated")
     p5 = p5 + data(avg_effort_df) *
               mapping(:effort, :p_control_avg, color=:labels => presorted => "") *
               visual(Lines, linewidth=2.5, label="Averaged response")
@@ -537,7 +537,7 @@ function run_experiment(pars::TaskParameters, dataset::Vector{<:NamedTuple}; sho
     results = particle_filter(pars, dataset)
 
     if show_plots
-        display(plot_estimates(results, dataset, pars))
+        plot_estimates(results, dataset, pars) |> display
     end
 
     return results
@@ -567,7 +567,9 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
     end
 
     if show_plots
-        display(plot_batch_estimates(results, datasets, pars))
+        fig = plot_batch_estimates(results, datasets, pars)
+        display(fig)
+        return results, datasets, fig
     end
 
     return results, datasets
