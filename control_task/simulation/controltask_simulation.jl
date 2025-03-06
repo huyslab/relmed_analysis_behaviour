@@ -3,7 +3,8 @@ Pkg.activate("relmed_environment")
 Pkg.instantiate()
 @info "Running with $(Threads.nthreads()) threads"
 
-using Revise, Random
+using Revise, Random, CairoMakie
+CairoMakie.activate!(type = "svg")
 includet("ControlEffortTask.jl")
 using .ControlEffortTask
 
