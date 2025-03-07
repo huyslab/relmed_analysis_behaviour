@@ -227,7 +227,7 @@ end
 function plot_prior_accuracy!(
     f::GridPosition,
     data::Union{DataFrame, SubDataFrame};
-    group::Symbol = :group,
+    group::Union{Symbol, Nothing} = :group,
 	group_lvls::Union{Symbol, Vector{Symbol}, Missing} = missing,
     pid_col::Symbol = :PID,
 	choice_val::Float64 = 1.,
@@ -368,7 +368,7 @@ function plot_prior_expectations!(
     norm::Union{Nothing, Symbol} = :ρ,
 	ylab::String = "Q value",
 	ylims::Union{Tuple{Float64, Float64}, Nothing} = nothing,
-	group::Symbol = :group,
+	group::Union{Symbol, Nothing} = :group,
 	legend::Bool = true,
     legend_pos::Symbol = :top,
     legend_rows::Int64 = 1,
@@ -380,6 +380,7 @@ function plot_prior_expectations!(
 
 	# Setup
     p_data = copy(data)
+	p_data.group .= isnothing(group) ? "1" : p_data[!, group]
     colB = typeof(colB) == Symbol ? [colB] : colB
     col_names = [colA, colB...]
     line_styles = [:solid, :dash, :dashdot][1:length(col_names)]

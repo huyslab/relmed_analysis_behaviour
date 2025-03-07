@@ -769,8 +769,12 @@ function add_choice_column!(df)
 end
 
 # Prepare pilot data for fititng with model
-function prepare_WM_data(data)
-	forfit = exclude_PLT_sessions(data, required_n_blocks = 10)
+function prepare_WM_data(data; continuous = false)
+	if !continuous
+		forfit = exclude_PLT_sessions(data, required_n_blocks = 10)
+	else
+		forfit = data
+	end
 	filter!(x -> x.response != "noresp", forfit)
 	forfit.feedback_optimal = 
 		ifelse.(
@@ -794,13 +798,15 @@ function prepare_WM_data(data)
 	forfit = add_choice_column!(forfit)
 
 	# Clean block numbers up
-	renumber_block(x) = indexin(x, sort(unique(x)))
-    DataFrames.transform!(
-		groupby(forfit, [:prolific_pid, :session]),
-		:block => renumber_block => :block,
-		ungroup=true
-	)
-	forfit.block = convert(Vector{Int64}, forfit.block)
+	if !continuous
+		renumber_block(x) = indexin(x, sort(unique(x)))
+		DataFrames.transform!(
+			groupby(forfit, [:prolific_pid, :session]),
+			:block => renumber_block => :block,
+			ungroup=true
+		)
+		forfit.block = convert(Vector{Int64}, forfit.block)
+	end
 
 	# PID as number
 	pids = unique(forfit[!, [:prolific_pid]])

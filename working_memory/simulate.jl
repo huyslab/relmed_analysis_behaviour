@@ -318,6 +318,7 @@ function simulate_from_prior(
         n_blocks = 20, n_trials = 10, n_confusing = 2, set_sizes = 2,
         n_options = 2, coins = [0.01, 0.5, 1.], punish = true
     ),
+    continuous::Bool = false,
     repeats::Bool = false,
     gq::Bool = false,
     random_seed::Union{Int64, Nothing} = nothing
@@ -363,6 +364,7 @@ function simulate_from_prior(
         block = repeat(task_strct.block, N),
         valence = repeat(task_strct.valence, N),
         trial = repeat(task_strct.trial, N),
+        trial_ovl = continuous ? repeat(task_strct.trial_ovl, N) : repeat(1:nT, N),
         stimset = repeat(task_strct.stimset, N),
         set_size = repeat(task_strct.set_size, N),
     )
@@ -380,10 +382,17 @@ function simulate_from_prior(
     nsubopt::Int64 = count(contains("feedback"), names(task_strct)) - 1
     subopt_col = nsubopt == 1 ? [:feedback_suboptimal] : [Symbol("feedback_suboptimal$i") for i in 1:nsubopt]
 
-    sim_data = leftjoin(sim_data, 
-        task_strct[!, [:block, :trial, :stimset, :feedback_optimal, subopt_col...]],
-        on = [:block, :trial, :stimset]
-    )
+    if !continuous
+        sim_data = leftjoin(sim_data, 
+            task_strct[!, [:block, :trial, :stimset, :feedback_optimal, subopt_col...]],
+            on = [:block, :trial, :stimset]
+        )
+    else
+        sim_data = leftjoin(sim_data, 
+            task_strct[!, [:trial_ovl, :delay, :stimset, :feedback_optimal, subopt_col...]],
+            on = [:trial_ovl, :stimset]
+        )
+    end
 
     # Renumber blocks
     if repeats && N > 1

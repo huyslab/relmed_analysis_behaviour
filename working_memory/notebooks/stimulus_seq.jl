@@ -351,7 +351,7 @@ let
 	tstrct = filter(x->x.task == "rew_int_detm", tasks)
 	df = leftjoin(
 		prior_sample_t2, tstrct;
-		on=[:block, :trial, :valence, :stimset, :set_size, :feedback_optimal, :feedback_suboptimal1, :feedback_suboptimal2],
+		on=[:block, :trial, :trial_ovl, :valence, :stimset, :set_size, :feedback_optimal, :feedback_suboptimal1, :feedback_suboptimal2],
 		order=:left
 	)
 
