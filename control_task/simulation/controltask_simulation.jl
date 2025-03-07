@@ -10,7 +10,7 @@ using .ControlEffortTask
 
 pars = TaskParameters(
      n_trials=144,
-     beta_true=[2, 5, 8] .* 3,
+     beta_true=[2, 4, 6] .* 3,
      n_particles=40
 )
 
@@ -29,7 +29,8 @@ stimuli_sequence = generate_stimuli(pars; mode=:factorial, shuffle=true)
 # Weaker actors
 function actor_fn(stimulus) 
      chosen_boat = stimulus.boats[rand(1:2)]
-     effort = rand(DiscreteUniform(0, 25))
+     effort = rand(DiscreteUniform(3, 24))
      return (; chosen_boat, effort)
 end
 results_list, datasets_list, batch_fig = run_batch_experiment(pars, stimuli_sequence; n_participants=50, actor = actor_fn, show_plots=true);
+display(batch_fig)
