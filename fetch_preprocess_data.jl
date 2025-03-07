@@ -119,7 +119,7 @@ remove_testing!(data::DataFrame) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|
 function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	# Select rows
-	PLT_data = filter(x -> x.trial_type == trial_type, data)
+	PLT_data = filter(x -> (x.trial_type == trial_type) && (x.trialphase != "PILT_test"), data)
 
 	# Select columns
 	PLT_data = PLT_data[:, Not(map(col -> all(ismissing, col), eachcol(PLT_data)))]
@@ -132,6 +132,54 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	return PLT_data
 
+end
+
+function load_pilot7_data(; force_download = false, return_version = "6.01")
+	datafile = "data/pilot7.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot7"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Subset version for return
+	filter!(x -> x.version == return_version, jspsych_data)
+
+	# Exctract PILT
+	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
+
+	# Divide intwo WM and PILT
+	WM_data = filter(x -> x.n_stimuli == 3, PILT_data)
+	filter!(x -> x.n_stimuli == 2, PILT_data)
+
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+			
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	# No reversal task in Pilot7
+	# reversal_data = prepare_reversal_data(jspsych_data)
+
+	# Extract max press rate data
+	max_press_data = prepare_max_press_data(jspsych_data)
+
+	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data
 end
 
 function load_pilot6_data(; force_download = false, return_version = "6.01")
@@ -420,19 +468,19 @@ function prepare_post_PILT_test_data(data::AbstractDataFrame)
 	end
 
 	# Compute chosen stimulus
-	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", nothing]) "Unexected responses in PILT test data"
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
 	
 	test_data.chosen_stimulus = ifelse.(
-		test_data.response .== "ArrowRight",
+		test_data.response .∈ (["ArrowRight", "right"],),
 		test_data.stimulus_right,
 		ifelse.(
-			test_data.response .== "ArrowLeft",
+			test_data.response .∈ (["ArrowLeft", "left"],),
 			test_data.stimulus_left,
 			missing
 		)
 	)
 
-	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "ArrowLeft" => false, "null" => missing), x, missing)).(test_data.response)
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
 
 	return test_data
 
@@ -507,6 +555,46 @@ function safe_median(arr)
 	else
 			return missing  # Return missing if the array contains non-numeric elements
 	end
+end
+
+function prepare_max_press_data(data::DataFrame)
+	# Define required columns for vigour data
+	required_columns = [:prolific_pid, :record_id, :version, :exp_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(data))
+            insertcols!(data, col => missing)
+        end
+    end
+
+	# Prepare vigour data
+	max_press_data = data |>
+		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
+		x -> select(x, 
+			:prolific_pid,
+			:record_id,
+			:version,
+			:exp_start_time,
+			:session,
+			:trialphase,
+			:trial_number,
+			:trial_duration,
+			:avgSpeed => :avg_speed,
+			:responseTime,
+			:trialPresses => :trial_presses
+		) |>
+		x -> subset(x, 
+				[:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["max_press_rate"]) || (!ismissing(y)))
+		) |>
+		x -> DataFrames.transform(x,
+			:responseTime => ByRow(JSON.parse) => :response_times
+		) |>
+		x -> select(x, 
+			Not([:responseTime])
+		)
+		max_press_data = exclude_double_takers!(max_press_data)
+	return max_press_data
 end
 
 function prepare_vigour_data(data::DataFrame)

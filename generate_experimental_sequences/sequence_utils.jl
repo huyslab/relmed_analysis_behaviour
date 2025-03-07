@@ -27,7 +27,8 @@ function assign_stimuli_and_optimality(;
 	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
 	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
 		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1
+	random_seed::Int64 = 1,
+	ext::String = "jpg"
 	)
 
 	total_n_pairs = sum(n_pairs) # Number of pairs needed
@@ -105,8 +106,8 @@ function assign_stimuli_and_optimality(;
 		end
 	end
 
-	stimulus_A = (x -> x * "1.png").(stimulus_A)
-	stimulus_B = (x -> x * "2.png").(stimulus_B)
+	stimulus_A = (x -> x * "_1.$ext").(stimulus_A)
+	stimulus_B = (x -> x * "_2.$ext").(stimulus_B)
 
 	return DataFrame(
 		phase = repeat(1:n_phases, inner = total_n_pairs),
