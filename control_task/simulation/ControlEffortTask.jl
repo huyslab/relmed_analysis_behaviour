@@ -568,7 +568,7 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
 
     if show_plots
         fig = plot_batch_estimates(results, datasets, pars)
-        display(fig)
+        # display(fig)
         return results, datasets, fig
     end
 
