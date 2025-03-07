@@ -10,14 +10,14 @@ using .ControlEffortTask
 
 pars = TaskParameters(
   n_trials=144,
-  beta_true=[2, 5, 8] .* 3,
+  beta_true=[2, 4, 6] .* 3,
 )
 
 ship_name = ["green", "blue", "red", "yellow"]
 island_name = ["banana", "coconut", "grape", "orange"]
 
 # Set random seed for reproducibility
-Random.seed!(123)
+Random.seed!(0)
 
 # Run batch experiments
 stimuli_sequence = generate_stimuli(pars; mode=:factorial, shuffle=true)
@@ -37,7 +37,7 @@ open("exploration_sequence.json", "w") do io
 end
 
 # Prediction sequence
-function shuffle_with_no_identical_pairs(perms)
+function shuffle_with_no_shared(perms)
     # Convert to canonical form for comparison (sort each inner pair)
     function canonical_form(p)
         return sort([p[1], p[2]])
@@ -79,7 +79,7 @@ end
 
 # Shuffle with constraint for Prediction sequence
 perms = collect(permutations(1:pars.n_states, 2))
-shuffled_perms = shuffle_with_no_identical_pairs(perms)
+shuffled_perms = shuffle_with_no_shared(perms)
 prediction_sequence = [];
 for (i, perm) in enumerate(shuffled_perms)
   append!(prediction_sequence, [(;ship=ship_name[perm[1]]), (;ship=ship_name[perm[2]])])
