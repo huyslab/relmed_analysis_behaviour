@@ -819,78 +819,6 @@ begin
 	PILT_test_n_blocks = 5
 end
 
-# ╔═╡ 926053c8-df86-440f-b397-47c9ed2a6000
-# ╠═╡ disabled = true
-#=╠═╡
-# Draw confsuing trials
-PILT_sequence = let rng = Xoshiro(1)
-
-	blocks = groupby(PILT_blocks, :block)
-    n_blocks = length(blocks)
-
-    # Pre-allocate best sequence storage
-    sequence = DataFrame()
-	score = Inf
-    while score > 0.0001
-        trials_per_block = [
-            DataFrame(
-                block = first(b.block),
-                trial = 1:PILT_trials_per_block,
-                feedback_common = shuffle(
-					rng, vcat(
-						fill(true, PILT_trials_per_block - b.n_confusing[1]),
-						fill(false, b.n_confusing[1])
-					))
-            )
-            for b in blocks
-        ]
-
-        sequence = vcat(trials_per_block...)
-
-        # Compute trial-wise feedback mean efficiently
-        trial_means = combine(
-			groupby(sequence, :trial), :feedback_common => mean => :m).m
-        score = std(trial_means)
-
-    end
-
-    sequence
-
-
-end
-  ╠═╡ =#
-
-# ╔═╡ 765efd14-e687-4fde-bd0a-4378251a7aa8
-#=╠═╡
-# Assign outcomes to A and B
-PILT = let rng = Xoshiro(0)
-
-	# Merge with block attributes
-	PILT = leftjoin(
-		PILT_sequence,
-		PILT_blocks,
-		on = :block,
-		order = :left
-	)
-
-	# Outcome for stimulus A, B
-	PILT.outcome_A = ifelse.(
-		PILT.feedback_common,
-		PILT.primary_outcome_A,
-		PILT.secondary_outcome_A
-	)
-
-	PILT.outcome_B = ifelse.(
-		PILT.feedback_common,
-		PILT.primary_outcome_B,
-		PILT.secondary_outcome_B
-	)
-
-	PILT
-
-end
-  ╠═╡ =#
-
 # ╔═╡ 34229660-e7b2-4e87-b420-334d018a2050
 function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T}, num_quantiles::Int) where T
     quantile_edges = quantile(reference_values, range(0, 1, length=num_quantiles+1))
@@ -1078,6 +1006,78 @@ PILT_blocks = let rng = Xoshiro(0)
 	PILT_blocks
 
 end
+
+# ╔═╡ 926053c8-df86-440f-b397-47c9ed2a6000
+# ╠═╡ disabled = true
+#=╠═╡
+# Draw confsuing trials
+PILT_sequence = let rng = Xoshiro(1)
+
+	blocks = groupby(PILT_blocks, :block)
+    n_blocks = length(blocks)
+
+    # Pre-allocate best sequence storage
+    sequence = DataFrame()
+	score = Inf
+    while score > 0.0001
+        trials_per_block = [
+            DataFrame(
+                block = first(b.block),
+                trial = 1:PILT_trials_per_block,
+                feedback_common = shuffle(
+					rng, vcat(
+						fill(true, PILT_trials_per_block - b.n_confusing[1]),
+						fill(false, b.n_confusing[1])
+					))
+            )
+            for b in blocks
+        ]
+
+        sequence = vcat(trials_per_block...)
+
+        # Compute trial-wise feedback mean efficiently
+        trial_means = combine(
+			groupby(sequence, :trial), :feedback_common => mean => :m).m
+        score = std(trial_means)
+
+    end
+
+    sequence
+
+
+end
+  ╠═╡ =#
+
+# ╔═╡ 765efd14-e687-4fde-bd0a-4378251a7aa8
+#=╠═╡
+# Assign outcomes to A and B
+PILT = let rng = Xoshiro(0)
+
+	# Merge with block attributes
+	PILT = leftjoin(
+		PILT_sequence,
+		PILT_blocks,
+		on = :block,
+		order = :left
+	)
+
+	# Outcome for stimulus A, B
+	PILT.outcome_A = ifelse.(
+		PILT.feedback_common,
+		PILT.primary_outcome_A,
+		PILT.secondary_outcome_A
+	)
+
+	PILT.outcome_B = ifelse.(
+		PILT.feedback_common,
+		PILT.primary_outcome_B,
+		PILT.secondary_outcome_B
+	)
+
+	PILT
+
+end
+  ╠═╡ =#
 
 # ╔═╡ 73399d2c-8256-49a7-b739-cb1f496bcd2f
 let
