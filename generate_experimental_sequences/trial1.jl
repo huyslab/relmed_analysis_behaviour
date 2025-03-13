@@ -47,14 +47,25 @@ begin
 	set_theme!(th)
 end
 
+# ╔═╡ 3cb53c43-6b38-4c95-b26f-36697095f463
+# General parameters
+begin
+
+	sessions = [
+		"screening",
+		"wk0",
+		"wk2",
+		"wk4",
+		"wk24",
+		"wk28"
+	]
+
+end
+
 # ╔═╡ de74293f-a452-4292-b5e5-b4419fb70feb
 categories = let
-	categories = (s -> replace(s, ".jpg" => "")[1:(end-2)]).(readdir("generate_experimental_sequences/pilot7_stims"))
 
-	# Keep only categories where we have two files exactly
-	keeps = filter(x -> last(x) == 2, countmap(categories))
-
-	categories = filter(x -> x in keys(keeps), unique(categories))
+	categories = DataFrame(CSV.File("generate_experimental_sequences/trial1_stimuli/stimuli.csv")).concept |> unique
 
 	@info "Found $(length(categories)) categories"
 
@@ -179,6 +190,16 @@ RLX_block = let rng = Xoshiro(0)
 
 	@info "Proportion fifty pence: $(mean(det_block.feedback_optimal .== 0.5))"
 
+	# Copy over multiple sessions, skipping screening ------------
+	det_block = vcat(
+		[insertcols(
+			det_block,
+			1,
+			:session => s
+		) for s in sessions[2:end]]...
+	)
+
+
 	det_block
 
 end
@@ -188,21 +209,19 @@ end
 RLWM = let RLWM = copy(RLX_block),
 	rng = Xoshiro(0)
 
-	# Assign stimuli --------
-	stimuli = [
-		popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:length(unique(RLWM.stimulus_group))
-	]
 
-	stimuli = DataFrame(
-		stimulus_group = unique(RLWM.stimulus_group),
-		stimulus_left = stimuli
-	)
-	
+	# Assign stimuli --------
+
+	stimuli = unique(select(RLWM, :session, :stimulus_group))
+
+	stimuli.stimulus_left = [
+		popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:nrow(stimuli)
+	]
 		
 	leftjoin!(
 		RLWM,
 		stimuli,
-		on = :stimulus_group
+		on = [:session, :stimulus_group]
 	)
 
 	# Replicate - for RLWM there is only one stimulus, but this is requirement of js script
@@ -212,34 +231,37 @@ RLWM = let RLWM = copy(RLX_block),
 	# Assign stimuli locations -----------------------------
 	# Count appearances per stimulus_group
 	stimulus_ordering = combine(
-		groupby(RLWM, [:stimulus_group]),
+		groupby(RLWM, [:session, :stimulus_group]),
 		:stimulus_group => length => :n
 	)
 
 	# Sort by descending n to distribute largest trials first
 	shuffle!(rng, stimulus_ordering)
-	sort!(stimulus_ordering, :n, rev=true)
+	sort!(stimulus_ordering, [:session, :n], rev=true)
 
-	# Track total counts per action
-	action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
+	for gdf in groupby(stimulus_ordering, :session)
 
-	# Place holder for optimal action
-	stimulus_ordering.optimal_action .= 99
+		# Track total counts per action
+		action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
 	
-	# Assign actions to balance total n
-	for row in eachrow(stimulus_ordering)
-	    # Pick the action with the smallest current total
-	    best_action = argmin(action_sums)
-	    row.optimal_action = best_action
-	    action_sums[best_action] += row.n
-	end
+		# Placeholder for optimal action
+		gdf.optimal_action .= 99
+		
+		# Assign actions to balance total n
+		for row in eachrow(gdf)
+		    # Pick the action with the smallest current total
+		    best_action = argmin(action_sums)
+		    row.optimal_action = best_action
+		    action_sums[best_action] += row.n
+		end
 
+	end
 
 	# Join with data frame
 	leftjoin!(
 		RLWM,
-		select(stimulus_ordering, [:stimulus_group, :optimal_action]),
-		on = :stimulus_group
+		select(stimulus_ordering, [:session, :stimulus_group, :optimal_action]),
+		on = [:session, :stimulus_group]
 	)
 
 	@info "Proportion optimal in each location: $([round(mean((x -> x == i).(RLWM.optimal_action)), digits = 3) for i in 1:3])"
@@ -258,15 +280,12 @@ RLWM = let RLWM = copy(RLX_block),
 	# For compatibility with probabilistic block
 	RLWM.feedback_common .= true
 
-	# Session variable
-	RLWM.session .= 1
-
 	# Valence variable
 	RLWM.valence .= 1
 
 	# Apperance variable
 	DataFrames.transform!(
-		groupby(RLWM, [:block, :stimulus_group]),
+		groupby(RLWM, [:session, :block, :stimulus_group]),
 		:trial => (x -> 1:length(x)) => :appearance
 	)
 
@@ -286,7 +305,6 @@ RLWM = let RLWM = copy(RLX_block),
 		:n_groups => maximum(RLWM.stimulus_group),
 		:early_stop => false
 	)
-
 
 	RLWM
 
@@ -311,61 +329,76 @@ end
 
 # ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
 let
-	save_to_JSON(RLWM, "results/pilot8_WM.json")
-	CSV.write("results/pilot8_WM.csv", RLWM)
+	save_to_JSON(RLWM, "results/trial1_WM.json")
+	CSV.write("results/trial1_WM.csv", RLWM)
 end
 
 # ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
 RLWM_test = let rng = Xoshiro(0)
 
-	# Get unique stimuli
-	RLWM_stimuli = unique(RLWM.stimulus_left)
+	RLWM_test = DataFrame()
 
-	# Get all combinations
-	RLWM_pairs = collect(combinations(RLWM_stimuli, 2))
+	for gdf in groupby(RLWM, :session)
 
-	# Shuffle order within pair
-	shuffle!.(rng, RLWM_pairs)
-
-	# Repeat flipped
-	RWLM_blocks = [iseven(i) ? reverse.(RLWM_pairs) : RLWM_pairs for i in 1:RLX_test_n_blocks]
-
-	# Assemble into DataFrame
-	RLWM_test = vcat([DataFrame(
+		# Get unique stimuli
+		RLWM_stimuli = unique(gdf.stimulus_left)
+	
+		# Get all combinations
+		RLWM_pairs = collect(combinations(RLWM_stimuli, 2))
+	
+		# Shuffle order within pair
+		shuffle!.(rng, RLWM_pairs)
+	
+		# Repeat flipped
+		RWLM_blocks = [iseven(i) ? reverse.(RLWM_pairs) : RLWM_pairs for i in 1:RLX_test_n_blocks]
+	
+		# Assemble into DataFrame
+		RLWM_test_session = vcat([DataFrame(
 			block = fill(i, length(stims)),
 			stimulus_left = [x[1] for x in stims],
 			stimulus_right = [x[2] for x in stims]
 		) for (i, stims) in enumerate(RWLM_blocks)]...)
-
-	# Shuffle trial order within block
-	DataFrames.transform!(
-		groupby(RLWM_test, :block),
-		:block => (x -> shuffle(rng, 1:length(x))) => :trial
-	)
-
-	sort!(RLWM_test, [:block, :trial])
-
-	# Add variables needed for JS ------------------
-	insertcols!(
-		RLWM_test,
-		:session => 1,
-		:feedback_left => 1.,
-		:feedback_right => 1.,
-		:magnitude_left => 1.,
-		:magnitude_right => 1.,
-		:same_valence => true,
-		:same_block => true,
-		:original_block_left => 1,
-		:original_block_right => 1
-	)
 	
+		# Shuffle trial order within block
+		DataFrames.transform!(
+			groupby(RLWM_test_session, :block),
+			:block => (x -> shuffle(rng, 1:length(x))) => :trial
+		)
+	
+		sort!(RLWM_test_session, [:block, :trial])
 
+		# Add session variable
+		insertcols!(
+			RLWM_test_session,
+			1,
+			:session => gdf.session[1],
+		)
+	
+		# Add variables needed for JS ------------------
+		insertcols!(
+			RLWM_test_session,
+			:feedback_left => 1.,
+			:feedback_right => 1.,
+			:magnitude_left => 1.,
+			:magnitude_right => 1.,
+			:same_valence => true,
+			:same_block => true,
+			:original_block_left => 1,
+			:original_block_right => 1
+		)
+
+		RLWM_test = vcat(RLWM_test, RLWM_test_session)
+
+	end
+
+	RLWM_test
+	
 end
 
 # ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
 let
-	save_to_JSON(RLWM_test, "results/pilot8_WM_test.json")
-	CSV.write("results/pilot8_WM_test.csv", RLWM_test)
+	save_to_JSON(RLWM_test, "results/trial1_WM_test.json")
+	CSV.write("results/trial1_WM_test.csv", RLWM_test)
 end
 
 # ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
@@ -549,8 +582,8 @@ end
 
 # ╔═╡ eecaac0c-e051-4543-988c-e969de3a8567
 let
-	save_to_JSON(RLLTM, "results/pilot8_LTM.json")
-	CSV.write("results/pilot8_LTM.csv", RLLTM)
+	save_to_JSON(RLLTM, "results/trial1_LTM.json")
+	CSV.write("results/trial1_LTM.csv", RLLTM)
 end
 
 # ╔═╡ bcb73e19-8bf9-4e75-a9f7-8152e3d23201
@@ -802,522 +835,14 @@ end
 
 # ╔═╡ 832ccb61-b588-4614-9f5a-efa0f9a6087d
 let
-	save_to_JSON(RLLTM_test, "results/pilot8_LTM_test.json")
-	CSV.write("results/pilot8_LTM_test.csv", RLLTM_test)
+	save_to_JSON(RLLTM_test, "results/trial1_LTM_test.json")
+	CSV.write("results/trial1_LTM_test.csv", RLLTM_test)
 end
-
-# ╔═╡ 7a100e62-c028-4a24-a200-658bbca1945a
-md"""## PILT"""
-
-# ╔═╡ 18f41358-8554-4142-83f8-1c1c3f38b6fa
-# PILT parameters
-begin
-	# PILT Parameters
-	PILT_trials_per_block = 10
-			
-	# Post-PILT test parameters
-	PILT_test_n_blocks = 5
-end
-
-# ╔═╡ 34229660-e7b2-4e87-b420-334d018a2050
-function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T}, num_quantiles::Int) where T
-    quantile_edges = quantile(reference_values, range(0, 1, length=num_quantiles+1))
-    
-    labels = ["[$(round(quantile_edges[i], sigdigits=3)), $(round(quantile_edges[i+1], sigdigits=3)))" for i in 1:num_quantiles]
-    
-    function assign_quantile(v)
-        for (i, edge) in enumerate(quantile_edges[2:end])
-            if v <= edge
-                return labels[i]
-            end
-        end
-        return labels[end]
-    end
-    
-    categorical_values = CategoricalArray([assign_quantile(v) for v in values], ordered=true, levels=labels)
-    return categorical_values
-end
-
-
-# ╔═╡ 84d2f787-aba2-40be-9816-4924968f5790
-PILT_blocks = let rng = Xoshiro(0)
-
-	coins = [-1., -0.5, -0.01, 0.01, 0.5, 1.]
-
-	# Create all magnitdue combinations
-	outcome_combinations = collect(product(coins, coins))
-
-	# Select only upper triangular
-	outcome_combinations = 
-		outcome_combinations[triu(trues(size(outcome_combinations)))]
-
-	# Convert to vector of vectors
-	outcome_combinations = collect.(outcome_combinations)
-
-	# Shuffle order within pair, keeping B stim outcome distribution flat
-	criteria = false 
-	while !criteria
-
-		# Shuffle
-		shuffle!.(rng, outcome_combinations)
-
-		# Collect B stimuli values
-		B_stim = [x[2] for x in outcome_combinations]
-
-		B_stim_counts = values(countmap(B_stim))
-
-		criteria = maximum(B_stim_counts) - minimum(B_stim_counts) == 1
-
-	end
-
-
-	# Shuffle order, under constraints
-	criteria = false 
-	
-	while !criteria
-		shuffle!(rng, outcome_combinations)
-
-		# Summarize stim B outcome transitions--------
-		outcome_B = [x[2] for x in outcome_combinations]
-
-		transitions = [(outcome_B[i], outcome_B[i+1]) for i in 1:(length(outcome_B) - 1)]
-
-		trans_counts = values(countmap(transitions))
-
-
-		criteria = all(outcome_combinations[1] .> 0) &&
-			all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
-			all(outcome_combinations[4] .< 0) &&
-			maximum(trans_counts) <= 1
-
-	end
-
-	# Arrange into DataFrame
-	PILT_blocks_long = DataFrame(
-		block = repeat(1:length(outcome_combinations), outer = 2),
-		n_confusing = repeat(vcat(
-			fill(0, 4), 
-			fill(1, 4), 
-			fill(2, length(outcome_combinations) - 8)
-		), outer = 2),
-		stimulus = repeat(["A", "B"], inner = length(outcome_combinations)),
-		primary_outcome = vcat(
-			[x[1] for x in outcome_combinations], 
-			[x[2] for x in outcome_combinations]
-		)
-	)
-
-	sort!(PILT_blocks_long, [:block, :stimulus])
-
-	# Function to assign secondary outcomes
-	function shuffle_secondary_outcome(n::Int64, primary::Float64)
-
-		secondary = repeat(
-			filter(x -> x != primary, coins), 
-			n ÷ (length(coins) - 1)
-		)
-
-		distances = abs.(coins .- primary)
-
-		furthest = coins[partialsortperm(distances, 1:(rem(n, length(coins) - 1)), rev=true)]
-
-		secondary = vcat(secondary, furthest)
-
-		return shuffle(rng, secondary)
-
-	end
-
-	# Tell apart deterministic from probabilistic blocks
-	PILT_blocks_long.deterministic = PILT_blocks_long.n_confusing .== 0
-
-	# Add secondary outcome, shuffle under contraints such that the first two blocks primary outcome matches secondary in sign, and that stimulus B (repeating) has uniform distribution
-	criteria2 = false
-	B_score = Inf
-	while !criteria2
-		DataFrames.transform!(
-			groupby(PILT_blocks_long, [:deterministic, :primary_outcome]),
-			[:deterministic, :primary_outcome] => 
-				((d, o) -> ifelse.(
-					d,
-					fill(missing, length(o)),
-					shuffle_secondary_outcome(
-						length(o), unique(o)[1]))) => :secondary_outcome
-				
-		)
-
-		# EV
-		PILT_blocks_long.EV = ifelse.(
-			ismissing.(PILT_blocks_long.secondary_outcome),
-			PILT_blocks_long.primary_outcome,
-			PILT_blocks_long.primary_outcome .* 0.8 + PILT_blocks_long.secondary_outcome .* 0.2
-		)
-
-
-		first_mathces = all((r -> sign(r.primary_outcome) == 
-			sign(r.secondary_outcome)).(eachrow(filter(x -> x.block in [5,6], PILT_blocks_long))))
-
-		EV_B_bin = discretize_to_quantiles(
-			PILT_blocks_long.EV,
-			PILT_blocks_long.EV,
-			5
-		)[PILT_blocks_long.stimulus .== "B"]
-
-		EV_B_bin_counts = values(countmap(EV_B_bin))
-
-		B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) == 1
-
-		criteria2 = first_mathces && B_uniform
-
-	end
-	
-	# Long to wide
-	PILT_blocks = leftjoin(
-		unstack(
-			PILT_blocks_long,
-			[:block, :n_confusing],
-			:stimulus,
-			:primary_outcome,
-			renamecols = x -> "primary_outcome_$(x)"
-		),
-		unstack(
-			PILT_blocks_long,
-			[:block, :n_confusing],
-			:stimulus,
-			:secondary_outcome,
-			renamecols = x -> "secondary_outcome_$(x)"
-		),
-		on = [:block, :n_confusing]
-	)
-
-	# Compute EV
-	PILT_blocks.EV_A = ifelse.(
-		ismissing.(PILT_blocks.secondary_outcome_A),
-		PILT_blocks.primary_outcome_A,
-		PILT_blocks.primary_outcome_A .* 0.8 + PILT_blocks.secondary_outcome_A .* 0.2
-	)
-
-	PILT_blocks.EV_B = ifelse.(
-		ismissing.(PILT_blocks.secondary_outcome_B),
-		PILT_blocks.primary_outcome_B,
-		PILT_blocks.primary_outcome_B .* 0.8 + PILT_blocks.secondary_outcome_B .* 0.2
-	)
-
-
-	PILT_blocks
-
-end
-
-# ╔═╡ 926053c8-df86-440f-b397-47c9ed2a6000
-# ╠═╡ disabled = true
-#=╠═╡
-# Draw confsuing trials
-PILT_sequence = let rng = Xoshiro(1)
-
-	blocks = groupby(PILT_blocks, :block)
-    n_blocks = length(blocks)
-
-    # Pre-allocate best sequence storage
-    sequence = DataFrame()
-	score = Inf
-    while score > 0.0001
-        trials_per_block = [
-            DataFrame(
-                block = first(b.block),
-                trial = 1:PILT_trials_per_block,
-                feedback_common = shuffle(
-					rng, vcat(
-						fill(true, PILT_trials_per_block - b.n_confusing[1]),
-						fill(false, b.n_confusing[1])
-					))
-            )
-            for b in blocks
-        ]
-
-        sequence = vcat(trials_per_block...)
-
-        # Compute trial-wise feedback mean efficiently
-        trial_means = combine(
-			groupby(sequence, :trial), :feedback_common => mean => :m).m
-        score = std(trial_means)
-
-    end
-
-    sequence
-
-
-end
-  ╠═╡ =#
-
-# ╔═╡ 765efd14-e687-4fde-bd0a-4378251a7aa8
-#=╠═╡
-# Assign outcomes to A and B
-PILT = let rng = Xoshiro(0)
-
-	# Merge with block attributes
-	PILT = leftjoin(
-		PILT_sequence,
-		PILT_blocks,
-		on = :block,
-		order = :left
-	)
-
-	# Outcome for stimulus A, B
-	PILT.outcome_A = ifelse.(
-		PILT.feedback_common,
-		PILT.primary_outcome_A,
-		PILT.secondary_outcome_A
-	)
-
-	PILT.outcome_B = ifelse.(
-		PILT.feedback_common,
-		PILT.primary_outcome_B,
-		PILT.secondary_outcome_B
-	)
-
-	PILT
-
-end
-  ╠═╡ =#
-
-# ╔═╡ 73399d2c-8256-49a7-b739-cb1f496bcd2f
-let
-	
-	autocor(PILT_blocks.EV_B), autocor(PILT_blocks.EV_A)
-	
-end
-
-# ╔═╡ cd31c2c9-faa0-4487-b9f3-993b07f297d3
-let
-	@info quantile(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B), range(0., 1., 6))
-
-	@info minimum(abs.(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B)))
-	
-	hist(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B), bins = 40)
-
-end
-
-# ╔═╡ 4d115a60-a7ce-48e7-af92-736ac2dbec07
-function assign_stimuli_and_optimality(;
-	n_phases::Int64,
-	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
-	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
-		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1,
-	ext::String = "jpg"
-	)
-
-	total_n_pairs = sum(n_pairs) # Number of pairs needed
-	
-	# @assert rem(length(n_pairs), 2) == 0 "Code only works for even number of blocks per sesion"
-
-	@assert length(categories) >= sum(total_n_pairs) * n_phases + n_phases "Not enought categories supplied"
-
-	# Compute how many repeating categories we will have
-	n_repeating = sum(min.(n_pairs[2:end], n_pairs[1:end-1]))
-
-	# Assign whether repeating is optimal and shuffle
-	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
-		vcat(
-			fill(true, div(n_repeating, 2)),
-			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
-		)
-	)
-
-	# Assign whether categories that cannot repeat are optimal
-	rest_optimal = shuffle(
-		vcat(
-			fill(true, div(total_n_pairs - n_repeating, 2) + 
-				rem(total_n_pairs - n_repeating, 2)),
-			fill(false, div(total_n_pairs - n_repeating, 2))
-		)
-	)
-
-	# Initialize vectors for stimuli. A is always novel, B may be repeating
-	stimulus_A = []
-	stimulus_B = []
-	optimal_B = []
-	
-	for j in 1:n_phases
-		for (i, p) in enumerate(n_pairs)
-	
-			# Choose repeating categories for this block
-			n_repeating = ((i > 1) && minimum([p, n_pairs[i - 1]])) * 1
-			append!(
-				stimulus_B,
-				stimulus_A[(end - n_repeating + 1):end]
-			)
-	
-			# Fill up stimulus_repeating with novel categories if not enough to repeat
-			for _ in 1:(p - n_repeating)
-				push!(
-					stimulus_B,
-					popfirst!(categories)
-				)
-			end
-			
-			# Choose novel categories for this block
-			for _ in 1:p
-				push!(
-					stimulus_A,
-					popfirst!(categories)
-				)
-			end
-
-			# Populate who is optimal vector
-			for _ in 1:(n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(repeating_optimal)
-				)
-			end
-
-			for _ in 1:(p - n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(rest_optimal)
-				)
-			end
-		end
-	end
-
-	stimulus_A = (x -> x * "_1.$ext").(stimulus_A)
-	stimulus_B = (x -> x * "_2.$ext").(stimulus_B)
-
-	return DataFrame(
-		phase = repeat(1:n_phases, inner = total_n_pairs),
-		block = repeat(
-			vcat([fill(i, p) for (i, p) in enumerate(n_pairs)]...), n_phases),
-		pair = repeat(
-			vcat([1:p for p in n_pairs]...), n_phases),
-		stimulus_A = stimulus_A,
-		stimulus_B = stimulus_B,
-		optimal_A = .!(optimal_B)
-	)
-
-end
-
-# ╔═╡ 76fcde1b-2174-44e3-a993-63a48879403f
-# Assign stimulus images
-PILT_stimuli = let random_seed = 0
-
-	# Shuffle categories
-	shuffle!(Xoshiro(random_seed), categories)
-
-	@info length(categories)
-
-	# Assign stimulus pairs
-	stimuli = assign_stimuli_and_optimality(;
-		n_phases = 1,
-		n_pairs = fill(1, nrow(PILT_blocks)),
-		categories = categories,
-		random_seed = random_seed
-	)
-
-	@info "Proportion of blocks on which the novel category is optimal : $(mean(stimuli.optimal_A))"
-
-	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
-
-	stimuli
-end
-
-# ╔═╡ 57aa0daa-0233-416d-802c-d0d93607062b
-let
-
-	PILT_blocks_stims = leftjoin(
-		PILT_blocks,
-		PILT_stimuli,
-		on = :block
-	)
-
-	PILT_blocks_stims.EV_B_bin = discretize_to_quantiles(
-		PILT_blocks_stims.EV_B,
-		vcat(PILT_blocks_stims.EV_A, PILT_blocks_stims.EV_B),
-		3
-	)
-
-	PILT_blocks_stims.previous_EV_B_bin = vcat(
-		[missing], (PILT_blocks_stims.EV_B_bin)[1:(end-1)]
-	)
-
-	PILT_blocks_stims.repeating_optimal = vcat(
-		[missing], (.! PILT_blocks_stims.optimal_A)[2:end]
-	)
-
-	PILT_blocks_stims.repeating_previous_optimal = vcat(
-		[missing], (.! PILT_blocks_stims.optimal_A)[1:(end-1)]
-	)
-
-	combine(
-		groupby(
-			PILT_blocks_stims, 
-			[:EV_B_bin, :previous_EV_B_bin]
-		),
-		:EV_B_bin => length => :n
-	) 
-
-end
-
-# ╔═╡ cbe94f65-56f2-4262-8b6a-76b348ee1f8b
-# ╠═╡ disabled = true
-#=╠═╡
-# Assign valence and set size per block
-PILT_block_attr = let random_seed = 5
-	
-	# # All combinations of set sizes and valence
-	block_attr = DataFrame(
-		block = repeat(1:PILT_total_blocks),
-		valence = repeat([1, -1], inner = PILT_blocks_per_valence),
-		fifty_high = fill(true, PILT_total_blocks)
-	)
-
-	# Shuffle set size and valence, making sure valence is varied, and positive in the first block and any time noise is introduced, and shaping doesn't extend too far into the task
-	rng = Xoshiro(random_seed)
-
-	first_three_same = true
-	first_block_punishement = true
-	too_many_repeats = true
-	first_confusing_punishment = true
-	shaping_too_long = true
-	while first_three_same || first_block_punishement || too_many_repeats ||
-		first_confusing_punishment || shaping_too_long
-
-		DataFrames.transform!(
-			block_attr,
-			:block => (x -> shuffle(rng, x)) => :block
-		)
-		
-		sort!(block_attr, :block)
-
-		# Add n_confusing
-		DataFrames.transform!(
-			groupby(block_attr, :valence),
-			:block => (x -> PILT_n_confusing) => :n_confusing
-		)
-
-		# Compute criterion variables
-		first_three_same = allequal(block_attr[1:3, :valence])
-		
-		first_block_punishement = block_attr.valence[1] == -1
-
-		too_many_repeats = has_consecutive_repeats(block_attr.valence)
-
-		first_confusing_punishment = 
-			(block_attr.valence[findfirst(block_attr.n_confusing .== 1)] == -1) |
-			(block_attr.valence[findfirst(block_attr.n_confusing .== 2)] == -1)
-
-		shaping_too_long = 
-			!all(block_attr.n_confusing[11:end] .== maximum(PILT_n_confusing))
-	end
-
-	# Return
-	block_attr
-end
-  ╠═╡ =#
 
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
+# ╠═3cb53c43-6b38-4c95-b26f-36697095f463
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
 # ╠═54f6f217-3ae5-49c7-9456-a5abcbbdc62f
 # ╠═9f300301-b018-4bea-8fc4-4bc889b11afd
@@ -1344,15 +869,3 @@ end
 # ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
 # ╠═df5baa98-27b9-4bbc-9ab0-03ea66e91970
 # ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
-# ╠═7a100e62-c028-4a24-a200-658bbca1945a
-# ╠═18f41358-8554-4142-83f8-1c1c3f38b6fa
-# ╠═84d2f787-aba2-40be-9816-4924968f5790
-# ╠═926053c8-df86-440f-b397-47c9ed2a6000
-# ╠═765efd14-e687-4fde-bd0a-4378251a7aa8
-# ╠═76fcde1b-2174-44e3-a993-63a48879403f
-# ╠═57aa0daa-0233-416d-802c-d0d93607062b
-# ╠═73399d2c-8256-49a7-b739-cb1f496bcd2f
-# ╠═34229660-e7b2-4e87-b420-334d018a2050
-# ╠═cd31c2c9-faa0-4487-b9f3-993b07f297d3
-# ╠═4d115a60-a7ce-48e7-af92-736ac2dbec07
-# ╠═cbe94f65-56f2-4262-8b6a-76b348ee1f8b
