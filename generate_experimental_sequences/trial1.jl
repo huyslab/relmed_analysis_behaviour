@@ -428,42 +428,49 @@ RLLTM_det_block = let det_block = copy(RLX_block),
 	rng = Xoshiro(1)
 	
 	# Assign stimuli categories
-	stimuli = assign_triplet_stimuli_RLLTM((categories),
-		maximum(det_block.stimulus_group);
-		rng = rng
-	)
+	stimuli = vcat([insertcols(
+		assign_triplet_stimuli_RLLTM(categories,
+			maximum(det_block.stimulus_group);
+			rng = rng
+		),
+		1,
+		:session => s
+	) for s in unique(det_block.session)]...)
 
 	# Merge with trial structure
 	det_block = innerjoin(
 		det_block,
 		stimuli,
-		on = :stimulus_group,
+		on = [:session, :stimulus_group],
 		order = :left
 	)
 
 	# Assign stimuli locations -----------------------------
 	# Count appearances per stimulus_group
 	stimulus_ordering = combine(
-		groupby(det_block, [:stimulus_group]),
+		groupby(det_block, [:session, :stimulus_group]),
 		:stimulus_group => length => :n
 	)
 
 	# Sort by descending n to distribute largest trials first
 	shuffle!(rng, stimulus_ordering)
-	sort!(stimulus_ordering, :n, rev=true)
+	sort!(stimulus_ordering, [:session, :n], rev=true)
 
-	# Track total counts per action
-	action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
+	for gdf in groupby(stimulus_ordering, :session)
 
-	# Place holder for optimal action
-	stimulus_ordering.optimal_action .= 99
+		# Track total counts per action
+		action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
 	
-	# Assign actions to balance total n
-	for row in eachrow(stimulus_ordering)
-	    # Pick the action with the smallest current total
-	    best_action = argmin(action_sums)
-	    row.optimal_action = best_action
-	    action_sums[best_action] += row.n
+		# Place holder for optimal action
+		gdf.optimal_action .= 99
+		
+		# Assign actions to balance total n
+		for row in eachrow(gdf)
+		    # Pick the action with the smallest current total
+		    best_action = argmin(action_sums)
+		    row.optimal_action = best_action
+		    action_sums[best_action] += row.n
+		end
 	end
 
 	# Function to translate to "ABC" strings
@@ -478,8 +485,8 @@ RLLTM_det_block = let det_block = copy(RLX_block),
 	# Join with data frame
 	leftjoin!(
 		det_block,
-		select(stimulus_ordering, [:stimulus_group, :stimulus_ordering]),
-		on = :stimulus_group
+		select(stimulus_ordering, [:session, :stimulus_group, :stimulus_ordering]),
+		on = [:session, :stimulus_group]
 	)
 
 	@info "Proportion optimal in each location: $([round(mean((x -> x[i] == 'A').(det_block.stimulus_ordering)), digits = 3) for i in 1:3])"
@@ -524,9 +531,6 @@ end
 
 # ╔═╡ e3bff0b9-306a-4bf9-8cbd-fe0e580bd118
 RLLTM = let RLLTM = RLLTM_det_block
-
-	# Session variable
-	RLLTM.session .= 1
 
 	# Valence variable
 	RLLTM.valence .= 1
