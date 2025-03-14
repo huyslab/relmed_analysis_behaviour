@@ -93,7 +93,7 @@ end
 target_list = [2, 3, 4, 1]
 islands_df = allcombinations(DataFrame, target_island = 1:4, near_island = 1:4)
 filter!([:target_island, :near_island] => (x, y) -> x != y, islands_df)
-boats = map(collect(combinations(1:pars.n_states, 2))) do perm
+boats = map(collect(permutations(1:pars.n_states, 2))) do perm
   return (;left = perm[1], right = perm[2])
 end
 reward_df = crossjoin(islands_df, DataFrame(boats)) |>
@@ -117,9 +117,20 @@ unique_combinations = combine(
     return group_df[rand(1:nrow(group_df)), :]
 end
 
-reward_sequence = vcat(both_viable_df, unique_combinations)
+# Replace some trials with both viable trials
+to_replace = combine(groupby(unique_combinations, [:target_island])) do group_df
+  return group_df[rand(1:nrow(group_df)), :]
+end
+
+
+
+reward_sequence = vcat(
+  semijoin(both_viable_df, to_replace, on=[:target_island, :left, :right]),
+  antijoin(unique_combinations, to_replace, on = [:target_island, :left, :right, :near_island])
+  )
 combine(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), nrow)
-transform!(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x)/3)), length(x), replace=false)) => :current)
+transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x)/3)), length(x), replace=false)) => :current)
+combine(groupby(reward_sequence, [:current]), nrow)
 shuffle!(reward_sequence)
 
 # Convert to vector of NamedTuples for saving
