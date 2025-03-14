@@ -506,6 +506,13 @@ RLLTM_det_block = let det_block = copy(RLX_block),
 		((o, a, b, c) -> [[a b c][i, (Int(o[i][3]) - Int('A') + 1)] for i in 1:length(o)]) => :stimulus_right		
 	)
 
+	# Assign feedback to stimulus essence, by covention stimulus_A is optimal
+	det_block.feedback_A = det_block.feedback_optimal
+	
+	det_block.feedback_B = fill(0.01, nrow(det_block))
+
+	det_block.feedback_C = fill(0.01, nrow(det_block))
+
 	# Assign feedback to location, by covention stimulus_A is optimal
 	det_block.feedback_left = ifelse.(
 		(x -> x[1] == 'A').(det_block.stimulus_ordering),
@@ -561,8 +568,6 @@ RLLTM = let RLLTM = RLLTM_det_block
 		:early_stop => false
 	)
 
-	
-
 	RLLTM
 end
 
@@ -596,32 +601,34 @@ end
 # ╔═╡ bcb73e19-8bf9-4e75-a9f7-8152e3d23201
 md"""## Post-LTM test"""
 
-# ╔═╡ df5baa98-27b9-4bbc-9ab0-03ea66e91970
+# ╔═╡ 8d8e4026-2185-4d67-a259-4cdebaab0b94
 function prepare_for_finding_ltm_test_sequence(
 	task::DataFrame;
-	stimulus_locations::Vector{String} = ["right", "middle", "left"]
 )
 
 	# Extract stimuli and their common feedback from task structure
-	stimuli = vcat([rename(
-		task[task.feedback_common, [:session, :block, :n_groups, :stimulus_group_id,  Symbol("stimulus_$s"), Symbol("feedback_$s")]],
-		Symbol("stimulus_$s") => :stimulus,
+	stimuli = vcat([select(
+		filter(x -> x.feedback_common, task),
+		:session,
+		:block,
+		:stimulus_group_id,
+		:stimulus_group_id => ByRow(b -> "$(b)_$s") => :stimulus_essence,
 		Symbol("feedback_$s") => :feedback
-	) for s in stimulus_locations]...)
+	) for s in ["A", "B", "C"]]...)
 
 	# Summarize magnitude per stimulus
 	stimuli = combine(
-		groupby(stimuli, [:session, :block, :n_groups, :stimulus_group_id, :stimulus]),
+		groupby(stimuli, [:session, :block, :stimulus_group_id, :stimulus_essence]),
 		:feedback => (x -> mean(unique(x))) => :magnitude
 	)
 
 	# Create Dict of unique stimuli by magnitude
 	magnitudes = unique(stimuli.magnitude)
-	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus) for m in magnitudes)
+	stimuli_magnitude = Dict(m => unique(filter(x -> x.magnitude == m, stimuli).stimulus_essence) for m in magnitudes)
 
 	#  Define existing pairs
 	pairer(v) = [[v[i], v[j]] for i in 1:length(v) for j in i+1:length(v)]
-	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus) 
+	create_pair_list(d) = vcat([pairer(filter(x -> x.stimulus_group_id == p, d).stimulus_essence) 
 		for p in unique(stimuli.stimulus_group_id)]...)
 
 	existing_pairs = create_pair_list(stimuli)
@@ -644,8 +651,11 @@ function create_ltm_test_pairs(stimuli::Dict{Float64, Vector{String}},
     magnitudes = collect(keys(stimuli))
     
     # Initialize storage for results
-    new_pairs = DataFrame(stimulus_A = String[], stimulus_B = String[],
-                          magnitude_A = Float64[], magnitude_B = Float64[])
+    new_pairs = DataFrame(
+		stimulus_essence_א = String[], 
+		stimulus_essence_ב = String[],
+		magnitude_א = Float64[], 
+		magnitude_ב = Float64[])
     
     # Track stimulus usage
     stim_usage = Dict(s => 0 for m in magnitudes for s in stimuli[m])
@@ -693,10 +703,11 @@ end
 
 # ╔═╡ c65d7f1f-224d-4144-aa46-d48a482db95a
 # Create LTM test sequence
-RLLTM_test = let rng = Xoshiro(0)
+RLLTM_test_session = let rng = Xoshiro(0)
 
 	# Process LTM sequence to be able to find test pairs
-	stimuli_magnitude, existing_pairs = prepare_for_finding_ltm_test_sequence(
+	stimuli_magnitude, existing_pairs = 
+		prepare_for_finding_ltm_test_sequence(
 		filter(x -> x.session == RLLTM.session[1], RLLTM)
 	)
 	
@@ -716,7 +727,6 @@ RLLTM_test = let rng = Xoshiro(0)
 	insertcols!(
 		RLLTM_test,
 		1,
-		:session => RLLTM.session[1],
 		:block => 1,
 		:original_block_right => 1,
 		:original_block_left => 1,
@@ -727,37 +737,25 @@ RLLTM_test = let rng = Xoshiro(0)
 	)
 
 	# Add magnitude pair variable
-	RLLTM_test.magnitude_pair = [sort([r.magnitude_A, r.magnitude_B]) for r in eachrow(RLLTM_test)]
+	RLLTM_test.magnitude_pair = [sort([r.magnitude_א, r.magnitude_ב]) for r in eachrow(RLLTM_test)]
 
 
 	# Assign left / right
 	DataFrames.transform!(
 		groupby(RLLTM_test, :magnitude_pair),
-		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
-	)
-
-	RLLTM_test.stimulus_right = ifelse.(
-		RLLTM_test.A_on_right,
-		RLLTM_test.stimulus_A,
-		RLLTM_test.stimulus_B
-	)
-
-	RLLTM_test.stimulus_left = ifelse.(
-		.!RLLTM_test.A_on_right,
-		RLLTM_test.stimulus_A,
-		RLLTM_test.stimulus_B
+		:trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :א_on_right
 	)
 
 	RLLTM_test.magnitude_right = ifelse.(
-		RLLTM_test.A_on_right,
-		RLLTM_test.magnitude_A,
-		RLLTM_test.magnitude_B
+		RLLTM_test.א_on_right,
+		RLLTM_test.magnitude_א,
+		RLLTM_test.magnitude_ב
 	)
 
 	RLLTM_test.magnitude_left = ifelse.(
-		.!RLLTM_test.A_on_right,
-		RLLTM_test.magnitude_A,
-		RLLTM_test.magnitude_B
+		.!RLLTM_test.א_on_right,
+		RLLTM_test.magnitude_א,
+		RLLTM_test.magnitude_ב
 	)
 
 	# Add feedback_right and feedback_left variables - these determine the coins added to the safe for the trial
@@ -773,27 +771,84 @@ RLLTM_test = let rng = Xoshiro(0)
 		fill(0.01, nrow(RLLTM_test))
 	)
 
-	RLLTM_test.block .+= 5 #maximum(PILT_test.block)
+	RLLTM_test.block .= 1
 
 
 	RLLTM_test
 
 end
 
-# ╔═╡ 63b74bde-4a28-4ff8-ae15-a37c891c3166
-# Tests for RLWM_test
+# ╔═╡ ca34e152-6a53-4e25-a3d2-964c75d70fd5
+RLLTM_test = let
+
+	# Get all stimuli
+	all_stimuli = unique(vcat([select(
+		RLLTM,
+		:session,
+		:block,
+		:stimulus_group_id,
+		:stimulus_group_id => ByRow(b -> "$(b)_$stim") => :stimulus_essence,
+		Symbol("stimulus_$stim") => :stimulus
+	) for stim in ["A", "B", "C"]]...))
+
+
+	# Join stimulus with stimulus essence
+	RLLTM_test = innerjoin(
+		RLLTM_test_session,
+		select(
+			all_stimuli,
+			:session,
+			:stimulus_essence => :stimulus_essence_א,
+			:stimulus => :stimulus_א
+		),
+		on = :stimulus_essence_א
+	)
+
+	RLLTM_test = innerjoin(
+		RLLTM_test,
+		select(
+			all_stimuli,
+			:session,
+			:stimulus_essence => :stimulus_essence_ב,
+			:stimulus => :stimulus_ב
+		),
+		on = [:session, :stimulus_essence_ב]
+	)
+
+	# Sort
+	sort!(RLLTM_test, [:session, :trial])
+
+	# Compute stimulus on the right and left
+	RLLTM_test.stimulus_right = ifelse.(
+		RLLTM_test.א_on_right,
+	    RLLTM_test.stimulus_א,
+		RLLTM_test.stimulus_ב
+	)
+
+	RLLTM_test.stimulus_left = ifelse.(
+		.!RLLTM_test.א_on_right,
+	    RLLTM_test.stimulus_א,
+		RLLTM_test.stimulus_ב
+	)
+
+	RLLTM_test
+
+end
+
+# ╔═╡ 30f86e30-e7e9-43c4-9001-1f2f0c6c2bea
+# Tests for RLLtM_tests
 let
 	# Test even distribution of stimuli appearances
 	long_test = vcat(
 		select(
 			RLLTM_test,
-			:stimulus_A => :stimulus,
-			:magnitude_A => :magnitude
+			:stimulus_א => :stimulus,
+			:magnitude_א => :magnitude
 		),
 		select(
 			RLLTM_test,
-			:stimulus_B => :stimulus,
-			:magnitude_B => :magnitude
+			:stimulus_ב => :stimulus,
+			:magnitude_ב => :magnitude
 		)
 	)
 
@@ -815,9 +870,10 @@ let
 	).n_diff) "Number of appearances for each stimulus not balanced"
 
 	# Test left right counterbalancing of magnitude
-	@assert mean(RLLTM_test.magnitude_left) == mean(RLLTM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
 
-	# Make sure all stimuli are in RLWM
+	@assert mean(RLLTM_test.magnitude_left) ≈ mean(RLLTM_test.magnitude_right) "Different average magnitudes for stimuli presented on left and right"
+
+	# Make sure all stimuli are in RLLTM
 	test_stimuli = unique(
 		vcat(
 			RLLTM_test.stimulus_left,
@@ -837,6 +893,38 @@ let
 
 	@assert all((x -> x in test_stimuli).(RLLTM_stimuli)) "Not all RLLTM stimuli appear in test"
 
+	# Test assignment of stimuli to stimuli_essence ---------------
+	# Extract stimuli and their common feedback from task structure
+	stimuli_magntiude = vcat([select(
+		filter(x -> x.feedback_common, RLLTM),
+		:session,
+		:stimulus_group_id,
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in ["A", "B", "C"]]...)
+
+	# Summarize magnitude per stimulus
+	stimuli_magntiude = combine(
+		groupby(stimuli_magntiude, [:session, :stimulus]),
+		:feedback => (x -> mean(unique(x))) => :magnitude
+	)
+
+	# Extract stimuli and their common feedback from test structure
+	test_magntiude = vcat([select(
+		RLLTM_test,
+		:session,
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("magnitude_$s") => :magnitude_test
+	) for s in ["א", "ב"]]...)
+
+	magnitdue_compare =
+		leftjoin(
+			stimuli_magntiude,
+			test_magntiude,
+			on = [:session, :stimulus]
+		)
+
+	@assert all(magnitdue_compare.magnitude .== magnitdue_compare.magnitude_test) "Test structure magnitude does not match learning phase structure magnitude"
 
 end
 
@@ -872,7 +960,8 @@ end
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
 # ╟─bcb73e19-8bf9-4e75-a9f7-8152e3d23201
 # ╠═c65d7f1f-224d-4144-aa46-d48a482db95a
-# ╠═63b74bde-4a28-4ff8-ae15-a37c891c3166
+# ╠═ca34e152-6a53-4e25-a3d2-964c75d70fd5
+# ╠═30f86e30-e7e9-43c4-9001-1f2f0c6c2bea
 # ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
-# ╠═df5baa98-27b9-4bbc-9ab0-03ea66e91970
+# ╠═8d8e4026-2185-4d67-a259-4cdebaab0b94
 # ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
