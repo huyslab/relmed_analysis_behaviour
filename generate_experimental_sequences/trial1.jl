@@ -334,11 +334,14 @@ let
 end
 
 # ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
-RLWM_test = let rng = Xoshiro(0)
+RLWM_test = let
 
 	RLWM_test = DataFrame()
 
 	for gdf in groupby(RLWM, :session)
+
+		# Reset random seed so that randomization is the same across sessions
+		rng = Xoshiro(0)
 
 		# Get unique stimuli
 		RLWM_stimuli = unique(gdf.stimulus_left)
@@ -692,9 +695,9 @@ end
 # Create LTM test sequence
 RLLTM_test = let rng = Xoshiro(0)
 
-	# Process WM sequence to be able to find test pairs
+	# Process LTM sequence to be able to find test pairs
 	stimuli_magnitude, existing_pairs = prepare_for_finding_ltm_test_sequence(
-		RLLTM
+		filter(x -> x.session == RLLTM.session[1], RLLTM)
 	)
 	
 
@@ -713,7 +716,7 @@ RLLTM_test = let rng = Xoshiro(0)
 	insertcols!(
 		RLLTM_test,
 		1,
-		:session => 1,
+		:session => RLLTM.session[1],
 		:block => 1,
 		:original_block_right => 1,
 		:original_block_left => 1,
