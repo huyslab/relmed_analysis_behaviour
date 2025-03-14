@@ -39,6 +39,9 @@ begin
 	mem_category = DataFrame(CSV.File("./generate_experimental_sequences/Concept_to_category_linking.csv"))
 end
 
+# ╔═╡ cd55b869-7383-4c1b-9375-c28aef91c9d8
+unique(mem_category.category_label)
+
 # ╔═╡ 1cc6ff99-aa17-40d5-84e8-4ce61c3e049c
 begin
 
@@ -103,6 +106,10 @@ begin
 
 	scary_concepts = ["altar", "anvil", "bat1", "bat2", "beehive", "bee", "bug", "bulletin_board", "cage", "cobra", "cockroach", "cross", "crow", "crowbar", "crucifix", "dagger", "dart", "eel", "fire_alarm", "fire_hydrant", "fire_pit", "fireplace", "firetruck", "firewood", "fireworks", "fungus", "gargoyle", "grave", "gravestone", "guillotine", "hammer", "hook1", "hook2", "hyena", "jail", "knife", "lock", "maggot", "mask", "moth", "mousetrap", "noose", "pit", "pitchfork", "poison", "potion", "rat", "rattlesnake", "raven", "rope", "scorpion", "skeleton", "skull", "spider", "stake", "storm", "tarantula", "thorn", "tombstone", "trap", "vulture", "wasp", "witch", "wolf", "zombie"]
 
+	manual_removed = ["woman", "girl", "boy", "marijuana", "pill", "pocketknife", "sewage", "slot_machine", "banner", "cigar", "cigarette", "cigarette_butt", "crystal", "footrest", "gas_mask", "holster", "man", "mannequin", "metal_detector", "money", "mullet", "pillbox", "pipe1", "police_car", "shell1", "sickle", "sonogram", "splinter", "squirt_gun", "stilt", "toilet", "water_heater", "wine", "wooden_leg", "whoopee_cushion", "wallet", "toilet_paper", "syringe", "string_cheese", "slime", "sheath", "shower_cap", "riser", "retainer", "pothole", "piggy_bank", "petri_dish", "patty", "mouthpiece", "mold2", "lip_balm", "lighter", "hole", "handcuff", "hairnet", "fishhook", "dumpster", "crystal1", "cornhusk", "contact_lens", "coffee_filter", "chicken1", "bedpan", "baby", "air_mattress", "pickax"]
+
+	manual_removed_images = ["hot_tub_14s.jpg", "snorkel_05s.jpg", "hot_tub_10s.jpg", "walrus_12s.jpg", "tee_11s.jpg", "teabag_12s.jpg", "peg_05s.jpg"]
+
 end
 
 # ╔═╡ 8e36d09b-d153-48ea-8f04-2c63a5c5866e
@@ -151,9 +158,10 @@ selected_concepts = let
 		danger_concepts, 
 		money_concepts, 
 		disgusting_concepts,
-		scary_concepts
+		scary_concepts,
+		manual_removed
 	)) && 
-		(x.category_label ∉ ["weapon", "body part"]) && (!isnan(x.CR)), mem_category)
+		(x.category_label ∉ ["weapon", "body part", "clothing", "clothing accessory", "medical equipment", "part of car"]) && (!isnan(x.CR)), mem_category)
 
 	# Select relevant columns and computer pctile for CR
 	select!(
@@ -171,6 +179,9 @@ end
 # ╔═╡ 11484465-a457-4103-80f5-38823c5afaed
 # Pick top images from each category
 selected_images = let rng = Xoshiro(0)
+
+	# Filter manually removed images
+	filter!(x -> x.image_name ∉ manual_removed_images, mem_image)
 
 	# Exctract concept from image name
 	mem_image.concept = (s -> s[1:last(findlast('_', s))-1]).(mem_image.image_name)
@@ -215,17 +226,20 @@ selected_images = let rng = Xoshiro(0)
 	selected_images
 end
 
-# ╔═╡ a0f9a2da-d60d-4c5a-8c85-a98a86b67750
-CSV.write("generate_experimental_sequences/trial1_stimuli/stimuli.csv", selected_images)
-
 # ╔═╡ e600d12a-57cc-4084-bd7e-07e090320534
-# Copy images to one folder
+# Copy images to one folder, save csv
 let
 	dest_folder = "generate_experimental_sequences/trial1_stimuli/"
+
+	for file in readdir(dest_folder; join=true)
+        rm(file; recursive=true)
+    end
 	
 	for (file, name) in zip(selected_images.file_path, selected_images.filename)
 	    cp(file, joinpath(dest_folder, name), force=true)
 	end
+
+	CSV.write("generate_experimental_sequences/trial1_stimuli/stimuli.csv", selected_images)
 
 end
 
@@ -248,11 +262,11 @@ end
 # ╠═70f082e6-ff53-11ef-2c76-01abbcd2749e
 # ╠═5f827d58-fbb2-42d3-ac79-7c9b1502198f
 # ╠═fe25d625-bbbe-4466-83c5-559c62827554
+# ╠═cd55b869-7383-4c1b-9375-c28aef91c9d8
 # ╠═1cc6ff99-aa17-40d5-84e8-4ce61c3e049c
 # ╠═8e36d09b-d153-48ea-8f04-2c63a5c5866e
 # ╠═4a85eb23-5e7d-461e-ae92-ab078979ac43
 # ╠═11484465-a457-4103-80f5-38823c5afaed
-# ╠═a0f9a2da-d60d-4c5a-8c85-a98a86b67750
 # ╠═e600d12a-57cc-4084-bd7e-07e090320534
 # ╠═aee2f526-f89a-41d7-a27b-3b1cad2b0203
 # ╠═59d0eb9a-cdbb-4f62-a631-f4808f5ba38e
