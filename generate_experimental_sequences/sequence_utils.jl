@@ -27,7 +27,7 @@ function assign_stimuli_and_optimality(;
 	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
 	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
 		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1,
+	rng::AbstractRNG = Xhoshiro(0),
 	ext::String = "jpg"
 	)
 
@@ -42,7 +42,7 @@ function assign_stimuli_and_optimality(;
 
 	# Assign whether repeating is optimal and shuffle
 	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
+		rng,
 		vcat(
 			fill(true, div(n_repeating, 2)),
 			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
@@ -77,7 +77,7 @@ function assign_stimuli_and_optimality(;
 			for _ in 1:(p - n_repeating)
 				push!(
 					stimulus_B,
-					popfirst!(categories)
+					popat!(categories, rand(rng, 1:length(categories)))
 				)
 			end
 			
@@ -85,7 +85,7 @@ function assign_stimuli_and_optimality(;
 			for _ in 1:p
 				push!(
 					stimulus_A,
-					popfirst!(categories)
+					popat!(categories, rand(rng, 1:length(categories)))
 				)
 			end
 
