@@ -503,6 +503,12 @@ end
 # ╔═╡ b13e8f5f-7522-497e-92d1-51d782fca33b
 md"""## Post-PILT test"""
 
+# ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
+let
+	save_to_JSON(PILT, "results/trial1_PILT_test.json")
+	CSV.write("results/trial1_PILT_test.csv", PILT)
+end
+
 # ╔═╡ c7d66e4b-6326-4edb-8761-b41f6eebb4f3
 function create_test_sequence(
 	pilt_task::DataFrame;
@@ -1719,6 +1725,7 @@ end
 # ╠═e51b4cec-6fd2-49d3-a9ec-ebbe960a7f49
 # ╠═8700a65a-3117-4d62-98f9-26f2839ba6a2
 # ╠═dd7112c9-35ac-4d02-a9c4-1e19efad0f31
+# ╠═47bfbee6-eaf4-4290-90f4-7b40a11bf27b
 # ╠═44d302d2-30c9-4157-a0ed-e8784f1ccb9b
 # ╠═c7d66e4b-6326-4edb-8761-b41f6eebb4f3
 # ╟─9f7b362c-5a60-4af1-a7e1-64b9665eee1e
