@@ -598,7 +598,7 @@ function save_to_JSON(
 	file_path::String
 )
 	# Initialize an empty dictionary to store the grouped data
-	json_groups = []
+	json_dict = Dict()
 	
 	# Iterate through unique blocks and their respective rows
 	for s in unique(df.session)
@@ -610,11 +610,13 @@ function save_to_JSON(
 		    # Convert each row in the block group to a dictionary and collect them into a list
 		    push!(session_groups, [Dict(pairs(row)) for row in eachrow(block_group)])
 		end
-		push!(json_groups, session_groups)
+		
+		# Store session data using session name as key
+		json_dict[string(s)] = session_groups
 	end
 	
 	# Convert to JSON String
-	json_string = JSON.json(json_groups)
+	json_string = JSON.json(json_dict)
 		
 	# Write the JSON string to the file
 	open(file_path, "w") do file
