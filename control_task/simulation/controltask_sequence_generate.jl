@@ -148,7 +148,29 @@ transform!(groupby(reward_sequence, [:target_island, :left_viable, :right_viable
 #   transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
 # end
 combine(groupby(reward_sequence, [:target_island, :current]), nrow)
-shuffle!(reward_sequence)
+# Check for consecutive target islands and reshuffle if needed
+function has_consecutive_targets(seq, n=3)
+  for i in 1:(nrow(seq)-n+1)
+    if length(unique(seq[i:(i+n-1), :target_island])) == 1
+      return true
+    end
+  end
+  return false
+end
+
+# Reshuffle until no consecutive target islands
+max_attempts = 1000
+attempt = 0
+while has_consecutive_targets(reward_sequence) && attempt < max_attempts
+  shuffle!(reward_sequence)
+  global attempt += 1
+end
+
+if attempt == max_attempts
+  @warn "Could not find sequence without consecutive targets after $max_attempts attempts"
+else
+  @info "Found valid sequence after $attempt reshuffles"
+end
 
 # Convert to vector of NamedTuples for saving
 reward_sequence_tuples = map(eachrow(reward_sequence)) do row
