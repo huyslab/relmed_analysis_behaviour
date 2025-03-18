@@ -38,43 +38,43 @@ end
 
 # Prediction sequence
 function shuffle_with_no_shared(perms)
-    # Convert to canonical form for comparison (sort each inner pair)
-    function canonical_form(p)
-        return sort([p[1], p[2]])
+  # Convert to canonical form for comparison (sort each inner pair)
+  function canonical_form(p)
+    return sort([p[1], p[2]])
+  end
+
+  function shares_elements(p1, p2)
+    return any(x -> x in p2, p1)
+  end
+
+  # Initial shuffle
+  max_attempts = 10000000
+  n_invalid = 0
+  result = shuffle(copy(perms))
+
+  for attempt in 1:max_attempts
+    valid = true
+
+    # Check for consecutive pairs that share elements
+    for i in 1:(length(result)-1)
+      if shares_elements(result[i], result[i+1])
+        n_invalid += 1
+        if n_invalid > (length(result) * 1 / 2)
+          valid = false
+          n_invalid = 0
+          shuffle!(result)
+          break
+        end
+      end
     end
 
-    function shares_elements(p1, p2)
-        return any(x -> x in p2, p1)
+    if valid
+      @info "Found valid permutation after $(attempt) attempts"
+      return result
     end
-    
-    # Initial shuffle
-    max_attempts = 10000000
-    n_invalid = 0
-    result = shuffle(copy(perms))
-    
-    for attempt in 1:max_attempts
-        valid = true
-        
-        # Check for consecutive pairs that share elements
-        for i in 1:(length(result)-1)
-            if shares_elements(result[i], result[i+1])
-                n_invalid += 1
-                if n_invalid > (length(result) * 1/2)
-                  valid = false
-                  n_invalid = 0
-                  shuffle!(result)
-                  break
-                end
-            end
-        end
-        
-        if valid
-          @info "Found valid permutation after $(attempt) attempts"
-          return result
-        end
-    end
-    
-    error("Could not find a valid permutation after $max_attempts attempts")
+  end
+
+  error("Could not find a valid permutation after $max_attempts attempts")
 end
 
 # Shuffle with constraint for Prediction sequence
@@ -82,7 +82,7 @@ perms = collect(permutations(1:pars.n_states, 2))
 shuffled_perms = shuffle_with_no_shared(perms)
 prediction_sequence = [];
 for (i, perm) in enumerate(shuffled_perms)
-  append!(prediction_sequence, [(;ship=ship_name[perm[1]]), (;ship=ship_name[perm[2]])])
+  append!(prediction_sequence, [(; ship=ship_name[perm[1]]), (; ship=ship_name[perm[2]])])
 end
 CSV.write("prediction_sequence.csv", DataFrame(prediction_sequence))
 open("prediction_sequence.json", "w") do io
@@ -91,10 +91,10 @@ end
 
 # Reward sequence
 target_list = [2, 3, 4, 1]
-islands_df = allcombinations(DataFrame, target_island = 1:4, near_island = 1:4)
+islands_df = allcombinations(DataFrame, target_island=1:4, near_island=1:4)
 filter!([:target_island, :near_island] => (x, y) -> x != y, islands_df)
 boats = map(collect(permutations(1:pars.n_states, 2))) do perm
-  return (;left = perm[1], right = perm[2])
+  return (; left=perm[1], right=perm[2])
 end
 reward_df = crossjoin(islands_df, DataFrame(boats)) |>
   x -> transform(x, [:left, :right, :target_island] => ByRow((l, r, t) -> (findfirst(target_list .== t) ∈ [l, r])) => :ship_viable) |>
@@ -102,6 +102,8 @@ reward_df = crossjoin(islands_df, DataFrame(boats)) |>
   x -> transform(x, [:right, :target_island] => ByRow((r, t) -> (findfirst(target_list .== t) == r)) => :right_viable) |>
   x -> transform(x, [:near_island, :target_island] => ByRow((n, t) -> (findfirst(target_list .== t) == n)) => :island_viable) |>
   x -> filter(x -> x.ship_viable || x.island_viable, x)
+filter!(x -> !(x.target_island != 3 && (x.left == 2 || x.right == 2)), reward_df)
+filter!(x -> x.target_island != 3, reward_df)
 combine(groupby(reward_df, [:left_viable, :right_viable, :island_viable]), nrow)
 
 # Only island viable
@@ -111,34 +113,49 @@ both_viable_df = filter(row -> row.ship_viable && row.island_viable, reward_df)
 # Only ship viable
 ship_viable_df = filter(row -> row.ship_viable && !row.island_viable, reward_df)
 unique_combinations = combine(
-    groupby(ship_viable_df, [:target_island, :left, :right])
+  groupby(ship_viable_df, [:target_island, :left, :right])
 ) do group_df
-    # Sample one random row from this group
-    return group_df[rand(1:nrow(group_df)), :]
-end
-
-# Replace some trials with both viable trials
-to_replace = combine(groupby(unique_combinations, [:target_island])) do group_df
+  # Sample one random row from this group
   return group_df[rand(1:nrow(group_df)), :]
 end
 
-
-
+# Replace some trials with both viable trials
+# Result in a fewer number of trials but would have unbalanced number of target island trials, especially with more 3 (grape islands)
+# Maybe consider removing all the trials with target island 3 (6 of them), and them swap three in total, one in each target island group
+# Use unique_combinations instead of ship_viable_df will result in only half of the trials (12)
+to_replace = combine(groupby(ship_viable_df, [:target_island, :left_viable, :right_viable])) do group_df
+  return group_df[sample(1:nrow(group_df), 1, replace=false), :]
+end
 reward_sequence = vcat(
   semijoin(both_viable_df, to_replace, on=[:target_island, :left, :right]),
-  antijoin(unique_combinations, to_replace, on = [:target_island, :left, :right, :near_island])
-  )
+  antijoin(ship_viable_df, to_replace, on=[:target_island, :near_island, :left, :right])
+)
+
+# # Or add both extra 6 viable trials to the reward sequence
+# to_add = filter(row -> row.target_island != 3, both_viable_df) |>
+#   x -> combine(groupby(x, [:target_island, :left_viable, :right_viable])) do group_df
+#     return group_df[rand(1:nrow(group_df)), :]
+#   end
+
+# reward_sequence = vcat(
+#   to_add,
+#   unique_combinations
+# )
+
 combine(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), nrow)
-transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x)/3)), length(x), replace=false)) => :current)
-combine(groupby(reward_sequence, [:current]), nrow)
+transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
+while nrow(combine(groupby(reward_sequence, [:target_island, :current]), nrow)) != 9
+  transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
+end
+combine(groupby(reward_sequence, [:target_island, :current]), nrow)
 shuffle!(reward_sequence)
 
 # Convert to vector of NamedTuples for saving
 reward_sequence_tuples = map(eachrow(reward_sequence)) do row
   return (
-    target=island_name[row.target_island], 
-    near=island_name[row.near_island], 
-    left=ship_name[row.left], 
+    target=island_name[row.target_island],
+    near=island_name[row.near_island],
+    left=ship_name[row.left],
     right=ship_name[row.right],
     current=row.current,
     island_viable=row.island_viable,
