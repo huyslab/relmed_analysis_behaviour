@@ -103,7 +103,7 @@ reward_df = crossjoin(islands_df, DataFrame(boats)) |>
   x -> transform(x, [:near_island, :target_island] => ByRow((n, t) -> (findfirst(target_list .== t) == n)) => :island_viable) |>
   x -> filter(x -> x.ship_viable || x.island_viable, x)
 filter!(x -> !(x.target_island != 3 && (x.left == 2 || x.right == 2)), reward_df)
-filter!(x -> x.target_island != 3, reward_df)
+# filter!(x -> x.target_island != 3, reward_df)
 combine(groupby(reward_df, [:left_viable, :right_viable, :island_viable]), nrow)
 
 # Only island viable
@@ -119,34 +119,34 @@ unique_combinations = combine(
   return group_df[rand(1:nrow(group_df)), :]
 end
 
-# Replace some trials with both viable trials
-# Result in a fewer number of trials but would have unbalanced number of target island trials, especially with more 3 (grape islands)
-# Maybe consider removing all the trials with target island 3 (6 of them), and them swap three in total, one in each target island group
-# Use unique_combinations instead of ship_viable_df will result in only half of the trials (12)
-to_replace = combine(groupby(ship_viable_df, [:target_island, :left_viable, :right_viable])) do group_df
-  return group_df[sample(1:nrow(group_df), 1, replace=false), :]
-end
-reward_sequence = vcat(
-  semijoin(both_viable_df, to_replace, on=[:target_island, :left, :right]),
-  antijoin(ship_viable_df, to_replace, on=[:target_island, :near_island, :left, :right])
-)
-
-# # Or add both extra 6 viable trials to the reward sequence
-# to_add = filter(row -> row.target_island != 3, both_viable_df) |>
-#   x -> combine(groupby(x, [:target_island, :left_viable, :right_viable])) do group_df
-#     return group_df[rand(1:nrow(group_df)), :]
-#   end
-
+# # Replace some trials with both viable trials
+# # Result in a fewer number of trials but would have unbalanced number of target island trials, especially with more 3 (grape islands)
+# # Maybe consider removing all the trials with target island 3 (6 of them), and them swap three in total, one in each target island group
+# # Use unique_combinations instead of ship_viable_df will result in only half of the trials (12)
+# to_replace = combine(groupby(ship_viable_df, [:target_island, :left_viable, :right_viable])) do group_df
+#   return group_df[sample(1:nrow(group_df), 1, replace=false), :]
+# end
 # reward_sequence = vcat(
-#   to_add,
-#   unique_combinations
+#   semijoin(both_viable_df, to_replace, on=[:target_island, :left, :right]),
+#   antijoin(ship_viable_df, to_replace, on=[:target_island, :near_island, :left, :right])
 # )
 
+# Or add both extra 6 viable trials to the reward sequence
+to_add = filter(row -> row.target_island != 3, both_viable_df) |>
+  x -> combine(groupby(x, [:target_island, :left_viable, :right_viable])) do group_df
+    return group_df[rand(1:nrow(group_df)), :]
+  end
+
+reward_sequence = vcat(
+  to_add,
+  unique_combinations
+)
+
 combine(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), nrow)
-transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
-while nrow(combine(groupby(reward_sequence, [:target_island, :current]), nrow)) != 9
-  transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
-end
+transform!(groupby(reward_sequence, [:target_island, :left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
+# while nrow(combine(groupby(reward_sequence, [:target_island, :current]), nrow)) != 9
+#   transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
+# end
 combine(groupby(reward_sequence, [:target_island, :current]), nrow)
 shuffle!(reward_sequence)
 
