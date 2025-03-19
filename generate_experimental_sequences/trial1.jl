@@ -919,6 +919,21 @@ function integer_allocation(p::Vector{Float64}, n::Int)
 end
 
 # ╔═╡ 68873d3e-054d-4ab4-9d89-73586bb0370e
+"""
+    prop_fill_shuffle(values, props, n; rng=Xoshiro(1))
+
+Generate a shuffled vector containing `n` elements, where each unique value in `values`  
+is allocated according to the proportions specified in `props`. 
+
+# Arguments
+- `values::AbstractVector`: A vector of unique values to be sampled.  
+- `props::Vector{Float64}`: A vector of proportions (summing to 1) corresponding to `values`.  
+- `n::Int64`: The total number of elements in the output vector.  
+- `rng::AbstractRNG`: (Optional) Random number generator for shuffling (default: `Xoshiro(1)`).  
+
+# Returns
+- A shuffled vector of length `n` containing the values allocated based on `props`.  
+"""
 function prop_fill_shuffle(
 	values::AbstractVector,
 	props::Vector{Float64},
@@ -1706,6 +1721,122 @@ let
 	CSV.write("results/trial1_LTM_test.csv", RLLTM_test)
 end
 
+# ╔═╡ 5db56189-97ae-4ab0-969c-3c6a9bf787a7
+md"""# Screening-PILT"""
+
+# ╔═╡ 2005851c-6cb4-4849-a587-3562b2a14dd7
+# Parameters
+begin
+	scr_PILT_n_trials = 50
+	scr_PILT_prop_common::Rational = 9//10
+	scr_PILT_first_confusing_trial = 4
+	scr_PILT_prop_fifty = 2//10
+end
+
+# ╔═╡ 263807b6-8212-41a5-936a-40c962c02150
+scr_PILT_seq = let rng = Xoshiro(0)
+
+	denom_prop = denominator(scr_PILT_prop_common)
+
+	@assert rem(scr_PILT_n_trials, denom_prop) == 0 "Proportion cannot be represented in scr_PILT_n_trials"
+
+	# Shuffled order of feedback common
+	feedback_common = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			float.([scr_PILT_prop_common, 1-scr_PILT_prop_common]), denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop - 1)]...
+	)
+
+	# Add first sequence with first confusing trial
+	feedback_common = vcat(
+		vcat(
+			fill(true, scr_PILT_first_confusing_trial - 1),
+			[false],
+			fill(true, denom_prop - scr_PILT_first_confusing_trial)
+		),
+		feedback_common
+	)
+
+	@assert length(feedback_common) == scr_PILT_n_trials "Problem with allocation of sequence"
+
+	feedback_common
+
+end
+
+# ╔═╡ 8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
+scr_PILT = let rng = Xoshiro(3)
+
+	# Initiate DataFrame with sequence and constant variables
+	scr_PILT = DataFrame(
+		session = "screening",
+		block = 1,
+		valence = 1,
+		trial = 1:length(scr_PILT_seq),
+		feedback_common = scr_PILT_seq,
+		present_pavlovian = false,
+		n_stimuli = 2,
+		early_stop = true,
+		n_groups = 1,
+		stimulus_group = 1,
+		stimulus_group_id = 1,
+		stimulus_middle = "",
+		feedback_middle = "",
+		optimal_side = "",
+	)
+
+	# Create feedback_optimal variable
+	denom_prop = denominator(scr_PILT_prop_fifty)
+
+	scr_PILT.feedback_optimal = vcat(
+		[prop_fill_shuffle(
+			[0.5, 1.], 
+			float.([scr_PILT_prop_fifty, 1-scr_PILT_prop_fifty]), 
+			denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
+	)
+
+	# Assign right / left
+	scr_PILT.optimal_right = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			[0.5, 0.5], 
+			denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
+	)
+
+	# Assign feedback_right and feedback_left
+	scr_PILT.feedback_right = ifelse.(
+		scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		0.01
+	)
+
+	scr_PILT.feedback_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		0.01
+	)
+
+	# Assign stimuli
+	stimuli = [popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:2]
+
+	scr_PILT.stimulus_right = ifelse.(
+		scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT.stimulus_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT
+
+end
+
 # ╔═╡ Cell order:
 # ╠═2d7211b4-b31e-11ef-3c0b-e979f01c47ae
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
@@ -1755,3 +1886,7 @@ end
 # ╠═832ccb61-b588-4614-9f5a-efa0f9a6087d
 # ╠═8d8e4026-2185-4d67-a259-4cdebaab0b94
 # ╠═391f3f2a-74ae-463b-b109-a47eaaafdf97
+# ╟─5db56189-97ae-4ab0-969c-3c6a9bf787a7
+# ╠═2005851c-6cb4-4849-a587-3562b2a14dd7
+# ╠═263807b6-8212-41a5-936a-40c962c02150
+# ╠═8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
