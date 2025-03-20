@@ -123,6 +123,9 @@ begin
 			progress = if_else(trial_number <= maximum(trial_number)/2, "Trial 1-36", "Trial 37-72")
 		)
 		@anti_join(PIT_unfinished)
+		@arrange(prolific_pid, progress, magnitude, ratio)
+		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
+		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
 	end
 	pav_eff = @chain PIT_data begin
 			@filter(coin != 0)
@@ -244,11 +247,7 @@ end
 
 # ╔═╡ 1beaa9b1-73e9-407b-bf5f-a4091f00a17d
 let
-	df = @chain PIT_data begin
-		@arrange(prolific_pid, progress, magnitude, ratio)
-		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
-		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
-	end
+	df = PIT_data
 	colors=ColorSchemes.PRGn_7.colors
 	colors[4]=colorant"rgb(210, 210, 210)"
 	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig, :progress], :press_per_sec)
@@ -392,6 +391,7 @@ let
 	end
 
 	fig
+	@count(acc_grp_df, acc_grp)
 end
 
 # ╔═╡ 45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
@@ -476,6 +476,46 @@ let
 		mapping(:progress => presorted, :diff => "ΔValence", group=:prolific_pid) *
 		visual(Lines, color = :gray80) |>
 	draw()
+end
+
+# ╔═╡ ffd8653e-ce66-4597-b9d7-c3be2a527eac
+md"""
+## PIT conflicts
+"""
+
+# ╔═╡ 6f5d4458-909b-4818-97de-1de7dd555561
+function flatten_dataframe(df, array_column)
+    # Use comprehension to create all rows
+    rows = [(; zip(propertynames(df), [
+        col == array_column ? val : row[col] 
+        for col in propertynames(df)
+    ])...) for row in eachrow(df) for val in row[array_column]]
+    
+    return DataFrame(rows)
+end
+
+# ╔═╡ 6d55f942-c909-4b99-a4bd-1ae1b5cd0c06
+let
+	flattened_PIT = flatten_dataframe(PIT_data, :response_times)
+	flattened_PIT = @chain flattened_PIT begin
+		@group_by(prolific_pid, trial_number)
+		@mutate(cumu_time = cumsum(response_times)/1000, cumu_press = 1:n())
+		@filter(!(cumu_press == 1 && response_times < 80))
+		@mutate(cumu_press = 1:n())
+		@ungroup()
+		@mutate(speed = cumu_press/cumu_time)
+		@mutate(valence = case_when(
+			coin == 0 => "Neutral",
+			coin > 0 => "Positive",
+			coin < 0 => "Negative"
+		))
+		@filter(valence != "Neutral")
+	end
+	@filter(flattened_PIT, speed > 10)
+	data(flattened_PIT) *
+	mapping(:cumu_time, :speed, color=:coin_cat, col=:pig, row=:type) *
+	(AlgebraOfGraphics.smooth()) |>
+	draw(scales(Color = (; palette=colors)))
 end
 
 # ╔═╡ 8e046c5a-1454-4762-a93f-1555d7549931
@@ -783,12 +823,15 @@ end
 # ╠═1beaa9b1-73e9-407b-bf5f-a4091f00a17d
 # ╟─95fd5935-19de-4a66-881e-77fa276a70af
 # ╟─7fa14255-9f46-466d-baa3-e6fc2eec3347
-# ╟─58ed1255-6f89-4f8a-b6d6-a8dee840dea2
-# ╟─07321c17-5493-4d1b-a918-2129cab2b0e1
+# ╠═58ed1255-6f89-4f8a-b6d6-a8dee840dea2
+# ╠═07321c17-5493-4d1b-a918-2129cab2b0e1
 # ╟─45ebcdfa-e2ef-4df7-a31d-9b5e06044e08
 # ╠═19ee8038-242c-4545-ba42-cec1bd6f9b5c
 # ╟─df9a9759-a3a0-491b-9812-62d145bcf3b0
 # ╠═3a4f9ee8-801e-42a5-9f5c-d05dde038cc6
+# ╟─ffd8653e-ce66-4597-b9d7-c3be2a527eac
+# ╠═6f5d4458-909b-4818-97de-1de7dd555561
+# ╠═6d55f942-c909-4b99-a4bd-1ae1b5cd0c06
 # ╟─8e046c5a-1454-4762-a93f-1555d7549931
 # ╟─b6c4383c-98f8-47d1-91e1-369bd9f27aae
 # ╟─8e103789-dc11-488f-8671-2222c0360fa3
