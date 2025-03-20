@@ -52,7 +52,7 @@ md"""## Participant management"""
 # ╠═╡ skip_as_script = true
 #=╠═╡
 begin
-	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = true, return_version = "7.0")
+	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "7.0")
 end
   ╠═╡ =#
 
@@ -87,6 +87,7 @@ let
 	# Clean data
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
+	# PILT_data_clean = filter(x -> x.block <= 5, PILT_data_clean)
 
 	# Sumarrize by participant and trial
 	acc_curve = combine(
@@ -260,6 +261,36 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ ce1f3229-1675-495a-9a8a-5ae94194bdce
+md"""
+### Max press rate
+"""
+
+# ╔═╡ eabc7639-612f-4bad-843e-1d8e802740c7
+#=╠═╡
+filter!(x -> x.trial_presses > 0, max_press_data)
+  ╠═╡ =#
+
+# ╔═╡ 0ca7bef1-439c-4718-b620-9dd8a0cc35fd
+#=╠═╡
+@chain max_press_data begin
+	data(_) * mapping(:avg_speed) * visual(Hist)
+	draw
+end
+  ╠═╡ =#
+
+# ╔═╡ 516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
+#=╠═╡
+@chain max_press_data begin
+	describe(:all)
+end
+  ╠═╡ =#
+
+# ╔═╡ f242aecf-b5c3-47ed-a511-f0b9e75f209c
+#=╠═╡
+quantile(max_press_data.avg_speed, [0.1, 0.25, 0.5, 0.75, 0.9])
+  ╠═╡ =#
+
 # ╔═╡ 7559e78d-7bd8-4450-a215-d74a0b1d670a
 md"""
 ### Vigour
@@ -272,6 +303,13 @@ begin
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
+  ╠═╡ =#
+
+# ╔═╡ 7be9ab7d-357f-4833-9660-d0678fb3a672
+#=╠═╡
+data(vigour_data) * 
+	mapping(:magnitude => nonnumeric, :press_per_sec; col=:ratio => nonnumeric) * 
+	visual(RainClouds) |> draw
   ╠═╡ =#
 
 # ╔═╡ 243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
@@ -881,8 +919,14 @@ end
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╟─ce1f3229-1675-495a-9a8a-5ae94194bdce
+# ╠═eabc7639-612f-4bad-843e-1d8e802740c7
+# ╠═0ca7bef1-439c-4718-b620-9dd8a0cc35fd
+# ╠═516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
+# ╠═f242aecf-b5c3-47ed-a511-f0b9e75f209c
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+# ╠═7be9ab7d-357f-4833-9660-d0678fb3a672
 # ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╟─814aec54-eb08-4627-9022-19f41bcdac9f
