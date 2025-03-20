@@ -25,9 +25,10 @@ Assigns stimulus filenames and determines the optimal stimulus in each pair.
 function assign_stimuli_and_optimality(;
 	n_phases::Int64,
 	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
-	categories::Vector{String} = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
+	categories::AbstractVector = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
 		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1
+	rng::AbstractRNG = Xhoshiro(0),
+	ext::String = "jpg"
 	)
 
 	total_n_pairs = sum(n_pairs) # Number of pairs needed
@@ -41,7 +42,7 @@ function assign_stimuli_and_optimality(;
 
 	# Assign whether repeating is optimal and shuffle
 	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
+		rng,
 		vcat(
 			fill(true, div(n_repeating, 2)),
 			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
@@ -76,7 +77,7 @@ function assign_stimuli_and_optimality(;
 			for _ in 1:(p - n_repeating)
 				push!(
 					stimulus_B,
-					popfirst!(categories)
+					popat!(categories, rand(rng, 1:length(categories)))
 				)
 			end
 			
@@ -84,7 +85,7 @@ function assign_stimuli_and_optimality(;
 			for _ in 1:p
 				push!(
 					stimulus_A,
-					popfirst!(categories)
+					popat!(categories, rand(rng, 1:length(categories)))
 				)
 			end
 
@@ -105,8 +106,8 @@ function assign_stimuli_and_optimality(;
 		end
 	end
 
-	stimulus_A = (x -> x * "1.png").(stimulus_A)
-	stimulus_B = (x -> x * "2.png").(stimulus_B)
+	stimulus_A = (x -> x * "_1.$ext").(stimulus_A)
+	stimulus_B = (x -> x * "_2.$ext").(stimulus_B)
 
 	return DataFrame(
 		phase = repeat(1:n_phases, inner = total_n_pairs),
@@ -597,7 +598,7 @@ function save_to_JSON(
 	file_path::String
 )
 	# Initialize an empty dictionary to store the grouped data
-	json_groups = []
+	json_dict = Dict()
 	
 	# Iterate through unique blocks and their respective rows
 	for s in unique(df.session)
@@ -609,11 +610,13 @@ function save_to_JSON(
 		    # Convert each row in the block group to a dictionary and collect them into a list
 		    push!(session_groups, [Dict(pairs(row)) for row in eachrow(block_group)])
 		end
-		push!(json_groups, session_groups)
+		
+		# Store session data using session name as key
+		json_dict[string(s)] = session_groups
 	end
 	
 	# Convert to JSON String
-	json_string = JSON.json(json_groups)
+	json_string = JSON.json(json_dict)
 		
 	# Write the JSON string to the file
 	open(file_path, "w") do file

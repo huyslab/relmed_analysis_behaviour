@@ -38,3 +38,8 @@ Icon
 .ssh/
 .julia/logs/
 /data_analysis/workshop/*.html
+generate_experimental_sequences/THINGS/
+generate_experimental_sequences/pilot7_stims/
+generate_experimental_sequences/pilot7_stims_OLD/
+generate_experimental_sequences/trial1_stimuli/
+*.zip
