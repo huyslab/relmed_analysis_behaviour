@@ -134,6 +134,18 @@ md"""
 ## Vigour trial analyses
 """
 
+# ╔═╡ f7cf40ac-51f1-44b9-aabe-c456d6a10915
+@chain vigour_data begin
+	@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
+	combine(groupby(_, [:age_group]), :press_per_sec => (x -> DataFrame([summarystats(x)])) => AsTable)
+end	
+
+# ╔═╡ fef5445b-de52-4f88-8064-8ae5092fa5fa
+@chain vigour_data begin
+	@mutate(press_per_sec = trial_presses .* 1000 ./ trial_duration)
+	combine(groupby(_, [:age_group]), :press_per_sec => (x -> quantile(x, 0.1)))
+end	
+
 # ╔═╡ 9cc0560b-5e3b-45bc-9ba8-605f8111840b
 md"""
 ### Response time
@@ -854,6 +866,8 @@ bic(test_mixed_2)
 # ╠═01b02d27-ed6e-4627-95cc-8b993e4b0ce3
 # ╠═bda488ea-faa3-4308-ac89-40b8481363bf
 # ╟─ac1399c4-6a2f-446f-8687-059fa5da9473
+# ╠═f7cf40ac-51f1-44b9-aabe-c456d6a10915
+# ╠═fef5445b-de52-4f88-8064-8ae5092fa5fa
 # ╟─9cc0560b-5e3b-45bc-9ba8-605f8111840b
 # ╠═2391eb75-db59-4156-99ae-abb8f1508037
 # ╟─b9f4babc-8da0-40f2-b0d2-95f915989faf
