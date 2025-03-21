@@ -602,10 +602,12 @@ function save_to_JSON(
 	
 	# Iterate through unique blocks and their respective rows
 	for s in unique(df.session)
+
+		session_df = filter(x -> x.session == s, df)
 		session_groups = []
-		for b in unique(df.block)
+		for b in unique(session_df.block)
 		    # Filter the rows corresponding to the current block
-		    block_group = df[(df.block .== b) .&& (df.session .== s), :]
+		    block_group = filter(x -> x.block == b, session_df)
 		    
 		    # Convert each row in the block group to a dictionary and collect them into a list
 		    push!(session_groups, [Dict(pairs(row)) for row in eachrow(block_group)])
