@@ -807,10 +807,10 @@ let
 		@filter(coin==0)
 		@bind_rows(vigour_data)
 		@mutate(trialphase=categorical(trialphase, levels=["vigour_trial", "pit_trial"], ordered=true))
-		@mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
+		# @mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
 		@filter(reward_per_press in !!common_rpp)
 	end
-	plot_presses_vs_var(PIT_data; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
+	plot_presses_vs_var(@bind_rows(PIT_data, instrumental_data); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
   ╠═╡ =#
 
