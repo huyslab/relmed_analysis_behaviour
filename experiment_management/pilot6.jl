@@ -74,18 +74,6 @@ begin
 	prepare_questionnaire_data(jspsych_data; save_data=true)
 end
 
-# ╔═╡ 70257d73-ffa4-468a-bafc-694740847e06
-vigour_data
-
-# ╔═╡ 0874e16f-1a89-4103-aa56-ada2a5622f2f
-data(vigour_data) *
-mapping(:press_per_sec) *
-AlgebraOfGraphics.density() |>
-draw()
-
-# ╔═╡ 3d8d98d0-069c-4ef4-a13d-80e6d582deb0
-quantile(vigour_data.press_per_sec, [0.1, 0.5, 0.9]) .* 3
-
 # ╔═╡ f85a72d4-0959-4579-9c22-ae9362da75e3
 70.0284/32.8655
 
@@ -519,6 +507,15 @@ let
 	mapping(:acc) *
 	visual(Hist) |>
 	draw(;axis=(;xlabel="Accuracy",ylabel="Count (#Participant)"))
+end
+
+# ╔═╡ 0874e16f-1a89-4103-aa56-ada2a5622f2f
+let
+	@info quantile(vigour_data.press_per_sec, [0.1, 0.5, 0.9]) .* 3
+	data(vigour_data) *
+		mapping(:press_per_sec) *
+		AlgebraOfGraphics.density() |>
+	draw()
 end
 
 # ╔═╡ 665aa690-4f37-4a31-b87e-3b4aee66b3b1
@@ -995,9 +992,6 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-# ╠═70257d73-ffa4-468a-bafc-694740847e06
-# ╠═0874e16f-1a89-4103-aa56-ada2a5622f2f
-# ╠═3d8d98d0-069c-4ef4-a13d-80e6d582deb0
 # ╠═f1e41618-42b2-4e30-a33c-a198aa86ac23
 # ╠═35fb49f6-1a00-407b-bb98-89115103a9ca
 # ╠═d0aac275-814f-48d9-9c50-566928b88904
@@ -1025,6 +1019,7 @@ end
 # ╠═814aec54-eb08-4627-9022-19f41bcdac9f
 # ╠═6f7acf24-dbdc-4919-badb-9fe58712eacd
 # ╠═3d05e879-aa5c-4840-9f4f-ad35b8d9519a
+# ╠═0874e16f-1a89-4103-aa56-ada2a5622f2f
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
 # ╠═43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╠═89258a40-d4c6-4831-8cf3-d69d984c4f6e
