@@ -26,7 +26,8 @@ end
 # Fetch entire dataset
 function get_REDCap_data(
 	experiment::String;
-	file_field::String = "other_data" # Field on REDCap database containing task data file
+	file_field::String = "other_data", # Field on REDCap database containing task data file
+	record_id_field::String = "record_id" # Field on REDCap database containing record ID
 	)
 
 	# Get the records --------
@@ -51,20 +52,21 @@ function get_REDCap_data(
 
 	# Parse the JSON response
 	record = JSON.parse(String(record.body))
-
+	# Rename participant_id to record_id in each record
+	map(x -> x["record_id"] = x[record_id_field], record)
 
 	# Get the files
 	jspsych_data = []
 	for r in record
 		if r[file_field] == "file"
-			tdata = get_REDCap_file(r["record_id"]; 
+			tdata = get_REDCap_file(r[record_id_field]; 
 				experiment = experiment, 
 				field = file_field
 			)
 
 			# Add record_id
 			for tr in tdata
-				tr["record_id"] = r["record_id"]
+				tr["record_id"] = r[record_id_field]
 			end
 			
 			push!(jspsych_data, tdata)
@@ -76,8 +78,12 @@ function get_REDCap_data(
 end
 
 # Convert to df and merge REDCap record data and jsPsych data
-function REDCap_data_to_df(jspsych_data, records)
+function REDCap_data_to_df(jspsych_data, records; participant_id_field::String = "prolific_pid", start_time_field::String = "start_time")
 	
+	# Convert to symbols
+	participant_id = Symbol(participant_id_field) # Prolific ID if available
+	start_time = Symbol(start_time_field)
+
 	# Records to df
 	records_df = DataFrame(records)
 	
@@ -101,14 +107,32 @@ function REDCap_data_to_df(jspsych_data, records)
 	)
 
 	# Exclude missing prolific_pid
-	filter!(x -> !ismissing(x.prolific_pid), jspsych_data)
+	filter!(x -> !ismissing(x[participant_id]), jspsych_data)
 
+	# Needed variables from records_df
+	col_names = [participant_id_field, "record_id", start_time_field];
+	valid_cols = intersect(col_names, names(records_df))
+	records_df = records_df[!, valid_cols]
+
+	# Where to find the start_time field
+	if start_time_field in valid_cols
+		@info "start_time field found in records_df"
+		rename!(records_df, start_time => :exp_start_time)
+	elseif start_time_field in names(jspsych_data)
+		@info "start_time field found in jspsych_data"
+		rename!(jspsych_data, start_time => :exp_start_time)
+	end
+
+	# Join by variables
+	on_cols = intersect(names(jspsych_data), names(records_df))
+	@info "Joining on columns: $on_cols"
 	# Combine records and jspsych data
-	jspsych_data = leftjoin(jspsych_data, 
-		rename(records_df[!, [:prolific_pid, :record_id, :start_time]],
-			:start_time => :exp_start_time),
-		on = [:prolific_pid, :record_id]
+	jspsych_data = leftjoin(
+		jspsych_data, records_df,
+		on = map(Symbol, on_cols)
 	)
+
+	rename!(jspsych_data, participant_id => :prolific_pid)
 
 	return jspsych_data
 end
@@ -132,6 +156,54 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	return PLT_data
 
+end
+
+function load_pilot8_data(; force_download = false, return_version = "0.2")
+	datafile = "data/pilot8.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "file_data")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Subset version for return
+	filter!(x -> x.version == return_version, jspsych_data)
+
+	# Exctract PILT
+	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
+
+	# Divide intwo WM and PILT
+	WM_data = filter(x -> x.n_stimuli == 3, PILT_data)
+	filter!(x -> x.n_stimuli == 2, PILT_data)
+
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+			
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	# No reversal task in Pilot7
+	# reversal_data = prepare_reversal_data(jspsych_data)
+
+	# Extract max press rate data
+	max_press_data = prepare_max_press_data(jspsych_data)
+
+	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data
 end
 
 function load_pilot7_data(; force_download = false, return_version = "6.01")
