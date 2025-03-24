@@ -985,3 +985,42 @@ function exclude_reversal_sessions(
 
 	return reversal_data_clean
 end
+
+"""
+	extract_timeline_variables!(df::DataFrame) -> DataFrame
+
+Extract and flatten JSON data from the `:timeline_variables` column of a DataFrame.
+
+This function parses the JSON data stored in the `:timeline_variables` column,
+creates new columns in the DataFrame for each unique key found in the JSON objects,
+and then removes the original `:timeline_variables` column.
+
+# Arguments
+- `df::DataFrame`: A DataFrame containing a `:timeline_variables` column with JSON data.
+
+# Returns
+- The modified DataFrame with JSON data flattened into separate columns.
+
+# Note
+- The function modifies the input DataFrame in-place.
+- If a row's `:timeline_variables` field is missing or cannot be parsed as JSON, 
+	it will be treated as an empty dictionary.
+- If a row's JSON doesn't contain a particular key found in other rows, 
+	the corresponding cell will be assigned `missing`.
+"""
+function extract_timeline_variables!(df::DataFrame)
+	parsed = map(row -> begin
+			ismissing(row.timeline_variables) && return Dict()
+			str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
+			try JSON.parse(str) catch; Dict() end
+	end, eachrow(df))
+	
+	for key in unique(Iterators.flatten(keys.(parsed)))
+			df[!, key] = [get(p, key, missing) for p in parsed]
+	end
+
+	select!(df, Not(:timeline_variables))
+	
+	return df
+end
+
