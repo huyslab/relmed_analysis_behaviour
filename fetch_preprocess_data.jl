@@ -26,7 +26,8 @@ end
 # Fetch entire dataset
 function get_REDCap_data(
 	experiment::String;
-	file_field::String = "other_data" # Field on REDCap database containing task data file
+	file_field::String = "other_data", # Field on REDCap database containing task data file
+	record_id_field::String = "record_id" # Field on REDCap database containing record ID
 	)
 
 	# Get the records --------
@@ -51,20 +52,21 @@ function get_REDCap_data(
 
 	# Parse the JSON response
 	record = JSON.parse(String(record.body))
-
+	# Rename participant_id to record_id in each record
+	map(x -> x["record_id"] = x[record_id_field], record)
 
 	# Get the files
 	jspsych_data = []
 	for r in record
 		if r[file_field] == "file"
-			tdata = get_REDCap_file(r["record_id"]; 
+			tdata = get_REDCap_file(r[record_id_field]; 
 				experiment = experiment, 
 				field = file_field
 			)
 
 			# Add record_id
 			for tr in tdata
-				tr["record_id"] = r["record_id"]
+				tr["record_id"] = r[record_id_field]
 			end
 			
 			push!(jspsych_data, tdata)
@@ -76,8 +78,12 @@ function get_REDCap_data(
 end
 
 # Convert to df and merge REDCap record data and jsPsych data
-function REDCap_data_to_df(jspsych_data, records)
+function REDCap_data_to_df(jspsych_data, records; participant_id_field::String = "prolific_pid", start_time_field::String = "start_time")
 	
+	# Convert to symbols
+	participant_id = Symbol(participant_id_field) # Prolific ID if available
+	start_time = Symbol(start_time_field)
+
 	# Records to df
 	records_df = DataFrame(records)
 	
@@ -101,14 +107,32 @@ function REDCap_data_to_df(jspsych_data, records)
 	)
 
 	# Exclude missing prolific_pid
-	filter!(x -> !ismissing(x.prolific_pid), jspsych_data)
+	filter!(x -> !ismissing(x[participant_id]), jspsych_data)
 
+	# Needed variables from records_df
+	col_names = [participant_id_field, "record_id", start_time_field];
+	valid_cols = intersect(col_names, names(records_df))
+	records_df = records_df[!, valid_cols]
+
+	# Where to find the start_time field
+	if start_time_field in valid_cols
+		@info "start_time field found in records_df"
+		rename!(records_df, start_time => :exp_start_time)
+	elseif start_time_field in names(jspsych_data)
+		@info "start_time field found in jspsych_data"
+		rename!(jspsych_data, start_time => :exp_start_time)
+	end
+
+	# Join by variables
+	on_cols = intersect(names(jspsych_data), names(records_df))
+	@info "Joining on columns: $on_cols"
 	# Combine records and jspsych data
-	jspsych_data = leftjoin(jspsych_data, 
-		rename(records_df[!, [:prolific_pid, :record_id, :start_time]],
-			:start_time => :exp_start_time),
-		on = [:prolific_pid, :record_id]
+	jspsych_data = leftjoin(
+		jspsych_data, records_df,
+		on = map(Symbol, on_cols)
 	)
+
+	rename!(jspsych_data, participant_id => :prolific_pid)
 
 	return jspsych_data
 end
@@ -132,6 +156,71 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	return PLT_data
 
+end
+
+function load_pilot8_data(; force_download = false, return_version = "0.2")
+	datafile = "data/pilot8.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "file_data", record_id_field = "participant_id")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "module_start_time")
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Subset version for return
+	filter!(x -> x.version == return_version, jspsych_data)
+
+	# Exctract PILT
+	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
+
+	# Extract WM data
+	WM_data = filter(x -> x.trialphase == "wm", PILT_data)
+
+	# Extract LTM data
+	LTM_data = filter(x -> x.trialphase == "ltm", PILT_data)
+
+	# Extract WM test data
+	WM_test_data = filter(x -> x.trialphase == "wm_test", PILT_data)
+
+	# Extract LTM test data
+	LTM_test_data = filter(x -> x.trialphase == "ltm_test", PILT_data)
+
+	# Seperate out PILT
+	filter!(x -> x.trialphase == "pilt", PILT_data)
+	
+	# Extract post-PILT test
+	# No post-PILT test in Pilot8
+	# test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	# No vigour task in Pilot8
+	# vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	# post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+			
+	# Extract PIT
+	# No PIT task in Pilot8
+	# PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	# No reversal task in Pilot7
+	# reversal_data = prepare_reversal_data(jspsych_data)
+
+	# Extract max press rate data
+	max_press_data = prepare_max_press_data(jspsych_data)
+
+	# Extract control data
+	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+
+	return PILT_data, WM_data, LTM_data, WM_test_data, LTM_test_data, max_press_data, control_task_data, control_report_data, jspsych_data
 end
 
 function load_pilot7_data(; force_download = false, return_version = "6.01")
@@ -579,7 +668,7 @@ function prepare_max_press_data(data::DataFrame)
 			:session,
 			:trialphase,
 			:trial_number,
-			:trial_duration,
+			# :trial_duration,
 			:avgSpeed => :avg_speed,
 			:responseTime,
 			:trialPresses => :trial_presses
@@ -912,4 +1001,162 @@ function exclude_reversal_sessions(
 	exclude_double_takers!(reversal_data_clean)
 
 	return reversal_data_clean
+end
+
+"""
+	extract_timeline_variables!(df::DataFrame) -> DataFrame
+
+Extract and flatten JSON data from the `:timeline_variables` column of a DataFrame.
+
+This function parses the JSON data stored in the `:timeline_variables` column,
+creates new columns in the DataFrame for each unique key found in the JSON objects,
+and then removes the original `:timeline_variables` column.
+
+# Arguments
+- `df::DataFrame`: A DataFrame containing a `:timeline_variables` column with JSON data.
+
+# Returns
+- The modified DataFrame with JSON data flattened into separate columns.
+
+# Note
+- The function modifies the input DataFrame in-place.
+- If a row's `:timeline_variables` field is missing or cannot be parsed as JSON, 
+	it will be treated as an empty dictionary.
+- If a row's JSON doesn't contain a particular key found in other rows, 
+	the corresponding cell will be assigned `missing`.
+"""
+function extract_timeline_variables!(df::DataFrame)
+	parsed = map(row -> begin
+			ismissing(row.timeline_variables) && return Dict()
+			str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
+			try JSON.parse(str) catch; Dict() end
+	end, eachrow(df))
+	
+	for key in unique(Iterators.flatten(keys.(parsed)))
+			df[!, key] = [get(p, key, missing) for p in parsed]
+	end
+
+	select!(df, Not(:timeline_variables))
+	
+	return df
+end
+
+"""
+	merge_control_task_and_feedback(df_a, df_b)
+
+Merge two dataframes containing experimental data, typically from control task and feedback phases.
+
+# Arguments
+- `df_a`: Primary dataframe (likely containing control task data)
+- `df_b`: Secondary dataframe (likely containing feedback data)
+
+# Returns
+A merged dataframe that:
+- Joins data on keys: "exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"
+- Removes redundant variables from both dataframes
+- Preserves specific variables only from dataframe A (time_elapsed, trialphase, etc.)
+- Handles the "correct" variable specially by combining values from both sources
+- Returns the result sorted by record_id and trial
+
+# Details
+The function performs a left join, keeping all rows from df_a and matching rows from df_b.
+Certain variables are intentionally excluded to avoid redundancy or kept exclusively from
+the first dataframe to maintain data consistency. If both dataframes contain a "correct" 
+variable, the values are coalesced with preference given to df_a's values.
+"""
+function merge_control_task_and_feedback(df_a, df_b)
+	# 1. Identify the key variables to join on
+	join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
+	
+	# 2. Variables to remove from both dataframes before merging
+	remove_vars = ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype"]
+	
+	# 3. Variables to keep only from dataframe A and not from B
+	#  "current_strength", "effort_level", "near_island" are redundant since they are included in the timeline variables
+	keep_from_a = ["time_elapsed", "trialphase", "current_strength", "effort_level", "near_island"]
+	
+	# 4. Special handling for "correct" (will be combined)
+	
+	# Create copies to avoid modifying originals
+	df_a_clean = select(df_a, Not(remove_vars))
+	df_b_clean = select(df_b, Not(vcat(remove_vars, keep_from_a)))
+	
+	# Rename the "correct" column in df_b to avoid collision
+	if "correct" in names(df_b_clean)
+			rename!(df_b_clean, "correct" => "correct_b")
+	end
+	
+	# Merge the dataframes
+	merged_df = leftjoin(df_a_clean, df_b_clean, on=join_keys)
+	
+	# Handle the "correct" variable - combining both sources
+	if "correct" in names(merged_df) && "correct_b" in names(merged_df)
+			# Create a new combined "correct" column
+			# This assumes you want to use df_a's value if available, otherwise df_b's
+	merged_df.combined_correct = coalesce.(merged_df.correct, merged_df.correct_b)
+			
+			# Remove the original columns and rename the combined one
+			select!(merged_df, Not([:correct, :correct_b]))
+			rename!(merged_df, :combined_correct => :correct)
+	end
+	
+	return sort(merged_df, [:record_id, :trial])
+end
+
+"""
+	prepare_control_data(data::DataFrame) -> Tuple{DataFrame, DataFrame}
+
+Preprocess experimental data to extract and format control-related trial information.
+
+# Arguments
+- `data::DataFrame`: Raw experimental data containing all trial types.
+
+# Processing Steps
+1. Filters data to include only control-related trial phases
+2. Removes participants who completed the experiment multiple times
+3. Drops columns with all missing values
+4. Creates trial numbering for each participant
+5. Separates data into task, feedback, and report components
+6. Extracts and parses timeline variables and response times
+7. Merges task data with corresponding feedback data
+
+# Returns
+A tuple containing two DataFrames:
+- `control_task_data`: Processed data from main control trials with feedback information
+- `control_report_data`: Participant's confidence and controllability reports
+
+# Note
+This function expects certain column names to be present in the input DataFrame,
+including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
+"""
+function prepare_control_data(data::DataFrame)
+	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
+	control_data = exclude_double_takers!(control_data)
+		
+	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
+	transform!(control_data,
+		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
+	# sort!(control_data, [:record_id, :trial_index])
+	transform!(groupby(control_data, :record_id),
+		:trial_ptype => cumsum => :trial
+	)
+
+	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
+	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
+	
+	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
+	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
+	
+	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
+	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
+	select!(control_report_data, [:exp_start_time, :prolific_pid, :record_id, :session, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
+
+	extract_timeline_variables!(control_task_data)
+	transform!(control_task_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(control_task_data, Not(:responseTime))
+
+	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
+
+	return control_task_data, control_report_data
 end
