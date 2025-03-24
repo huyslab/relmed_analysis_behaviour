@@ -1085,3 +1085,61 @@ function merge_control_task_and_feedback(df_a, df_b)
 	
 	return sort(merged_df, [:record_id, :trial])
 end
+
+"""
+	prepare_control_data(data::DataFrame) -> Tuple{DataFrame, DataFrame}
+
+Preprocess experimental data to extract and format control-related trial information.
+
+# Arguments
+- `data::DataFrame`: Raw experimental data containing all trial types.
+
+# Processing Steps
+1. Filters data to include only control-related trial phases
+2. Removes participants who completed the experiment multiple times
+3. Drops columns with all missing values
+4. Creates trial numbering for each participant
+5. Separates data into task, feedback, and report components
+6. Extracts and parses timeline variables and response times
+7. Merges task data with corresponding feedback data
+
+# Returns
+A tuple containing two DataFrames:
+- `control_task_data`: Processed data from main control trials with feedback information
+- `control_report_data`: Participant's confidence and controllability reports
+
+# Note
+This function expects certain column names to be present in the input DataFrame,
+including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
+"""
+function prepare_control_data(data::DataFrame)
+	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
+	control_data = exclude_double_takers!(control_data)
+		
+	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
+	transform!(control_data,
+		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
+	# sort!(control_data, [:record_id, :trial_index])
+	transform!(groupby(control_data, :record_id),
+		:trial_ptype => cumsum => :trial
+	)
+
+	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
+	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
+	
+	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
+	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
+	
+	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
+	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
+	select!(control_report_data, [:exp_start_time, :prolific_pid, :record_id, :session, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
+
+	extract_timeline_variables!(control_task_data)
+	transform!(control_task_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(control_task_data, Not(:responseTime))
+
+	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
+
+	return control_task_data, control_report_data
+end
