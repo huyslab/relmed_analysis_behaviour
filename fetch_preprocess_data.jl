@@ -163,9 +163,9 @@ function load_pilot8_data(; force_download = false, return_version = "0.2")
 
 	# Load data or download from REDCap
 	if !isfile(datafile) || force_download
-		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "file_data")
+		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "file_data", record_id_field = "participant_id")
 	
-		jspsych_data = REDCap_data_to_df(jspsych_json, records)
+		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "module_start_time")
 
 		remove_testing!(jspsych_data)
 
@@ -180,21 +180,35 @@ function load_pilot8_data(; force_download = false, return_version = "0.2")
 	# Exctract PILT
 	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
 
-	# Divide intwo WM and PILT
-	WM_data = filter(x -> x.n_stimuli == 3, PILT_data)
-	filter!(x -> x.n_stimuli == 2, PILT_data)
+	# Extract WM data
+	WM_data = filter(x -> x.trialphase == "wm", PILT_data)
 
+	# Extract LTM data
+	LTM_data = filter(x -> x.trialphase == "ltm", PILT_data)
+
+	# Extract WM test data
+	WM_test_data = filter(x -> x.trialphase == "wm_test", PILT_data)
+
+	# Extract LTM test data
+	LTM_test_data = filter(x -> x.trialphase == "ltm_test", PILT_data)
+
+	# Seperate out PILT
+	filter!(x -> x.trialphase == "pilt", PILT_data)
+	
 	# Extract post-PILT test
-	test_data = prepare_post_PILT_test_data(jspsych_data)
+	# No post-PILT test in Pilot8
+	# test_data = prepare_post_PILT_test_data(jspsych_data)
 
 	# Exctract vigour
-	vigour_data = prepare_vigour_data(jspsych_data) 
+	# No vigour task in Pilot8
+	# vigour_data = prepare_vigour_data(jspsych_data) 
 
 	# Extract post-vigour test
-	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+	# post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
 			
 	# Extract PIT
-	PIT_data = prepare_PIT_data(jspsych_data)
+	# No PIT task in Pilot8
+	# PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Exctract reversal
 	# No reversal task in Pilot7
@@ -203,7 +217,10 @@ function load_pilot8_data(; force_download = false, return_version = "0.2")
 	# Extract max press rate data
 	max_press_data = prepare_max_press_data(jspsych_data)
 
-	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data
+	# Extract control data
+	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+
+	return PILT_data, WM_data, LTM_data, WM_test_data, LTM_test_data, max_press_data, control_task_data, control_report_data, jspsych_data
 end
 
 function load_pilot7_data(; force_download = false, return_version = "6.01")
