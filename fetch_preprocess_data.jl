@@ -1024,3 +1024,64 @@ function extract_timeline_variables!(df::DataFrame)
 	return df
 end
 
+"""
+	merge_control_task_and_feedback(df_a, df_b)
+
+Merge two dataframes containing experimental data, typically from control task and feedback phases.
+
+# Arguments
+- `df_a`: Primary dataframe (likely containing control task data)
+- `df_b`: Secondary dataframe (likely containing feedback data)
+
+# Returns
+A merged dataframe that:
+- Joins data on keys: "exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"
+- Removes redundant variables from both dataframes
+- Preserves specific variables only from dataframe A (time_elapsed, trialphase, etc.)
+- Handles the "correct" variable specially by combining values from both sources
+- Returns the result sorted by record_id and trial
+
+# Details
+The function performs a left join, keeping all rows from df_a and matching rows from df_b.
+Certain variables are intentionally excluded to avoid redundancy or kept exclusively from
+the first dataframe to maintain data consistency. If both dataframes contain a "correct" 
+variable, the values are coalesced with preference given to df_a's values.
+"""
+function merge_control_task_and_feedback(df_a, df_b)
+	# 1. Identify the key variables to join on
+	join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
+	
+	# 2. Variables to remove from both dataframes before merging
+	remove_vars = ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype"]
+	
+	# 3. Variables to keep only from dataframe A and not from B
+	#  "current_strength", "effort_level", "near_island" are redundant since they are included in the timeline variables
+	keep_from_a = ["time_elapsed", "trialphase", "current_strength", "effort_level", "near_island"]
+	
+	# 4. Special handling for "correct" (will be combined)
+	
+	# Create copies to avoid modifying originals
+	df_a_clean = select(df_a, Not(remove_vars))
+	df_b_clean = select(df_b, Not(vcat(remove_vars, keep_from_a)))
+	
+	# Rename the "correct" column in df_b to avoid collision
+	if "correct" in names(df_b_clean)
+			rename!(df_b_clean, "correct" => "correct_b")
+	end
+	
+	# Merge the dataframes
+	merged_df = leftjoin(df_a_clean, df_b_clean, on=join_keys)
+	
+	# Handle the "correct" variable - combining both sources
+	if "correct" in names(merged_df) && "correct_b" in names(merged_df)
+			# Create a new combined "correct" column
+			# This assumes you want to use df_a's value if available, otherwise df_b's
+	merged_df.combined_correct = coalesce.(merged_df.correct, merged_df.correct_b)
+			
+			# Remove the original columns and rename the combined one
+			select!(merged_df, Not([:correct, :correct_b]))
+			rename!(merged_df, :combined_correct => :correct)
+	end
+	
+	return sort(merged_df, [:record_id, :trial])
+end
