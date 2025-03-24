@@ -651,7 +651,7 @@ function prepare_max_press_data(data::DataFrame)
 			:session,
 			:trialphase,
 			:trial_number,
-			:trial_duration,
+			# :trial_duration,
 			:avgSpeed => :avg_speed,
 			:responseTime,
 			:trialPresses => :trial_presses
