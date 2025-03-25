@@ -1175,7 +1175,7 @@ function prepare_control_data(data::DataFrame)
 					row.button = temp
 			end
 
-			if row.trialphase == "control_reward"
+			if row.trialphase == "control_reward" && !ismissing(row.response)
 				row.ship_color = row.response == "left" ? row.left : row.right
 			end
 	end
