@@ -1132,8 +1132,12 @@ including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
 function prepare_control_data(data::DataFrame)
 	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
 	control_data = exclude_double_takers!(control_data)
-		
+	
+	for col in names(control_data)
+		control_data[!, col] = [val === nothing ? missing : val for val in control_data[!, col]]
+	end
 	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
 	
 	transform!(control_data,
 		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
