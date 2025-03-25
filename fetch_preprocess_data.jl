@@ -1158,5 +1158,23 @@ function prepare_control_data(data::DataFrame)
 
 	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
 
+	# List of participant IDs that need swapping
+	target_pids = ["67d3168115f1a0d46c1acf09", "67c6c1b45188852598a474bf", "6793624a4b2a8f2c0c31ae45"]
+    
+	# Find rows where prolific_pid matches any target ID
+	for row in eachrow(control_task_data)
+			if row.prolific_pid in target_pids
+					# Temporarily store one value
+					temp = row.response
+					# Swap values
+					row.response = row.button
+					row.button = temp
+			end
+
+			if row.trialphase == "control_reward"
+				row.ship_color = row.response == "left" ? row.left : row.right
+			end
+	end
+
 	return control_task_data, control_report_data
 end
