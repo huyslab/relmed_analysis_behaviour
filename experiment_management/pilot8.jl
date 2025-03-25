@@ -55,6 +55,11 @@ begin
 	nothing
 end
 
+# ╔═╡ a9271e63-6457-47c0-99c4-07304bb31a93
+md"""
+## Control task
+"""
+
 # ╔═╡ 021062cb-b9f5-46bd-addb-de68d122531e
 @assert all(combine(groupby(control_task_data, :prolific_pid), [:time_elapsed, :trial] => ((x, y) -> all(denserank(x) .== denserank(y))) => :in_order)[:, "in_order"]) "Trial numbers are created incorrectly in chronological order"
 
@@ -79,6 +84,58 @@ begin
 	CSV.write("control_report_data.csv", control_report_data; transform=(col, val) -> something(val, missing))
 end
   ╠═╡ =#
+
+# ╔═╡ 0a5622ee-2668-498f-8275-20cfda686e43
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		@drop_missing(correct)
+		@group_by(trial)
+		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
+		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
+		draw
+	end
+end
+
+# ╔═╡ bf50e3bd-c697-4e8b-93ff-558ec99711b0
+begin
+	transform!(control_report_data, :response => (x -> ifelse.(x == nothing, missing, x)) => :response)
+	@chain control_report_data begin
+		@filter(trialphase == "control_confidence")
+		@drop_missing(response)
+		@group_by(trial)
+		@summarize(response = mean(response), upper = mean(response) + std(response)/sqrt(length(response)), lower = mean(response) - std(response)/sqrt(length(response)))
+		@arrange(trial)
+		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :response) * visual(ScatterLines))
+		draw
+	end
+end
+
+# ╔═╡ 85fd37d4-39f5-4c31-92a9-2c597a1c790a
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(correct)
+		@group_by(trial)
+		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
+		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
+		draw
+	end
+end
+
+# ╔═╡ bd4b266a-c4aa-4851-a601-e41df751059c
+begin
+	transform!(control_report_data, :response => (x -> ifelse.(x == nothing, missing, x)) => :response)
+	@chain control_report_data begin
+		@filter(trialphase == "control_controllability")
+		@drop_missing(response)
+		@group_by(trial)
+		@summarize(response = mean(response), upper = mean(response) + std(response)/sqrt(length(response)), lower = mean(response) - std(response)/sqrt(length(response)))
+		@arrange(trial)
+		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :response) * visual(ScatterLines))
+		draw
+	end
+end
 
 # ╔═╡ b4c02bfd-3252-441f-a2b8-6178beb2b144
 md"""
@@ -300,10 +357,15 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═8c7c8ee7-86e6-48d4-9a8c-e24b4c35e239
 # ╠═765d05c0-0679-4f26-b201-af2aa0bf3fa3
 # ╠═8013dd07-e36b-4449-addf-b5fdbeed3f75
+# ╟─a9271e63-6457-47c0-99c4-07304bb31a93
 # ╠═021062cb-b9f5-46bd-addb-de68d122531e
 # ╠═ef837154-28e6-4e50-bec4-efe04f45a6cd
 # ╠═e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
 # ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
+# ╠═0a5622ee-2668-498f-8275-20cfda686e43
+# ╠═bf50e3bd-c697-4e8b-93ff-558ec99711b0
+# ╠═85fd37d4-39f5-4c31-92a9-2c597a1c790a
+# ╠═bd4b266a-c4aa-4851-a601-e41df751059c
 # ╟─b4c02bfd-3252-441f-a2b8-6178beb2b144
 # ╠═5c1c7680-d743-4488-a8fc-c81cb23cb87e
 # ╠═83c4cd4a-616a-4762-8dff-f6439fd948f7
