@@ -55,6 +55,31 @@ begin
 	nothing
 end
 
+# ╔═╡ 021062cb-b9f5-46bd-addb-de68d122531e
+@assert all(combine(groupby(control_task_data, :prolific_pid), [:time_elapsed, :trial] => ((x, y) -> all(denserank(x) .== denserank(y))) => :in_order)[:, "in_order"]) "Trial numbers are created incorrectly in chronological order"
+
+# ╔═╡ ef837154-28e6-4e50-bec4-efe04f45a6cd
+combine(groupby(control_task_data, :prolific_pid), :time_elapsed => (x -> (maximum(x) - minimum(x))/60000) => :duration_m) |>
+describe
+
+# ╔═╡ e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	@save "control_task_data.jld2" {compress=true} control_task_data
+	@save "control_report_data.jld2" {compress=true} control_report_data
+end
+  ╠═╡ =#
+
+# ╔═╡ af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	CSV.write("control_task_data.csv", control_task_data; transform=(col, val) -> something(val, missing))
+	CSV.write("control_report_data.csv", control_report_data; transform=(col, val) -> something(val, missing))
+end
+  ╠═╡ =#
+
 # ╔═╡ b4c02bfd-3252-441f-a2b8-6178beb2b144
 md"""
 ## Helper functions
@@ -200,7 +225,7 @@ end
 describe(p_sum)
 
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
-p_sum
+foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 192, [:prolific_pid, :total_bonus]]))
 
 # ╔═╡ fc6afa82-b9fe-41f5-a2ca-c5cb38d53b73
 function sanity_check_test(test_data_clean::DataFrame)
@@ -275,6 +300,10 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═8c7c8ee7-86e6-48d4-9a8c-e24b4c35e239
 # ╠═765d05c0-0679-4f26-b201-af2aa0bf3fa3
 # ╠═8013dd07-e36b-4449-addf-b5fdbeed3f75
+# ╠═021062cb-b9f5-46bd-addb-de68d122531e
+# ╠═ef837154-28e6-4e50-bec4-efe04f45a6cd
+# ╠═e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
+# ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
 # ╟─b4c02bfd-3252-441f-a2b8-6178beb2b144
 # ╠═5c1c7680-d743-4488-a8fc-c81cb23cb87e
 # ╠═83c4cd4a-616a-4762-8dff-f6439fd948f7
