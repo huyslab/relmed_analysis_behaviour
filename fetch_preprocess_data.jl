@@ -1132,8 +1132,12 @@ including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
 function prepare_control_data(data::DataFrame)
 	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
 	control_data = exclude_double_takers!(control_data)
-		
+	
+	for col in names(control_data)
+		control_data[!, col] = [val === nothing ? missing : val for val in control_data[!, col]]
+	end
 	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
 	
 	transform!(control_data,
 		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
@@ -1157,6 +1161,24 @@ function prepare_control_data(data::DataFrame)
 	select!(control_task_data, Not(:responseTime))
 
 	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
+
+	# List of participant IDs that need swapping
+	target_pids = ["67d3168115f1a0d46c1acf09", "67c6c1b45188852598a474bf", "6793624a4b2a8f2c0c31ae45"]
+    
+	# Find rows where prolific_pid matches any target ID
+	for row in eachrow(control_task_data)
+			if row.prolific_pid in target_pids
+					# Temporarily store one value
+					temp = row.response
+					# Swap values
+					row.response = row.button
+					row.button = temp
+			end
+
+			if row.trialphase == "control_reward"
+				row.ship_color = row.response == "left" ? row.left : row.right
+			end
+	end
 
 	return control_task_data, control_report_data
 end
