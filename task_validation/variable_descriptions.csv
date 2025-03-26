@@ -1,0 +1,57 @@
+variable,description
+module_start_time,The timestamp indicating when the current module started.
+n_warnings,The number of missed response trials recorded during the sitting.
+participant_id,RELMED participant id
+plugin_version,The version of the jsPsych plugin being used.
+pre_kick_out_warned,A flag indicating whether the participant received a gentle warning about responding too slow.
+record_id,The unique identifier of the data record on REDCap for this sitting.
+reversal_n_warnings,Number of warnings issued during the reversal task
+session,Session name
+task,Module name
+time_elapsed,The total time elapsed since the start of the sitting.
+trial_index,The number of the current trial within the sitting.
+trial_type,Plugin used on this trial
+version,Version of the task code being run.
+rt,The response time for the current trial.
+success,A flag indication successful load of task assets.
+failed_audio,List of audio files that failed to download.
+failed_images,List of image files that failed to download.
+failed_video,List of video files that failed to download.
+timeout,A flag indicating whether preloading assets timed out.
+trialphase,Short description of trial
+view_history,List of instruciton pages by order viewed
+block,Block number
+chosen_feedback,Feedback presented for chosen option
+feedback_left,Feedback associated with option on the left
+feedback_right,Feedback associated with option on the right
+optimal_right,Whether the right option is optimal
+response,Participant's response
+response_optimal,Whether the optimal option was chosen
+trial,Trial number within task
+question_order,Order of question presentation
+pilt_n_warnings,Number of warnings issued during the PILT task
+chosen_stimulus,Stimulus associated with chosen option
+key,Key pressed
+keyPressOnset,Timestamp of keypress
+n_groups,Number of concurrent stimulus groups in block
+n_stimuli,Number of stimuli in trial
+pavlovian_stimulus,Pavlovian stimulus shown with outcome
+response_deadline_warning,Whether a late response warning was given on trial
+rest_1penny,How many pennies could yet be won on this block
+rest_1pound,How many pound coins could yet be won on this block
+rest_50pence,How many 50 pence coins could yet be won on this block
+stimulus_group,Stimulus group index - within block
+stimulus_group_id,Stimulus group index - across blocks
+stimulus_left,Stimulus presented on left
+stimulus_right,Stimulus presented on right
+valence,Valence of block (Punishement / Reward)
+honeypot,"Whether a hidden question, visible only to bots, was answered"
+item_order,Order of item presentation
+key_event_times,Times of keyboard presses during questionnaire
+mouse_event_times,Times of mouse presses during questionnaire
+radio_event_ids,Order of radio button presses during questionnaire
+radio_event_times,Times of radio button presses during questionnaire
+responses,Resonses
+straightlining,Indexing whether responses are made in a straight line
+zigzagging,Indexing whether responses are made in a zigzag pattern
+exp_start_time,"The timestamp indicating when the current module started, from jsPsych"
