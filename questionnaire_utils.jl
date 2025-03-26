@@ -1,4 +1,46 @@
 """
+    extract_raw_questionnaire_data(data::AbstractDataFrame)
+
+Extracts raw questionnaire data from the given DataFrame.
+
+# Arguments
+- `data::AbstractDataFrame`: The raw data containing questionnaire responses.
+
+# Returns
+- `questionnaire_data::DataFrame`: A DataFrame containing the extracted questionnaire data with columns for `prolific_pid`, `exp_start_time`, `session`, `trialphase`, `question`, and `response`.
+
+# Description
+This function filters the input data to include only rows with non-missing `trialphase` values that match specific questionnaire types. It then parses the JSON responses and structures the data into a DataFrame with relevant columns.
+"""
+function extract_raw_questionnaire_data(data::AbstractDataFrame)
+
+	raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && x.trialphase in ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"], data)
+
+	questionnaire_data = DataFrame()
+	for row in eachrow(raw_questionnaire_data)
+		 response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
+		 for (key, value) in response
+			  push!(questionnaire_data,
+				   (prolific_pid=row.prolific_pid,
+						module_start_time=row.module_start_time,
+						session=row.session,
+						trialphase=row.trialphase,
+						question=key,
+						response=value); promote=true)
+		 end
+	end
+
+	# Add question_id to match requirement doc
+	insertcols!(
+		questionnaire_data,
+		5,
+		:question_id => ((t, q) -> "$(t)_$q").(questionnaire_data.trialphase, questionnaire_data.question)
+	)
+
+	return questionnaire_data
+end
+
+"""
      prepare_questionnaire_data(data::AbstractDataFrame, save_data::Bool=false)
 
 Prepare and process questionnaire data from a given DataFrame.
@@ -30,52 +72,38 @@ The function also calculates and return a DataFrame for the time taken to comple
 """
 function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=false)
 
-     raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && x.trialphase in ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"], data)
-
-     questionnaire_data = DataFrame()
-     for row in eachrow(raw_questionnaire_data)
-          response = JSON.parse(row.response)
-          for (key, value) in response
-               push!(questionnaire_data,
-                    (prolific_pid=row.prolific_pid,
-                         exp_start_time=row.exp_start_time,
-                         session=row.session,
-                         trialphase=row.trialphase,
-                         question=key,
-                         answer=value); promote=true)
-          end
-     end
+     questionnaire_data = extract_raw_questionnaire_data(data)
 
      # PHQ: Higher, Severer; 9 * 3
      # Catch question: "Experiencing sadness or a sense of despair" => "Feeling down, depressed, or hopeless"
      PHQ_catch =
           filter(x -> (x.trialphase .== "PHQ" && x.question in ["Q1", "Q8"]), questionnaire_data) |>
-          x -> unstack(x, :question, :answer) |>
+          x -> unstack(x, :question, :response) |>
                x -> DataFrames.transform(x, [:Q8, :Q1] => ByRow((x, y) -> abs(x - y) > 1) => :phq_fail_catch) |>
                     x -> select(x, Not([:trialphase, :Q8, :Q1]))
      PHQ = filter(x -> (x.trialphase .== "PHQ" && x.question .!= "Q8"), questionnaire_data) |>
            x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
-                x -> combine(x, :answer => sum => :phd_total, :answer => length => :phq_n)
+                x -> combine(x, :response => sum => :phd_total, :response => length => :phq_n)
      leftjoin!(PHQ, PHQ_catch, on=[:prolific_pid, :exp_start_time, :session])
 
      # GAD: Higher, Severer; 7 * 3
      # Catch question: "Worrying about the 1974 Eurovision Song Contest"
      GAD_catch = filter(x -> (x.trialphase .== "GAD" && x.question in ["Q6"]), questionnaire_data) |>
-                 x -> unstack(x, :question, :answer) |>
+                 x -> unstack(x, :question, :response) |>
                       x -> DataFrames.transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
                            x -> select(x, Not([:trialphase, :Q6]))
      GAD = filter(x -> (x.trialphase .== "GAD" && x.question .!= "Q6"), questionnaire_data) |>
            x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
-                x -> combine(x, :answer => sum => :gad_total, :answer => length => :gad_n)
+                x -> combine(x, :response => sum => :gad_total, :response => length => :gad_n)
      leftjoin!(GAD, GAD_catch, on=[:prolific_pid, :exp_start_time, :session])
 
      # WSAS: Higher, more impaired; 5 * 8
      WSAS_nojob = filter(x -> (x.trialphase .== "WSAS" && x.question in ["Q0"]), questionnaire_data) |>
-                  x -> unstack(x, :question, :answer) |>
+                  x -> unstack(x, :question, :response) |>
                        x -> select(x, Not([:trialphase, :Q0]), :Q0 => ByRow(==(0)) => :WSAS_nojob)
      WSAS = filter(x -> (x.trialphase .== "WSAS" && x.question .!= "Q0"), questionnaire_data) |>
             x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
-                 x -> combine(x, :answer => sum => :wsas_total, :answer => length => :wsas_n)
+                 x -> combine(x, :response => sum => :wsas_total, :response => length => :wsas_n)
      leftjoin!(WSAS, WSAS_nojob, on=[:prolific_pid, :exp_start_time, :session])
 
      # ICECAP: Higher, better quality; 5 * Tariff
@@ -114,7 +142,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      ICECAP =
           filter(x -> (x.trialphase .== "ICECAP"), questionnaire_data) |>
           x ->
-               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
+               DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :tariff_score => sum => :icecap_total, :tariff_score => length => :icecap_n)
 
@@ -122,7 +150,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      BFI =
           filter(x -> (x.trialphase .== "BFI"), questionnaire_data) |>
           x ->
-               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
+               DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
                     x -> DataFrames.transform(x,
@@ -139,7 +167,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      PVSS_catch =
           filter(x -> (x.trialphase .== "PVSS"), questionnaire_data) |>
           x ->
-               DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
+               DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
                     x ->
@@ -155,7 +183,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
                          x -> select(x, Not(r"^Q"))
      PVSS =
           filter(x -> (x.trialphase .== "PVSS" && x.question .!= "Q19"), questionnaire_data) |>
-          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pvss_total, :score => length => :pvss_n)
      leftjoin!(PVSS, PVSS_catch, on=[:prolific_pid, :exp_start_time, :session])
@@ -165,7 +193,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      BADS_subscale =
           filter(x -> (x.trialphase .== "BADS"), questionnaire_data) |>
           x ->
-               DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
+               DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x ->
                     unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
                     x -> DataFrames.transform(x,
@@ -176,7 +204,7 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
                          x -> select(x, Not(r"^Q"))
      BADS =
           filter(x -> (x.trialphase .== "BADS" && x.question .!= "Q6"), questionnaire_data) |>
-          x -> DataFrames.transform(x, [:question, :answer] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
+          x -> DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :bads_total, :score => length => :bads_n)
      leftjoin!(BADS, BADS_subscale, on=[:prolific_pid, :exp_start_time, :session])
@@ -184,27 +212,27 @@ function prepare_questionnaire_data(data::AbstractDataFrame; save_data::Bool=fal
      # Hopelessness: Higher, more helplessness; 2 * 1-5
      Hopelessness =
           filter(x -> (x.trialphase .== "Hopelessness"), questionnaire_data) |>
-          x -> DataFrames.transform(x, :answer => (x -> 5 .- x) => :score) |>
+          x -> DataFrames.transform(x, :response => (x -> 5 .- x) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :hopeless_total, :score => length => :hopeless_n)
 
      # PERS: Higher, more negative activation; 5 * 1-5
      PERS =
           filter(x -> (x.trialphase .== "PERS_negAct"), questionnaire_data) |>
-          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pers_negact_total, :score => length => :pers_n)
 
      # RRS: Higher, more rumination - brooding; 5 * 1-4
      RRS =
           filter(x -> (x.trialphase .== "RRS_brooding"), questionnaire_data) |>
-          x -> DataFrames.transform(x, :answer => (x -> x .+ 1) => :score) |>
+          x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
                     x -> combine(x, :score => sum => :rrs_brooding_total, :score => length => :rrs_brooding_n)
 
-     # Questionnaire answer time in minute
+     # Questionnaire response time in minute
      questionnaire_time_data = raw_questionnaire_data |>
-                               x -> select(x, :prolific_pid, :exp_start_time, :session, :trialphase => :questionnaire, :rt => (x -> x ./ 60000) => :answer_time)
+                               x -> select(x, :prolific_pid, :exp_start_time, :session, :trialphase => :questionnaire, :rt => (x -> x ./ 60000) => :response_time)
 
      # Merge all questionnaire data
      questionnaire_score_data = copy(PHQ)
