@@ -50,9 +50,17 @@ begin
 end
 
 begin
-
 	# Separate questionnaire data
 	questionnaire_data = extract_raw_questionnaire_data(jspsych_data)
 
+	# Rename prolific_pid to participant_id
+	rename!(questionnaire_data,
+		:prolific_pid => :participant_id
+	)
+
+	CSV.write(
+		"results/task_validation/example_questionnaire_data.csv", 
+		questionnaire_data
+	)
 end
 
