@@ -43,3 +43,5 @@ generate_experimental_sequences/pilot7_stims/
 generate_experimental_sequences/pilot7_stims_OLD/
 generate_experimental_sequences/trial1_stimuli/
 *.zip
+.gitconfig
+.vscode-server/
