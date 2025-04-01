@@ -20,7 +20,7 @@ failed_video,List of video files that failed to download.
 timeout,A flag indicating whether preloading assets timed out.
 trialphase,Short description of trial
 view_history,List of instruciton pages by order viewed
-block,Block number
+block,Block number or name
 chosen_feedback,Feedback presented for chosen option
 feedback_left,Feedback associated with option on the left
 feedback_right,Feedback associated with option on the right
