@@ -51,6 +51,10 @@ begin
 	nothing
 end
 
+# ╔═╡ 7dd18147-82eb-4f53-9a20-a0b9711721cc
+# Recoding function
+recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
+
 # ╔═╡ fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
 function compute_delays(vec::AbstractVector)
     last_seen = Dict{Any, Int}()
@@ -206,11 +210,78 @@ let df = data_clean
 	f
 end
 
+# ╔═╡ b7546403-153e-43bc-a360-bbb562b0762c
+let df = data_clean
+	
+	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
+	
+	# Summarize by participant
+	app_curve = combine(
+		groupby(df, [:prolific_pid, :task, :delay_bin, :appearance]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize across participants
+	app_curve_sum = combine(
+		groupby(app_curve, [:task, :delay_bin, :appearance]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	app_curve_sum.lb = app_curve_sum.acc .- app_curve_sum.se
+	app_curve_sum.ub = app_curve_sum.acc .+ app_curve_sum.se
+
+	# Sort
+	sort!(app_curve_sum, [:task, :delay_bin, :appearance])
+
+	# Create mapping
+	mp2 = (data(app_curve_sum) * (
+		mapping(
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :delay_bin  => "Delay",
+			col = :task
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+			:appearance => "Apperance #",
+			:acc => "Prop. optimal choice",
+			color = :delay_bin  => "Delay",
+			col = :task
+	) * visual(Lines))) + (
+		data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
+		(mapping(
+			:appearance  => "Apperance #",
+			:acc,
+			:se,
+			color = :delay_bin => "Delay",
+			col = :task
+		) * visual(Errorbars) +
+		mapping(
+			:appearance  => "Apperance #",
+			:acc,
+			color = :delay_bin  => "Delay",
+			col = :task
+		) * visual(Scatter))
+	)
+
+	f = Figure()
+
+	plt = draw!(f[1,1], mp2)
+
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	f
+end
+
 # ╔═╡ Cell order:
 # ╠═d39433ea-0edd-11f0-01e1-89c989a532f3
 # ╠═88470afd-7ced-45ca-8384-a558269e48a5
 # ╠═c00b3551-9d5c-4aa2-93e3-b3e20b9a7aba
 # ╠═b64500f3-7d41-4f38-bac7-7cdd1a0b9302
 # ╠═dfb624c9-8363-4c8e-b12e-03518b418bc2
+# ╠═b7546403-153e-43bc-a360-bbb562b0762c
+# ╠═7dd18147-82eb-4f53-9a20-a0b9711721cc
 # ╠═f7e64bb7-244f-4803-bb41-d9a833eb4b7d
 # ╠═fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
