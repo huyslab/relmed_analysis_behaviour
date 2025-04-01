@@ -163,7 +163,7 @@ function load_pilot8_data(; force_download = false, return_version = "0.2")
 
 	# Load data or download from REDCap
 	if !isfile(datafile) || force_download
-		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "file_data", record_id_field = "participant_id")
+		jspsych_json, records = get_REDCap_data("pilot8"; file_field = "jspsych_data", record_id_field = "participant_id")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "module_start_time")
 
