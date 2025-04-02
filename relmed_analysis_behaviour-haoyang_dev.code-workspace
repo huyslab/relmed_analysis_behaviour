@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../relmed_analysis_behaviour.worktrees/controllability"
+		},
+		{
+			"path": "../relmed_analysis_behaviour.worktrees/main"
+		}
+	],
+	"settings": {
+		"github-actions.workflows.pinned.workflows": [
+			".github/workflows/sync-main-to-haoyang_dev.yml"
+		]
+	}
+}
