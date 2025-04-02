@@ -45,3 +45,4 @@ generate_experimental_sequences/trial1_stimuli/
 *.zip
 .gitconfig
 .vscode-server/
+relmed_analysis_behaviour-haoyang_dev.code-workspace

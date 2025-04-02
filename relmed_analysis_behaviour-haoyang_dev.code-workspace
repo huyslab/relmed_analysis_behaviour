@@ -1,12 +1,7 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"github-actions.workflows.pinned.workflows": [
-			".github/workflows/sync-main-to-haoyang_dev.yml"
-		]
-	}
+  "folders": [
+    {
+      "path": "."
+    }
+  ]
 }
