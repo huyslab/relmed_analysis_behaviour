@@ -172,6 +172,18 @@ begin
 	end
 end
 
+# ╔═╡ c75dfcb1-4aa9-47a1-952a-6553b4035a7b
+let
+	ship_current_map = (;yellow = "orange", red = "grape", blue = "coconut", green = "banana")
+	df = @chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(correct, ship_color)
+	end
+	transform!(df, [:left_viable, :right, :left] => ((x, y, z) -> ifelse.(x, y, z)) => :wrong_option)
+	transform!(df, [:wrong_option, :near] => ByRow((x, y) -> ship_current_map[Symbol(x)] == y) => :wrong_match_homebase)
+	combine(groupby(df, :wrong_match_homebase), :correct => (x -> (1 - mean(x))) => :prop_incorrect)
+end
+
 # ╔═╡ dff932c8-1317-4566-88c6-7b33cbc04b3f
 @chain control_task_data begin
 	@filter(trialphase == "control_reward")
@@ -473,6 +485,7 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═bb771903-c617-42c2-b3ae-7e48b09aacf9
 # ╠═bf50e3bd-c697-4e8b-93ff-558ec99711b0
 # ╠═85fd37d4-39f5-4c31-92a9-2c597a1c790a
+# ╠═c75dfcb1-4aa9-47a1-952a-6553b4035a7b
 # ╠═dff932c8-1317-4566-88c6-7b33cbc04b3f
 # ╠═810612c9-9b20-4076-b3b0-9406df690862
 # ╠═df2a8e6d-5c18-41c3-a2dd-b17f09b49428
