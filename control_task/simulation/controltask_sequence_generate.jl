@@ -255,8 +255,7 @@ reward_sequence_tuples = map(eachrow(reward_sequence)) do row
     current=row.current,
     island_viable=row.island_viable,
     left_viable=row.left_viable,
-    right_viable=row.right_viable,
-    wrong_match_homebase=row.wrong_match_homebase
+    right_viable=row.right_viable
   )
 end
 
