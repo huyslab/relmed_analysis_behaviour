@@ -85,6 +85,29 @@ begin
 end
   ╠═╡ =#
 
+# ╔═╡ b2d724e5-146a-4812-8431-a77893ea4735
+begin
+	threshold_df = (; y = [6, 12, 18], threshold = ["Low", "Mid", "High"])
+	spec2 = data(threshold_df) * mapping(:y, color = :threshold) * visual(HLines)
+end
+
+# ╔═╡ 3fc647cb-4e05-490a-b1b4-3240db3a1823
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_explore")
+		@drop_missing(trial_presses)
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
+		@group_by(prolific_pid, trial_stage, current)
+		@summarize(trial_presses = mean(trial_presses))
+		@ungroup()
+		data(_) * (
+			mapping(:current => nonnumeric, :trial_presses, col=:trial_stage) * visual(RainClouds) +
+			mapping(:current => nonnumeric, :trial_presses, col=:trial_stage, group=:prolific_pid) * visual(Lines, alpha = 0.1)
+		)
+		draw(_; axis=(; xlabel = "Current strength", ylabel = "Presses (in explore trials)"))
+	end
+end
+
 # ╔═╡ 0a5622ee-2668-498f-8275-20cfda686e43
 begin
 	@chain control_task_data begin
@@ -92,9 +115,34 @@ begin
 		@drop_missing(correct)
 		@group_by(trial)
 		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
-		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
-		draw
+		data(_) * (mapping(:trial => nonnumeric, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
+		draw(;axis=(;xlabel = "Trial", ylabel = "Home base predict acc."), figure=(;size=(800, 400)))
 	end
+end
+
+# ╔═╡ bc08a966-4236-4a5e-9539-5913f8f64651
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
+		@drop_missing(correct)
+		@group_by(prolific_pid, trial_stage)
+		@summarize(acc = mean(correct))
+		@ungroup()
+		data(_) * mapping(:acc, col=:trial_stage) * visual(Hist)
+		draw()
+		end
+end
+
+# ╔═╡ bb771903-c617-42c2-b3ae-7e48b09aacf9
+@chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
+		@drop_missing(correct)
+		@group_by(prolific_pid, trial_stage)
+		@summarize(acc = mean(correct))
+		@ungroup()
+		@pivot_wider(names_from = "trial_stage", values_from = "acc")
 end
 
 # ╔═╡ bf50e3bd-c697-4e8b-93ff-558ec99711b0
@@ -106,8 +154,8 @@ begin
 		@group_by(trial)
 		@summarize(response = mean(response), upper = mean(response) + std(response)/sqrt(length(response)), lower = mean(response) - std(response)/sqrt(length(response)))
 		@arrange(trial)
-		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :response) * visual(ScatterLines))
-		draw
+		data(_) * (mapping(:trial => nonnumeric, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :response) * visual(ScatterLines))
+		draw(;axis=(;xlabel = "Trial", ylabel = "Confidence rating (0-4)"), figure=(;size=(800, 400)))
 	end
 end
 
@@ -116,11 +164,59 @@ begin
 	@chain control_task_data begin
 		@filter(trialphase == "control_reward")
 		@drop_missing(correct)
-		@group_by(trial)
+		@group_by(trial, island_viable, current)
 		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
-		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
-		draw
+		@ungroup
+		data(_) * (mapping(:trial => nonnumeric, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(Lines, linestyle=:dot) + mapping(:trial => nonnumeric, :acc, color=:current => nonnumeric, marker=:island_viable) * visual(Scatter, markersize = 12))
+		draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial success rate"), figure=(;size=(800, 400)))
 	end
+end
+
+# ╔═╡ dff932c8-1317-4566-88c6-7b33cbc04b3f
+@chain control_task_data begin
+	@filter(trialphase == "control_reward")
+	@drop_missing(response)
+	@mutate(correct_choice = ifelse(response == "left", left_viable, right_viable))
+	@drop_missing(correct_choice)
+	@group_by(trial, island_viable, current)
+	@summarize(acc = mean(correct_choice), upper = mean(correct_choice) + std(correct_choice)/sqrt(length(correct_choice)), lower = mean(correct_choice) - std(correct_choice)/sqrt(length(correct_choice)))
+	@ungroup
+	data(_) * (mapping(:trial => nonnumeric, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(Lines, linestyle=:dot) + mapping(:trial => nonnumeric, :acc, color=:current => nonnumeric, marker=:island_viable) * visual(Scatter, markersize = 12))
+	draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial success rate"), figure=(;size=(800, 400)))
+end
+
+# ╔═╡ 810612c9-9b20-4076-b3b0-9406df690862
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(correct)
+		@group_by(island_viable, current)
+		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
+		@ungroup
+		data(_) * (mapping(:current => nonnumeric, :acc, dodge = :island_viable, color = :island_viable) * visual(BarPlot))
+		draw(;axis=(;xlabel = "Current", ylabel = "Reward trial success rate"), figure=(;size=(800, 400)))
+	end
+end
+
+# ╔═╡ df2a8e6d-5c18-41c3-a2dd-b17f09b49428
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(trial_presses, correct)
+		@group_by(prolific_pid, correct, current, island_viable)
+		@summarize(trial_presses = mean(trial_presses))
+		@ungroup()
+		data(_) * (
+			mapping(:current => nonnumeric, :trial_presses, col = :island_viable, row = :correct, color = :island_viable) * visual(RainClouds) +
+			mapping(:current => nonnumeric, :trial_presses, col = :island_viable, row = :correct, color = :island_viable, group=:prolific_pid) * visual(Lines, alpha = 0.1)
+		)
+		draw(_, scales(Row = (; categories = [false => "Incorrect", true => "Correct"]), Col = (; categories = [false => "Island unviable", true => "Island viable"]), Color = (; legend = false)); axis=(; xlabel = "Current strength", ylabel = "Presses (in reward trials)"), figure=(;size=(600, 600)))
+	end
+end
+
+# ╔═╡ 73f9ecc5-a980-4fde-bdd9-0d722321b5ab
+@chain control_task_data begin
+	@filter(trial == 160)
 end
 
 # ╔═╡ bd4b266a-c4aa-4851-a601-e41df751059c
@@ -133,7 +229,7 @@ begin
 		@summarize(response = mean(response), upper = mean(response) + std(response)/sqrt(length(response)), lower = mean(response) - std(response)/sqrt(length(response)))
 		@arrange(trial)
 		data(_) * (mapping(:trial => nonnumeric, :upper, :lower) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :response) * visual(ScatterLines))
-		draw
+		draw(;figure=(;size=(800, 400)))
 	end
 end
 
@@ -284,6 +380,14 @@ describe(p_sum)
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
 foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 192, [:prolific_pid, :total_bonus]]))
 
+# ╔═╡ d11ae381-9749-4bc9-bc2b-0affac489423
+begin
+	p_sum
+	@load "pilot7_psum.jld2" p_sum_pilot7
+	max_presses = vcat(p_sum.max_trial_presses, p_sum_pilot7.max_trial_presses)
+	quantile(max_presses, 0.05)
+end
+
 # ╔═╡ fc6afa82-b9fe-41f5-a2ca-c5cb38d53b73
 function sanity_check_test(test_data_clean::DataFrame)
 		@assert Set(test_data_clean.response) in 
@@ -362,10 +466,19 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═ef837154-28e6-4e50-bec4-efe04f45a6cd
 # ╠═e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
 # ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
+# ╠═b2d724e5-146a-4812-8431-a77893ea4735
+# ╠═3fc647cb-4e05-490a-b1b4-3240db3a1823
 # ╠═0a5622ee-2668-498f-8275-20cfda686e43
+# ╠═bc08a966-4236-4a5e-9539-5913f8f64651
+# ╠═bb771903-c617-42c2-b3ae-7e48b09aacf9
 # ╠═bf50e3bd-c697-4e8b-93ff-558ec99711b0
 # ╠═85fd37d4-39f5-4c31-92a9-2c597a1c790a
+# ╠═dff932c8-1317-4566-88c6-7b33cbc04b3f
+# ╠═810612c9-9b20-4076-b3b0-9406df690862
+# ╠═df2a8e6d-5c18-41c3-a2dd-b17f09b49428
+# ╠═73f9ecc5-a980-4fde-bdd9-0d722321b5ab
 # ╠═bd4b266a-c4aa-4851-a601-e41df751059c
+# ╠═d11ae381-9749-4bc9-bc2b-0affac489423
 # ╟─b4c02bfd-3252-441f-a2b8-6178beb2b144
 # ╠═5c1c7680-d743-4488-a8fc-c81cb23cb87e
 # ╠═83c4cd4a-616a-4762-8dff-f6439fd948f7
