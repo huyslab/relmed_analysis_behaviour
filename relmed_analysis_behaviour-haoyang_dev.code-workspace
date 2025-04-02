@@ -2,12 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"path": "../relmed_analysis_behaviour.worktrees/controllability"
-		},
-		{
-			"path": "../relmed_analysis_behaviour.worktrees/main"
 		}
 	],
 	"settings": {
