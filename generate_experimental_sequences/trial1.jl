@@ -1838,8 +1838,8 @@ end
 
 # ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
 let
-	save_to_JSON(PILT, "results/trial1_PILT_test.json")
-	CSV.write("results/trial1_PILT_test.csv", PILT)
+	save_to_JSON(PILT_test, "results/trial1_PILT_test.json")
+	CSV.write("results/trial1_PILT_test.csv", PILT_test)
 end
 
 # ╔═╡ Cell order:
