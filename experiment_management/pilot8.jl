@@ -115,7 +115,7 @@ begin
 		@drop_missing(correct)
 		@group_by(trial)
 		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
-		data(_) * (mapping(:trial => nonnumeric, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc) * visual(ScatterLines))
+		data(_) * (mapping(:trial, :lower, :upper) * visual(Band, alpha = 0.1) + mapping(:trial, :acc) * visual(ScatterLines))
 		draw(;axis=(;xlabel = "Trial", ylabel = "Home base predict acc."), figure=(;size=(800, 400)))
 	end
 end
@@ -209,6 +209,24 @@ begin
 		draw(;axis=(;xlabel = "Current", ylabel = "Reward trial success rate"), figure=(;size=(800, 400)))
 	end
 end
+
+# ╔═╡ 183ecbba-85ca-44a4-8241-50506bd43326
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(response)
+		@mutate(correct_choice = ifelse(response == "left", left_viable, right_viable))
+		@drop_missing(correct_choice)
+		@group_by(island_viable, current)
+		@summarize(acc = mean(correct_choice), upper = mean(correct_choice) + std(correct_choice)/sqrt(length(correct_choice)), lower = mean(correct_choice) - std(correct_choice)/sqrt(length(correct_choice)))
+		@ungroup
+		data(_) * (mapping(:current => nonnumeric, :acc, dodge = :island_viable, color = :island_viable) * visual(BarPlot))
+		draw(;axis=(;xlabel = "Current", ylabel = "Reward trial success rate"), figure=(;size=(800, 400)))
+	end
+end
+
+# ╔═╡ bece4aa3-39b8-4b76-bd47-330e3b227035
+
 
 # ╔═╡ df2a8e6d-5c18-41c3-a2dd-b17f09b49428
 begin
@@ -488,6 +506,8 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═c75dfcb1-4aa9-47a1-952a-6553b4035a7b
 # ╠═dff932c8-1317-4566-88c6-7b33cbc04b3f
 # ╠═810612c9-9b20-4076-b3b0-9406df690862
+# ╠═183ecbba-85ca-44a4-8241-50506bd43326
+# ╠═bece4aa3-39b8-4b76-bd47-330e3b227035
 # ╠═df2a8e6d-5c18-41c3-a2dd-b17f09b49428
 # ╠═73f9ecc5-a980-4fde-bdd9-0d722321b5ab
 # ╠═bd4b266a-c4aa-4851-a601-e41df751059c
