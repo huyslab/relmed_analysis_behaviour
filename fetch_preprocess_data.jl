@@ -118,7 +118,8 @@ function REDCap_data_to_df(jspsych_data, records; participant_id_field::String =
 	if start_time_field in valid_cols
 		@info "start_time field found in records_df"
 		rename!(records_df, start_time => :exp_start_time)
-	elseif start_time_field in names(jspsych_data)
+	end
+	if start_time_field in names(jspsych_data)
 		@info "start_time field found in jspsych_data"
 		rename!(jspsych_data, start_time => :exp_start_time)
 	end
@@ -156,6 +157,31 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 	return PLT_data
 
+end
+
+function load_control_pilot2_data(; force_download = false, return_version = "0.2")
+	datafile = "data/control_pilot2.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("control_pilot2"; file_field = "data", record_id_field = "record_id")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "sitting_start_time")
+
+		remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Subset version for return
+	filter!(x -> x.version == return_version, jspsych_data)
+
+	# Extract control data
+	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+
+	return control_task_data, control_report_data, jspsych_data
 end
 
 function load_pilot8_data(; force_download = false, return_version = "0.2")
@@ -1066,7 +1092,7 @@ variable, the values are coalesced with preference given to df_a's values.
 """
 function merge_control_task_and_feedback(df_a, df_b)
 	# 1. Identify the key variables to join on
-	join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
+	# join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
 	
 	# 2. Variables to remove from both dataframes before merging
 	remove_vars = ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype"]
@@ -1079,7 +1105,7 @@ function merge_control_task_and_feedback(df_a, df_b)
 	
 	# Create copies to avoid modifying originals
 	df_a_clean = select(df_a, Not(remove_vars))
-	df_b_clean = select(df_b, Not(vcat(remove_vars, keep_from_a)))
+	df_b_clean = select(df_b, Not(intersect(names(df_b), vcat(remove_vars, keep_from_a))))
 	
 	# Rename the "correct" column in df_b to avoid collision
 	if "correct" in names(df_b_clean)
@@ -1087,6 +1113,7 @@ function merge_control_task_and_feedback(df_a, df_b)
 	end
 	
 	# Merge the dataframes
+	join_keys = intersect(names(df_a_clean), names(df_b_clean))
 	merged_df = leftjoin(df_a_clean, df_b_clean, on=join_keys)
 	
 	# Handle the "correct" variable - combining both sources
