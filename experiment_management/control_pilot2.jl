@@ -413,6 +413,9 @@ p_sum
 # ╔═╡ 765d05c0-0679-4f26-b201-af2aa0bf3fa3
 describe(p_sum)
 
+# ╔═╡ 47dec249-b853-4860-afcb-d8f4b0cbac81
+foreach(row -> print(row.prolific_pid * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 144, [:prolific_pid]]))
+
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
 foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 144, [:prolific_pid, :total_bonus]]))
 
@@ -490,6 +493,7 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═cd103cfe-73e8-4a79-9ca9-3d17399a25bf
 # ╠═2d25ef0c-abe2-485b-9629-a0ee3eb481ba
 # ╠═765d05c0-0679-4f26-b201-af2aa0bf3fa3
+# ╠═47dec249-b853-4860-afcb-d8f4b0cbac81
 # ╠═8013dd07-e36b-4449-addf-b5fdbeed3f75
 # ╟─a9271e63-6457-47c0-99c4-07304bb31a93
 # ╠═021062cb-b9f5-46bd-addb-de68d122531e
