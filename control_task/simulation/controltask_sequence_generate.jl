@@ -13,7 +13,7 @@ pars = TaskParameters(
   beta_true=[2, 4, 6] .* 3,
 )
 
-ship_name = ["green", "blue", "red", "yellow"]
+ship_name = ["red", "yellow", "green", "blue"]
 island_name = ["banana", "coconut", "grape", "orange"]
 
 # Set random seed for reproducibility
@@ -234,7 +234,7 @@ end
 # Reshuffle until no consecutive target islands
 attempt = 0
 max_attempts = 10000000
-while has_consecutive_targets(reward_sequence, :target_island, 2) && has_consecutive_targets(reward_sequence, :wrong_match_homebase, 2) && attempt < max_attempts
+while (has_consecutive_targets(reward_sequence, :target_island, 2) || reward_sequence.island_viable[1]) && attempt < max_attempts
   shuffle!(reward_sequence)
   global attempt += 1
 end
