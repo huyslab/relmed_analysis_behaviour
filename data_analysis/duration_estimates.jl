@@ -136,3 +136,24 @@ let df = copy(WM_LTM_durations)
 	
 	f
 end
+
+# Percentile table of durations
+let df = copy(WM_LTM_durations)
+	# Calculate percentiles
+	pctiles = combine(
+		groupby(df, [:task, :part]),
+		:duration => (x -> quantile(x, 0.5)) => :p50,
+		:duration => (x -> quantile(x, 0.75)) => :p75,
+		:duration => (x -> quantile(x, 0.9)) => :p90,
+		:duration => (x -> quantile(x, 0.95)) => :p95
+	)
+
+	# Format values as minutes and seconds
+	pctiles.p50 = (x -> "$(floor(x))'$(Int(round((x - floor(x)) * 60)))\"").(pctiles.p50)
+	pctiles.p75 = (x -> "$(floor(x))'$(Int(round((x - floor(x)) * 60)))\"").(pctiles.p75)
+	pctiles.p90 = (x -> "$(floor(x))'$(Int(round((x - floor(x)) * 60)))\"").(pctiles.p90)
+	pctiles.p95 = (x -> "$(floor(x))'$(Int(round((x - floor(x)) * 60)))\"").(pctiles.p95)
+
+	println(pctiles)
+	
+end
