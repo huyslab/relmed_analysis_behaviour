@@ -20,6 +20,7 @@ begin
 	nothing
 end
 
+# Compute LTM and WM durations
 WM_LTM_durations = let
 	timestamps = combine(
 		groupby(jspsych_data, :prolific_pid),
