@@ -14,6 +14,29 @@ begin
 	nothing
 end
 
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
+
 # Load WM and LTM data
 begin
 	_, _, _, _, _, _, _, _, jspsych_data = load_pilot8_data(; force_download = false, return_version = "0.2")
@@ -26,44 +49,90 @@ WM_LTM_durations = let
 		groupby(jspsych_data, :prolific_pid),
 		[:trialphase, :time_elapsed] => 
 			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "LTM_instructions").(tp)) - 1]) => 
-			:ltm_instructions_start,
+			:LTM_instructions_start,
 		[:trialphase, :time_elapsed] => 
 			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "ltm").(tp)) - 1]) => 
-			:ltm_start,
+			:LTM_start,
 		[:trialphase, :time_elapsed] => 
 			((tp, t) -> t[findlast((x -> !ismissing(x) && x == "ltm").(tp))]) => 
-			:ltm_end,
+			:LTM_end,
 		[:trialphase, :time_elapsed] => 
 			((tp, t) -> begin
 				idx = findfirst((x -> !ismissing(x) && x == "WM_instructions").(tp))
 				isnothing(idx) ? missing : t[idx - 1]
 			end) => 
-			:wm_instructions_start,
+			:WM_instructions_start,
 		[:trialphase, :time_elapsed] => 
 				((tp, t) -> begin
 				idx = findfirst((x -> !ismissing(x) && x == "wm").(tp))
 				isnothing(idx) ? missing : t[idx - 1]
 			end) => 
-			:wm_start,
+			:WM_start,
 		[:trialphase, :time_elapsed] => 
 				((tp, t) -> begin
-				idx = findfirst((x -> !ismissing(x) && x == "wm").(tp))
+				idx = findlast((x -> !ismissing(x) && x == "wm").(tp))
 				isnothing(idx) ? missing : t[idx]
 			end) => 
-			:wm_end,
+			:WM_end,
 	)
 
-	timestamps.ltm_instructions = (timestamps.ltm_start .- timestamps.ltm_instructions_start) ./ 1000 ./ 60
-	timestamps.wm_instructions = (timestamps.wm_start .- timestamps.wm_instructions_start) ./ 1000 ./ 60
-	timestamps.ltm_duration = (timestamps.ltm_end .- timestamps.ltm_start) ./ 1000 ./ 60
-	timestamps.wm_duration = (timestamps.wm_end .- timestamps.wm_start) ./ 1000 ./ 60
-
-	select(
-		timestamps,
-		:prolific_pid,
-		:ltm_instructions,
-		:ltm_duration,
-		:wm_instructions,
-		:wm_duration,
+	# Calculate durations
+	timestamps.LTM_instructions = (timestamps.LTM_start .- timestamps.LTM_instructions_start) ./ 1000 ./ 60
+	timestamps.WM_instructions = (timestamps.WM_start .- timestamps.WM_instructions_start) ./ 1000 ./ 60
+	timestamps.LTM = (timestamps.LTM_end .- timestamps.LTM_start) ./ 1000 ./ 60
+	timestamps.WM = (timestamps.WM_end .- timestamps.WM_start) ./ 1000 ./ 60
+	
+	# Wide to long
+	durations = stack(
+		timestamps, 
+		[:LTM_instructions, :WM_instructions, :LTM, :WM], 
+		[:prolific_pid],
+		value_name = :duration
 	)
+
+	# Part variable: whether instructions or task
+	durations.part = ifelse.(
+		occursin.(r"instructions", durations.variable),
+		"Instructions",
+		"Task"
+	)
+
+	# Task variable: whether LTM or WM
+	durations.task = ifelse.(
+		occursin.(r"LTM", durations.variable),
+		"LTM",
+		"WM"
+	)
+
+	# Remove missing values
+	filter!(x -> !ismissing(x.duration), durations)
+
+	# Add SD
+	DataFrames.transform!(
+		groupby(durations, [:task, :part]),
+		:duration => std => :sd
+	)
+	
+end
+
+# Plot duration rainclouds
+let df = copy(WM_LTM_durations)
+	f = Figure()
+
+	# Remove extremes in instructions
+	filter!(x -> x.part != "Instructions" || (x.duration < 20), df)
+
+	df.side = ifelse.(df.part .== "Instructions", :right, :left)
+
+	mp = data(df) * mapping(
+		:task => "Task",
+		:duration => "Duration (minutes)",
+		color = :part => ""
+		) * visual(RainClouds, plot_boxplots = false)
+
+	plt = draw!(f[1,1], mp)
+
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	
+	f
 end
