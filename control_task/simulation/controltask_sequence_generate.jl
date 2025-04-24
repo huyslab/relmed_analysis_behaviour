@@ -106,6 +106,7 @@ end
 
 
 # Prediction sequence
+Random.seed!(1)
 function shuffle_with_no_shared(perms)
   # Convert to canonical form for comparison (sort each inner pair)
   function canonical_form(p)
@@ -162,6 +163,7 @@ open("prediction_sequence.json", "w") do io
 end
 
 # Reward sequence
+Random.seed!(2)
 target_list = [2, 3, 4, 1]
 islands_df = allcombinations(DataFrame, target_island=1:4, near_island=1:4)
 filter!([:target_island, :near_island] => (x, y) -> x != y, islands_df)
