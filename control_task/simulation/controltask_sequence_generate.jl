@@ -147,12 +147,15 @@ function shuffle_with_no_shared(perms)
 end
 
 # Shuffle with constraint for Prediction sequence
-perms = collect(permutations(1:pars.n_states, 2))
-shuffled_perms = shuffle_with_no_shared(perms)
+perms = collect(permutations(1:pars.n_states, 4))
+# Randomly select 6 permutations
+selected_perms = sample(perms, 6, replace=false)
+# shuffled_perms = shuffle_with_no_shared(perms)
 prediction_sequence = [];
-for (i, perm) in enumerate(shuffled_perms)
-  append!(prediction_sequence, [(; ship=ship_name[perm[1]]), (; ship=ship_name[perm[2]])])
-end
+prediction_sequence = (; ship=ship_name[vcat(selected_perms...)]);
+# for (i, perm) in enumerate(selected_perms)
+#   append!(prediction_sequence, [(; ship=ship_name[perm[1]]), (; ship=ship_name[perm[2]])])
+# end
 CSV.write("prediction_sequence.csv", DataFrame(prediction_sequence))
 open("prediction_sequence.json", "w") do io
   JSON.print(io, prediction_sequence)
