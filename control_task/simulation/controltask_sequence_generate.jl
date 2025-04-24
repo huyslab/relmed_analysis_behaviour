@@ -219,10 +219,12 @@ transform!(groupby(reward_sequence, [:target_island, :current])) do group
   n = nrow(group)
   # Create array with half 50p and half £1
   rewards = fill("50p", n)
+  rewards_number = fill(0.5, n)
   # Randomly select half the indices to be £1
   one_pound_indices = sample(1:n, floor(Int, n/2), replace=false)
   rewards[one_pound_indices] .= "£1"
-  return (; reward_amount = rewards)
+  rewards_number[one_pound_indices] .= 1.0
+  return (; reward_amount = rewards, reward_number = rewards_number)
 end
 # while nrow(combine(groupby(reward_sequence, [:target_island, :current]), nrow)) != 9
 #   transform!(groupby(reward_sequence, [:left_viable, :right_viable]), :target_island => (x -> sample(repeat(1:3, Int(length(x) / 3)), length(x), replace=false)) => :current)
@@ -266,7 +268,8 @@ reward_sequence_tuples = map(eachrow(reward_sequence)) do row
     island_viable=row.island_viable,
     left_viable=row.left_viable,
     right_viable=row.right_viable,
-    reward_amount=row.reward_amount
+    reward_amount=row.reward_amount,
+    reward_number=row.reward_number
   )
 end
 
