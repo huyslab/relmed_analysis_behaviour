@@ -159,7 +159,7 @@ function prepare_PLT_data(data::DataFrame; trial_type::String = "PLT")
 
 end
 
-function load_control_pilot2_data(; force_download = false, return_version = "0.2")
+function load_control_pilot2_data(; force_download = false, session = "1")
 	datafile = "data/control_pilot2.jld2"
 
 	# Load data or download from REDCap
@@ -176,7 +176,8 @@ function load_control_pilot2_data(; force_download = false, return_version = "0.
 	end
 
 	# Subset version for return
-	filter!(x -> x.version == return_version, jspsych_data)
+	# filter!(x -> x.version == return_version, jspsych_data)
+	filter!(x -> x.session == session, jspsych_data)
 
 	# Extract control data
 	control_task_data, control_report_data = prepare_control_data(jspsych_data) 

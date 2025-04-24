@@ -51,12 +51,12 @@ md"""## Participant management"""
 
 # ╔═╡ f9cbc7fa-5998-4500-a5b7-9f93258e7608
 begin
-	control_task_data, control_report_data, jspsych_data = load_control_pilot2_data(; force_download = true, return_version = "0.2")
+	control_task_data, control_report_data, jspsych_data = load_control_pilot2_data(; force_download = true, session = "1")
 	nothing
 end
 
-# ╔═╡ cd103cfe-73e8-4a79-9ca9-3d17399a25bf
-jspsych_data
+# ╔═╡ ddd696e7-a014-41b5-a5c3-2b7b2d38eb2b
+unique(jspsych_data.version)
 
 # ╔═╡ a9271e63-6457-47c0-99c4-07304bb31a93
 md"""
@@ -490,7 +490,7 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═f9cbc7fa-5998-4500-a5b7-9f93258e7608
 # ╠═8c7c8ee7-86e6-48d4-9a8c-e24b4c35e239
-# ╠═cd103cfe-73e8-4a79-9ca9-3d17399a25bf
+# ╠═ddd696e7-a014-41b5-a5c3-2b7b2d38eb2b
 # ╠═2d25ef0c-abe2-485b-9629-a0ee3eb481ba
 # ╠═765d05c0-0679-4f26-b201-af2aa0bf3fa3
 # ╠═47dec249-b853-4860-afcb-d8f4b0cbac81
