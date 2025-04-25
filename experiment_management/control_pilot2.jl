@@ -55,6 +55,26 @@ begin
 	nothing
 end
 
+# ╔═╡ bc1db6ac-0ed2-4d04-a711-823627df6173
+begin
+	p_careless = @chain jspsych_data begin
+		@group_by(prolific_pid)
+		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
+		@mutate(careless = n_quiz_fail >= ~median(n_quiz_fail))
+	end
+end
+
+# ╔═╡ 821e95eb-79af-4168-83a4-3a2a2e791939
+begin
+	info_files = filter(x -> endswith(x, ".csv"), readdir(joinpath("data", "prolific_participant_info"); join = true))
+	info_data = @chain info_files begin
+		CSV.read(DataFrame, select = ["Participant id", "Age"], types=Dict(:Age=>String))
+		@rename(prolific_pid = var"Participant id", age = var"Age")
+		@filter(age != "CONSENT_REVOKED")
+		@mutate(age = as_float(age))
+	end
+end
+
 # ╔═╡ ddd696e7-a014-41b5-a5c3-2b7b2d38eb2b
 unique(jspsych_data.version)
 
@@ -380,7 +400,8 @@ function summarize_participation(data::DataFrame)
 		:n_control_trials => (x -> maximum(skipmissing(x); init = 0)) => :n_trial_control,
 		[:trialphase, :correct] => ((p, c) -> sum(c[.!ismissing.(p) .&& p .== "control_reward_feedback"]) * 5 / 100) => :control_bonus,
 		:n_warnings => maximum => :n_warnings,
-		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration
+		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
+		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
 	)
 
 	# Compute totla bonus
@@ -412,6 +433,30 @@ p_sum
 
 # ╔═╡ 765d05c0-0679-4f26-b201-af2aa0bf3fa3
 describe(p_sum)
+
+# ╔═╡ 9d14e29c-8136-4294-ba50-53b1cb480bc0
+begin
+	@chain p_sum begin
+		@filter(n_quiz_failure < 20)
+		@pivot_longer(control_enjoy:control_clear, names_to = "accept_var", values_to = "accept_val")
+		stack([:n_quiz_failure, :n_warnings], variable_name = :sanity_var, value_name = :sanity_val)
+		dropmissing([:accept_val, :sanity_val])
+		data(_) * mapping(:sanity_val, :accept_val, col = :accept_var, row = :sanity_var) * (visual(Scatter) + linear())
+		draw(facet = (; linkxaxes = :none, linkyaxes = :all))
+	end
+end
+
+# ╔═╡ 8c3efe36-5fdb-4524-907c-7770a2dfb36c
+begin
+	@chain p_sum begin
+		@left_join(info_data)
+		@filter(age < 75)
+		stack([:n_quiz_failure, :n_warnings, :control_enjoy, :control_difficulty, :control_clear], variable_name=:rating_var, value_name=:rating_val)
+		dropmissing([:age, :rating_val])
+		data(_) * mapping(:age, :rating_val, layout=:rating_var) * (visual(Scatter) + linear())
+		draw(facet = (; linkxaxes = :all, linkyaxes = :none))
+	end
+end
 
 # ╔═╡ 47dec249-b853-4860-afcb-d8f4b0cbac81
 foreach(row -> print(row.prolific_pid * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 144, [:prolific_pid]]))

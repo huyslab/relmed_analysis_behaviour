@@ -55,17 +55,30 @@ begin
 	nothing
 end
 
+# ╔═╡ dacf8afd-8608-417b-b69d-6fd1be678c86
+begin
+	info_files = filter(x -> endswith(x, ".csv"), readdir(joinpath("data", "prolific_participant_info"); join = true))
+	info_data = @chain info_files begin
+		CSV.read(DataFrame, select = ["Participant id", "Age"], types=Dict(:Age=>String))
+		@rename(prolific_pid = var"Participant id", age = var"Age")
+		@filter(age != "CONSENT_REVOKED")
+		@mutate(age = as_float(age))
+	end
+end
+
 # ╔═╡ a9271e63-6457-47c0-99c4-07304bb31a93
 md"""
 ## Control task
 """
 
-# ╔═╡ 021062cb-b9f5-46bd-addb-de68d122531e
-@assert all(combine(groupby(control_task_data, :prolific_pid), [:time_elapsed, :trial] => ((x, y) -> all(denserank(x) .== denserank(y))) => :in_order)[:, "in_order"]) "Trial numbers are created incorrectly in chronological order"
-
-# ╔═╡ ef837154-28e6-4e50-bec4-efe04f45a6cd
-combine(groupby(control_task_data, :prolific_pid), :time_elapsed => (x -> (maximum(x) - minimum(x))/60000) => :duration_m) |>
-describe
+# ╔═╡ ff6f5e8a-8fa1-4d6f-ad72-e3592a781fab
+begin
+	p_careless = @chain jspsych_data begin
+		@group_by(prolific_pid)
+		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
+		@mutate(careless = n_quiz_fail > 0)
+	end
+end
 
 # ╔═╡ e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
 # ╠═╡ disabled = true
@@ -373,7 +386,8 @@ function summarize_participation(data::DataFrame)
 			((p, c) -> sum(c[.!ismissing.(p) .&& p .== "control_reward_feedback"]) * 5 / 100) => :control_bonus,
 		:trialPresses => (x -> mean(filter(y -> !ismissing(y), x))) =>  :max_trial_presses,
 		:n_warnings => maximum => :n_warnings,
-		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration
+		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
+		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
 	)
 
 	# Compute totla bonus
@@ -406,6 +420,28 @@ end
 
 # ╔═╡ 765d05c0-0679-4f26-b201-af2aa0bf3fa3
 describe(p_sum)
+
+# ╔═╡ 6c4d5aa7-419d-4234-ba6a-9dd43c02ca98
+begin
+	@chain p_sum begin
+		@pivot_longer(control_enjoy:control_clear, names_to = "accept_var", values_to = "accept_val")
+		stack([:n_quiz_failure, :n_warnings], variable_name = :sanity_var, value_name = :sanity_val)
+		dropmissing([:accept_val, :sanity_val])
+		data(_) * mapping(:sanity_val, :accept_val, col = :accept_var, row = :sanity_var) * (visual(Scatter) + linear())
+		draw(facet = (; linkxaxes = :none, linkyaxes = :all))
+	end
+end
+
+# ╔═╡ b161ec67-dbf5-4df2-94ba-a182b5512f7a
+begin
+	@chain p_sum begin
+		@left_join(info_data)
+		stack([:n_quiz_failure, :n_warnings, :control_enjoy, :control_difficulty, :control_clear], variable_name=:rating_var, value_name=:rating_val)
+		dropmissing([:age, :rating_val])
+		data(_) * mapping(:age, :rating_val, layout=:rating_var) * (visual(Scatter) + linear())
+		draw(facet = (; linkxaxes = :all, linkyaxes = :none))
+	end
+end
 
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
 foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 192, [:prolific_pid, :total_bonus]]))
