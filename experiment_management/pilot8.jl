@@ -13,12 +13,15 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, SHA
+	using Tidier, GLM, MixedModels, PlutoUI, LaTeXStrings, ColorSchemes
 	using LogExpFunctions: logistic, logit
-	using Tidier
+	import OpenScienceFramework as OSF
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
 	include("plotting_utils.jl")
+	include("osf_utils.jl")
+	include("vigour_utils.jl")
 	nothing
 end
 
@@ -44,6 +47,11 @@ begin
 	)
 	
 	set_theme!(th)
+
+	spearman_brown(
+	r;
+	n = 2 # Number of splits
+	) = (n * r) / (1 + (n - 1) * r)
 end
 
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
@@ -303,6 +311,80 @@ begin
 		)
 		draw(_; axis=(; xlabel = "Current strength", ylabel = "Presses (in explore trials)"))
 	end
+end
+
+# ╔═╡ 8ed8fb59-1635-49b9-af03-e33e68089167
+let
+	glm_coef(data) = coef(lm(@formula(trial_presses ~ current), data))
+	
+	split_df = @chain control_task_data begin
+		@filter(trialphase == "control_explore")
+		@drop_missing(trial_presses)
+		@mutate(trial_number = ~denserank(trial))
+		@mutate(half = ifelse(trial_number <= maximum(trial_number)/2, "x", "y"))
+		groupby([:prolific_pid, :half])
+		combine(AsTable([:trial_presses, :current]) => (x -> [glm_coef(x)]) => [:β0, :β_current])
+	end
+
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β0)),
+		xlabel="Trial 1-72",
+		ylabel="Trial 73-144",
+		xcol=:x,
+		ycol=:y,
+		subtitle="β0",
+		correct_r=true
+	)
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β_current)),
+		xlabel="Trial 1-72",
+		ylabel="Trial 73-144",
+		xcol=:x,
+		ycol=:y,
+		subtitle="β[Current]",
+		correct_r=true
+	)
+	fig
+end
+
+# ╔═╡ ba46e28b-f4e0-4e0f-b687-fca77c7f381c
+let
+	glm_coef(data) = coef(lm(@formula(trial_presses ~ current), data))
+	
+	split_df = @chain control_task_data begin
+		@filter(trialphase == "control_explore")
+		@drop_missing(trial_presses)
+		@mutate(trial_number = ~denserank(trial))
+		@mutate(half = if_else(trial_number % 2 === 0, "x", "y"))
+		groupby([:prolific_pid, :half])
+		combine(AsTable([:trial_presses, :current]) => (x -> [glm_coef(x)]) => [:β0, :β_current])
+	end
+
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β0)),
+		xlabel="Even trials",
+		ylabel="Odd trials",
+		xcol=:x,
+		ycol=:y,
+		subtitle="β0",
+		correct_r=true
+	)
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β_current)),
+		xlabel="Even trials",
+		ylabel="Odd trials",
+		xcol=:x,
+		ycol=:y,
+		subtitle="β[Current]",
+		correct_r=true
+	)
+	fig
 end
 
 # ╔═╡ 943d8167-1e6f-4a9b-8a8b-efaeb0431fa3
@@ -580,6 +662,8 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
 # ╠═b2d724e5-146a-4812-8431-a77893ea4735
 # ╠═3fc647cb-4e05-490a-b1b4-3240db3a1823
+# ╠═8ed8fb59-1635-49b9-af03-e33e68089167
+# ╠═ba46e28b-f4e0-4e0f-b687-fca77c7f381c
 # ╠═943d8167-1e6f-4a9b-8a8b-efaeb0431fa3
 # ╠═0a5622ee-2668-498f-8275-20cfda686e43
 # ╠═bc08a966-4236-4a5e-9539-5913f8f64651
