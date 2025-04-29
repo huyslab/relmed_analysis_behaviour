@@ -1,88 +1,10 @@
-# # cd("/home/jovyan")
-# import Pkg
-# # activate the shared project environment
-# Pkg.activate("$(pwd())/relmed_environment")
-# # instantiate, i.e. make sure that all packages are downloaded
-# Pkg.instantiate()
-
-# using CairoMakie, Random, DataFrames, Distributions, StatsBase,
-# ForwardDiff, LinearAlgebra, JLD2, FileIO, CSV, Dates, JSON, RCall, Turing, ParetoSmooth, MCMCDiagnosticTools, Printf
-# using LogExpFunctions: logistic, logit
-# include("$(pwd())/simulate.jl")
-# include("$(pwd())/turing_models.jl")
-# include("$(pwd())/plotting_utils.jl")
-# 
-# aao = mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])])
-# prior_sample_pmst = simulate_from_prior(
-# 	1;
-# 	model = RLWM_pmst,
-# 	initial = aao,
-# 	priors = Dict(
-# 		:ρ => truncated(Normal(0., 1.), lower = 0.),
-# 		:a => Normal(0., 0.5),
-# 		:W => Normal(0., 0.5),
-# 		:C => truncated(Normal(3., 2.), lower = 1.)
-# 	),
-# 	transformed = Dict(:a => :α, :W => :w0),
-# 	structure = (
-# 		n_blocks = 48, n_trials = 13, n_confusing = 3, set_sizes = [2, 4, 6]
-# 	),
-# 	gq = true,
-# 	random_seed = 123
-# )
-# describe(prior_sample_pmst)
-
 using ForwardDiff, LinearAlgebra, LogExpFunctions, Random, Plots, Optim, Statistics, NaNStatistics
 
+function runsim(llrw,llrwdb,llrwda,D,nExp,deltatrue,nSubj,nDelta)
 
-#------------------------------------------
-# load models 
-# include("llmodls.jl")
-
-#------------------------------------------
-# RW simulations 
-
-# first check the likelihood surface behaves 
-# x = [1 -1]
-# a,r,qt = llrw(x,D)
-# Da = deepcopy(D)
-# Da["actions"] = a
-# Da["rewards"] = r
-# 
-# ali = -5:.1:5;
-# bei = -5:.1:5; 
-# l = zeros(length(ali),length(bei))
-# for bi = 1:length(bei)
-#    for ai = 1:length(ali)
-#        y = [bei[bi] ali[ai] ]
-#        l[bi,ai] = llrw(y,Da)
-#    end
-# end
-# p1=heatmap(bei,ali,log(l))
-
-
-# do inference 
-# f(x) = llrw(x,Da)
-# xtrue = randn(2,100)
-# Da = deepcopy(D);
-# xest = zeros(2,100)
-# for ns=1:100
-#     a,r = llrw(xtrue[:,ns],D)
-#     Da["actions"] = a;
-#     Da["rewards"] = r;
-#     est = optimize(f,randn(2,1));
-#     xest[:,ns] = est.minimizer;
-# end
-# p2=scatter(xtrue',xest')
-
-# do inference 
-
-
-function runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
-
-    ll= zeros(2,nDelta,nExp,nSubj)
+    ll= zeros(3,nDelta,nExp,nSubj)
     A = zeros(T*nStim,nDelta,nExp,nSubj)
-    xest  = zeros(3,nSubj,nDelta,nExp)
+    xest  = zeros(3,nSubj,nDelta,nExp,3)
     xtruei = zeros(3,nSubj,nDelta,nExp)
 
     Threads.@threads for di = 1:nDelta
@@ -94,8 +16,10 @@ function runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
           for ns = 1:nSubj
              xsim = xtrue[:,ns] 
              xsim[2] = deltatrue[di] 
-             a,r = llrwdb(xsim,D)
-             #a,r = llrwda(xsim,D)
+
+             #a,r = llrwdb(xsim,D)
+             a,r = llrwda(xsim,D)
+				 
              Da = Dict([("acorr",acorr),("stim",stim),("actions",a),("rewards",r)])
              A[:,di,ne,ns] = a;
              xtruei[:,ns,di,ne] = xsim
@@ -104,6 +28,7 @@ function runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
              while true 
                  est = optimize(f,randn(2,1)[:],NewtonTrustRegion(),autodiff=:forward);
                  if ~isnan.(est.minimum);
+                     xest[[1;3],ns,di,ne,1] = est.minimizer;
                      ll[1,di,ne,ns] = est.minimum;
                      break;
                  end
@@ -114,21 +39,21 @@ function runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
              while true 
                  est = optimize(fdb,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
                  if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
-                     xest[:,ns,di,ne] = est.minimizer;
+                     xest[:,ns,di,ne,2] = est.minimizer;
                      ll[2,di,ne,ns] = est.minimum;
                      break;
                  end
              end
 
-				 # fda(x) = llrwda(x,Da)
-             # while true 
-             #     est = optimize(fda,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
-             #     if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
-             #         xest[:,ns,di,ne] = est.minimizer;
-             #         ll[3,di,ne,ns] = est.minimum;
-             #         break;
-             #     end
-             # end
+				 fda(x) = llrwda(x,Da)
+             while true 
+                 est = optimize(fda,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
+                 if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
+                     xest[:,ns,di,ne,3] = est.minimizer;
+                     ll[3,di,ne,ns] = est.minimum;
+                     break;
+                 end
+             end
           end
           print("delta=",di," nexp=",ne,"\n")
        end
@@ -156,7 +81,7 @@ include("llmodls.jl")
 #------------------------------------------
 # define simulations 
 
-nExp = 20		# number of experiments to run 
+nExp = 30		# number of experiments to run 
 nSubj = 30		# number of subjects per experiment 
 deltatrue = [-5 -3 -2 -1 -.5  0 .5 1 2 3 5]	# shifts in parameter (transformed absolute)
 nDelta = length(deltatrue)
@@ -169,7 +94,7 @@ nDelta = length(deltatrue)
 #------------------------------------------
 # run actual simulations 
 
-ll,A,xest,xtruei = runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
+ll,A,xest,xtruei = runsim(llrw,llrwdb,llrwda,D,nExp,deltatrue,nSubj,nDelta)
 
 #------------------------------------------
 # compute model differences in LL and BIC 
@@ -177,9 +102,14 @@ ll,A,xest,xtruei = runsim(llrw,llrwdb,D,nExp,deltatrue,nSubj,nDelta)
 bic = deepcopy(ll)
 bic[1,:,:,:] = 2*ll[1,:,:,:] .+ 2*log(T*nStim)
 bic[2,:,:,:] = 2*ll[2,:,:,:] .+ 3*log(T*nStim)
+bic[3,:,:,:] = 2*ll[3,:,:,:] .+ 3*log(T*nStim)
 
-dll  = mean(diff(ll ,dims=1),dims=4)[1,:,:,1]; 
-dbic = mean(diff(bic,dims=1),dims=4)[1,:,:,1]; 
+#dll  = mean( ll[2,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
+#dbic = mean(bic[2,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
+
+dll  = mean( ll[3,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
+dbic = mean(bic[3,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
+
 
 #------------------------------------------
 # compute probabilities of identifying models 
@@ -201,11 +131,20 @@ p1 = plot(mean(mean(A,dims=4),dims=3)[:,:,1,1].-1,label=deltatrue,legend=:outerr
 	xlabel!("Trial")
 	ylabel!("Action")
 
-p2 = plot(deltatrue',mean(mean(xest[2,:,:,:],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
-	  scatter!(deltatrue',mean(xest[2,:,:,:],dims=1)[1,:,:],label="",mc=:black)
-     plot!(deltatrue',mean(median(xest[2,:,:,:],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
-	  scatter!(deltatrue',median(xest[2,:,:,:],dims=1)[1,:,:],label="",mc=:blue)
+#p2 = plot(deltatrue',mean(mean(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
+#	  scatter!(deltatrue',mean(xest[2,:,:,:,2],dims=1)[1,:,:],label="",mc=:black)
+#     plot!(deltatrue',mean(median(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
+#	  scatter!(deltatrue',median(xest[2,:,:,:,2],dims=1)[1,:,:],label="",mc=:blue)
+#	  plot!(deltatrue',deltatrue',lc=:red,label="true")
+#	xlabel!("True change")
+#	ylabel!("Inferred change")
+
+p2 = plot(deltatrue',mean(mean(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
+	  scatter!(deltatrue',mean(xest[2,:,:,:,3],dims=1)[1,:,:],label="",mc=:black)
+     plot!(deltatrue',mean(median(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
+	  scatter!(deltatrue',median(xest[2,:,:,:,3],dims=1)[1,:,:],label="",mc=:blue)
 	  plot!(deltatrue',deltatrue',lc=:red,label="true")
+	ylims!(4*minimum(deltatrue),4*maximum(deltatrue))
 	xlabel!("True change")
 	ylabel!("Inferred change")
 
@@ -218,21 +157,19 @@ p4 = plot(pbic[1:d0-1,:]',label=deltatrue[1:d0-1]',legend=:right)
 	plot!( pbic[d0,:],label=deltatrue[d0],lc=:black,lw=2,yguidefontsize=7,ylabel="P(complex model BIC lower)")
 	ylims!(0,1)
 	xlabel!("# participants")
-	title!("Increases")
+	title!("Decreases")
 
 p5 = plot( pbic[d0,:],label=deltatrue[d0],legend=false,lc=:black,lw=2)
    plot!(pbic[d0+1:end,:]',label=deltatrue[d0+1:end]',legend=:right)
 	ylims!(0,1)
 	xlabel!("# participants")
-	title!("Decreases")
-
-# pbic[2,:] =  sum(dll .< -3,dims=2) ./ nExp 
+	title!("Increases")
 
 l = @layout [a b; c d e]
 plot(p1,p2,p3,p4,p5,layout = l)
 
 meanbeta = @sprintf("%.2g",1/(1+exp(-mean(xtruei[1,:,:,:])))) 
 meanalpha = @sprintf("%.2g",1/(1+exp(-mean(xtruei[3,:,:,:])))) 
-savefig(string("Alpha_",meanalpha,"-Beta_",meanbeta,".pdf"))
+savefig(string("AlphaChanges_MeanAlpha_",meanalpha,"-MeanBeta_",meanbeta,".pdf"))
 
 
