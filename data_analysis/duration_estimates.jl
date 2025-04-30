@@ -111,12 +111,6 @@ WM_LTM_durations = let
 	# Remove extremes in instructions
 	filter!(x -> x.part != "Instructions" || (x.duration < 20), durations)
 
-	# Add SD
-	DataFrames.transform!(
-		groupby(durations, [:task, :part]),
-		:duration => std => :sd
-	)
-	
 end
 
 ## PILT data --------------------------------------------|
@@ -124,13 +118,14 @@ end
 begin
 	# Load data
 	_, _, _, _, _, _, _, pilot6_jspsych_data = load_pilot6_data()
+	pilot6_jspsych_data = exclude_double_takers(pilot6_jspsych_data)
 	nothing
 end
 
 # Compute PILT durations
 PILT_durations = let
 	timestamps = combine(
-		groupby(pilot6_jspsych_data, :prolific_pid),
+		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
 		[:trialphase, :time_elapsed] => 
 			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]) => 
 			:PILT_instructions_start,
@@ -155,7 +150,7 @@ PILT_durations = let
 	durations = stack(
 		timestamps, 
 		[:PILT_instructions, :PILT], 
-		[:prolific_pid],
+		[:prolific_pid, :session],
 		value_name = :duration
 	)
 
@@ -167,19 +162,17 @@ PILT_durations = let
 	)
 
 	# Task variable: whether LTM or WM
-	durations[!, :task] .= "PILT"
+	durations[!, :task] = ifelse.(
+		durations.session .== "1",
+		"PILT\nsess. 1",
+		"PILT\nsess. 2"
+	)
 
 	# Remove missing values
 	filter!(x -> !ismissing(x.duration), durations)
 
 	# Remove extremes
-	filter!(x -> x.duration < 60, durations)
-
-	# Add SD
-	DataFrames.transform!(
-		groupby(durations, [:task, :part]),
-		:duration => std => :sd
-	)
+	filter!(x -> x.duration < 30, durations)
 	
 end
 
@@ -187,11 +180,11 @@ end
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	
+	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)))
 end
 
 # Plot duration rainclouds
-let df = copy(WM_LTM_durations)
+let df = copy(durations)
 	f = Figure()
 
 	df.side = ifelse.(df.part .== "Instructions", :right, :left)
@@ -210,7 +203,7 @@ let df = copy(WM_LTM_durations)
 end
 
 # Percentile table of durations
-let df = copy(WM_LTM_durations)
+let df = copy(durations)
 	# Calculate percentiles
 	pctiles = combine(
 		groupby(df, [:task, :part]),
