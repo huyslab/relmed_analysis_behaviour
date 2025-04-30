@@ -37,13 +37,22 @@ begin
 	set_theme!(th)
 end
 
-## WM and LTM data --------------------------------------------|
-# Load WM and LTM data
+## Load data --------------------------------------------|
+# Load Pilot 6
+begin
+	# Load data
+	_, _, _, _, _, _, _, pilot6_jspsych_data = load_pilot6_data()
+	pilot6_jspsych_data = exclude_double_takers(pilot6_jspsych_data)
+	nothing
+end
+
+# Load Pilot 8
 begin
 	_, _, _, _, _, _, _, _, pilot8_jspsych_data = load_pilot8_data(; force_download = false, return_version = "0.2")
 	nothing
 end
 
+## WM and LTM data --------------------------------------------|
 # Compute LTM and WM durations
 WM_LTM_durations = let
 	timestamps = combine(
@@ -114,16 +123,61 @@ WM_LTM_durations = let
 end
 
 ## PILT data --------------------------------------------|
-# Load PILT data
-begin
-	# Load data
-	_, _, _, _, _, _, _, pilot6_jspsych_data = load_pilot6_data()
-	pilot6_jspsych_data = exclude_double_takers(pilot6_jspsych_data)
-	nothing
+PILT_durations = let
+	timestamps = combine(
+		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
+		[:trialphase, :time_elapsed] => 
+			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]) => 
+			:PILT_instructions_start,
+		[:block, :time_elapsed] => 
+			((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]) => 
+			:PILT_start,
+		[:trialphase, :n_stimuli, :block, :time_elapsed] => 
+			((tp, ns, b, t) -> begin
+				idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "PILT" && 
+								!ismissing(ns[i]) && ns[i] == 2 && 
+								!ismissing(b[i]) && b[i] == 20), 1:length(tp))
+				isnothing(idx) ? missing : t[idx]
+			end) => 
+			:PILT_end,
+	)
+
+	# Calculate durations
+	timestamps.PILT_instructions = (timestamps.PILT_start .- timestamps.PILT_instructions_start) ./ 1000 ./ 60
+	timestamps.PILT = (timestamps.PILT_end .- timestamps.PILT_start) ./ 1000 ./ 60
+	
+	# Wide to long
+	durations = stack(
+		timestamps, 
+		[:PILT_instructions, :PILT], 
+		[:prolific_pid, :session],
+		value_name = :duration
+	)
+
+	# Part variable: whether instructions or task
+	durations.part = ifelse.(
+		occursin.(r"instructions", durations.variable),
+		"Instructions",
+		"Task"
+	)
+
+	# Task variable: whether LTM or WM
+	durations[!, :task] = ifelse.(
+		durations.session .== "1",
+		"PILT\nsess. 1",
+		"PILT\nsess. 2"
+	)
+
+	# Remove missing values
+	filter!(x -> !ismissing(x.duration), durations)
+
+	# Remove extremes
+	filter!(x -> x.duration < 30, durations)
+	
 end
 
-# Compute PILT durations
-PILT_durations = let
+# Reversal data --------------------------------------------|
+reversal_durations = let
 	timestamps = combine(
 		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
 		[:trialphase, :time_elapsed] => 
