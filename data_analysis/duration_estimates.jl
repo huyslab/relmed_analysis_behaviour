@@ -178,32 +178,43 @@ end
 
 # Reversal data --------------------------------------------|
 reversal_durations = let
-	timestamps = combine(
+
+	# Exclude non finishers
+	reversal_participants = combine(
 		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
+		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "reversal"))) => :n_trials
+	)
+
+	filter!(x -> x.n_trials == 150, reversal_participants)
+
+	# Filter to keep only rows with pid-session combinations in reversal_participants
+	reversal_data = semijoin(
+		pilot6_jspsych_data, 
+		reversal_participants, 
+		on = [:prolific_pid, :session]
+	)
+
+	timestamps = combine(
+		groupby(reversal_data, [:prolific_pid, :session]),
 		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]) => 
-			:PILT_instructions_start,
-		[:block, :time_elapsed] => 
-			((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]) => 
-			:PILT_start,
-		[:trialphase, :n_stimuli, :block, :time_elapsed] => 
-			((tp, ns, b, t) -> begin
-				idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "PILT" && 
-								!ismissing(ns[i]) && ns[i] == 2 && 
-								!ismissing(b[i]) && b[i] == 20), 1:length(tp))
-				isnothing(idx) ? missing : t[idx]
-			end) => 
-			:PILT_end,
+			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "reversal_instruction").(tp)) - 1]) => 
+			:reversal_instructions_start,
+		[:trialphase, :time_elapsed] => 
+			((tp, t) -> t[findlast((x -> !ismissing(x) && x == "reversal_instruction").(tp))]) => 
+			:reversal_start,
+		[:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findlast((x -> !ismissing(x) && x == "reversal").(tp))]) =>  
+			:reversal_end,
 	)
 
 	# Calculate durations
-	timestamps.PILT_instructions = (timestamps.PILT_start .- timestamps.PILT_instructions_start) ./ 1000 ./ 60
-	timestamps.PILT = (timestamps.PILT_end .- timestamps.PILT_start) ./ 1000 ./ 60
+	timestamps.reversal_instructions = (timestamps.reversal_start .- timestamps.reversal_instructions_start) ./ 1000 ./ 60
+	timestamps.reversal = (timestamps.reversal_end .- timestamps.reversal_start) ./ 1000 ./ 60
 	
 	# Wide to long
 	durations = stack(
 		timestamps, 
-		[:PILT_instructions, :PILT], 
+		[:reversal_instructions, :reversal], 
 		[:prolific_pid, :session],
 		value_name = :duration
 	)
@@ -218,8 +229,8 @@ reversal_durations = let
 	# Task variable: whether LTM or WM
 	durations[!, :task] = ifelse.(
 		durations.session .== "1",
-		"PILT\nsess. 1",
-		"PILT\nsess. 2"
+		"Reversal\nsess. 1",
+		"Reversal\nsess. 2"
 	)
 
 	# Remove missing values
@@ -234,7 +245,7 @@ end
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)))
+	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)), select(reversal_durations, Not(:session)))
 end
 
 # Plot duration rainclouds
