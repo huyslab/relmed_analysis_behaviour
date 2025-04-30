@@ -133,7 +133,7 @@ function REDCap_data_to_df(jspsych_data, records; participant_id_field::String =
 		on = map(Symbol, on_cols)
 	)
 
-	rename!(jspsych_data, participant_id => :prolific_pid)
+	transform!(jspsych_data, participant_id => :prolific_pid)
 
 	return jspsych_data
 end
@@ -174,7 +174,6 @@ function load_control_pilot2_data(; force_download = false, session = "1")
 	else
 		JLD2.@load datafile jspsych_data
 	end
-
 	# Subset version for return
 	# filter!(x -> x.version == return_version, jspsych_data)
 	filter!(x -> x.session == session, jspsych_data)
@@ -184,6 +183,68 @@ function load_control_pilot2_data(; force_download = false, session = "1")
 
 	return control_task_data, control_report_data, jspsych_data
 end
+
+
+
+
+function load_trial1_data(; force_download = false)
+	datafile = "data/trial1.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("testing"; file_field = "jspsych_data", record_id_field = "record_id")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "sitting_start_time")
+
+		# remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Exctract PILT
+	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
+
+	# Extract WM data
+	WM_data = filter(x -> x.trialphase == "wm", PILT_data)
+
+	# Extract LTM data
+	LTM_data = filter(x -> x.trialphase == "ltm", PILT_data)
+
+	# Extract WM test data
+	WM_test_data = filter(x -> x.trialphase == "wm_test", PILT_data)
+
+	# Extract LTM test data
+	LTM_test_data = filter(x -> x.trialphase == "ltm_test", PILT_data)
+
+	# Seperate out PILT
+	filter!(x -> x.trialphase == "pilt", PILT_data)
+	
+	# Extract post-PILT test
+	# test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	# vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	# post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+			
+	# Extract PIT
+	# PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	reversal_data = prepare_reversal_data(jspsych_data)
+
+	# Extract max press rate data
+	# max_press_data = prepare_max_press_data(jspsych_data)
+
+	# Extract control data
+	# control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+
+	return PILT_data, WM_data, LTM_data, reversal_data, jspsych_data
+end
+
 
 function load_pilot8_data(; force_download = false, return_version = "0.2")
 	datafile = "data/pilot8.jld2"

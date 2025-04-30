@@ -338,7 +338,7 @@ end
 # ╔═╡ 9f300301-b018-4bea-8fc4-4bc889b11afd
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
-		"generate_experimental_sequences/pilot8_wm_stimulus_sequence.csv"))
+		"generate_experimental_sequences/wm_stimulus_sequence_short_9stim.csv"))
 
 	select!(
 		triplet_order, 
