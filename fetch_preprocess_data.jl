@@ -531,7 +531,7 @@ function load_pilot1_data()
     return PLT_data
 end
 
-function exclude_double_takers!(df::DataFrame)
+function exclude_double_takers(df::DataFrame)
 	# Find double takes
 	double_takers = unique(df[!, [:prolific_pid, :session, :exp_start_time]])
 
@@ -569,6 +569,8 @@ function exclude_double_takers!(df::DataFrame)
 		on = [:prolific_pid, :session, 
 		:exp_start_time]
 	)
+
+	return df
 end
 
 # Exclude unfinished and double sessions
