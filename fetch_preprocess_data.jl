@@ -589,7 +589,7 @@ function exclude_PLT_sessions(PLT_data::DataFrame; required_n_blocks::Int64 = 24
 		on = [:prolific_pid, :session, 
 		:exp_start_time])
 
-	return exclude_double_takers!(PLT_data_clean)
+	return exclude_double_takers(PLT_data_clean)
 end
 
 function exclude_PLT_trials(PLT_data::DataFrame)
@@ -772,7 +772,7 @@ function prepare_max_press_data(data::DataFrame)
 		x -> select(x, 
 			Not([:responseTime])
 		)
-		max_press_data = exclude_double_takers!(max_press_data)
+		max_press_data = exclude_double_takers(max_press_data)
 	return max_press_data
 end
 
@@ -815,7 +815,7 @@ function prepare_vigour_data(data::DataFrame)
 		x -> select(x, 
 			Not([:response_time, :timeline_variables])
 		)
-		vigour_data = exclude_double_takers!(vigour_data)
+		vigour_data = exclude_double_takers(vigour_data)
 	return vigour_data
 end
 
@@ -848,7 +848,7 @@ function prepare_post_vigour_test_data(data::DataFrame)
 		x -> subset(x, :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_test"])) |>
 		x -> groupby(x, [:prolific_pid, :exp_start_time]) |>
 		x -> DataFrames.transform(x, :trialphase => (x -> 1:length(x)) => :trial_number)
-		post_vigour_test_data = exclude_double_takers!(post_vigour_test_data)
+		post_vigour_test_data = exclude_double_takers(post_vigour_test_data)
 	return post_vigour_test_data
 end
 
@@ -893,7 +893,7 @@ function prepare_PIT_data(data::DataFrame)
 		x -> select(x, 
 			Not([:response_time, :timeline_variables])
 		)
-		PIT_data = exclude_double_takers!(PIT_data)
+		PIT_data = exclude_double_takers(PIT_data)
 	return PIT_data
 end
 
@@ -1088,9 +1088,7 @@ function exclude_reversal_sessions(
 		:exp_start_time])
 
 
-	exclude_double_takers!(reversal_data_clean)
-
-	return reversal_data_clean
+	return exclude_double_takers(reversal_data_clean)
 end
 
 """
@@ -1222,7 +1220,7 @@ including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
 """
 function prepare_control_data(data::DataFrame)
 	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
-	control_data = exclude_double_takers!(control_data)
+	control_data = exclude_double_takers(control_data)
 	
 	for col in names(control_data)
 		control_data[!, col] = [val === nothing ? missing : val for val in control_data[!, col]]
