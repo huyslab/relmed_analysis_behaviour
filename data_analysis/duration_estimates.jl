@@ -46,9 +46,17 @@ begin
 	nothing
 end
 
+# Load Pilot 7
+begin
+	_, _, _, _, _, _, _, pilot7_jspsych_data = load_pilot7_data(return_version = "7.0")
+	pilot7_jspsych_data = exclude_double_takers(pilot7_jspsych_data)
+	sort!(pilot7_jspsych_data, [:prolific_pid, :exp_start_time, :trial_index])
+end
+
 # Load Pilot 8
 begin
 	_, _, _, _, _, _, _, _, pilot8_jspsych_data = load_pilot8_data(; force_download = false, return_version = "0.2")
+	pilot8_jspsych_data = exclude_double_takers(pilot8_jspsych_data)
 	nothing
 end
 
@@ -176,46 +184,46 @@ PILT_durations = let
 	
 end
 
-# Reversal data --------------------------------------------|
-reversal_durations = let
+# Vigour data --------------------------------------------|
+vigour_durations = let
 
 	# Exclude non finishers
-	reversal_participants = combine(
-		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
-		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "reversal"))) => :n_trials
+	vigour_participants = combine(
+		groupby(pilot7_jspsych_data, [:prolific_pid]),
+		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "vigour_trial"))) => :n_trials
 	)
 
-	filter!(x -> x.n_trials == 150, reversal_participants)
+	filter!(x -> x.n_trials == 54, vigour_participants)
 
-	# Filter to keep only rows with pid-session combinations in reversal_participants
-	reversal_data = semijoin(
-		pilot6_jspsych_data, 
-		reversal_participants, 
-		on = [:prolific_pid, :session]
+	# Filter to keep only rows with pid-session combinations in vigour_participants
+	vigour_data = semijoin(
+		pilot7_jspsych_data, 
+		vigour_participants, 
+		on = [:prolific_pid]
 	)
 
 	timestamps = combine(
-		groupby(reversal_data, [:prolific_pid, :session]),
+		groupby(vigour_data, [:prolific_pid]),
 		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "reversal_instruction").(tp)) - 1]) => 
-			:reversal_instructions_start,
+			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_instructions").(tp)) - 1]) => 
+			:vigour_instructions_start,
 		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findlast((x -> !ismissing(x) && x == "reversal_instruction").(tp))]) => 
-			:reversal_start,
+			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_trial").(tp)) - 1]) => 
+			:vigour_start,
 		[:trialphase, :time_elapsed] => 
-		((tp, t) -> t[findlast((x -> !ismissing(x) && x == "reversal").(tp))]) =>  
-			:reversal_end,
+		((tp, t) -> t[findlast((x -> !ismissing(x) && x == "vigour_trial").(tp))]) =>  
+			:vigour_end,
 	)
 
 	# Calculate durations
-	timestamps.reversal_instructions = (timestamps.reversal_start .- timestamps.reversal_instructions_start) ./ 1000 ./ 60
-	timestamps.reversal = (timestamps.reversal_end .- timestamps.reversal_start) ./ 1000 ./ 60
+	timestamps.vigour_instructions = (timestamps.vigour_start .- timestamps.vigour_instructions_start) ./ 1000 ./ 60
+	timestamps.vigour = (timestamps.vigour_end .- timestamps.vigour_start) ./ 1000 ./ 60
 	
 	# Wide to long
 	durations = stack(
 		timestamps, 
-		[:reversal_instructions, :reversal], 
-		[:prolific_pid, :session],
+		[:vigour_instructions, :vigour], 
+		[:prolific_pid],
 		value_name = :duration
 	)
 
@@ -227,11 +235,7 @@ reversal_durations = let
 	)
 
 	# Task variable: whether LTM or WM
-	durations[!, :task] = ifelse.(
-		durations.session .== "1",
-		"Reversal\nsess. 1",
-		"Reversal\nsess. 2"
-	)
+	durations[!, :task] .= "vigour"
 
 	# Remove missing values
 	filter!(x -> !ismissing(x.duration), durations)
@@ -241,11 +245,105 @@ reversal_durations = let
 	
 end
 
+function calculate_durations(
+	task::String;
+	df::AbstractDataFrame,
+	trial_counting_func::Function = x -> sum((.!ismissing.(x)) .&& (x .== lowercase(task))),
+	n_trials_criterion::Int,
+	instruction_start_finder::Pair{Vector{Symbol}, <:Function},
+	task_start_finder::Pair{Vector{Symbol}, <:Function},
+	task_end_finder::Pair{Vector{Symbol}, <:Function},
+	extreme_value_criterion::Int = 30
+)
+	# Exclude non finishers
+	participants = combine(
+		groupby(df, [:prolific_pid, :session]),
+		:trialphase => (trial_counting_func) => :n_trials
+	)
+
+	filter!(x -> x.n_trials == n_trials_criterion, participants)
+
+	@assert nrow(participants) > 0 "No participants with $task data found"
+
+	# Filter to keep only rows with pid-session combinations in reversal_participants
+	task_data = semijoin(
+		df, 
+		participants, 
+		on = [:prolific_pid, :session]
+	)
+
+	timestamps = combine(
+		groupby(task_data, [:prolific_pid, :session]),
+		instruction_start_finder[1] => instruction_start_finder[2] => :instructions_start,
+		task_start_finder[1] => task_start_finder[2] => :task_start,
+		task_end_finder[1] => task_end_finder[2] =>  :task_end,
+	)
+
+	# Calculate durations
+	timestamps[!, Symbol("$(task)_instructions")] = (timestamps.task_start .- timestamps.instructions_start) ./ 1000 ./ 60
+	timestamps[!, Symbol("$task")] = (timestamps.task_end .- timestamps.task_start) ./ 1000 ./ 60
+	
+	# Wide to long
+	durations = stack(
+		timestamps, 
+		[Symbol("$(task)_instructions"), Symbol("$task")], 
+		[:prolific_pid, :session],
+		value_name = :duration
+	)
+
+	@assert minimum(durations.duration) > 0 "Negative duration found for $task"
+
+	# Part variable: whether instructions or task
+	durations.part = ifelse.(
+		occursin.(r"instructions", durations.variable),
+		"Instructions",
+		"Task"
+	)
+
+	# Task variable
+	if length(unique(durations.session)) > 1
+		durations[!, :task] = ifelse.(
+			durations.session .== "1",
+			"$task sess. 1",
+			"$task sess. 2"
+		)
+	else
+		durations[!, :task] .= "$task"
+	end
+
+	# Remove missing values
+	@info "Removing $(sum(ismissing(durations.duration))) missing values"
+	filter!(x -> !ismissing(x.duration), durations)
+
+	# Remove extremes
+	filter!(x -> x.duration < extreme_value_criterion, durations)
+	
+end
+
+reversal_durations = calculate_durations(
+	"Reversal";
+	df = pilot6_jspsych_data,
+	n_trials_criterion = 150,
+	instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "reversal_instruction").(tp)) - 1]),
+	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "reversal").(tp)) - 1]),
+	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "reversal").(tp))])
+)
+
+pit_durations = calculate_durations(
+	"PIT";
+	df = pilot7_jspsych_data,
+	trial_counting_func = x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial")),
+	n_trials_criterion = 72,
+	instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "pit_instructions").(tp)) - 1]),
+	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "pit_trial").(tp)) - 1]),
+	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "pit_trial").(tp))])
+)
+
 
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)), select(reversal_durations, Not(:session)))
+	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)), select(reversal_durations, Not(:session)), vigour_durations, pit_durations)
 end
 
 # Plot duration rainclouds
