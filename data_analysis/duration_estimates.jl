@@ -275,7 +275,7 @@ vigour_durations = calculate_durations(
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(WM_LTM_durations, select(PILT_durations, Not(:session)), select(reversal_durations, Not(:session)), vigour_durations, pit_durations)
+	durations = vcat(vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations)
 end
 
 # Plot duration rainclouds
