@@ -60,76 +60,6 @@ begin
 	nothing
 end
 
-## WM and LTM data --------------------------------------------|
-# Compute LTM and WM durations
-WM_LTM_durations = let
-	timestamps = combine(
-		groupby(pilot8_jspsych_data, :prolific_pid),
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "LTM_instructions").(tp)) - 1]) => 
-			:LTM_instructions_start,
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "ltm").(tp)) - 1]) => 
-			:LTM_start,
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findlast((x -> !ismissing(x) && x == "ltm").(tp))]) => 
-			:LTM_end,
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> begin
-				idx = findfirst((x -> !ismissing(x) && x == "WM_instructions").(tp))
-				isnothing(idx) ? missing : t[idx - 1]
-			end) => 
-			:WM_instructions_start,
-		[:trialphase, :time_elapsed] => 
-				((tp, t) -> begin
-				idx = findfirst((x -> !ismissing(x) && x == "wm").(tp))
-				isnothing(idx) ? missing : t[idx - 1]
-			end) => 
-			:WM_start,
-		[:trialphase, :time_elapsed] => 
-				((tp, t) -> begin
-				idx = findlast((x -> !ismissing(x) && x == "wm").(tp))
-				isnothing(idx) ? missing : t[idx]
-			end) => 
-			:WM_end,
-	)
-
-	# Calculate durations
-	timestamps.LTM_instructions = (timestamps.LTM_start .- timestamps.LTM_instructions_start) ./ 1000 ./ 60
-	timestamps.WM_instructions = (timestamps.WM_start .- timestamps.WM_instructions_start) ./ 1000 ./ 60
-	timestamps.LTM = (timestamps.LTM_end .- timestamps.LTM_start) ./ 1000 ./ 60
-	timestamps.WM = (timestamps.WM_end .- timestamps.WM_start) ./ 1000 ./ 60
-	
-	# Wide to long
-	durations = stack(
-		timestamps, 
-		[:LTM_instructions, :WM_instructions, :LTM, :WM], 
-		[:prolific_pid],
-		value_name = :duration
-	)
-
-	# Part variable: whether instructions or task
-	durations.part = ifelse.(
-		occursin.(r"instructions", durations.variable),
-		"Instructions",
-		"Task"
-	)
-
-	# Task variable: whether LTM or WM
-	durations.task = ifelse.(
-		occursin.(r"LTM", durations.variable),
-		"LTM",
-		"WM"
-	)
-
-	# Remove missing values
-	filter!(x -> !ismissing(x.duration), durations)
-
-	# Remove extremes in instructions
-	filter!(x -> x.part != "Instructions" || (x.duration < 20), durations)
-
-end
-
 function calculate_durations(
 	task::String;
 	df::AbstractDataFrame,
@@ -205,6 +135,40 @@ function calculate_durations(
 	
 end
 
+wm_durations = calculate_durations(
+	"WM";
+	df = pilot8_jspsych_data,
+	n_trials_criterion = 108,
+	instruction_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> begin
+			idx = findfirst((x -> !ismissing(x) && x == "WM_instructions").(tp))
+			isnothing(idx) ? missing : t[idx - 1]
+		end),
+	task_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> begin
+		idx = findfirst((x -> !ismissing(x) && x == "wm").(tp))
+		isnothing(idx) ? missing : t[idx - 1]
+	end),
+	task_end_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> begin
+		idx = findlast((x -> !ismissing(x) && x == "wm").(tp))
+		isnothing(idx) ? missing : t[idx]
+	end)
+)
+
+ltm_durations = calculate_durations(
+	"LTM";
+	df = pilot8_jspsych_data,
+	n_trials_criterion = 108,
+	instruction_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "LTM_instructions").(tp)) - 1]),
+	task_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "ltm").(tp)) - 1]),
+	task_end_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findlast((x -> !ismissing(x) && x == "ltm").(tp))])
+)
+
+
 pilt_early_stop_durations = calculate_durations(
 	"PILT early stop";
 	trial_counting_finder = [:trialphase, :n_stimuli, :block] => (tp, ns, bl) -> maximum(bl[.!ismissing.(tp) .&& (tp .== "PILT") .&& .!ismissing.(ns) .&& (ns .== 2) .&& isa.(bl, Number)]),
@@ -270,12 +234,10 @@ vigour_durations = calculate_durations(
 	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "vigour_trial").(tp))])
 )
 
-
-
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations)
+	durations = vcat(wm_durations, ltm_durations, vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations)
 end
 
 # Plot duration rainclouds
