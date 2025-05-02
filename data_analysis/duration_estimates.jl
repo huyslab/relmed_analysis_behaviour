@@ -60,6 +60,20 @@ begin
 	nothing
 end
 
+# Load control pilot 2
+begin
+	_, _, control2_1 = load_control_pilot2_data()
+	control2_1 = exclude_double_takers(control2_1)
+	_, _, control2_3 = load_control_pilot2_data(; session = "3")
+	control2_3 = exclude_double_takers(control2_3)
+
+	# Make sure we don't have the same prolific_pid in both versions
+	@assert length(intersect(control2_1.prolific_pid, control2_3.prolific_pid)) == 0 "Control 2 sessions have overlapping participants"
+
+	# Merge data
+	control2 = vcat(control2_1, control2_3)
+end
+
 function calculate_durations(
 	task::String;
 	df::AbstractDataFrame,
@@ -233,6 +247,17 @@ vigour_durations = calculate_durations(
 	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_trial").(tp)) - 1]),
 	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "vigour_trial").(tp))])
 )
+
+control_durations = calculate_durations(
+	"Control";
+	df = control2,
+	trial_counting_finder = [:trialphase] =>  x -> sum((.!ismissing.(x)) .&& (x .== "control_bonus")),
+	n_trials_criterion = 1,
+	instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "control_instructions").(tp)) - 1]),
+	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "control_explore").(tp)) - 1]),
+	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "control_bonus").(tp)) - 1])
+)
+
 
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
