@@ -130,125 +130,10 @@ WM_LTM_durations = let
 
 end
 
-## PILT data --------------------------------------------|
-PILT_durations = let
-	timestamps = combine(
-		groupby(pilot6_jspsych_data, [:prolific_pid, :session]),
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]) => 
-			:PILT_instructions_start,
-		[:block, :time_elapsed] => 
-			((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]) => 
-			:PILT_start,
-		[:trialphase, :n_stimuli, :block, :time_elapsed] => 
-			((tp, ns, b, t) -> begin
-				idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "PILT" && 
-								!ismissing(ns[i]) && ns[i] == 2 && 
-								!ismissing(b[i]) && b[i] == 20), 1:length(tp))
-				isnothing(idx) ? missing : t[idx]
-			end) => 
-			:PILT_end,
-	)
-
-	# Calculate durations
-	timestamps.PILT_instructions = (timestamps.PILT_start .- timestamps.PILT_instructions_start) ./ 1000 ./ 60
-	timestamps.PILT = (timestamps.PILT_end .- timestamps.PILT_start) ./ 1000 ./ 60
-	
-	# Wide to long
-	durations = stack(
-		timestamps, 
-		[:PILT_instructions, :PILT], 
-		[:prolific_pid, :session],
-		value_name = :duration
-	)
-
-	# Part variable: whether instructions or task
-	durations.part = ifelse.(
-		occursin.(r"instructions", durations.variable),
-		"Instructions",
-		"Task"
-	)
-
-	# Task variable: whether LTM or WM
-	durations[!, :task] = ifelse.(
-		durations.session .== "1",
-		"PILT\nsess. 1",
-		"PILT\nsess. 2"
-	)
-
-	# Remove missing values
-	filter!(x -> !ismissing(x.duration), durations)
-
-	# Remove extremes
-	filter!(x -> x.duration < 30, durations)
-	
-end
-
-# Vigour data --------------------------------------------|
-vigour_durations = let
-
-	# Exclude non finishers
-	vigour_participants = combine(
-		groupby(pilot7_jspsych_data, [:prolific_pid]),
-		:trialphase => (x -> sum((.!ismissing.(x)) .&& (x .== "vigour_trial"))) => :n_trials
-	)
-
-	filter!(x -> x.n_trials == 54, vigour_participants)
-
-	# Filter to keep only rows with pid-session combinations in vigour_participants
-	vigour_data = semijoin(
-		pilot7_jspsych_data, 
-		vigour_participants, 
-		on = [:prolific_pid]
-	)
-
-	timestamps = combine(
-		groupby(vigour_data, [:prolific_pid]),
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_instructions").(tp)) - 1]) => 
-			:vigour_instructions_start,
-		[:trialphase, :time_elapsed] => 
-			((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_trial").(tp)) - 1]) => 
-			:vigour_start,
-		[:trialphase, :time_elapsed] => 
-		((tp, t) -> t[findlast((x -> !ismissing(x) && x == "vigour_trial").(tp))]) =>  
-			:vigour_end,
-	)
-
-	# Calculate durations
-	timestamps.vigour_instructions = (timestamps.vigour_start .- timestamps.vigour_instructions_start) ./ 1000 ./ 60
-	timestamps.vigour = (timestamps.vigour_end .- timestamps.vigour_start) ./ 1000 ./ 60
-	
-	# Wide to long
-	durations = stack(
-		timestamps, 
-		[:vigour_instructions, :vigour], 
-		[:prolific_pid],
-		value_name = :duration
-	)
-
-	# Part variable: whether instructions or task
-	durations.part = ifelse.(
-		occursin.(r"instructions", durations.variable),
-		"Instructions",
-		"Task"
-	)
-
-	# Task variable: whether LTM or WM
-	durations[!, :task] .= "vigour"
-
-	# Remove missing values
-	filter!(x -> !ismissing(x.duration), durations)
-
-	# Remove extremes
-	filter!(x -> x.duration < 30, durations)
-	
-end
-
 function calculate_durations(
 	task::String;
 	df::AbstractDataFrame,
-	trial_counting_func::Function = x -> sum((.!ismissing.(x)) .&& (x .== lowercase(task))),
+	trial_counting_finder::Pair{Vector{Symbol}, <:Function} = [:trialphase] => (x -> sum((.!ismissing.(x)) .&& (x .== lowercase(task)))),
 	n_trials_criterion::Int,
 	instruction_start_finder::Pair{Vector{Symbol}, <:Function},
 	task_start_finder::Pair{Vector{Symbol}, <:Function},
@@ -258,7 +143,7 @@ function calculate_durations(
 	# Exclude non finishers
 	participants = combine(
 		groupby(df, [:prolific_pid, :session]),
-		:trialphase => (trial_counting_func) => :n_trials
+		trial_counting_finder[1] => trial_counting_finder[2] => :n_trials
 	)
 
 	filter!(x -> x.n_trials == n_trials_criterion, participants)
@@ -320,6 +205,42 @@ function calculate_durations(
 	
 end
 
+pilt_early_stop_durations = calculate_durations(
+	"PILT early stop";
+	trial_counting_finder = [:trialphase, :n_stimuli, :block] => (tp, ns, bl) -> maximum(bl[.!ismissing.(tp) .&& (tp .== "PILT") .&& .!ismissing.(ns) .&& (ns .== 2) .&& isa.(bl, Number)]),
+	df = pilot6_jspsych_data,
+	n_trials_criterion = 20, # Actually blocks
+	instruction_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]),
+	task_start_finder = [:block, :time_elapsed] => 
+		((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]),
+	task_end_finder = [:trialphase, :n_stimuli, :block, :time_elapsed] => 
+		((tp, ns, b, t) -> begin
+			idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "PILT" && 
+							!ismissing(ns[i]) && ns[i] == 2 && 
+							!ismissing(b[i]) && b[i] == 20), 1:length(tp))
+			isnothing(idx) ? missing : t[idx]
+		end)
+)
+
+pilt_no_early_stop_durations = calculate_durations(
+	"PILT no early stop";
+	trial_counting_finder = [:trialphase, :n_stimuli, :block] => (tp, ns, bl) -> maximum(bl[.!ismissing.(tp) .&& (tp .== "PILT") .&& .!ismissing.(ns) .&& (ns .== 2) .&& isa.(bl, Number)]),
+	df = pilot7_jspsych_data,
+	n_trials_criterion = 20, # Actually blocks
+	instruction_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]),
+	task_start_finder = [:block, :time_elapsed] => 
+		((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]),
+	task_end_finder = [:trialphase, :n_stimuli, :block, :time_elapsed] => 
+		((tp, ns, b, t) -> begin
+			idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "PILT" && 
+							!ismissing(ns[i]) && ns[i] == 2 && 
+							!ismissing(b[i]) && b[i] == 20), 1:length(tp))
+			isnothing(idx) ? missing : t[idx]
+		end)
+)
+
 reversal_durations = calculate_durations(
 	"Reversal";
 	df = pilot6_jspsych_data,
@@ -332,12 +253,23 @@ reversal_durations = calculate_durations(
 pit_durations = calculate_durations(
 	"PIT";
 	df = pilot7_jspsych_data,
-	trial_counting_func = x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial")),
+	trial_counting_finder = [:trialphase] =>  x -> sum((.!ismissing.(x)) .&& (x .== "pit_trial")),
 	n_trials_criterion = 72,
 	instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "pit_instructions").(tp)) - 1]),
 	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "pit_trial").(tp)) - 1]),
 	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "pit_trial").(tp))])
 )
+
+vigour_durations = calculate_durations(
+	"vigour";
+	df = pilot7_jspsych_data,
+	trial_counting_finder = [:trialphase] => x -> sum((.!ismissing.(x)) .&& (x .== "vigour_trial")),
+	n_trials_criterion = 54,
+	instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_instructions").(tp)) - 1]),
+	task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "vigour_trial").(tp)) - 1]),
+	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "vigour_trial").(tp))])
+)
+
 
 
 ## Plot and summarize -----------------------------------|
