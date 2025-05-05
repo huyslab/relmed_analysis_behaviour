@@ -122,6 +122,11 @@ PILT_blocks = let rng = Xoshiro(0)
 		trans_counts = values(countmap(transitions))
 
 
+        # Constraints:
+        # 1. First block rewards only
+        # 2. Blocks 2 and 3 with mixed valence
+        # 3. Block 4 with punishments only
+        # 4. Maximize exposure to most transition types
 		criteria = all(outcome_combinations[1] .> 0) &&
 			all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
 			all(outcome_combinations[4] .< 0) &&
