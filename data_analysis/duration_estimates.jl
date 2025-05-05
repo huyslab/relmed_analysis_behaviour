@@ -72,6 +72,9 @@ begin
 
 	# Merge data
 	control2 = vcat(control2_1, control2_3)
+
+	# Overwrite session variable
+	control2.session .= "1"
 end
 
 function calculate_durations(
@@ -258,30 +261,54 @@ control_durations = calculate_durations(
 	task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "control_bonus").(tp)) - 1])
 )
 
+control_no_fail_durations = let
+	# Exclude people who failed the quiz
+	participants = combine(
+		groupby(control2, [:prolific_pid, :session]),
+		[:trialphase] => (x -> sum((.!ismissing.(x)) .&& (x .== "control_instruction_quiz_failure")) > 0) => :failed
+	)
+
+	filter!(x -> !x.failed, participants)
+
+	control2_no_fail = semijoin(control2, participants, on = [:prolific_pid, :session])
+	
+	calculate_durations(
+		"Control no failures";
+		df = control2_no_fail,
+		trial_counting_finder = [:trialphase] =>  x -> sum((.!ismissing.(x)) .&& (x .== "control_bonus")),
+		n_trials_criterion = 1,
+		instruction_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "control_instructions").(tp)) - 1]),
+		task_start_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "control_explore").(tp)) - 1]),
+		task_end_finder = [:trialphase, :time_elapsed] => ((tp, t) -> t[findlast((x -> !ismissing(x) && x == "control_bonus").(tp)) - 1])
+	)
+end
+
+
 
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(wm_durations, ltm_durations, vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations)
+	durations = vcat(wm_durations, ltm_durations, vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations, control_durations, control_no_fail_durations)
 end
 
-# Plot duration rainclouds
+# Plot duration ecdfs
 let df = copy(durations)
 	f = Figure()
 
-	df.side = ifelse.(df.part .== "Instructions", :right, :left)
+	# Compute ecdfs
+	sort!(df, [:task, :part, :duration])
 
-	mp = data(df) * mapping(
-		:task => "Task",
-		:duration => "Duration (minutes)",
-		color = :part => ""
-		) * visual(RainClouds, plot_boxplots = false)
+	DataFrames.transform!(groupby(df, [:task, :part]), :duration => (x -> (1:length(x)) ./ length(x)) => :ecdf)
 
-	plt = draw!(f[1,1], mp)
+	DataFrames.transform!(df, [:task, :part] => ByRow((x, y) -> x * " " * y) => :label)
 
-	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	# Plot ecdfs
+	mp = data(df) *
+		mapping(:duration, :ecdf, layout = :label) * visual(Lines)
+
+	plot(mp)
 	
-	f
 end
 
 # Percentile table of durations
