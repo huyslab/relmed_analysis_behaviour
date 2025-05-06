@@ -212,9 +212,14 @@ to_add = filter(row -> row.target_island != 3, both_viable_df) |>
   return group_df[rand(1:nrow(group_df)), :]
 end
 
+# reward_sequence = vcat(
+#   filter(row -> row.target_island != 3, both_viable_df),
+#   ship_viable_df
+# )
+
 reward_sequence = vcat(
-  filter(row -> row.target_island != 3, both_viable_df),
-  ship_viable_df
+  to_add,
+  unique_combinations
 )
 
 combine(groupby(reward_sequence, [:left_viable, :right_viable, :island_viable]), nrow)
