@@ -130,7 +130,9 @@ PILT_blocks = let rng = Xoshiro(0)
 		criteria = all(outcome_combinations[1] .> 0) &&
 			all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
 			all(outcome_combinations[4] .< 0) &&
-			maximum(trans_counts) <= 1
+			maximum(trans_counts) <= 1 &&
+            [-1.0, 1.] ∉ sort.(outcome_combinations[1:4]) &&
+            all((x -> x[2] - x[1]).(outcome_combinations[1:4]) .!= 0.)
 
 	end
 
@@ -174,8 +176,8 @@ PILT_blocks = let rng = Xoshiro(0)
 
 	# Add secondary outcome, shuffle under contraints such that the first two blocks primary outcome matches secondary in sign, and that stimulus B (repeating) has uniform distribution
 	criteria2 = false
-	B_score = Inf
-	while !criteria2
+	n_attempts = 0
+	while !criteria2 && n_attempts < 100000
 		DataFrames.transform!(
 			groupby(PILT_blocks_long, [:deterministic, :primary_outcome]),
 			[:deterministic, :primary_outcome] => 
@@ -194,10 +196,35 @@ PILT_blocks = let rng = Xoshiro(0)
 			PILT_blocks_long.primary_outcome .* 0.8 + PILT_blocks_long.secondary_outcome .* 0.2
 		)
 
+        # Long to wide to compute EV difference
+        PILT_blocks = unstack(
+            PILT_blocks_long,
+            [:block],
+            :stimulus,
+            :EV
+        )
 
+        # # Compute EV difference
+        PILT_blocks.EV_abs_diff = abs.(PILT_blocks.A - PILT_blocks.B)
+
+        # # Discretize to five bins from zero to two
+        PILT_blocks.EV_abs_diff_bin = ceil.((PILT_blocks.EV_abs_diff .+ eps()) ./ 0.4) * 0.4
+
+        EV_diff_bin_counts = countmap(PILT_blocks.EV_abs_diff_bin)
+
+        EV_diff_counts_sd = std(values(EV_diff_bin_counts))
+
+        # println(EV_diff_bin_counts)
+        # println(maximum(EV_diff_bin_counts) - minimum(EV_diff_bin_counts))
+
+        EV_diff_uniform = EV_diff_counts_sd < 2.5
+
+        # Check if the first two blocks primary outcome matches secondary in sign
 		first_mathces = all((r -> sign(r.primary_outcome) == 
 			sign(r.secondary_outcome)).(eachrow(filter(x -> x.block in [5,6], PILT_blocks_long))))
 
+
+        # Check if stimulus B has uniform distribution
 		EV_B_bin = discretize_to_quantiles(
 			PILT_blocks_long.EV,
 			PILT_blocks_long.EV,
@@ -208,7 +235,14 @@ PILT_blocks = let rng = Xoshiro(0)
 
 		B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) == 1
 
-		criteria2 = first_mathces && B_uniform
+		criteria2 = first_mathces && B_uniform && EV_diff_uniform
+
+        if criteria2
+            println(EV_diff_counts_sd)
+            println(EV_diff_bin_counts)
+        end
+        
+        n_attempts += 1
 
 	end
 	
@@ -249,20 +283,6 @@ PILT_blocks = let rng = Xoshiro(0)
 
 end
 
-let
-	
-	autocor(PILT_blocks.EV_B), autocor(PILT_blocks.EV_A)
-	
-end
-
-let
-	@info quantile(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B), range(0., 1., 6))
-
-	@info minimum(abs.(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B)))
-	
-	hist(vcat(PILT_blocks.EV_A, PILT_blocks.EV_B), bins = 40)
-
-end
 
 function assign_stimuli_and_optimality(;
 	n_phases::Int64,
@@ -385,41 +405,5 @@ PILT_stimuli = let random_seed = 0
 	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
 
 	stimuli
-end
-
-let
-
-	PILT_blocks_stims = leftjoin(
-		PILT_blocks,
-		PILT_stimuli,
-		on = :block
-	)
-
-	PILT_blocks_stims.EV_B_bin = discretize_to_quantiles(
-		PILT_blocks_stims.EV_B,
-		vcat(PILT_blocks_stims.EV_A, PILT_blocks_stims.EV_B),
-		3
-	)
-
-	PILT_blocks_stims.previous_EV_B_bin = vcat(
-		[missing], (PILT_blocks_stims.EV_B_bin)[1:(end-1)]
-	)
-
-	PILT_blocks_stims.repeating_optimal = vcat(
-		[missing], (.! PILT_blocks_stims.optimal_A)[2:end]
-	)
-
-	PILT_blocks_stims.repeating_previous_optimal = vcat(
-		[missing], (.! PILT_blocks_stims.optimal_A)[1:(end-1)]
-	)
-
-	combine(
-		groupby(
-			PILT_blocks_stims, 
-			[:EV_B_bin, :previous_EV_B_bin]
-		),
-		:EV_B_bin => length => :n
-	) 
-
 end
 
