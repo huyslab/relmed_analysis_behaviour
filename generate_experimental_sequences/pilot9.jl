@@ -283,7 +283,39 @@ PILT_blocks = let rng = Xoshiro(0)
 
 end
 
+"""
+    assign_stimuli_and_optimality(;
+        n_phases::Int64,
+        n_pairs::Vector{Int64},
+        categories::AbstractVector = [...],
+        random_seed::Int64 = 1,
+        ext::String = "jpg"
+    ) -> DataFrame
 
+Assigns stimulus categories to experimental blocks with controlled repetition patterns.
+
+Creates a DataFrame assigning stimuli to experimental blocks across multiple phases, where:
+- Each trial has two stimuli (A and B)
+- Stimulus A is always novel
+- Stimulus B may repeat from previous trials (when possible)
+- The optimal choice (A or B) is balanced and randomized
+
+# Arguments
+- `n_phases`: Number of experimental phases
+- `n_pairs`: Vector specifying number of stimulus pairs in each block
+- `categories`: Vector of category labels to assign to stimuli
+- `random_seed`: Seed for reproducible randomization
+- `ext`: File extension for stimulus images
+
+# Returns
+DataFrame with columns:
+- `phase`: Phase number
+- `block`: Block number within phase
+- `pair`: Pair number within block
+- `stimulus_A`: Filename for stimulus A (always novel)
+- `stimulus_B`: Filename for stimulus B (may repeat)
+- `optimal_A`: Boolean indicating whether stimulus A is optimal
+"""
 function assign_stimuli_and_optimality(;
 	n_phases::Int64,
 	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
