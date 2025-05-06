@@ -283,158 +283,33 @@ PILT_blocks = let rng = Xoshiro(0)
 
 end
 
-"""
-    assign_stimuli_and_optimality(;
-        n_phases::Int64,
-        n_pairs::Vector{Int64},
-        categories::AbstractVector = [...],
-        random_seed::Int64 = 1,
-        ext::String = "jpg"
-    ) -> DataFrame
-
-Assigns stimulus categories to experimental blocks with controlled repetition patterns.
-
-Creates a DataFrame assigning stimuli to experimental blocks across multiple phases, where:
-- Each trial has two stimuli (A and B)
-- Stimulus A is always novel
-- Stimulus B may repeat from previous trials (when possible)
-- The optimal choice (A or B) is balanced and randomized
-
-# Arguments
-- `n_phases`: Number of experimental phases
-- `n_pairs`: Vector specifying number of stimulus pairs in each block
-- `categories`: Vector of category labels to assign to stimuli
-- `random_seed`: Seed for reproducible randomization
-- `ext`: File extension for stimulus images
-
-# Returns
-DataFrame with columns:
-- `phase`: Phase number
-- `block`: Block number within phase
-- `pair`: Pair number within block
-- `stimulus_A`: Filename for stimulus A (always novel)
-- `stimulus_B`: Filename for stimulus B (may repeat)
-- `optimal_A`: Boolean indicating whether stimulus A is optimal
-"""
-function assign_stimuli_and_optimality(;
-	n_phases::Int64,
-	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
-	categories::AbstractVector = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
-		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	random_seed::Int64 = 1,
-	ext::String = "jpg"
-	)
-
-	total_n_pairs = sum(n_pairs) # Number of pairs needed
-	
-	# @assert rem(length(n_pairs), 2) == 0 "Code only works for even number of blocks per sesion"
-
-	@assert length(categories) >= sum(total_n_pairs) * n_phases + n_phases "Not enought categories supplied"
-
-	# Compute how many repeating categories we will have
-	n_repeating = sum(min.(n_pairs[2:end], n_pairs[1:end-1]))
-
-	# Assign whether repeating is optimal and shuffle
-	repeating_optimal = shuffle(
-		Xoshiro(random_seed),
-		vcat(
-			fill(true, div(n_repeating, 2)),
-			fill(false, div(n_repeating, 2) + rem(n_repeating, 2))
-		)
-	)
-
-	# Assign whether categories that cannot repeat are optimal
-	rest_optimal = shuffle(
-		vcat(
-			fill(true, div(total_n_pairs - n_repeating, 2) + 
-				rem(total_n_pairs - n_repeating, 2)),
-			fill(false, div(total_n_pairs - n_repeating, 2))
-		)
-	)
-
-	# Initialize vectors for stimuli. A is always novel, B may be repeating
-	stimulus_A = []
-	stimulus_B = []
-	optimal_B = []
-	
-	for j in 1:n_phases
-		for (i, p) in enumerate(n_pairs)
-	
-			# Choose repeating categories for this block
-			n_repeating = ((i > 1) && minimum([p, n_pairs[i - 1]])) * 1
-			append!(
-				stimulus_B,
-				stimulus_A[(end - n_repeating + 1):end]
-			)
-	
-			# Fill up stimulus_repeating with novel categories if not enough to repeat
-			for _ in 1:(p - n_repeating)
-				push!(
-					stimulus_B,
-					popfirst!(categories)
-				)
-			end
-			
-			# Choose novel categories for this block
-			for _ in 1:p
-				push!(
-					stimulus_A,
-					popfirst!(categories)
-				)
-			end
-
-			# Populate who is optimal vector
-			for _ in 1:(n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(repeating_optimal)
-				)
-			end
-
-			for _ in 1:(p - n_repeating)
-				push!(
-					optimal_B,
-					popfirst!(rest_optimal)
-				)
-			end
-		end
-	end
-
-	stimulus_A = (x -> x * "_1.$ext").(stimulus_A)
-	stimulus_B = (x -> x * "_2.$ext").(stimulus_B)
-
-	return DataFrame(
-		phase = repeat(1:n_phases, inner = total_n_pairs),
-		block = repeat(
-			vcat([fill(i, p) for (i, p) in enumerate(n_pairs)]...), n_phases),
-		pair = repeat(
-			vcat([1:p for p in n_pairs]...), n_phases),
-		stimulus_A = stimulus_A,
-		stimulus_B = stimulus_B,
-		optimal_A = .!(optimal_B)
-	)
-
-end
 
 # Assign stimulus images
 PILT_stimuli = let random_seed = 0
 
-	# Shuffle categories
-	shuffle!(Xoshiro(random_seed), categories)
-
 	@info length(categories)
 
 	# Assign stimulus pairs
-	stimuli = assign_stimuli_and_optimality(;
-		n_phases = 1,
-		n_pairs = fill(1, nrow(PILT_blocks)),
-		categories = categories,
-		random_seed = random_seed
+	stimuli = vcat(
+		[
+			insertcols(assign_stimuli_and_optimality(;
+				n_phases = 1,
+				n_pairs = fill(1, maximum(PILT_blocks.block)),
+				categories = categories,
+				rng = Xoshiro(random_seed)
+		), 1, :session => s) for s in 1:2
+		]...
 	)
+
+    @info "Categories left after PILT assignment: $(length(categories))"
 
 	@info "Proportion of blocks on which the novel category is optimal : $(mean(stimuli.optimal_A))"
 
-	rename!(stimuli, :phase => :session) # For compatibility with multi-phase sessions
+    # Check that optimal_A is the same for each session
+    @assert allequal([gdf.optimal_A for gdf in groupby(stimuli, :session)]) "optimal_A is not the same for each session"
+
+    # Check that the set of stimuli used is different for each session
+    @assert !any(intersect(gdf1.stimulus_A, gdf2.stimulus_A) != [] for (gdf1, gdf2) in combinations(groupby(stimuli, :session), 2)) "Stimuli used in different sessions are not disjoint"
 
 	stimuli
 end
