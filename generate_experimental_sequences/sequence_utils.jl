@@ -33,7 +33,7 @@ function assign_stimuli_and_optimality(;
 
 	total_n_pairs = sum(n_pairs) # Number of pairs needed
 	
-	@assert rem(length(n_pairs), 2) == 0 "Code only works for even number of blocks per sesion"
+	# @assert rem(length(n_pairs), 2) == 0 "Code only works for even number of blocks per sesion"
 
 	@assert length(categories) >= sum(total_n_pairs) * n_phases + n_phases "Not enought categories supplied"
 
