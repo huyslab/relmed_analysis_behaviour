@@ -345,6 +345,68 @@ PILT_sequence = let rng = Xoshiro(0)
         n_confusing = repeat(PILT_blocks.n_confusing, inner = PILT_trials_per_block)
     )
 
+    # Merge with blocks
+    PILT_sequence = leftjoin(
+        PILT_sequence,
+        select(PILT_blocks, [:block, :n_confusing, :primary_outcome_A, :primary_outcome_B, :secondary_outcome_A, :secondary_outcome_B]),
+        on = [:block, :n_confusing]
+    )
+
+    # Create feedback_A and feedback_B
+    PILT_sequence.feedback_A = ifelse.(
+        PILT_sequence.common_feedback,
+        PILT_sequence.primary_outcome_A,
+        PILT_sequence.secondary_outcome_A
+    )
+    PILT_sequence.feedback_B = ifelse.(
+        PILT_sequence.common_feedback,
+        PILT_sequence.primary_outcome_B,
+        PILT_sequence.secondary_outcome_B
+    )
+
+    # Merge with stimuli
+    PILT_sequence = leftjoin(
+        PILT_sequence,
+        select(PILT_stimuli, [:block, :session, :optimal_A, :stimulus_A, :stimulus_B]),
+        on = [:block]
+    )
+
+    sort!(PILT_sequence, [:session, :block, :trial])
+
+    # Randomize appearance on left / right
+    DataFrames.transform!(
+        groupby(PILT_sequence, [:session, :block]),
+        :trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
+    )
+
+    # Create stimulus on left / right
+    PILT_sequence.stimulus_right = ifelse.(
+		PILT_sequence.A_on_right,
+		PILT_sequence.stimulus_A,
+		PILT_sequence.stimulus_B
+	)
+
+    PILT_sequence.stimulus_left = ifelse.(
+		.!PILT_sequence.A_on_right,
+		PILT_sequence.stimulus_A,
+		PILT_sequence.stimulus_B
+	)
+
+    # Create optimal_right
+    PILT_sequence.optimal_right = (PILT_sequence.A_on_right .& PILT_sequence.optimal_A) .| (.!PILT_sequence.A_on_right .& .!PILT_sequence.optimal_A)
+
+    # Create feedback_right and feedback_left
+    PILT_sequence.feedback_right = ifelse.(
+        PILT_sequence.A_on_right,
+        PILT_sequence.feedback_A,
+        PILT_sequence.feedback_B
+    )
+    PILT_sequence.feedback_left = ifelse.(
+        .!PILT_sequence.A_on_right,
+        PILT_sequence.feedback_A,
+        PILT_sequence.feedback_B
+    )
+
 
 end
 
