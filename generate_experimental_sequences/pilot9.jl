@@ -407,6 +407,20 @@ PILT_sequence = let rng = Xoshiro(0)
         PILT_sequence.feedback_B
     )
 
+    # Add variables needed for experiment script
+	insertcols!(
+		PILT_sequence,
+		:n_stimuli => 2,
+		:n_groups => 1,
+		:stimulus_group => 1,
+		:stimulus_group_id => PILT_sequence.block,
+		:stimulus_middle => "",
+		:feedback_middle => "",
+		:optimal_side => "",
+		:present_pavlovian => true,
+		:early_stop => true
+	)
+
 
 end
 
