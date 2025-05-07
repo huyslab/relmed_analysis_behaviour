@@ -314,3 +314,37 @@ PILT_stimuli = let random_seed = 0
 	stimuli
 end
 
+# Create PILT sequence
+PILT_sequence = let rng = Xoshiro(0)
+
+    # All positions of common feedback
+    common_feedback_positions = Dict(
+        n_confusing => shuffle(rng, collect(combinations(1:PILT_trials_per_block, n_confusing)))
+        for n_confusing in unique(PILT_blocks.n_confusing)
+    )
+
+    # Helper function to assign common feedback
+    get_sequence = function(indices::Vector{Int})
+        v = fill(true, PILT_trials_per_block)
+        v[indices] .= false
+        return v
+    end
+
+    # Assign common feedback
+    common_feedback = vcat(
+        [
+            n_confusing == 0 ?  fill(true, PILT_trials_per_block) : get_sequence(pop!(common_feedback_positions[n_confusing])) for n_confusing in PILT_blocks.n_confusing 
+        ]...
+    )
+
+    # Make into DataFrame
+    PILT_sequence = DataFrame(
+        block = repeat(PILT_blocks.block, inner = PILT_trials_per_block),
+        trial = repeat(1:PILT_trials_per_block, outer = length(PILT_blocks.block)),
+        common_feedback = common_feedback,
+        n_confusing = repeat(PILT_blocks.n_confusing, inner = PILT_trials_per_block)
+    )
+
+
+end
+
