@@ -315,7 +315,7 @@ PILT_stimuli = let random_seed = 0
 end
 
 # Create PILT sequence
-PILT_sequence = let rng = Xoshiro(0)
+PILT_sequence = let rng = Xoshiro(2)
 
     position_criterion = false
     PILT_sequence = DataFrame()
