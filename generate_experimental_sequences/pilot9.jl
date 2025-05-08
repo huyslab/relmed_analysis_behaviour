@@ -430,6 +430,33 @@ PILT_sequence = let rng = Xoshiro(0)
 
 end
 
+# Validate task DataFrame
+let task = PILT_sequence
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert all(combine(groupby(task, :session), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = filter(x -> x.valence == -1, task) |> 
+		df -> ifelse.(
+			df.feedback_right .< df.feedback_left, 
+			df.feedback_right, 
+			df.feedback_left) |> 
+		countmap
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+
 # Test phase ---------------------------------------------------------
 function create_test_sequence(
 	pilt_task::DataFrame;
