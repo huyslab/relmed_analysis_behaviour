@@ -14,7 +14,8 @@ pars = TaskParameters(
 )
 
 ship_name = ["red", "yellow", "green", "blue"]
-island_name = ["banana", "coconut", "grape", "orange"]
+# island_name = ["banana", "coconut", "grape", "orange"]
+island_name = ["i1", "i2", "i3", "i4"]
 
 # Set random seed for reproducibility
 Random.seed!(0)
