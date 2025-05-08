@@ -468,6 +468,11 @@ let task = PILT_sequence
 
 end
 
+let
+	# Save to file
+	save_to_JSON(PILT_sequence, "results/pilot9_PILT.json")
+	CSV.write("results/pilot9_PILT.csv", PILT_sequence)
+end
 
 # Test phase ---------------------------------------------------------
 function create_test_sequence(
