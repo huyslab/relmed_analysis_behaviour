@@ -418,9 +418,9 @@ PILT_sequence = let rng = Xoshiro(0)
 		:feedback_middle => "",
 		:optimal_side => "",
 		:present_pavlovian => true,
-		:early_stop => true
+		:early_stop => true,
+        :valence => 0 # Meaning mixed
 	)
-
 
 end
 
