@@ -376,7 +376,13 @@ PILT_sequence = let rng = Xoshiro(0)
     # Randomize appearance on left / right
     DataFrames.transform!(
         groupby(PILT_sequence, [:session, :block]),
-        :trial => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
+        :n_confusing => (x -> shuffle(
+            rng,
+            vcat(
+                fill(true, PILT_trials_per_block - only(unique(x))),
+                fill(false, only(unique(x)))
+            )
+        )) => :A_on_right
     )
 
     # Create stimulus on left / right
@@ -423,4 +429,382 @@ PILT_sequence = let rng = Xoshiro(0)
 	)
 
 end
+
+# Test phase ---------------------------------------------------------
+function create_test_sequence(
+	pilt_task::DataFrame;
+	random_seed::Int64, 
+	same_weight::Float64 = 6.5,
+	test_n_blocks::Int64 = PILT_test_n_blocks
+) 
+	
+	rng = Xoshiro(random_seed)
+
+	# Extract stimuli and their feedback from task structure
+	stimuli = vcat([rename(
+		pilt_task[!, [:session, :block, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in ["right", "left"]]...)
+
+	# Summarize EV per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :block, :stimulus]),
+		:feedback => mean => :EV,
+        :feedback => StatsBase.mode => :feedback
+	)
+
+    # Bin EV into six bins, separating positive and negative
+    stimuli.EV_bin = let
+        # Separate positive and negative EVs
+        pos_EVs = filter(x -> x > 0, stimuli.EV)
+        neg_EVs = filter(x -> x < 0, stimuli.EV)
+        
+        # Create 3 bins for positive values
+        if !isempty(pos_EVs)
+            # Calculate quantiles to create 3 equally sized bins
+            pos_edges = quantile(pos_EVs, [0, 1/3, 2/3, 1])
+            # Calculate midpoints for bin labels
+            pos_midpoints = [(pos_edges[i] + pos_edges[i+1])/2 for i in 1:3]
+        else
+            pos_edges = Float64[]
+            pos_midpoints = Float64[]
+        end
+        
+        # Create 3 bins for negative values
+        if !isempty(neg_EVs)
+            # Calculate quantiles to create 3 equally sized bins
+            neg_edges = quantile(neg_EVs, [0, 1/3, 2/3, 1])
+            # Calculate midpoints for bin labels
+            neg_midpoints = [(neg_edges[i] + neg_edges[i+1])/2 for i in 1:3]
+        else
+            neg_edges = Float64[]
+            neg_midpoints = Float64[]
+        end
+        
+        # Function to assign bin using the midpoint as the label
+        function assign_bin(ev)
+            if ev > 0
+                for i in 1:3
+                    if ev <= pos_edges[i+1]
+                        return pos_midpoints[i]
+                    end
+                end
+            elseif ev < 0
+                for i in 2:4
+                    if ev <= neg_edges[i]
+                        return neg_midpoints[i-1]
+                    end
+                end
+            end
+            error("EV value $ev does not fit into any bin")
+        end
+        
+        # Apply binning to each EV value
+        [assign_bin(ev) for ev in stimuli.EV]
+    end
+    
+    # Additional check to verify distribution of bins
+    bin_counts = countmap(stimuli.EV_bin)
+    @assert allequal(values(bin_counts)) "EV bins are not equally distributed"
+
+	# Step 1: Identify unique stimuli
+	unique_stimuli = unique(stimuli.stimulus)
+
+	# Step 2: Define existing pairs
+	create_pair_list(d) = [filter(x -> x.block == p, d).stimulus 
+		for p in unique(stimuli.block)]
+
+	existing_pairs = create_pair_list(stimuli)
+
+	# Step 3: Generate all possible pairs
+	all_possible_pairs = unique(sort.(collect(combinations(unique_stimuli, 2))))
+
+	# Step 6: Select pairs ensuring each stimulus is used once and EVs are balanced
+	final_pairs = []
+	used_stimuli = Set{String}()
+
+	# Create a priority queue for balanced selection based on pair counts
+	pair_counts = Dict{Vector{Float64}, Int}()
+
+	# Function to retrieve attribute of stimulus
+	stim_attr(s, attr) = stimuli[stimuli.stimulus .== s, :][!, attr][1]
+
+	for b in 1:test_n_blocks
+
+		# Step 4: Filter valid pairs: were not paired in PILT, ano same category
+		valid_pairs = 
+			filter(pair -> 
+				!(pair in existing_pairs) && 
+				!(reverse(pair) in existing_pairs) && 
+				(pair[1][1:(end-5)] != pair[2][1:(end-5)]), 
+			all_possible_pairs)
+	
+		# Step 5: Create a mapping of pairs to their magnitudes
+		EV_pairs = Dict{Vector{Float64}, Vector{Vector{String}}}()
+		
+		for pair in valid_pairs
+		    EV1 = stimuli[stimuli.stimulus .== pair[1], :].EV_bin[1]
+		    EV2 = stimuli[stimuli.stimulus .== pair[2], :].EV_bin[1]
+		    key = sort([EV1, EV2])
+		    if !haskey(EV_pairs, key)
+		        EV_pairs[key] = []
+		    end
+		    push!(EV_pairs[key], pair)
+		end
+	
+		@assert sum(length(vec) for vec in values(EV_pairs)) == length(valid_pairs)
+	
+		# Step 5.5 - Shuffle order within each magnitude
+		for (k, v) in EV_pairs
+			EV_pairs[k] = shuffle(rng, v)
+		end
+
+		# Initialize counts
+		if b == 1
+			for key in keys(EV_pairs)
+			    pair_counts[key] = 0
+			end
+		end
+		
+		block_pairs = []
+		
+		while true
+		    found_pair = false
+	
+		    # Select pairs while balancing magnitudes
+		    for key in sort(collect(keys(EV_pairs)), by = x -> pair_counts[x] + same_weight * (x[1] == x[2])) # Sort by count, putting equal magnitude las
+		        pairs = EV_pairs[key]
+	
+				# First try to find a same block pair
+		        for pair in pairs
+		            if !(pair[1] in used_stimuli) && !(pair[2] in used_stimuli)  && 
+						stim_attr(pair[1], "block") == stim_attr(pair[2], "block")
+					
+		                push!(block_pairs, pair)
+		                push!(used_stimuli, pair[1])
+		                push!(used_stimuli, pair[2])
+		                pair_counts[key] += 1
+		                found_pair = true
+		                break  # Stop going over pairs
+		            end
+		        end
+	
+				# Then try different block pair
+		        for pair in pairs
+		            if !found_pair &&!(pair[1] in used_stimuli) && 
+						!(pair[2] in used_stimuli) 
+					
+		                push!(block_pairs, pair)
+		                push!(used_stimuli, pair[1])
+		                push!(used_stimuli, pair[2])
+		                pair_counts[key] += 1
+		                found_pair = true
+		                break  # Stop going over pairs
+		            end
+		        end
+		        
+		        if found_pair
+		            break  # Restart the outer loop if a pair was found
+		        end
+		    end
+
+			# Alert bad seed
+			if !found_pair
+				return DataFrame(), NaN, NaN, NaN
+			end
+		
+		    if length(used_stimuli) == length(unique_stimuli)
+		        break  # Exit if all stimuli are used or no valid pairs remain
+		    end
+		end
+
+		# Step 7 - Shuffle pair order
+		shuffle!(rng, block_pairs)
+
+		# Add block pairs to final pairs
+		append!(final_pairs, block_pairs)
+
+		# Add block pairs to existing pairs
+		append!(existing_pairs, block_pairs)
+
+		# Empty used_stimuli
+		used_stimuli = []
+	end
+
+	# Shuffle order within each pair
+	shuffle!.(rng, final_pairs)
+
+	# Step 8 - Form DataFrame
+	pairs_df = DataFrame(
+		block = repeat(1:test_n_blocks, inner = length(unique_stimuli) ÷ 2),
+		trial = repeat(1:(length(unique_stimuli) ÷ 2) * test_n_blocks),
+		stimulus_right = [p[2] for p in final_pairs],
+		stimulus_left = [p[1] for p in final_pairs],
+		EV_right = [stimuli[stimuli.stimulus .== p[2], :].EV[1] for p in final_pairs],
+		EV_left = [stimuli[stimuli.stimulus .== p[1], :].EV[1] for p in final_pairs],
+        feedback_right = [stimuli[stimuli.stimulus .== p[2], :].feedback[1] for p in final_pairs],
+		feedback_left = [stimuli[stimuli.stimulus .== p[1], :].feedback[1] for p in final_pairs],
+		original_block_right = [stimuli[stimuli.stimulus .== p[2], :].block[1] for p in final_pairs],
+		original_block_left = [stimuli[stimuli.stimulus .== p[1], :].block[1] for p in final_pairs]
+	)
+
+	# Same / different block variable
+	pairs_df.same_block = pairs_df.original_block_right .== pairs_df.original_block_left
+
+	# Valence variables
+	pairs_df.valence_left = sign.(pairs_df.EV_left)
+	pairs_df.valence_right = sign.(pairs_df.EV_right)
+	pairs_df.same_valence = pairs_df.valence_left .== pairs_df.valence_right
+
+	# Compute sequence stats
+	prop_same_block = (mean(pairs_df.same_block)) 
+	prop_same_valence = (mean(pairs_df.same_valence))
+	n_same_EV = sum(pairs_df.EV_right .== pairs_df.EV_left)
+	
+	pairs_df, prop_same_block, prop_same_valence, n_same_EV
+end
+
+# Choose test sequence with best stats
+function find_best_test_sequence(
+	task::DataFrame; # PILT task structure
+	n_seeds::Int64 = 100, # Number of random seeds to try
+	same_weight::Float64 = 4.1 # Weight reducing the number of same magntiude pairs
+) 
+
+	# Initialize stats variables
+	prop_block = []
+	prop_valence = []
+	n_magnitude = []
+
+	# Run over seeds
+	for s in 1:n_seeds
+		_, pb, pv, nm = create_test_sequence(task, random_seed = s, same_weight = same_weight)
+
+		push!(prop_block, pb)
+		push!(prop_valence, pv)
+		push!(n_magnitude, nm)
+	end
+
+	# First, choose a sequence with the minimal number of same-magnitude pairs
+	pass_magnitude = (1:n_seeds)[n_magnitude .== 
+		minimum(filter(x -> !isnan(x), n_magnitude))]
+
+	@assert !isempty(pass_magnitude)
+
+	# Apply magnitude selection
+	prop_block = prop_block[pass_magnitude]
+	prop_valence = prop_valence[pass_magnitude]
+
+	# Compute deviation from goal
+	dev_block = abs.(prop_block .- 1/3)
+	dev_valence = abs.(prop_block .- 0.5)
+
+	# Choose best sequence
+	chosen = pass_magnitude[argmin(dev_valence)]
+
+	# Return sequence and stats
+	return create_test_sequence(task, random_seed = chosen, same_weight = same_weight)
+end
+
+
+PILT_test_template = let s = 1,
+	task = filter(x -> x.session == s, PILT_sequence)
+	
+	# Find test sequence for each session
+	test, pb, pv, nm = find_best_test_sequence(
+		task,
+		n_seeds = 100, # Number of random seeds to try
+		same_weight = 1. # Weight reducing the number of same magntiude pairs
+	) 
+
+	# Add session variable
+	insertcols!(test, 1, :session => s)
+
+	@info "Session $s: proportion of same block pairs: $pb"
+	@info "Session $s: proportion of same valence pairs: $pv"
+	@info "Session $s: number of same magnitude pairs: $nm"
+
+	# Create magnitude_pair variable
+	test.EV_pair = [sort([r.EV_left, r.EV_right]) for r in eachrow(test)]
+
+	test
+end
+
+PILT_test = let PILT_test_template = copy(PILT_test_template)
+
+	# Create stimulus dict to replace equivalent stimuli
+	stimuli_dict = unique(
+		select(
+			PILT_sequence,
+			:session,
+			:block,
+			:stimulus_A,
+			:stimulus_B
+		)
+	)
+
+	# Wide to long
+	stimuli_dict = stack(
+		stimuli_dict,
+		[:stimulus_A, :stimulus_B],
+		value_name = :stimulus
+	)
+
+	# Variable capturing stimulus isometry
+	stimuli_dict.stimulus_essence = (r -> "$(r.block)_$(r.variable[end])").(eachrow(stimuli_dict))
+
+	# Join add stimulus_essence
+	leftjoin!(
+		PILT_test_template,
+		select(
+			stimuli_dict,
+			:stimulus => :stimulus_left,
+			:stimulus_essence => :stimulus_essence_left
+		),
+		on = :stimulus_left
+	)
+
+	leftjoin!(
+		PILT_test_template,
+		select(
+			stimuli_dict,
+			:stimulus => :stimulus_right,
+			:stimulus_essence => :stimulus_essence_right
+		),
+		on = :stimulus_right
+	)
+
+	# Create multisession
+	PILT_test = vcat(
+		[
+			DataFrames.transform(
+				select(
+					PILT_test_template,
+					Not([:session, :stimulus_right, :stimulus_left])
+				),
+				:trial => (x -> s) => :session,
+				:stimulus_essence_right => ByRow(e -> only(filter(
+					x -> (x.stimulus_essence == e) & (x.session == s), stimuli_dict).stimulus)) => :stimulus_right,
+				:stimulus_essence_left => ByRow(e -> only(filter(
+						x -> (x.stimulus_essence == e) & (x.session == s), stimuli_dict).stimulus)) => :stimulus_left
+			)
+		for s in 1:2]...
+	)
+
+end
+
+# Test test sequence
+let
+	@assert all(PILT_test_template.stimulus_left .== filter(x -> x.session == 1, PILT_test).stimulus_left) "Final sequence for wk0 does not match template"
+
+	@assert all(PILT_test_template.stimulus_right .== filter(x -> x.session == 1, PILT_test).stimulus_right) "Final sequence for wk0 does not match template"
+
+end
+
+let
+	save_to_JSON(PILT_test, "results/pilot9_PILT_test.json")
+	CSV.write("results/pilot9_PILT_test.csv", PILT_test)
+end
+
 
