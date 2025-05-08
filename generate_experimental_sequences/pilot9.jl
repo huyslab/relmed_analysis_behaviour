@@ -341,7 +341,7 @@ PILT_sequence = let rng = Xoshiro(0)
     PILT_sequence = DataFrame(
         block = repeat(PILT_blocks.block, inner = PILT_trials_per_block),
         trial = repeat(1:PILT_trials_per_block, outer = length(PILT_blocks.block)),
-        common_feedback = common_feedback,
+        feedback_common = common_feedback,
         n_confusing = repeat(PILT_blocks.n_confusing, inner = PILT_trials_per_block)
     )
 
@@ -354,12 +354,12 @@ PILT_sequence = let rng = Xoshiro(0)
 
     # Create feedback_A and feedback_B
     PILT_sequence.feedback_A = ifelse.(
-        PILT_sequence.common_feedback,
+        PILT_sequence.feedback_common,
         PILT_sequence.primary_outcome_A,
         PILT_sequence.secondary_outcome_A
     )
     PILT_sequence.feedback_B = ifelse.(
-        PILT_sequence.common_feedback,
+        PILT_sequence.feedback_common,
         PILT_sequence.primary_outcome_B,
         PILT_sequence.secondary_outcome_B
     )
@@ -440,17 +440,29 @@ let task = PILT_sequence
 	@assert all(combine(groupby(task, [:session, :block]), 
 		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
 
-	@assert sum(unique(task[!, [:session, :block, :valence]]).valence) == 0 "Number of reward and punishment blocks not equal"
+    @assert all(combine(
+        groupby(task, [:session, :block, :n_confusing]),
+        :feedback_common => (x -> sum(.!x)) => :feedback_rare
+    ) |> df -> df.feedback_rare .== df.n_confusing) "Number of rare feedbacks does not match n_confusing"
 
 	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
 
 	# Count losses to allocate coins in to safe for beginning of task
-	worst_loss = filter(x -> x.valence == -1, task) |> 
-		df -> ifelse.(
-			df.feedback_right .< df.feedback_left, 
-			df.feedback_right, 
-			df.feedback_left) |> 
-		countmap
+	worst_loss = countmap(
+        ifelse.(
+            task.feedback_right .< task.feedback_left,
+            ifelse.(
+                task.feedback_right .< 0,
+                task.feedback_right,
+                0
+            ),
+            ifelse.(
+                task.feedback_left .< 0,
+                task.feedback_left,
+                0
+            )
+        )
+    )
 
 	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
 
