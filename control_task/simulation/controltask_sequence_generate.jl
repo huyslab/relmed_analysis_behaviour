@@ -233,8 +233,8 @@ transform!(groupby(reward_sequence, [:target_island, :current])) do group
   rewards_number = fill(0.5, n)
   # Randomly select half the indices to be £1
   one_pound_indices = sample(1:n, floor(Int, n/2), replace=false)
-  rewards[one_pound_indices] .= "£1"
-  rewards_number[one_pound_indices] .= 1.0
+  rewards[one_pound_indices] .= "£2"
+  rewards_number[one_pound_indices] .= 2.0
   return (; reward_amount = rewards, reward_number = rewards_number)
 end
 # while nrow(combine(groupby(reward_sequence, [:target_island, :current]), nrow)) != 9
