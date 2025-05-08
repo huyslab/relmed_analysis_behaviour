@@ -315,7 +315,7 @@ PILT_stimuli = let random_seed = 0
 end
 
 # Create PILT sequence
-PILT_sequence = let rng = Xoshiro(0)
+PILT_sequence = let rng = Xoshiro(1)
 
     # All positions of common feedback
     common_feedback_positions = Dict(
@@ -376,13 +376,7 @@ PILT_sequence = let rng = Xoshiro(0)
     # Randomize appearance on left / right
     DataFrames.transform!(
         groupby(PILT_sequence, [:session, :block]),
-        :n_confusing => (x -> shuffle(
-            rng,
-            vcat(
-                fill(true, PILT_trials_per_block - only(unique(x))),
-                fill(false, only(unique(x)))
-            )
-        )) => :A_on_right
+        :n_confusing => (x -> shuffled_fill([true, false], length(x))) => :A_on_right
     )
 
     # Create stimulus on left / right
@@ -465,6 +459,64 @@ let task = PILT_sequence
     )
 
 	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+# Visualize PILT seuqnce
+let task = PILT_sequence
+
+	f = Figure(size = (700, 300))
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, [:session, :trial]),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	mp1 = data(confusing_location) * mapping(
+		:trial => "Trial", 
+		:feedback_confusing => "Prop. confusing feedback",
+		color = :session => nonnumeric => "Session",
+		group = :session => nonnumeric
+	) * visual(ScatterLines)
+
+	plt1 = draw!(f[1,1], mp1)
+
+	legend!(
+		f[1,1], 
+		plt1,
+		tellwidth = false,
+		tellheight = false,
+		valign = 1.2,
+		halign = 0.,
+		framevisible = false
+	)
+
+	# Plot confusing trials by block
+	fp = insertcols(
+		task,
+		:color => ifelse.(
+			task.feedback_common,
+			(task.valence .+ 1) .÷ 2,
+			fill(3, nrow(task))
+		)
+	)
+
+	for (i, s) in enumerate(unique(fp.session))
+		mp = data(filter(x -> x.session == s, fp)) * mapping(
+			:trial => "Trial",
+			:block => "Block",
+			:color
+		) * visual(Heatmap)
+
+		draw!(f[1,i+1], mp, axis = (; yreversed = true, subtitle = "Session $i"))
+	end
+	
+
+
+	save("results/trial1_pilt_trial_plan.png", f, pt_per_unit = 1)
+
+	f
 
 end
 
