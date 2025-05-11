@@ -338,7 +338,7 @@ end
 # ╔═╡ 9f300301-b018-4bea-8fc4-4bc889b11afd
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
-		"generate_experimental_sequences/pilot8_wm_stimulus_sequence.csv"))
+		"generate_experimental_sequences/wm_stimulus_sequence_short_9stim.csv"))
 
 	select!(
 		triplet_order, 
@@ -1838,8 +1838,8 @@ end
 
 # ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
 let
-	save_to_JSON(PILT, "results/trial1_PILT_test.json")
-	CSV.write("results/trial1_PILT_test.csv", PILT)
+	save_to_JSON(PILT_test, "results/trial1_PILT_test.json")
+	CSV.write("results/trial1_PILT_test.csv", PILT_test)
 end
 
 # ╔═╡ Cell order:
