@@ -46,3 +46,6 @@ generate_experimental_sequences/pilot7_stims_OLD/
 generate_experimental_sequences/trial1_stimuli/
 *.zip
 *.code-workspace
+.gitconfig
+.vscode-server/
+relmed_analysis_behaviour-haoyang_dev.code-workspace
