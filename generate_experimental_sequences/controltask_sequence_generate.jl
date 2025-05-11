@@ -5,7 +5,7 @@ Pkg.instantiate()
 
 using Revise, Random, DataFrames, CairoMakie, Distributions, CSV, JSON, Combinatorics, StatsBase
 CairoMakie.activate!(type="svg")
-includet("ControlEffortTask.jl")
+includet("../control_task/simulation/ControlEffortTask.jl")
 using .ControlEffortTask
 
 pars = TaskParameters(
