@@ -278,6 +278,11 @@ PILT_blocks = let rng = Xoshiro(0)
 		PILT_blocks.primary_outcome_B .* 0.8 + PILT_blocks.secondary_outcome_B .* 0.2
 	)
 
+    PILT_blocks.optimal_A = PILT_blocks.EV_A .> PILT_blocks.EV_B
+
+    @assert all(PILT_blocks.EV_A .!= PILT_blocks.EV_B) "EVs are not different"
+
+    @info "Proportion of blocks with repeating stimulus B optimal: $(mean(PILT_blocks.EV_B .> PILT_blocks.EV_A))"
 
 	PILT_blocks
 
@@ -366,7 +371,7 @@ PILT_sequence = let rng = Xoshiro(2)
     # Merge with blocks
     PILT_sequence = leftjoin(
         PILT_sequence,
-        select(PILT_blocks, [:block, :n_confusing, :primary_outcome_A, :primary_outcome_B, :secondary_outcome_A, :secondary_outcome_B]),
+        select(PILT_blocks, [:block, :n_confusing, :optimal_A, :primary_outcome_A, :primary_outcome_B, :secondary_outcome_A, :secondary_outcome_B]),
         on = [:block, :n_confusing]
     )
 
@@ -385,7 +390,7 @@ PILT_sequence = let rng = Xoshiro(2)
     # Merge with stimuli
     PILT_sequence = leftjoin(
         PILT_sequence,
-        select(PILT_stimuli, [:block, :session, :optimal_A, :stimulus_A, :stimulus_B]),
+        select(PILT_stimuli, [:block, :session, :stimulus_A, :stimulus_B]),
         on = [:block]
     )
 
