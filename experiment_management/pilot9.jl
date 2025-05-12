@@ -112,7 +112,7 @@ function load_pilot9_data(; force_download = false)
 	# max_press_data = prepare_max_press_data(jspsych_data)
 
 	# Extract control data
-	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+	# control_task_data, control_report_data = prepare_control_data(jspsych_data) 
 
 	return PILT_data, test_data, vigour_data, PIT_data, jspsych_data
 end
@@ -281,6 +281,7 @@ function summarize_participation(data::DataFrame)
 		# :trialPresses => (x -> mean(filter(y -> !ismissing(y), x))) =>  :max_trial_presses,
 		:n_warnings => maximum => :n_warnings,
 		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
+		:total_bonus => (x -> all(ismissing.(x)) ? missing : only(skipmissing(x))) => :bonus
 		# :trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
 	)
 
