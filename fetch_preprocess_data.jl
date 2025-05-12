@@ -1188,12 +1188,12 @@ function merge_control_task_and_feedback(df_a, df_b)
 	# join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
 	
 	# 2. Variables to remove from both dataframes before merging
-	remove_vars = ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype"]
-	
+	remove_vars = Cols(r".*n_warnings|.*instruction_fail", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype")
+
 	# 3. Variables to keep only from dataframe A and not from B
 	#  "current_strength", "effort_level", "near_island" are redundant since they are included in the timeline variables
-	keep_from_a = ["time_elapsed", "trialphase", "current_strength", "effort_level", "near_island"]
-	
+	keep_from_a = Cols("time_elapsed", "trialphase", "current_strength", "effort_level", "near_island")
+
 	# 4. Special handling for "correct" (will be combined)
 	
 	# Create copies to avoid modifying originals
