@@ -56,7 +56,7 @@ begin
 	PILT_trials_per_block = 10
 			
 	# Post-PILT test parameters
-	PILT_test_n_blocks = 5
+	PILT_test_n_blocks = 3
 end
 
 function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T}, num_quantiles::Int) where T
@@ -461,6 +461,22 @@ let task = PILT_sequence
         groupby(task, [:session, :block, :n_confusing]),
         :feedback_common => (x -> sum(.!x)) => :feedback_rare
     ) |> df -> df.feedback_rare .== df.n_confusing) "Number of rare feedbacks does not match n_confusing"
+
+    ev_right = select(
+        groupby(task, [:session, :block]),
+        :feedback_A => mean => :EV_A,
+        :feedback_B => mean => :EV_B,
+        :A_on_right,
+        :optimal_right
+    )
+
+    ev_right.ev_right_bigger = ifelse.(
+        ev_right.A_on_right,
+        ev_right.EV_A .> ev_right.EV_B,
+        ev_right.EV_B .> ev_right.EV_A
+    )
+
+    @assert all(ev_right.ev_right_bigger .== ev_right.optimal_right) "Optimality does not match EVs"
 
 	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
 
