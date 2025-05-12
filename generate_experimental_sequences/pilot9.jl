@@ -792,6 +792,9 @@ function create_test_sequence(
 	pairs_df.valence_right = sign.(pairs_df.EV_right)
 	pairs_df.same_valence = pairs_df.valence_left .== pairs_df.valence_right
 
+    # Optimal choice variable
+    pairs_df.optimal_right = pairs_df.EV_right .> pairs_df.EV_left
+
 	# Compute sequence stats
 	prop_same_block = (mean(pairs_df.same_block)) 
 	prop_same_valence = (mean(pairs_df.same_valence))
@@ -859,6 +862,8 @@ PILT_test_template = let s = 1,
 	@info "Session $s: proportion of same block pairs: $pb"
 	@info "Session $s: proportion of same valence pairs: $pv"
 	@info "Session $s: number of same magnitude pairs: $nm"
+
+    @assert all(test.EV_left .!= test.EV_right) "EVs are not different"
 
 	# Create magnitude_pair variable
 	test.EV_pair = [sort([r.EV_left, r.EV_right]) for r in eachrow(test)]
