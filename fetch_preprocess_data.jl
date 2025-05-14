@@ -669,6 +669,9 @@ function prepare_test_data(df::DataFrame; task::String = "pilt")
 	# Select columns
 	test_data = test_data[:, Not(map(col -> all(ismissing, col), eachcol(test_data)))]
 
+	# Change all block names to same type
+	test_data.block = string.(test_data.block)
+
 	# Sort
 	sort!(test_data, [:participant_id, :session, :block, :trial])
 
