@@ -233,7 +233,7 @@ let df = copy(PILT_data_clean)
 	mapping([0.5]) * visual(HLines, color = :grey, linestyle = :dash)
 	
 	f = Figure()
-	plt = draw!(f[1,1], mp)
+	plt = draw!(f[1,1], mp; axis = (;yticks = 0.5:0.1:0.9))
 	legend!(
 		f[0,1], 
 		plt,
