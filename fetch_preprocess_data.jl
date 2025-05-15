@@ -245,6 +245,65 @@ function load_trial1_data(; force_download = false)
 	return PILT_data, WM_data, LTM_data, reversal_data, jspsych_data
 end
 
+function load_pilot9_data(; force_download = false)
+	datafile = "data/pilot9.jld2"
+
+	# Load data or download from REDCap
+	if !isfile(datafile) || force_download
+		jspsych_json, records = get_REDCap_data("pilot9"; file_field = "jspsych_data", record_id_field = "record_id")
+	
+		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "sitting_start_time")
+
+		# remove_testing!(jspsych_data)
+
+		JLD2.@save datafile jspsych_data
+	else
+		JLD2.@load datafile jspsych_data
+	end
+
+	# Exctract PILT
+	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
+
+	# Extract WM data
+	# WM_data = filter(x -> x.trialphase == "wm", PILT_data)
+
+	# Extract LTM data
+	# LTM_data = filter(x -> x.trialphase == "ltm", PILT_data)
+
+	# Extract WM test data
+	# WM_test_data = filter(x -> x.trialphase == "wm_test", PILT_data)
+
+	# Extract LTM test data
+	# LTM_test_data = filter(x -> x.trialphase == "ltm_test", PILT_data)
+
+	# Seperate out PILT
+	filter!(x -> x.trialphase == "pilt", PILT_data)
+	
+	# Extract post-PILT test
+	test_data = prepare_post_PILT_test_data(jspsych_data)
+
+	# Exctract vigour
+	vigour_data = prepare_vigour_data(jspsych_data) 
+
+	# Extract post-vigour test
+	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
+			
+	# Extract PIT
+	PIT_data = prepare_PIT_data(jspsych_data)
+
+	# Exctract reversal
+	# reversal_data = prepare_reversal_data(jspsych_data)
+
+	# Extract max press rate data
+	max_press_data = prepare_max_press_data(jspsych_data)
+
+	# Extract control data
+	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+
+	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, control_task_data, control_report_data, jspsych_data
+end
+
+
 
 function load_pilot8_data(; force_download = false, return_version = "0.2")
 	datafile = "data/pilot8.jld2"
@@ -622,44 +681,16 @@ function count_consecutive_ones(v)
 	return result
 end
 
-"""
-    prepare_post_PILT_test_data(data::AbstractDataFrame) -> DataFrame
-
-Processes and prepares data from the PILT test phase for further analysis. This function filters rows to include only those from the PILT test phase, removes columns where all values are missing, and computes additional columns based on participant responses.
-
-# Arguments
-- `data::AbstractDataFrame`: The raw experimental data, including trial phases and participant responses.
-
-# Returns
-- A DataFrame with the PILT test data, including computed columns for the chosen stimulus and whether the response was "ArrowRight". Columns with all missing values are excluded.
-"""
-function prepare_post_PILT_test_data(data::AbstractDataFrame)
+function prepare_test_data(df::DataFrame; task::String = "pilt")
 
 	# Select rows
-	test_data = filter(x -> !ismissing(x.trialphase) && (x.trialphase == "PILT_test"), data)
+	test_data = filter(x -> (x.trial_type == "PILT") && (x.trialphase == "$(task)_test"), df)
 
 	# Select columns
-	test_data = test_data[:, Not(map(col -> all(ismissing, col),
-		eachcol(test_data)))]
+	test_data = test_data[:, Not(map(col -> all(ismissing, col), eachcol(test_data)))]
 
-	if :stimulus in names(test_data)
-		select!(test_data, Not(:stimulus))
-	end
-
-	# Compute chosen stimulus
-	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
-	
-	test_data.chosen_stimulus = ifelse.(
-		test_data.response .∈ (["ArrowRight", "right"],),
-		test_data.stimulus_right,
-		ifelse.(
-			test_data.response .∈ (["ArrowLeft", "left"],),
-			test_data.stimulus_left,
-			missing
-		)
-	)
-
-	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
+	# Sort
+	sort!(test_data, [:participant_id, :session, :block, :trial])
 
 	return test_data
 
@@ -1157,12 +1188,12 @@ function merge_control_task_and_feedback(df_a, df_b)
 	# join_keys = ["exp_start_time", "prolific_pid", "record_id", "session", "task", "trial"]
 	
 	# 2. Variables to remove from both dataframes before merging
-	remove_vars = ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype"]
-	
+	remove_vars = Cols(r".*n_warnings|.*instruction_fail", "plugin_version", "pre_kick_out_warned", "trial_index", "trial_type", "version", "trial_ptype")
+
 	# 3. Variables to keep only from dataframe A and not from B
 	#  "current_strength", "effort_level", "near_island" are redundant since they are included in the timeline variables
-	keep_from_a = ["time_elapsed", "trialphase", "current_strength", "effort_level", "near_island"]
-	
+	keep_from_a = Cols("time_elapsed", "trialphase", "current_strength", "effort_level", "near_island")
+
 	# 4. Special handling for "correct" (will be combined)
 	
 	# Create copies to avoid modifying originals
