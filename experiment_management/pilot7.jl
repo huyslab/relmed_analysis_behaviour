@@ -14,7 +14,7 @@ begin
     Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
 	using LogExpFunctions: logistic, logit
-	using Tidier
+	using Tidier, PlutoUI
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
 	include("plotting_utils.jl")
@@ -45,6 +45,9 @@ begin
 	set_theme!(th)
 end
 
+# ╔═╡ ecc2e199-ad7f-4148-9d13-df62fef6fe46
+TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
+
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
@@ -63,6 +66,9 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
   ╠═╡ =#
+
+# ╔═╡ 14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
+@save "pilot7_psum.jld2" p_sum_pilot7 = p_sum
 
 # ╔═╡ eeffa44e-a9e6-43dd-b47d-00670299e0f2
 #=╠═╡
@@ -293,19 +299,15 @@ filter!(x -> x.trial_presses > 0, max_press_data)
   ╠═╡ =#
 
 # ╔═╡ 0ca7bef1-439c-4718-b620-9dd8a0cc35fd
-#=╠═╡
 @chain max_press_data begin
 	data(_) * mapping(:avg_speed) * visual(Hist)
 	draw
 end
-  ╠═╡ =#
 
 # ╔═╡ 516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
-#=╠═╡
 @chain max_press_data begin
 	describe(:all)
 end
-  ╠═╡ =#
 
 # ╔═╡ f242aecf-b5c3-47ed-a511-f0b9e75f209c
 #=╠═╡
@@ -364,19 +366,6 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in Vigour task"))
 end
-
-# ╔═╡ 2bd5807d-776d-44af-88f3-29f4eb17a1a0
-#=╠═╡
-let
-	avg_df = @chain vigour_data begin
-		@group_by(trial_number)
-		@summarize(trial_presses = mean(trial_presses), se = mean(trial_presses)/sqrt(length(prolific_pid)))
-		@ungroup
-	end
-	p = data(vigour_data) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
-    draw(p)
-end
-  ╠═╡ =#
 
 # ╔═╡ 2bd5807d-776d-44af-88f3-29f4eb17a1a0
 #=╠═╡
@@ -491,10 +480,8 @@ let
 		draw()
 	end
 end
-  ╠═╡ =#
 
 # ╔═╡ b3fdfcd9-ca07-4433-b5bd-fe660cc8c0db
-#=╠═╡
 let
 	avg_df = @chain PIT_data begin
 		@filter(coin==0)
@@ -505,10 +492,8 @@ let
 	p = data(@filter(PIT_data, coin==0)) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
     draw(p)
 end
-  ╠═╡ =#
 
 # ╔═╡ 9d159f32-4f76-439b-8226-909d1f8ff347
-#=╠═╡
 @chain test_data begin
 		@filter(block == "pavlovian")
 		@mutate(
@@ -522,68 +507,6 @@ end
 				true => magnitude_right)
 		)
 		@filter(same_valence)
-end
-  ╠═╡ =#
-
-# ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
-#=╠═╡
-jspsych_data |> names
-  ╠═╡ =#
-
-# ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
-"""
-    extract_debrief_responses(data::DataFrame) -> DataFrame
-
-Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
-
-# Returns
-- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
-"""
-function extract_debrief_responses(data::DataFrame)
-	# Select trials
-	debrief = filter(x -> !ismissing(x.trialphase) && 
-		occursin(r"(acceptability|debrief)", x.trialphase) &&
-		!(occursin("pre", x.trialphase)), data)
-
-
-	# Select variables
-	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
-
-	# Long to wide
-	debrief = unstack(
-		debrief,
-		[:prolific_pid, :exp_start_time],
-		:trialphase,
-		:response
-	)
-	
-
-	# Parse JSON and make into DataFrame
-	expected_keys = dropmissing(debrief)[1, Not([:prolific_pid, :exp_start_time])]
-	expected_keys = Dict([c => collect(keys(JSON.parse(expected_keys[c]))) 
-		for c in names(expected_keys)])
-	
-	debrief_colnames = names(debrief[!, Not([:prolific_pid, :exp_start_time])])
-	
-	# Expand JSON strings with defaults for missing fields
-	expanded = [
-	    DataFrame([
-	        # Parse JSON or use empty Dict if missing
-	        let parsed = ismissing(row[col]) ? Dict() : JSON.parse(row[col])
-	            # Fill missing keys with a default value (e.g., `missing`)
-	            Dict(key => get(parsed, key, missing) for key in expected_keys[col])
-	        end
-	        for row in eachrow(debrief)
-	    ])
-	    for col in debrief_colnames
-	]
-	expanded = hcat(expanded...)
-
-	# hcat together
-	return hcat(debrief[!, Not(debrief_colnames)], expanded)
 end
 
 # ╔═╡ dc957d66-1219-4a97-be46-c6c5c189c8ba
@@ -661,11 +584,6 @@ end
 # ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
 #=╠═╡
 jspsych_data |> names
-  ╠═╡ =#
-
-# ╔═╡ 14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
-#=╠═╡
-@save "pilot7_psum.jld2" p_sum_pilot7 = p_sum
   ╠═╡ =#
 
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
@@ -750,7 +668,6 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
 end
 
 # ╔═╡ 9ad3f111-7b4b-45c5-bc9d-cce3bd0e0c72
-#=╠═╡
 let
 	df = @chain PIT_data begin
 		@arrange(prolific_pid, session, magnitude, ratio)
@@ -769,7 +686,6 @@ let
 	)
 	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
 end
-  ╠═╡ =#
 
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
 let
@@ -970,6 +886,7 @@ end
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
+# ╠═ecc2e199-ad7f-4148-9d13-df62fef6fe46
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═e60b5430-adef-4f12-906c-9b70de436833
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
