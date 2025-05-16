@@ -58,6 +58,11 @@ function reorder_bands_lines!(f::GridPosition)
 
 end
 
+spearman_brown(
+  r;
+  n=2 # Number of splits
+) = (n * r) / (1 + (n - 1) * r)
+
 """
 Creates a scatter plot with a regression line and a unit line on a given grid position.
 
