@@ -25,6 +25,9 @@ begin
 	nothing
 end
 
+# ╔═╡ 036cfbde-bc6f-4333-a5dc-0c8b0c2bf92b
+TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
+
 # ╔═╡ 0d120e19-28c2-4a98-b873-366615a5f784
 begin
 	# Set theme
@@ -59,20 +62,11 @@ md"""## Participant management"""
 
 # ╔═╡ f9cbc7fa-5998-4500-a5b7-9f93258e7608
 begin
-	raw_control_task_data, raw_control_report_data, jspsych_data = load_control_pilot2_data(; force_download = true, session = "1")
+	raw_control_task_data, raw_control_report_data, jspsych_data = load_control_pilot2_data(; force_download = false, session = "3")
 	nothing
 end
 
-# ╔═╡ bc1db6ac-0ed2-4d04-a711-823627df6173
-begin
-	p_careless = @chain jspsych_data begin
-		@group_by(prolific_pid)
-		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
-		@mutate(careless = n_quiz_fail >= ~median(n_quiz_fail))
-	end
-end
-
-# ╔═╡ 821e95eb-79af-4168-83a4-3a2a2e791939
+# ╔═╡ 698bbc2e-6681-43de-8241-0353f3e78850
 begin
 	info_files = filter(x -> endswith(x, ".csv"), readdir(joinpath("data", "prolific_participant_info"); join = true))
 	info_data = @chain info_files begin
@@ -80,6 +74,15 @@ begin
 		@rename(prolific_pid = var"Participant id", age = var"Age")
 		@filter(age != "CONSENT_REVOKED")
 		@mutate(age = as_float(age))
+	end
+end
+
+# ╔═╡ e0325299-650a-4596-950f-0ffcbefe96a8
+begin
+	p_careless = @chain jspsych_data begin
+		@group_by(prolific_pid)
+		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
+		@mutate(careless = n_quiz_fail >= ~median(n_quiz_fail))
 	end
 end
 
@@ -208,10 +211,10 @@ function summarize_participation(data::DataFrame)
 		:trialphase => (x -> "experiment_end_message" in x) => :finished,
 		:trialphase => (x -> "kick-out" in x) => :kick_out,
 		:n_control_trials => (x -> maximum(skipmissing(x); init = 0)) => :n_trial_control,
-		[:trialphase, :correct] => ((p, c) -> sum(c[.!ismissing.(p) .&& p .== "control_reward_feedback"]) * 5 / 100) => :control_bonus,
+		:control_bonus => (x -> maximum(skipmissing(x); init = 0)) => :control_bonus,
 		:n_warnings => maximum => :n_warnings,
 		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
-		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
+		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"))) => :n_quiz_failure
 	)
 
 	# Compute totla bonus
@@ -238,7 +241,7 @@ begin
 	@info "# Participants who finished control: $(sum(p_sum.n_trial_control .== 144))"
 end
 
-# ╔═╡ 06519325-9455-45e3-a566-b76ede99808d
+# ╔═╡ deda1785-8864-423f-889d-97e457ab920f
 begin
 	finished_participants = filter(x -> x.n_trial_control .== 144, p_sum)
 	control_task_data = semijoin(raw_control_task_data, finished_participants, on=:prolific_pid)
@@ -273,7 +276,7 @@ begin
 	end
 end
 
-# ╔═╡ dcf49989-910b-4744-942a-66124e694944
+# ╔═╡ 0266f995-b303-4730-ae8e-343fd1121977
 let
 	glm_coef(data) = coef(lm(@formula(trial_presses ~ current), data))
 	
@@ -310,7 +313,7 @@ let
 	fig
 end
 
-# ╔═╡ 7b603b2c-383c-4ca7-bb69-78aa57ffc6ec
+# ╔═╡ c1ef07ef-f24a-4629-abd8-b89458969b80
 let
 	glm_coef(data) = coef(lm(@formula(trial_presses ~ current), data))
 	
@@ -352,9 +355,56 @@ begin
 	@chain control_task_data begin
 		@filter(trialphase == "control_predict_homebase")
 		@mutate(prolific_pid = str_trunc(prolific_pid, 9))
-		# @drop_missing(correct)
+		@drop_missing(correct)
 		data(_) * mapping(:trial => nonnumeric, :correct, layout=:prolific_pid) * visual(ScatterLines)
 		draw(;axis=(;xlabel = "Trial", ylabel = "Home base predict acc."), figure=(;size=(800, 400)))
+	end
+end
+
+# ╔═╡ ea13df92-7c6e-44ce-b667-d43bad945a34
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		@drop_missing(correct)
+		@left_join(p_careless)
+		@group_by(trial, ship)
+		@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
+		@ungroup
+		data(_) * (mapping(:trial, :lower, :upper, color=:ship) * visual(Band, alpha = 0.1) + mapping(:trial, :acc, color=:ship) * visual(ScatterLines))
+		draw(;axis=(;xlabel = "Trial", ylabel = "Home base predict acc."), figure=(;size=(600, 400)))
+	end
+end
+
+# ╔═╡ 44193966-902b-4e32-8968-6026326da22f
+begin
+	explore_history = @chain control_task_data begin
+		@filter(trialphase == "control_explore")
+		transform(:trial => (x -> convert.(Int, floor.((denserank(x .+ 6) .- 1) / 12)) .+ 1) => :block)
+		@group_by(prolific_pid, block, ship_color)
+		@summarize(n = n(), n_control = sum(control_rule_used == "control"))
+		@ungroup()
+		@drop_missing(ship_color)
+		@group_by(prolific_pid, ship_color)
+		@mutate(n_cumu = cumsum(n), n_control_cumu = cumsum(n_control))
+		@ungroup()
+		@left_join(p_careless)
+	end
+
+	predict_history = @chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		transform(:trial => (x -> convert.(Int, floor.((denserank(x) .- 1) / 4)) .+ 1) => :block)
+		@select(prolific_pid, block, ship_color = ship, correct)
+		@left_join(p_careless)
+	end
+
+	history = @left_join(explore_history, predict_history)
+
+	@chain history begin
+		@group_by(block, ship_color)
+		@summarize(n_avg = mean(n_cumu), n_control_avg = mean(n_control_cumu), acc = mean(correct))
+		@ungroup()
+		data(_) * mapping(:n_control_avg, :acc, color=:ship_color) * (visual(Scatter) + linear())
+		draw(figure=(;size=(600, 400)))
 	end
 end
 
@@ -369,38 +419,6 @@ begin
 		@ungroup
 		data(_) * (mapping(:trial, :lower, :upper, color=:ship, col=:careless) * visual(Band, alpha = 0.1) + mapping(:trial, :acc, color=:ship, col=:careless) * visual(ScatterLines))
 		draw(;axis=(;xlabel = "Trial", ylabel = "Home base predict acc."), figure=(;size=(800, 400)))
-	end
-end
-
-# ╔═╡ 32577c4d-6976-4854-827b-97b57f25ba80
-begin
-	explore_history = @chain control_task_data begin
-		@filter(trialphase == "control_explore")
-		transform(:trial => (x -> convert.(Int, floor.((denserank(x .+ 6) .- 1) / 12)) .+ 1) => :block)
-		@group_by(prolific_pid, block, ship_color)
-		@summarize(n = n(), n_control = sum(control_rule_used == "control"))
-		@ungroup()
-		@drop_missing(ship_color)
-		@group_by(prolific_pid, ship_color)
-		@mutate(n_cumu = cumsum(n), n_control_cumu = cumsum(n_control))
-		@ungroup()
-	end
-
-	predict_history = @chain control_task_data begin
-		@filter(trialphase == "control_predict_homebase")
-		transform(:trial => (x -> convert.(Int, floor.((denserank(x) .- 1) / 4)) .+ 1) => :block)
-		@select(prolific_pid, block, ship_color = ship, correct)
-	end
-
-	history = leftjoin(explore_history, predict_history, on = [:prolific_pid, :block, :ship_color])
-
-	@chain history begin
-		@group_by(block, ship_color)
-		@summarize(n_avg = mean(n_cumu), n_control_avg = mean(n_control_cumu), acc = mean(correct))
-		@ungroup()
-		@drop_missing()
-		data(_) * mapping(:n_control_avg, :acc, color=:ship_color) * (visual(Scatter) + linear())
-		draw()
 	end
 end
 
@@ -493,7 +511,7 @@ end
 	draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial correct choice rate"), figure=(;size=(800, 400)))
 end
 
-# ╔═╡ 48475e7e-60c5-4847-b6f2-4e6027e7dc10
+# ╔═╡ 5a8b19fc-7f91-457e-9dc7-a83e4e0263c0
 @chain control_task_data begin
 	@filter(trialphase == "control_reward")
 	@drop_missing(response)
@@ -506,7 +524,7 @@ end
 	draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial correct choice rate"), figure=(;size=(800, 400)))
 end
 
-# ╔═╡ 98d36689-8eeb-41c4-a321-0ab039882212
+# ╔═╡ 01bcbc17-efa3-4c13-a82b-42ca9282805f
 @chain control_task_data begin
 	@filter(trialphase == "control_reward")
 	@drop_missing(response)
@@ -547,7 +565,7 @@ begin
 	end
 end
 
-# ╔═╡ bbd5ba75-263b-481f-8be7-e6b575139a1e
+# ╔═╡ 8d8bba93-d0de-44a0-931f-62bcc1bd2992
 begin
 	@chain control_task_data begin
 		@filter(trialphase == "control_reward")
@@ -578,7 +596,7 @@ begin
 	end
 end
 
-# ╔═╡ 074ca439-f95d-43bb-a791-6d21a8ad34bf
+# ╔═╡ dc6b10bf-7fde-4a3b-8c50-314785b34aa7
 begin
 	@chain control_task_data begin
 		@filter(trialphase == "control_reward")
@@ -592,6 +610,19 @@ begin
 			mapping(:island_viable, :trial_presses, col = :current => nonnumeric, row = :correct, color = :current => nonnumeric, group=:prolific_pid) * visual(Lines, alpha = 0.1)
 		)
 		draw(_, scales(Row = (; categories = [false => "Incorrect choice", true => "Correct choice"]), Color = (; legend = false)); axis=(; xlabel = "Island viable?", ylabel = "Presses (in reward trials)"), figure=(;size=(600, 600)))
+	end
+end
+
+# ╔═╡ 96633d38-1d0a-43e2-ad60-76345abac470
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_reward")
+		@drop_missing(trial_presses)
+		@group_by(reward_amount, current, prolific_pid)
+		@summarize(trial_presses = mean(trial_presses))
+		@summarize(trial_presses = mean(trial_presses))
+		@ungroup()
+		@arrange(current, reward_amount)
 	end
 end
 
@@ -615,10 +646,9 @@ p_sum
 # ╔═╡ 765d05c0-0679-4f26-b201-af2aa0bf3fa3
 describe(p_sum)
 
-# ╔═╡ 9d14e29c-8136-4294-ba50-53b1cb480bc0
+# ╔═╡ 9e7f7fdc-ee23-46bd-ad91-6c29e0b7f096
 begin
 	@chain p_sum begin
-		@filter(n_quiz_failure < 20)
 		@pivot_longer(control_enjoy:control_clear, names_to = "accept_var", values_to = "accept_val")
 		stack([:n_quiz_failure, :n_warnings], variable_name = :sanity_var, value_name = :sanity_val)
 		dropmissing([:accept_val, :sanity_val])
@@ -627,11 +657,10 @@ begin
 	end
 end
 
-# ╔═╡ 8c3efe36-5fdb-4524-907c-7770a2dfb36c
+# ╔═╡ f063197a-2877-4002-9fbd-2b5d4695b047
 begin
 	@chain p_sum begin
 		@left_join(info_data)
-		@filter(age < 75)
 		stack([:n_quiz_failure, :n_warnings, :control_enjoy, :control_difficulty, :control_clear], variable_name=:rating_var, value_name=:rating_val)
 		dropmissing([:age, :rating_val])
 		data(_) * mapping(:age, :rating_val, layout=:rating_var) * (visual(Scatter) + linear())
@@ -712,18 +741,19 @@ function sanity_check_test(test_data_clean::DataFrame)
 
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
+# ╠═036cfbde-bc6f-4333-a5dc-0c8b0c2bf92b
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═f9cbc7fa-5998-4500-a5b7-9f93258e7608
-# ╠═bc1db6ac-0ed2-4d04-a711-823627df6173
-# ╠═821e95eb-79af-4168-83a4-3a2a2e791939
+# ╠═698bbc2e-6681-43de-8241-0353f3e78850
+# ╠═e0325299-650a-4596-950f-0ffcbefe96a8
 # ╠═8c7c8ee7-86e6-48d4-9a8c-e24b4c35e239
-# ╠═06519325-9455-45e3-a566-b76ede99808d
+# ╠═deda1785-8864-423f-889d-97e457ab920f
 # ╠═ddd696e7-a014-41b5-a5c3-2b7b2d38eb2b
 # ╠═2d25ef0c-abe2-485b-9629-a0ee3eb481ba
 # ╠═765d05c0-0679-4f26-b201-af2aa0bf3fa3
-# ╠═9d14e29c-8136-4294-ba50-53b1cb480bc0
-# ╠═8c3efe36-5fdb-4524-907c-7770a2dfb36c
+# ╠═9e7f7fdc-ee23-46bd-ad91-6c29e0b7f096
+# ╠═f063197a-2877-4002-9fbd-2b5d4695b047
 # ╠═47dec249-b853-4860-afcb-d8f4b0cbac81
 # ╠═8013dd07-e36b-4449-addf-b5fdbeed3f75
 # ╟─a9271e63-6457-47c0-99c4-07304bb31a93
@@ -734,11 +764,12 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
 # ╠═b2d724e5-146a-4812-8431-a77893ea4735
 # ╠═3fc647cb-4e05-490a-b1b4-3240db3a1823
-# ╠═dcf49989-910b-4744-942a-66124e694944
-# ╠═7b603b2c-383c-4ca7-bb69-78aa57ffc6ec
+# ╠═0266f995-b303-4730-ae8e-343fd1121977
+# ╠═c1ef07ef-f24a-4629-abd8-b89458969b80
 # ╠═c8975d53-fcec-41ee-9325-098feda9833d
+# ╠═ea13df92-7c6e-44ce-b667-d43bad945a34
+# ╠═44193966-902b-4e32-8968-6026326da22f
 # ╠═0a5622ee-2668-498f-8275-20cfda686e43
-# ╠═32577c4d-6976-4854-827b-97b57f25ba80
 # ╠═bc08a966-4236-4a5e-9539-5913f8f64651
 # ╠═bb771903-c617-42c2-b3ae-7e48b09aacf9
 # ╠═e16cfc88-b1f3-4be4-b248-8dde073d9c8c
@@ -746,13 +777,14 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═85fd37d4-39f5-4c31-92a9-2c597a1c790a
 # ╠═c75dfcb1-4aa9-47a1-952a-6553b4035a7b
 # ╠═dff932c8-1317-4566-88c6-7b33cbc04b3f
-# ╠═48475e7e-60c5-4847-b6f2-4e6027e7dc10
-# ╠═98d36689-8eeb-41c4-a321-0ab039882212
+# ╠═5a8b19fc-7f91-457e-9dc7-a83e4e0263c0
+# ╠═01bcbc17-efa3-4c13-a82b-42ca9282805f
 # ╠═810612c9-9b20-4076-b3b0-9406df690862
 # ╠═1e0dc9cc-5022-44b0-b52e-a5b7f5521044
-# ╠═bbd5ba75-263b-481f-8be7-e6b575139a1e
+# ╠═8d8bba93-d0de-44a0-931f-62bcc1bd2992
 # ╠═df2a8e6d-5c18-41c3-a2dd-b17f09b49428
-# ╠═074ca439-f95d-43bb-a791-6d21a8ad34bf
+# ╠═dc6b10bf-7fde-4a3b-8c50-314785b34aa7
+# ╠═96633d38-1d0a-43e2-ad60-76345abac470
 # ╠═bd4b266a-c4aa-4851-a601-e41df751059c
 # ╟─b4c02bfd-3252-441f-a2b8-6178beb2b144
 # ╠═5c1c7680-d743-4488-a8fc-c81cb23cb87e
