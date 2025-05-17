@@ -212,6 +212,7 @@ md"""
 begin
 	filter!(x -> !(x.prolific_pid in []), vigour_data);
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
+	
 	nothing;
 	@chain vigour_data begin
 		@filter(press_per_sec > 11)
@@ -249,6 +250,17 @@ end
 # ╔═╡ 8c4fca45-504b-4be8-bbcc-e48e497b3f0e
 let
 	plot_presses_vs_var(@filter(vigour_data, trial_number > 0); x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
+end
+
+# ╔═╡ 56a77ffc-be7d-474a-a0f8-5951fc87b424
+let
+	avg_df = @chain vigour_data begin
+		@group_by(trial_number)
+		@summarize(trial_presses = mean(trial_presses), se = mean(trial_presses)/sqrt(length(prolific_pid)))
+		@ungroup
+	end
+	p = data(vigour_data) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
+    draw(p)
 end
 
 # ╔═╡ c0f66cdc-4d68-4f2d-b4c6-65de4821091f
@@ -331,9 +343,19 @@ begin
 	# If the test_data is not corrected, then the accuracy for negative is wrong (and should be reversed).
 	PIT_acc_df = @chain test_data begin
 		@filter(block == "pavlovian")
+		@mutate(
+			EV_left = case_when(
+				contains(stimulus_left, "PIT4") => -0.01,
+				contains(stimulus_left, "PIT6") => -1.0,
+				true => EV_left),
+			EV_right = case_when(
+				contains(stimulus_right, "PIT4") => -0.01,
+				contains(stimulus_right, "PIT6") => -1.0,
+				true => EV_right)
+		)
 		@mutate(valence = ifelse(EV_left * EV_right < 0, "Different", ifelse(EV_left > 0, "Positive", "Negative")))
 		@group_by(valence)
-		@summarize(acc = mean(skipmissing(response_optimal)))
+		@summarize(acc = mean(skipmissing((EV_right > EV_left) == (key == "arrowright"))))
 		@ungroup
 	end
 	@info "PIT acc for NOT in the same valence: $(round(PIT_acc_df.acc[PIT_acc_df.valence.=="Different"]...; digits=2))"
@@ -342,8 +364,18 @@ begin
 
 	p = @chain test_data begin
 		@filter(block == "pavlovian")
+		@mutate(
+			EV_left = case_when(
+				contains(stimulus_left, "PIT4") => -0.01,
+				contains(stimulus_left, "PIT6") => -1.0,
+				true => EV_left),
+			EV_right = case_when(
+				contains(stimulus_right, "PIT4") => -0.01,
+				contains(stimulus_right, "PIT6") => -1.0,
+				true => EV_right)
+		)
 		@mutate(valence = ifelse(EV_left * EV_right < 0, "Different", ifelse(EV_left > 0, "Positive", "Negative")))
-		@mutate(correct = response_optimal)
+		@mutate(correct = (EV_right > EV_left) == (key == "arrowright"))
 		@filter(!ismissing(correct))
 		@group_by(prolific_pid, session, valence)
 		@summarize(acc = mean(correct))
@@ -403,14 +435,14 @@ let
 		@drop_missing(trial_presses)
 		@mutate(trial_number = ~denserank(trial))
 		@mutate(half = ifelse(trial_number <= maximum(trial_number)/2, "x", "y"))
-		groupby([:prolific_pid, :half])
+		groupby([:prolific_pid, :session, :half])
 		combine(AsTable([:trial_presses, :current]) => (x -> [glm_coef(x)]) => [:β0, :β_current])
 	end
 
 	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
 	workshop_reliability_scatter!(
 		fig[1,1];
-		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β0)),
+		df=dropmissing(unstack(split_df, [:prolific_pid, :session], :half, :β0)),
 		xlabel="Trial 1-36",
 		ylabel="Trial 37-72",
 		xcol=:x,
@@ -420,7 +452,7 @@ let
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
-		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β_current)),
+		df=dropmissing(unstack(split_df, [:prolific_pid, :session], :half, :β_current)),
 		xlabel="Trial 1-36",
 		ylabel="Trial 37-72",
 		xcol=:x,
@@ -429,6 +461,12 @@ let
 		correct_r=true
 	)
 	fig
+end
+
+# ╔═╡ 004d7b5f-9ec5-4f4b-8724-02e65040bd8f
+@chain control_task_data begin
+		@filter(trialphase == "control_explore")
+	@count(prolific_pid)
 end
 
 # ╔═╡ 80a6e41c-d578-4247-9a7a-b49dab153175
@@ -440,14 +478,14 @@ let
 		@drop_missing(trial_presses)
 		@mutate(trial_number = ~denserank(trial))
 		@mutate(half = if_else(trial_number % 2 === 0, "x", "y"))
-		groupby([:prolific_pid, :half])
+		groupby([:prolific_pid, :session, :half])
 		combine(AsTable([:trial_presses, :current]) => (x -> [glm_coef(x)]) => [:β0, :β_current])
 	end
 
 	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
 	workshop_reliability_scatter!(
 		fig[1,1];
-		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β0)),
+		df=dropmissing(unstack(split_df, [:prolific_pid, :session], :half, :β0)),
 		xlabel="Even trials",
 		ylabel="Odd trials",
 		xcol=:x,
@@ -457,7 +495,7 @@ let
 	)
 	workshop_reliability_scatter!(
 		fig[1,2];
-		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β_current)),
+		df=dropmissing(unstack(split_df, [:prolific_pid, :session], :half, :β_current)),
 		xlabel="Even trials",
 		ylabel="Odd trials",
 		xcol=:x,
@@ -763,9 +801,10 @@ n = 2 # Number of splits
 # ╠═aaf73642-aaec-40a9-95f8-f7f0f25095c7
 # ╠═5373906f-51fb-43aa-91f7-20656785a386
 # ╟─0b1ead8e-ae59-4add-a1ea-e5420cadae5f
-# ╠═e0becc69-04ab-4df0-b56b-df4acc8aca9c
+# ╟─e0becc69-04ab-4df0-b56b-df4acc8aca9c
 # ╟─a7eb19ed-d7e8-4bb4-a2f3-17426035217d
 # ╠═8c4fca45-504b-4be8-bbcc-e48e497b3f0e
+# ╠═56a77ffc-be7d-474a-a0f8-5951fc87b424
 # ╟─c0f66cdc-4d68-4f2d-b4c6-65de4821091f
 # ╠═67b741f1-eb82-4e14-9ba6-79d903e0b2d0
 # ╠═6dee7572-0add-4e83-970d-2e629fa7c632
@@ -773,7 +812,7 @@ n = 2 # Number of splits
 # ╠═187e681c-1207-46f3-9cb3-9e6dcc40f625
 # ╠═ae08f0a0-d7f3-475a-ac6e-7c6a305737cc
 # ╟─03763d35-7383-464c-841c-ec955c83a402
-# ╟─728a0a72-6e66-4618-9f47-3a21ec1e04d5
+# ╠═728a0a72-6e66-4618-9f47-3a21ec1e04d5
 # ╟─470ec18e-3c3f-4dab-8c02-1ed5bc2b1bb1
 # ╠═c3114e6d-fcb4-45c3-8894-6bb2e082f7aa
 # ╠═ff83fc55-e0d3-40e3-9c5e-54fe79bd26de
@@ -781,6 +820,7 @@ n = 2 # Number of splits
 # ╟─cd44eab8-151d-40bf-a7d9-364983554cc2
 # ╠═cae03380-56a8-4292-8342-4323d1bf59a5
 # ╠═5429031d-e6f3-45b3-9ab3-bff643950a2d
+# ╠═004d7b5f-9ec5-4f4b-8724-02e65040bd8f
 # ╠═80a6e41c-d578-4247-9a7a-b49dab153175
 # ╟─457ab261-bdfd-4415-a350-c7e0ce9aac63
 # ╠═db196a92-f7b3-4293-9788-ee80b57a1d04
