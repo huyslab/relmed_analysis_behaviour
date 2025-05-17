@@ -250,11 +250,11 @@ function load_pilot9_data(; force_download = false)
 
 	# Load data or download from REDCap
 	if !isfile(datafile) || force_download
-		jspsych_json, records = get_REDCap_data("pilot9"; file_field = "jspsych_data", record_id_field = "record_id")
+		jspsych_json, records = get_REDCap_data("pilot9"; file_field = "data", record_id_field = "record_id")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "sitting_start_time")
 
-		# remove_testing!(jspsych_data)
+		remove_testing!(jspsych_data)
 
 		JLD2.@save datafile jspsych_data
 	else
@@ -264,35 +264,17 @@ function load_pilot9_data(; force_download = false)
 	# Exctract PILT
 	PILT_data = prepare_PLT_data(jspsych_data; trial_type = "PILT")
 
-	# Extract WM data
-	# WM_data = filter(x -> x.trialphase == "wm", PILT_data)
-
-	# Extract LTM data
-	# LTM_data = filter(x -> x.trialphase == "ltm", PILT_data)
-
-	# Extract WM test data
-	# WM_test_data = filter(x -> x.trialphase == "wm_test", PILT_data)
-
-	# Extract LTM test data
-	# LTM_test_data = filter(x -> x.trialphase == "ltm_test", PILT_data)
-
 	# Seperate out PILT
 	filter!(x -> x.trialphase == "pilt", PILT_data)
 	
 	# Extract post-PILT test
-	test_data = prepare_post_PILT_test_data(jspsych_data)
+	test_data = prepare_test_data(jspsych_data)
 
 	# Exctract vigour
 	vigour_data = prepare_vigour_data(jspsych_data) 
 
-	# Extract post-vigour test
-	post_vigour_test_data = prepare_post_vigour_test_data(jspsych_data)
-			
 	# Extract PIT
 	PIT_data = prepare_PIT_data(jspsych_data)
-
-	# Exctract reversal
-	# reversal_data = prepare_reversal_data(jspsych_data)
 
 	# Extract max press rate data
 	max_press_data = prepare_max_press_data(jspsych_data)
@@ -300,10 +282,8 @@ function load_pilot9_data(; force_download = false)
 	# Extract control data
 	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
 
-	return PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, control_task_data, control_report_data, jspsych_data
+	return PILT_data, test_data, vigour_data, PIT_data, max_press_data, control_task_data, control_report_data, jspsych_data
 end
-
-
 
 function load_pilot8_data(; force_download = false, return_version = "0.2")
 	datafile = "data/pilot8.jld2"
@@ -689,8 +669,56 @@ function prepare_test_data(df::DataFrame; task::String = "pilt")
 	# Select columns
 	test_data = test_data[:, Not(map(col -> all(ismissing, col), eachcol(test_data)))]
 
+	# Change all block names to same type
+	test_data.block = string.(test_data.block)
+
 	# Sort
 	sort!(test_data, [:participant_id, :session, :block, :trial])
+
+	return test_data
+
+end
+
+"""
+    prepare_post_PILT_test_data(data::AbstractDataFrame) -> DataFrame
+
+Processes and prepares data from the PILT test phase for further analysis. This function filters rows to include only those from the PILT test phase, removes columns where all values are missing, and computes additional columns based on participant responses.
+
+Deprecated but for backward compatibility.
+
+# Arguments
+- `data::AbstractDataFrame`: The raw experimental data, including trial phases and participant responses.
+
+# Returns
+- A DataFrame with the PILT test data, including computed columns for the chosen stimulus and whether the response was "ArrowRight". Columns with all missing values are excluded.
+"""
+function prepare_post_PILT_test_data(data::AbstractDataFrame)
+
+	# Select rows
+	test_data = filter(x -> !ismissing(x.trialphase) && (x.trialphase == "PILT_test"), data)
+
+	# Select columns
+	test_data = test_data[:, Not(map(col -> all(ismissing, col),
+		eachcol(test_data)))]
+
+	if :stimulus in names(test_data)
+		select!(test_data, Not(:stimulus))
+	end
+
+	# Compute chosen stimulus
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
+	
+	test_data.chosen_stimulus = ifelse.(
+		test_data.response .∈ (["ArrowRight", "right"],),
+		test_data.stimulus_right,
+		ifelse.(
+			test_data.response .∈ (["ArrowLeft", "left"],),
+			test_data.stimulus_left,
+			missing
+		)
+	)
+
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
 
 	return test_data
 
@@ -1250,7 +1278,7 @@ This function expects certain column names to be present in the input DataFrame,
 including 'trialphase', 'record_id', 'trial_index', 'responseTime', etc.
 """
 function prepare_control_data(data::DataFrame)
-	control_data = filter(x -> !ismissing(x.trialphase) && x.trialphase ∈ ["control_explore", "control_explore_feedback", "control_controllability", "control_predict_homebase", "control_confidence", "control_reward", "control_reward_feedback"], data)
+	control_data = filter(x -> !ismissing(x.trialphase) && contains(x.trialphase, r"control_.*"), data)
 	control_data = exclude_double_takers(control_data)
 	
 	for col in names(control_data)
@@ -1265,28 +1293,33 @@ function prepare_control_data(data::DataFrame)
 	transform!(groupby(control_data, :record_id),
 		:trial_ptype => cumsum => :trial
 	)
+	select!(control_data, Not(Cols(:n_warnings, :plugin_version, :pre_kick_out_warned, :trial_type, :trial_ptype)))
 
 	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
 	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
 	
 	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
 	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
+
+	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:exp_start_time, :prolific_pid, :record_id, :session, :task, :version, :trial], source=:source, makeunique=true, order=:left)
+	if "correct_1" in names(merged_control)
+		transform!(merged_control, [:correct, :correct_1] => ((x, y) -> coalesce.(x, y)) => :correct)
+	end
+	select!(merged_control, Not(Cols(r".*_1", :source)))
+
+	extract_timeline_variables!(merged_control)
+	transform!(merged_control, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(merged_control, Not(:responseTime))
 	
 	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
 	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
 	select!(control_report_data, [:exp_start_time, :prolific_pid, :record_id, :session, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
 
-	extract_timeline_variables!(control_task_data)
-	transform!(control_task_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
-	select!(control_task_data, Not(:responseTime))
-
-	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
-
 	# List of participant IDs that need swapping
 	target_pids = ["67d3168115f1a0d46c1acf09", "67c6c1b45188852598a474bf", "6793624a4b2a8f2c0c31ae45"]
     
 	# Find rows where prolific_pid matches any target ID
-	for row in eachrow(control_task_data)
+	for row in eachrow(merged_control)
 			if row.prolific_pid in target_pids
 					# Temporarily store one value
 					temp = row.response
@@ -1300,5 +1333,5 @@ function prepare_control_data(data::DataFrame)
 			end
 	end
 
-	return control_task_data, control_report_data
+	return merged_control, control_report_data
 end
