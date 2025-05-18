@@ -559,6 +559,17 @@ let
 	f
 end
 
+# ╔═╡ f2d71779-28cf-456f-a382-886d826bb398
+test_data_clean = let
+	test_data_clean = filter(x -> x.response != "no_resp", test_data)
+
+	filter!(x -> x.block in string.(1:3), test_data_clean)
+
+	test_data_clean.EV_diff = test_data_clean.EV_right .- test_data_clean.EV_left
+
+	test_data_clean
+end
+
 # ╔═╡ e408ac2e-6767-4d9d-b8ce-b8efced23288
 function prepare_data(
 	PILT_data_clean::DataFrame
@@ -716,6 +727,41 @@ function stratified_split_group(df::DataFrame, col::Symbol; prop::Float64=0.5, n
     return group_assignments
 end
 
+# ╔═╡ 580ad76b-95d7-463e-9702-7ee83cd62d6a
+let
+	test_data_clean.EV_bin = quantile_bin_centers(test_data_clean.EV_diff, 5)
+
+	test_data_clean.types = ifelse.(
+		test_data_clean.feedback_right .== test_data_clean.feedback_left,
+		"Identical",
+		ifelse.(
+			sign.(test_data_clean.feedback_right .== sign.(test_data_clean.feedback_left)),
+			"Same valence",
+			"Opposing valence"
+		)
+	)
+
+	test_sum = combine(
+		groupby(test_data_clean, [:prolific_pid, :EV_diff, :types]),
+		:response => (x -> mean(x .== "right")) => :right_chosen,
+		
+	)
+
+	test_sum = combine(
+		groupby(test_sum, [:EV_diff, :types]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se,
+	)
+
+	mp = data(test_sum) * 
+		(
+			mapping(:EV_diff, :right_chosen, color = :types) * visual(Scatter) +
+			mapping(:EV_diff, :right_chosen, :se, color = :types) * visual(Errorbars)
+		)
+
+	draw(mp; axis = (; xlabel = "EV right - left", ylabel = "Prop. right chosen"))
+end
+
 # ╔═╡ fe7479df-fde4-41de-936a-af4f88b8cf8a
 describe(PILT_data_clean)
 
@@ -736,6 +782,8 @@ describe(PILT_data_clean)
 # ╠═928661b2-eda5-4ac5-9db8-062f87257ca3
 # ╠═672153f5-f2bd-481a-aa76-c1394ecdf681
 # ╠═c44884ce-c91f-4651-b9b3-73d473ac7c61
+# ╠═f2d71779-28cf-456f-a382-886d826bb398
+# ╠═580ad76b-95d7-463e-9702-7ee83cd62d6a
 # ╠═e408ac2e-6767-4d9d-b8ce-b8efced23288
 # ╠═1d5ad1bc-2e93-4211-a08e-f5d5be23ccc1
 # ╠═fe7479df-fde4-41de-936a-af4f88b8cf8a
