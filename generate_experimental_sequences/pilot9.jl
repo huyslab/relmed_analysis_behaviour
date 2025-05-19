@@ -553,7 +553,7 @@ let task = PILT_sequence
 	
 
 
-	save("results/trial1_pilt_trial_plan.png", f, pt_per_unit = 1)
+	save("results/pilot9_pilt_trial_plan.png", f, pt_per_unit = 1)
 
 	f
 
