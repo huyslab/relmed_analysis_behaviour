@@ -85,220 +85,6 @@ begin
 
 end
 
-# ╔═╡ e34ea9b5-50e6-463f-afba-f3e845186019
-PILT_blocks = let rng = Xoshiro(0)
-
-	coins = [-1., -0.5, -0.01, 0.01, 0.5, 1.]
-
-	# Create all magnitdue combinations
-	outcome_combinations = collect(product(coins, coins))
-
-	outcome_combinations = filter(x -> x[1] < x[2], vec(outcome_combinations))
-
-	# Select only upper triangular
-	# outcome_combinations = 
-	# 	outcome_combinations[triu(trues(size(outcome_combinations)))]
-
-	# # Convert to vector of vectors
-	# outcome_combinations = collect.(outcome_combinations)
-
-	# # Shuffle order within pair, keeping B stim outcome distribution flat
-	# criteria = false 
-	# while !criteria
-
-	# 	# Shuffle
-	# 	shuffle!.(rng, outcome_combinations)
-
-	# 	# Collect B stimuli values
-	# 	B_stim = [x[2] for x in outcome_combinations]
-
-	# 	B_stim_counts = values(countmap(B_stim))
-
-	# 	criteria = maximum(B_stim_counts) - minimum(B_stim_counts) == 1
-
-	# end
-
-
-	# # Shuffle order, under constraints
-	# criteria = false 
-	
-	# while !criteria
-	# 	shuffle!(rng, outcome_combinations)
-
-	# 	# Summarize stim B outcome transitions--------
-	# 	outcome_B = [x[2] for x in outcome_combinations]
-
-	# 	transitions = [(outcome_B[i], outcome_B[i+1]) for i in 1:(length(outcome_B) - 1)]
-
-	# 	trans_counts = values(countmap(transitions))
-
-
- #        # Constraints:
- #        # 1. First block rewards only
- #        # 2. Blocks 2 and 3 with mixed valence
- #        # 3. Block 4 with punishments only
- #        # 4. Maximize exposure to most transition types
-	# 	criteria = all(outcome_combinations[1] .> 0) &&
-	# 		all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
-	# 		all(outcome_combinations[4] .< 0) &&
-	# 		maximum(trans_counts) <= 1 &&
- #            [-1.0, 1.] ∉ sort.(outcome_combinations[1:4]) &&
- #            all((x -> x[2] - x[1]).(outcome_combinations[1:4]) .!= 0.)
-
-	# end
-
-	# # Arrange into DataFrame
-	# PILT_blocks_long = DataFrame(
-	# 	block = repeat(1:length(outcome_combinations), outer = 2),
-	# 	n_confusing = repeat(vcat(
-	# 		fill(0, 4), 
-	# 		fill(1, 4), 
-	# 		fill(2, length(outcome_combinations) - 8)
-	# 	), outer = 2),
-	# 	stimulus = repeat(["A", "B"], inner = length(outcome_combinations)),
-	# 	primary_outcome = vcat(
-	# 		[x[1] for x in outcome_combinations], 
-	# 		[x[2] for x in outcome_combinations]
-	# 	)
-	# )
-
-	# sort!(PILT_blocks_long, [:block, :stimulus])
-
-	# # Function to assign secondary outcomes
-	# function shuffle_secondary_outcome(n::Int64, primary::Float64)
-
-	# 	secondary = repeat(
-	# 		filter(x -> x != primary, coins), 
-	# 		n ÷ (length(coins) - 1)
-	# 	)
-
-	# 	distances = abs.(coins .- primary)
-
-	# 	furthest = coins[partialsortperm(distances, 1:(rem(n, length(coins) - 1)), rev=true)]
-
-	# 	secondary = vcat(secondary, furthest)
-
-	# 	return shuffle(rng, secondary)
-
-	# end
-
-	# # Tell apart deterministic from probabilistic blocks
-	# PILT_blocks_long.deterministic = PILT_blocks_long.n_confusing .== 0
-
-	# # Add secondary outcome, shuffle under contraints such that the first two blocks primary outcome matches secondary in sign, and that stimulus B (repeating) has uniform distribution
-	# criteria2 = false
-	# n_attempts = 0
-	# while !criteria2 && n_attempts < 100000
-	# 	DataFrames.transform!(
-	# 		groupby(PILT_blocks_long, [:deterministic, :primary_outcome]),
-	# 		[:deterministic, :primary_outcome] => 
-	# 			((d, o) -> ifelse.(
-	# 				d,
-	# 				fill(missing, length(o)),
-	# 				shuffle_secondary_outcome(
-	# 					length(o), unique(o)[1]))) => :secondary_outcome
-				
-	# 	)
-
-	# 	# EV
-	# 	PILT_blocks_long.EV = ifelse.(
-	# 		ismissing.(PILT_blocks_long.secondary_outcome),
-	# 		PILT_blocks_long.primary_outcome,
-	# 		PILT_blocks_long.primary_outcome .* 0.8 + PILT_blocks_long.secondary_outcome .* 0.2
-	# 	)
-
- #        # Long to wide to compute EV difference
- #        PILT_blocks = unstack(
- #            PILT_blocks_long,
- #            [:block],
- #            :stimulus,
- #            :EV
- #        )
-
- #        # # Compute EV difference
- #        PILT_blocks.EV_abs_diff = abs.(PILT_blocks.A - PILT_blocks.B)
-
- #        # # Discretize to five bins from zero to two
- #        PILT_blocks.EV_abs_diff_bin = ceil.((PILT_blocks.EV_abs_diff .+ eps()) ./ 0.4) * 0.4
-
- #        EV_diff_bin_counts = countmap(PILT_blocks.EV_abs_diff_bin)
-
- #        EV_diff_counts_sd = std(values(EV_diff_bin_counts))
-
- #        # println(EV_diff_bin_counts)
- #        # println(maximum(EV_diff_bin_counts) - minimum(EV_diff_bin_counts))
-
- #        EV_diff_uniform = EV_diff_counts_sd < 2.5
-
- #        # Check if the first two blocks primary outcome matches secondary in sign
-	# 	first_mathces = all((r -> sign(r.primary_outcome) == 
-	# 		sign(r.secondary_outcome)).(eachrow(filter(x -> x.block in [5,6], PILT_blocks_long))))
-
-
- #        # Check if stimulus B has uniform distribution
-	# 	EV_B_bin = discretize_to_quantiles(
-	# 		PILT_blocks_long.EV,
-	# 		PILT_blocks_long.EV,
-	# 		5
-	# 	)[PILT_blocks_long.stimulus .== "B"]
-
-	# 	EV_B_bin_counts = values(countmap(EV_B_bin))
-
-	# 	B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) == 1
-
-	# 	criteria2 = first_mathces && B_uniform && EV_diff_uniform
-
- #        if criteria2
- #            println(EV_diff_counts_sd)
- #            println(EV_diff_bin_counts)
- #        end
-        
- #        n_attempts += 1
-
-	# end
-	
-	# # Long to wide
-	# PILT_blocks = leftjoin(
-	# 	unstack(
-	# 		PILT_blocks_long,
-	# 		[:block, :n_confusing],
-	# 		:stimulus,
-	# 		:primary_outcome,
-	# 		renamecols = x -> "primary_outcome_$(x)"
-	# 	),
-	# 	unstack(
-	# 		PILT_blocks_long,
-	# 		[:block, :n_confusing],
-	# 		:stimulus,
-	# 		:secondary_outcome,
-	# 		renamecols = x -> "secondary_outcome_$(x)"
-	# 	),
-	# 	on = [:block, :n_confusing]
-	# )
-
-	# # Compute EV
-	# PILT_blocks.EV_A = ifelse.(
-	# 	ismissing.(PILT_blocks.secondary_outcome_A),
-	# 	PILT_blocks.primary_outcome_A,
-	# 	PILT_blocks.primary_outcome_A .* 0.8 + PILT_blocks.secondary_outcome_A .* 0.2
-	# )
-
-	# PILT_blocks.EV_B = ifelse.(
-	# 	ismissing.(PILT_blocks.secondary_outcome_B),
-	# 	PILT_blocks.primary_outcome_B,
-	# 	PILT_blocks.primary_outcome_B .* 0.8 + PILT_blocks.secondary_outcome_B .* 0.2
-	# )
-
- #    PILT_blocks.optimal_A = PILT_blocks.EV_A .> PILT_blocks.EV_B
-
- #    @assert all(PILT_blocks.EV_A .!= PILT_blocks.EV_B) "EVs are not different"
-
- #    @info "Proportion of blocks with repeating stimulus B optimal: $(mean(PILT_blocks.EV_B .> PILT_blocks.EV_A))"
-
-	# PILT_blocks
-
-end
-
 # ╔═╡ c34ecc54-289c-4f6f-91eb-e2d643a9c647
 function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T}, num_quantiles::Int) where T
     quantile_edges = quantile(reference_values, range(0, 1, length=num_quantiles+1))
@@ -316,6 +102,502 @@ function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T},
     
     categorical_values = CategoricalArray([assign_quantile(v) for v in values], ordered=true, levels=labels)
     return categorical_values
+end
+
+
+# ╔═╡ e34ea9b5-50e6-463f-afba-f3e845186019
+PILT_blocks = let rng = Xoshiro(0)
+
+	coins = [-1., -0.5, -0.01, 0.01, 0.5, 1.]
+
+	# Create all magnitdue combinations
+	outcome_combinations = collect(product(coins, coins))
+
+	outcome_combinations = filter(x -> x[1] < x[2], vec(outcome_combinations))
+
+	# Convert to vector of vectors
+	outcome_combinations = collect.(outcome_combinations)
+
+	# Shuffle order within pair, keeping B stim outcome distribution flat
+	criteria = false 
+	while !criteria
+
+		# Shuffle
+		shuffle!.(rng, outcome_combinations)
+
+		# Collect B stimuli values
+		B_stim = [x[2] for x in outcome_combinations]
+
+		B_stim_counts = values(countmap(B_stim))
+
+		criteria = maximum(B_stim_counts) - minimum(B_stim_counts) == 1
+
+	end
+
+	# Shuffle order, under constraints
+	criteria = false 
+	
+	while !criteria
+		shuffle!(rng, outcome_combinations)
+
+		# Summarize stim B outcome transitions--------
+		outcome_B = [x[2] for x in outcome_combinations]
+
+		transitions = [(outcome_B[i], outcome_B[i+1]) for i in 1:(length(outcome_B) - 1)]
+
+		trans_counts = values(countmap(transitions))
+
+
+        # Constraints:
+        # 1. First block rewards only
+        # 2. Blocks 2 and 3 with mixed valence
+        # 3. Block 4 with punishments only
+        # 4. Maximize exposure to most transition types
+		criteria = all(outcome_combinations[1] .> 0) &&
+			all((x -> (x[1] * x[2]) < 0).(outcome_combinations[2:3])) &&
+			all(outcome_combinations[4] .< 0) &&
+			maximum(trans_counts) <= 1 &&
+            [-1.0, 1.] ∉ sort.(outcome_combinations[1:4]) &&
+            all((x -> x[2] - x[1]).(outcome_combinations[1:4]) .!= 0.)
+
+	end
+
+	# Arrange into DataFrame
+	PILT_blocks_long = DataFrame(
+		block = repeat(1:length(outcome_combinations), outer = 2),
+		n_confusing = repeat(vcat(
+			fill(0, 4), 
+			fill(1, 4), 
+			fill(2, length(outcome_combinations) - 8)
+		), outer = 2),
+		stimulus = repeat(["A", "B"], inner = length(outcome_combinations)),
+		primary_outcome = vcat(
+			[x[1] for x in outcome_combinations], 
+			[x[2] for x in outcome_combinations]
+		)
+	)
+
+	sort!(PILT_blocks_long, [:block, :stimulus])
+
+	# Function to assign secondary outcomes
+	function shuffle_secondary_outcome(n::Int64, primary::Float64)
+
+		secondary = repeat(
+			filter(x -> x != primary, coins), 
+			n ÷ (length(coins) - 1)
+		)
+
+		distances = abs.(coins .- primary)
+
+		furthest = coins[partialsortperm(distances, 1:(rem(n, length(coins) - 1)), rev=true)]
+
+		secondary = vcat(secondary, furthest)
+
+		return shuffle(rng, secondary)
+
+	end
+
+	# Tell apart deterministic from probabilistic blocks
+	PILT_blocks_long.deterministic = PILT_blocks_long.n_confusing .== 0
+
+	# Add secondary outcome, shuffle under contraints such that the first two blocks primary outcome matches secondary in sign, and that stimulus B (repeating) has uniform distribution
+	criteria2 = false
+	n_attempts = 0
+	while !criteria2 && n_attempts < 100000
+		DataFrames.transform!(
+			groupby(PILT_blocks_long, [:deterministic, :primary_outcome]),
+			[:deterministic, :primary_outcome] => 
+				((d, o) -> ifelse.(
+					d,
+					fill(missing, length(o)),
+					shuffle_secondary_outcome(
+						length(o), unique(o)[1]))) => :secondary_outcome
+				
+		)
+
+		# EV
+		PILT_blocks_long.EV = ifelse.(
+			ismissing.(PILT_blocks_long.secondary_outcome),
+			PILT_blocks_long.primary_outcome,
+			PILT_blocks_long.primary_outcome .* 0.8 + PILT_blocks_long.secondary_outcome .* 0.2
+		)
+
+        # Long to wide to compute EV difference
+        PILT_blocks = unstack(
+            PILT_blocks_long,
+            [:block],
+            :stimulus,
+            :EV
+        )
+
+        # # Compute EV difference
+        PILT_blocks.EV_abs_diff = abs.(PILT_blocks.A - PILT_blocks.B)
+
+        # # Discretize to five bins from zero to two
+        PILT_blocks.EV_abs_diff_bin = ceil.((PILT_blocks.EV_abs_diff .+ eps()) ./ 0.4) * 0.4
+
+        EV_diff_bin_counts = countmap(PILT_blocks.EV_abs_diff_bin)
+
+        EV_diff_counts_sd = std(values(EV_diff_bin_counts))
+
+        # println(EV_diff_bin_counts)
+        # println(maximum(EV_diff_bin_counts) - minimum(EV_diff_bin_counts))
+
+        EV_diff_uniform = EV_diff_counts_sd < 2.5
+
+        # Check if the first two blocks primary outcome matches secondary in sign
+		first_mathces = all((r -> sign(r.primary_outcome) == 
+			sign(r.secondary_outcome)).(eachrow(filter(x -> x.block in [5,6], PILT_blocks_long))))
+
+
+        # Check if stimulus B has uniform distribution
+		EV_B_bin = discretize_to_quantiles(
+			PILT_blocks_long.EV,
+			PILT_blocks_long.EV,
+			5
+		)[PILT_blocks_long.stimulus .== "B"]
+
+		EV_B_bin_counts = values(countmap(EV_B_bin))
+
+		B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) == 1
+
+		criteria2 = first_mathces && B_uniform && EV_diff_uniform
+
+        if criteria2
+            println(EV_diff_counts_sd)
+            println(EV_diff_bin_counts)
+        end
+        
+        n_attempts += 1
+
+	end
+	
+	# Long to wide
+	PILT_blocks = leftjoin(
+		unstack(
+			PILT_blocks_long,
+			[:block, :n_confusing],
+			:stimulus,
+			:primary_outcome,
+			renamecols = x -> "primary_outcome_$(x)"
+		),
+		unstack(
+			PILT_blocks_long,
+			[:block, :n_confusing],
+			:stimulus,
+			:secondary_outcome,
+			renamecols = x -> "secondary_outcome_$(x)"
+		),
+		on = [:block, :n_confusing]
+	)
+
+	# Compute EV
+	PILT_blocks.EV_A = ifelse.(
+		ismissing.(PILT_blocks.secondary_outcome_A),
+		PILT_blocks.primary_outcome_A,
+		PILT_blocks.primary_outcome_A .* 0.8 + PILT_blocks.secondary_outcome_A .* 0.2
+	)
+
+	PILT_blocks.EV_B = ifelse.(
+		ismissing.(PILT_blocks.secondary_outcome_B),
+		PILT_blocks.primary_outcome_B,
+		PILT_blocks.primary_outcome_B .* 0.8 + PILT_blocks.secondary_outcome_B .* 0.2
+	)
+
+    PILT_blocks.optimal_A = PILT_blocks.EV_A .> PILT_blocks.EV_B
+
+    @assert all(PILT_blocks.EV_A .!= PILT_blocks.EV_B) "EVs are not different"
+
+    @info "Proportion of blocks with repeating stimulus B optimal: $(mean(PILT_blocks.EV_B .> PILT_blocks.EV_A))"
+
+	PILT_blocks
+
+end
+
+# ╔═╡ 30d04b83-46b4-4e13-84b3-17a404c2d8be
+# Assign stimulus images
+PILT_stimuli = let random_seed = 0
+
+	@info length(categories)
+
+	# Assign stimulus pairs
+	stimuli = vcat(
+		[
+			insertcols(assign_stimuli_and_optimality(;
+				n_phases = 1,
+				n_pairs = fill(1, maximum(PILT_blocks.block)),
+				categories = categories,
+				rng = Xoshiro(random_seed)
+		), 1, :session => s) for s in sessions[2:end]
+		]...
+	)
+
+    @info "Categories left after PILT assignment: $(length(categories))"
+
+	@info "Proportion of blocks on which the novel category is optimal : $(mean(stimuli.optimal_A))"
+
+    # Check that optimal_A is the same for each session
+    @assert allequal([gdf.optimal_A for gdf in groupby(stimuli, :session)]) "optimal_A is not the same for each session"
+
+    # Check that the set of stimuli used is different for each session
+    @assert !any(intersect(gdf1.stimulus_A, gdf2.stimulus_A) != [] for (gdf1, gdf2) in combinations(groupby(stimuli, :session), 2)) "Stimuli used in different sessions are not disjoint"
+
+	stimuli
+end
+
+
+# ╔═╡ 54d7e5e4-ea89-4efc-8ae6-078d60c7bcb1
+# Create PILT sequence
+PILT_sequence = let rng = Xoshiro(2)
+
+    position_criterion = false
+    PILT_sequence = DataFrame()
+    while !position_criterion 
+
+		# All positions of common feedback
+		common_feedback_positions = Dict(
+			n_confusing => shuffle(rng, collect(combinations(1:PILT_trials_per_block, n_confusing)))
+			for n_confusing in unique(PILT_blocks.n_confusing)
+		)
+
+
+        # Helper function to assign common feedback
+        get_sequence = function(indices::Vector{Int})
+            v = fill(true, PILT_trials_per_block)
+            v[indices] .= false
+            return v
+        end
+
+        # Assign common feedback
+        common_feedback = vcat(
+            [
+                n_confusing == 0 ?  fill(true, PILT_trials_per_block) : get_sequence(pop!(common_feedback_positions[n_confusing])) for n_confusing in PILT_blocks.n_confusing 
+            ]...
+        )
+
+        # Make into DataFrame
+        PILT_sequence = DataFrame(
+            block = repeat(PILT_blocks.block, inner = PILT_trials_per_block),
+            trial = repeat(1:PILT_trials_per_block, outer = length(PILT_blocks.block)),
+            feedback_common = common_feedback,
+            n_confusing = repeat(PILT_blocks.n_confusing, inner = PILT_trials_per_block)
+        )
+
+        # Compute proportion of common feedback per position
+        position_sd = std(combine(
+            groupby(PILT_sequence, :trial),
+            :feedback_common => mean => :feedback_common
+        ).feedback_common)
+
+        position_criterion = position_sd < 0.0282
+
+        if position_criterion
+            @info "SD of position proportions: $(position_sd)"
+        end
+
+    end
+
+    # Merge with blocks
+    PILT_sequence = leftjoin(
+        PILT_sequence,
+        select(PILT_blocks, [:block, :n_confusing, :optimal_A, :primary_outcome_A, :primary_outcome_B, :secondary_outcome_A, :secondary_outcome_B]),
+        on = [:block, :n_confusing]
+    )
+
+    # Create feedback_A and feedback_B
+    PILT_sequence.feedback_A = ifelse.(
+        PILT_sequence.feedback_common,
+        PILT_sequence.primary_outcome_A,
+        PILT_sequence.secondary_outcome_A
+    )
+    PILT_sequence.feedback_B = ifelse.(
+        PILT_sequence.feedback_common,
+        PILT_sequence.primary_outcome_B,
+        PILT_sequence.secondary_outcome_B
+    )
+
+    # Merge with stimuli
+    PILT_sequence = leftjoin(
+        PILT_sequence,
+        select(PILT_stimuli, [:block, :session, :stimulus_A, :stimulus_B]),
+        on = [:block]
+    )
+
+    sort!(PILT_sequence, [:session, :block, :trial])
+
+    # Randomize appearance on left / right
+    DataFrames.transform!(
+        groupby(PILT_sequence, [:session, :block]),
+        :n_confusing => (x -> shuffled_fill([true, false], length(x))) => :A_on_right
+    )
+
+    # Create stimulus on left / right
+    PILT_sequence.stimulus_right = ifelse.(
+		PILT_sequence.A_on_right,
+		PILT_sequence.stimulus_A,
+		PILT_sequence.stimulus_B
+	)
+
+    PILT_sequence.stimulus_left = ifelse.(
+		.!PILT_sequence.A_on_right,
+		PILT_sequence.stimulus_A,
+		PILT_sequence.stimulus_B
+	)
+
+    # Create optimal_right
+    PILT_sequence.optimal_right = (PILT_sequence.A_on_right .& PILT_sequence.optimal_A) .| (.!PILT_sequence.A_on_right .& .!PILT_sequence.optimal_A)
+
+    # Create feedback_right and feedback_left
+    PILT_sequence.feedback_right = ifelse.(
+        PILT_sequence.A_on_right,
+        PILT_sequence.feedback_A,
+        PILT_sequence.feedback_B
+    )
+    PILT_sequence.feedback_left = ifelse.(
+        .!PILT_sequence.A_on_right,
+        PILT_sequence.feedback_A,
+        PILT_sequence.feedback_B
+    )
+
+    # Add variables needed for experiment script
+	insertcols!(
+		PILT_sequence,
+		:n_stimuli => 2,
+		:n_groups => 1,
+		:stimulus_group => 1,
+		:stimulus_group_id => PILT_sequence.block,
+		:stimulus_middle => "",
+		:feedback_middle => "",
+		:optimal_side => "",
+		:present_pavlovian => true,
+		:early_stop => true,
+        :valence => 0 # Meaning mixed
+	)
+
+end
+
+
+# ╔═╡ 15cf4ca3-3cad-41f3-8ed0-23af0a5b6d61
+# Validate task DataFrame
+let task = PILT_sequence
+	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
+
+	@assert all(combine(groupby(task, :session), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+
+    @assert all(combine(
+        groupby(task, [:session, :block, :n_confusing]),
+        :feedback_common => (x -> sum(.!x)) => :feedback_rare
+    ) |> df -> df.feedback_rare .== df.n_confusing) "Number of rare feedbacks does not match n_confusing"
+
+    ev_right = select(
+        groupby(task, [:session, :block]),
+        :feedback_A => mean => :EV_A,
+        :feedback_B => mean => :EV_B,
+        :A_on_right,
+        :optimal_right
+    )
+
+    ev_right.ev_right_bigger = ifelse.(
+        ev_right.A_on_right,
+        ev_right.EV_A .> ev_right.EV_B,
+        ev_right.EV_B .> ev_right.EV_A
+    )
+
+    @assert all(ev_right.ev_right_bigger .== ev_right.optimal_right) "Optimality does not match EVs"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+	# Count losses to allocate coins in to safe for beginning of task
+	worst_loss = countmap(
+        ifelse.(
+            task.feedback_right .< task.feedback_left,
+            ifelse.(
+                task.feedback_right .< 0,
+                task.feedback_right,
+                0
+            ),
+            ifelse.(
+                task.feedback_left .< 0,
+                task.feedback_left,
+                0
+            )
+        )
+    )
+
+	@info "Worst possible loss in this task is of these coin numbers: $worst_loss"
+
+end
+
+
+# ╔═╡ af5c2af1-2a59-42ef-99c7-96958df12d93
+# Visualize PILT seuqnce
+let task = PILT_sequence
+
+	f = Figure(size = (700, 300))
+
+	# Proportion of confusing by trial number
+	confusing_location = combine(
+		groupby(task, [:session, :trial]),
+		:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+	)
+
+	mp1 = data(confusing_location) * mapping(
+		:trial => "Trial", 
+		:feedback_confusing => "Prop. confusing feedback",
+		color = :session => nonnumeric => "Session",
+		group = :session => nonnumeric
+	) * visual(ScatterLines)
+
+	plt1 = draw!(f[1,1], mp1)
+
+	legend!(
+		f[1,1], 
+		plt1,
+		tellwidth = false,
+		tellheight = false,
+		valign = 1.2,
+		halign = 0.,
+		framevisible = false
+	)
+
+	# Plot confusing trials by block
+	fp = insertcols(
+		task,
+		:color => ifelse.(
+			task.feedback_common,
+			(task.valence .+ 1) .÷ 2,
+			fill(3, nrow(task))
+		)
+	)
+
+	for (i, s) in enumerate(unique(fp.session))
+		mp = data(filter(x -> x.session == s, fp)) * mapping(
+			:trial => "Trial",
+			:block => "Block",
+			:color
+		) * visual(Heatmap)
+
+		draw!(f[1,i+1], mp, axis = (; yreversed = true, subtitle = "Session $i"))
+	end
+	
+
+
+	save("results/trial1_pilt_trial_plan.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
+
+# ╔═╡ fc175e9a-975a-4298-b5d2-cd02da2af666
+let
+	# Save to file
+	save_to_JSON(PILT_sequence, "results/trial1_PILT.json")
+	CSV.write("results/trial1_PILT.csv", PILT_sequence)
 end
 
 
@@ -1691,6 +1973,11 @@ end
 # ╟─56abf8a4-acad-4408-a86c-aad2d5aa3cd7
 # ╠═1f791569-cfad-4bc8-9aef-ea324ea7be23
 # ╠═e34ea9b5-50e6-463f-afba-f3e845186019
+# ╠═30d04b83-46b4-4e13-84b3-17a404c2d8be
+# ╠═54d7e5e4-ea89-4efc-8ae6-078d60c7bcb1
+# ╠═15cf4ca3-3cad-41f3-8ed0-23af0a5b6d61
+# ╠═af5c2af1-2a59-42ef-99c7-96958df12d93
+# ╠═fc175e9a-975a-4298-b5d2-cd02da2af666
 # ╠═c34ecc54-289c-4f6f-91eb-e2d643a9c647
 # ╟─5db56189-97ae-4ab0-969c-3c6a9bf787a7
 # ╠═2005851c-6cb4-4849-a587-3562b2a14dd7
