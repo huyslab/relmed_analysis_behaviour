@@ -1285,3 +1285,47 @@ function prepare_control_data(data::DataFrame)
 
 	return control_task_data, control_report_data
 end
+
+"""
+    prepare_post_PILT_test_data(data::AbstractDataFrame) -> DataFrame
+
+Processes and prepares data from the PILT test phase for further analysis. This function filters rows to include only those from the PILT test phase, removes columns where all values are missing, and computes additional columns based on participant responses.
+This is for pilots prior to Pilot9 - deprecated.
+
+# Arguments
+- `data::AbstractDataFrame`: The raw experimental data, including trial phases and participant responses.
+
+# Returns
+- A DataFrame with the PILT test data, including computed columns for the chosen stimulus and whether the response was "ArrowRight". Columns with all missing values are excluded.
+"""
+function prepare_post_PILT_test_data(data::AbstractDataFrame)
+
+	# Select rows
+	test_data = filter(x -> !ismissing(x.trialphase) && (x.trialphase == "PILT_test"), data)
+
+	# Select columns
+	test_data = test_data[:, Not(map(col -> all(ismissing, col),
+		eachcol(test_data)))]
+
+	if :stimulus in names(test_data)
+		select!(test_data, Not(:stimulus))
+	end
+
+	# Compute chosen stimulus
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
+	
+	test_data.chosen_stimulus = ifelse.(
+		test_data.response .∈ (["ArrowRight", "right"],),
+		test_data.stimulus_right,
+		ifelse.(
+			test_data.response .∈ (["ArrowLeft", "left"],),
+			test_data.stimulus_left,
+			missing
+		)
+	)
+
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
+
+	return test_data
+
+end
