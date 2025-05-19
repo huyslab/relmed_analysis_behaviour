@@ -60,6 +60,13 @@ begin
 	nothing
 end
 
+# Load Pilot 9
+begin
+	_, _, _, _, pilot9 = load_pilot9_data()
+	pilot9 = exclude_double_takers(pilot9)
+	nothing
+end
+
 # Load control pilot 2
 begin
 	_, _, control2_1 = load_control_pilot2_data()
@@ -283,12 +290,42 @@ control_no_fail_durations = let
 	)
 end
 
+PILT_mixed_valence_duration = calculate_durations(
+	"PILT mixed valence";
+	trial_counting_finder = [:trialphase, :block] => (tp, bl) -> begin
+		block_values = bl[.!ismissing.(tp) .&& (tp .== "pilt") .&& isa.(bl, Number)] 
+		return isempty(block_values) ? 0 : maximum(block_values)
+	end,
+	df = pilot9,
+	n_trials_criterion = 21, # Actually blocks
+	instruction_start_finder = [:trialphase, :time_elapsed] => 
+		((tp, t) -> t[findfirst((x -> !ismissing(x) && x == "instruction").(tp)) - 1]),
+	task_start_finder = [:block, :time_elapsed] => 
+		((b, t) -> t[findfirst((x -> !ismissing(x) && x == 1).(b)) - 1]),
+	task_end_finder = [:trialphase, :block, :time_elapsed] => 
+		((tp, b, t) -> begin
+			idx = findlast((i -> !ismissing(tp[i]) && tp[i] == "pilt" && 
+							!ismissing(b[i]) && b[i] == 21), 1:length(tp))
+			isnothing(idx) ? missing : t[idx]
+		end)
+)
 
 
 ## Plot and summarize -----------------------------------|
 # Combine durations from different experiments
 begin
-	durations = vcat(wm_durations, ltm_durations, vigour_durations, pit_durations, reversal_durations, pilt_early_stop_durations, pilt_no_early_stop_durations, control_durations, control_no_fail_durations)
+	durations = vcat(
+		wm_durations, 
+		ltm_durations, 
+		vigour_durations, 
+		pit_durations, 
+		reversal_durations, 
+		pilt_early_stop_durations, 
+		pilt_no_early_stop_durations, 
+		PILT_mixed_valence_duration,
+		control_durations, 
+		control_no_fail_durations
+	)
 end
 
 # Plot duration ecdfs
