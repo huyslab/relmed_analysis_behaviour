@@ -838,6 +838,9 @@ end
 	@filter(trialphase == "control_reward")
 	@drop_missing(response)
 	@mutate(correct_choice = ifelse(response == "left", left_viable, right_viable))
+	@group_by(prolific_pid, session, reward_amount)
+	@summarize(correct_choice = mean(correct_choice))
+	@ungroup
 	@group_by(session, reward_amount)
 	@summarize(acc = mean(correct_choice), upper = mean(correct_choice) + std(correct_choice)/sqrt(length(correct_choice)), lower = mean(correct_choice) - std(correct_choice)/sqrt(length(correct_choice)))
 	@ungroup
@@ -884,6 +887,9 @@ end
 @chain control_task_data begin
 	@filter(trialphase == "control_reward")
 	@drop_missing(correct)
+	@group_by(session, reward_amount, prolific_pid)
+	@summarize(correct = mean(correct))
+	@ungroup
 	@group_by(session, reward_amount)
 	@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
 	@ungroup
