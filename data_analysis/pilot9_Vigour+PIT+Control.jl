@@ -147,11 +147,6 @@ md"""
 ## Prediction
 """
 
-# ╔═╡ ba316af3-a9ba-45d9-bb54-cd6131684899
-md"""
-Training session: 3 ships, 24 trials exploration; prediction trials inbetween; correct answers at the end
-"""
-
 # ╔═╡ 188a9121-a69a-4e20-8600-1a8d7ca7040b
 md"""
 ## Reward
@@ -624,6 +619,12 @@ let
 	figs
 end
 
+# ╔═╡ 8850fa85-de8c-4328-9df0-dde761852e7a
+@chain control_task_data begin
+	@filter(trialphase == "control_explore")
+	@summary(rt)
+end
+
 # ╔═╡ fa6064ce-626b-4309-9183-b129e925058b
 begin
 	explore_by_times = @chain control_task_data begin
@@ -814,6 +815,12 @@ begin
 	end
 end
 
+# ╔═╡ 8dcad11f-27b8-409f-a7ab-1346a2ae3a81
+@chain control_task_data begin
+	@filter(trialphase == "control_reward")
+	@summary(rt)
+end
+
 # ╔═╡ 58c06308-73a6-4628-9449-d808eb223ed5
 @chain control_task_data begin
 	@filter(trialphase == "control_reward")
@@ -824,6 +831,16 @@ end
 	@ungroup
 	data(_) * (mapping(:trial => nonnumeric, :lower, :upper, color=:target, col=:session) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc, color=:target, col=:session) * visual(ScatterLines, markersize = 12))
 	draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial correct choice rate"), figure=(;size=(800, 400)))
+end
+
+# ╔═╡ 022e8a60-902a-4abc-9ee8-d7d5e6e1e3d5
+@chain control_task_data begin
+	@filter(trialphase == "control_reward")
+	@drop_missing(response)
+	@mutate(correct_choice = ifelse(response == "left", left_viable, right_viable))
+	@group_by(session, reward_amount)
+	@summarize(acc = mean(correct_choice), upper = mean(correct_choice) + std(correct_choice)/sqrt(length(correct_choice)), lower = mean(correct_choice) - std(correct_choice)/sqrt(length(correct_choice)))
+	@ungroup
 end
 
 # ╔═╡ d0ed4273-f5ed-478a-ba8b-581d9edff4a4
@@ -861,6 +878,15 @@ end
 	@ungroup
 	data(_) * (mapping(:trial => nonnumeric, :lower, :upper, color=:target, col=:session) * visual(Band, alpha = 0.1) + mapping(:trial => nonnumeric, :acc, color=:target, col=:session) * visual(ScatterLines, markersize = 12))
 	draw(;axis=(;xlabel = "Trial", ylabel = "Reward trial reward rate"), figure=(;size=(800, 400)))
+end
+
+# ╔═╡ f9e75bdb-d096-42c9-8ce9-27685b1f72ab
+@chain control_task_data begin
+	@filter(trialphase == "control_reward")
+	@drop_missing(correct)
+	@group_by(session, reward_amount)
+	@summarize(acc = mean(correct), upper = mean(correct) + std(correct)/sqrt(length(correct)), lower = mean(correct) - std(correct)/sqrt(length(correct)))
+	@ungroup
 end
 
 # ╔═╡ 15040805-9025-4f8e-8a1d-7ea006261b83
@@ -980,7 +1006,7 @@ end
 let
 	instr_g = @chain jspsych_data begin
 		semijoin(p_no_double_take, on=:record_id)
-		filter(x -> !ismissing(x.trialphase) && x.trialphase in ["control_preload", "control_instruction_end"], _)
+		filter(x -> !ismissing(x.trialphase) && contains(x.trialphase, r"control_preload|control_instruction.*"), _)
 		groupby([:session, :record_id])
 		combine(:time_elapsed => (x -> (maximum(x) - minimum(x))/60000) => :instr_dur)
 		groupby(:session)
@@ -989,7 +1015,7 @@ let
 
 	explore_g = @chain jspsych_data begin
 		semijoin(p_no_double_take, on=:record_id)
-		filter(x -> !ismissing(x.trialphase) && x.trialphase in ["control_explore", "control_confidence"], _)
+		filter(x -> !ismissing(x.trialphase) && x.trialphase in ["control_explore", "control_predict_homebase", "control_controllability", "control_confidence"], _)
 		groupby([:session, :record_id])
 		combine(:time_elapsed => (x -> (maximum(x) - minimum(x))/60000) => :explore_dur)
 		groupby(:session)
@@ -1029,30 +1055,31 @@ n = 2 # Number of splits
 # ╟─8a0f53d3-2054-4845-b96d-29399b5aa340
 # ╟─517492c4-4055-4317-bd45-e0e2fb77991e
 # ╠═d77efaa6-3b94-4947-b474-97d77719d80f
-# ╠═d2892577-9e9c-4c23-8b05-87c00b1962f6
+# ╟─d2892577-9e9c-4c23-8b05-87c00b1962f6
 # ╠═bfd770f5-3142-4a73-b39f-012d1bdb5de4
-# ╠═272ba203-34cb-4ffc-9b35-4e4d23f1c59d
+# ╟─272ba203-34cb-4ffc-9b35-4e4d23f1c59d
 # ╟─5230eada-33ba-413f-88a0-96f76164bc12
-# ╠═95bb623c-090d-4338-aa3f-7b31d47d87b2
+# ╟─95bb623c-090d-4338-aa3f-7b31d47d87b2
 # ╠═ad6c8a9d-f0a7-4b6f-b012-dbe33b894a12
-# ╠═12b6b34d-cfc5-48cd-8d50-150c4e388405
+# ╟─12b6b34d-cfc5-48cd-8d50-150c4e388405
 # ╟─8e186be5-f2a2-4285-a62a-9c021b2dd172
 # ╟─827751f8-ef30-472b-84f5-631fb212ba14
 # ╠═d889a3bb-04cc-433f-94e1-a8c71739f82f
-# ╠═c39a9349-ebe3-4b64-9775-a6dd04ac0847
+# ╟─c39a9349-ebe3-4b64-9775-a6dd04ac0847
 # ╟─b54f2cb1-5dbb-4ebb-9073-78e1209cda15
-# ╠═bbde0375-f1a9-47e3-b7d0-885a4e0b8548
+# ╟─bbde0375-f1a9-47e3-b7d0-885a4e0b8548
 # ╟─abe9466b-e4cc-4803-afdf-ada8f482a732
 # ╟─6db5310b-7e8b-42e9-bf8a-38c862e9396c
-# ╠═009447fb-3719-49df-af9d-06f2f26908f3
-# ╠═5c38974b-06a9-4497-8ed8-0cf30e313abd
+# ╟─009447fb-3719-49df-af9d-06f2f26908f3
+# ╟─5c38974b-06a9-4497-8ed8-0cf30e313abd
 # ╟─75d53fbd-5af6-4b29-a952-b5f428c98d20
 # ╟─cc52da42-9561-4619-8d6a-237f9ac629e8
 # ╟─a395432f-0dba-4a06-bbe2-d00c596c455e
 # ╟─9c4338bb-5e7b-443b-afd4-24e87349af9e
-# ╠═2b29cc46-f722-4cf3-b1bf-9bb6310b2457
+# ╟─2b29cc46-f722-4cf3-b1bf-9bb6310b2457
 # ╟─a83d1fda-81fe-4305-ab8e-b6c4fbce6749
 # ╟─db0ef21a-1b00-4eee-983b-f3f553730f14
+# ╟─8850fa85-de8c-4328-9df0-dde761852e7a
 # ╟─fa6064ce-626b-4309-9183-b129e925058b
 # ╟─dc8445f6-965c-4d57-af9d-136059fe72ec
 # ╟─143f8d33-fabd-4af1-b7ba-69984084a533
@@ -1062,11 +1089,13 @@ n = 2 # Number of splits
 # ╟─d0b7207c-4e58-48ea-af3d-2503134b3f5b
 # ╟─1e0e87db-13bc-46db-be5d-7d2dfba7055f
 # ╟─b952e83b-85c3-4c77-b132-6bbe4f532ac4
-# ╠═ba316af3-a9ba-45d9-bb54-cd6131684899
 # ╟─188a9121-a69a-4e20-8600-1a8d7ca7040b
+# ╟─8dcad11f-27b8-409f-a7ab-1346a2ae3a81
 # ╟─58c06308-73a6-4628-9449-d808eb223ed5
+# ╟─022e8a60-902a-4abc-9ee8-d7d5e6e1e3d5
 # ╟─d0ed4273-f5ed-478a-ba8b-581d9edff4a4
 # ╟─b543623b-f867-4b6d-a654-33b0256bb630
+# ╟─f9e75bdb-d096-42c9-8ce9-27685b1f72ab
 # ╟─15040805-9025-4f8e-8a1d-7ea006261b83
 # ╟─98219665-bba0-44f3-8c5b-332da11de34d
 # ╟─cd5210cb-dbce-488f-93ef-f6e2e42d6118
