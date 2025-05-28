@@ -9,7 +9,7 @@ includet("../control_task/simulation/ControlEffortTask.jl")
 using .ControlEffortTask
 
 pars = TaskParameters(
-  n_trials=36,
+  n_trials=54,
   beta_true=[2, 4, 6] .* 3,
 )
 
@@ -26,7 +26,8 @@ stimuli_list = []
 for wind in 1:3
   for (boat1, boat2) in combinations(1:pars.n_states, 2)
     push!(stimuli_list, (; current_state = sample([boat1, boat2]), boat1, boat2, wind))
-    push!(stimuli_list, (; current_state = sample(setdiff(1:4, [boat1, boat2])), boat1, boat2, wind))
+    push!(stimuli_list, (; current_state = (setdiff(1:4, [boat1, boat2])[1]), boat1, boat2, wind))
+    push!(stimuli_list, (; current_state = (setdiff(1:4, [boat1, boat2])[2]), boat1, boat2, wind))
   end
 end
 
@@ -38,13 +39,13 @@ swapped_stimuli_list = Vector(undef, length(stimuli_list))
 while attempt < max_attempts
   copy!(swapped_stimuli_list, stimuli_list)
   # Check if the number of boats is balanced
-  swap_idx = sample(1:36, 18, replace=false)
+  swap_idx = sample(1:54, 27, replace=false)
   for idx in swap_idx
     s = stimuli_list[idx]
     swapped_stimuli_list[idx] = (; s.current_state, boat1=s.boat2, boat2=s.boat1, s.wind)
   end
   df = DataFrame(swapped_stimuli_list)
-  if all(counts(df.boat1) .== 9) && sum(df.boat1 .== df.current_state) == 9
+  if sum(counts(df.boat1) .== 13) >= 2 && sum(df.boat1 .== df.current_state) == 9
     @info "Found balanced swap between ships after $(attempt) attempts"
     break
   end
@@ -153,8 +154,8 @@ end
 
 # Shuffle with constraint for Prediction sequence
 perms = collect(permutations(1:pars.n_states, 4))
-# Randomly select 3 permutations
-selected_perms = reduce(vcat, sample(perms, 3, replace=false))
+# Randomly select 5 permutations
+selected_perms = reduce(vcat, sample(perms, 5, replace=false))
 # shuffled_perms = shuffle_with_no_shared(perms)
 prediction_sequence = []
 for (i, perm) in enumerate(selected_perms)
