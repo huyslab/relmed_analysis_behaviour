@@ -59,6 +59,11 @@ begin
 		"wk28"
 	]
 
+	for s in sessions
+		open("results/trial1_$(s)_sequences.js", "w") do file
+		end
+	end
+
 end
 
 # ╔═╡ de74293f-a452-4292-b5e5-b4419fb70feb
@@ -593,13 +598,6 @@ let task = PILT
 end
 
 
-# ╔═╡ fc175e9a-975a-4298-b5d2-cd02da2af666
-let
-	# Save to file
-	save_to_JSON(PILT, "results/trial1_PILT.json")
-	CSV.write("results/trial1_PILT.csv", PILT)
-end
-
 # ╔═╡ 5db56189-97ae-4ab0-969c-3c6a9bf787a7
 md"""## Screening session"""
 
@@ -609,6 +607,114 @@ begin
 	scr_PILT_n_trials = 50
 	scr_PILT_prop_common::Rational = 9//10
 	scr_PILT_first_confusing_trial = 4
+end
+
+# ╔═╡ 263807b6-8212-41a5-936a-40c962c02150
+scr_PILT_seq = let rng = Xoshiro(0)
+
+	denom_prop = denominator(scr_PILT_prop_common)
+
+	@assert rem(scr_PILT_n_trials, denom_prop) == 0 "Proportion cannot be represented in scr_PILT_n_trials"
+
+	# Shuffled order of feedback common
+	feedback_common = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			float.([scr_PILT_prop_common, 1-scr_PILT_prop_common]), denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop - 1)]...
+	)
+
+	# Add first sequence with first confusing trial
+	feedback_common = vcat(
+		vcat(
+			fill(true, scr_PILT_first_confusing_trial - 1),
+			[false],
+			fill(true, denom_prop - scr_PILT_first_confusing_trial)
+		),
+		feedback_common
+	)
+
+	@assert length(feedback_common) == scr_PILT_n_trials "Problem with allocation of sequence"
+
+	feedback_common
+
+end
+
+# ╔═╡ 8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
+scr_PILT = let rng = Xoshiro(3)
+
+	# Initiate DataFrame with sequence and constant variables
+	scr_PILT = DataFrame(
+		session = "screening",
+		block = 1,
+		valence = 0,
+		trial = 1:length(scr_PILT_seq),
+		feedback_common = scr_PILT_seq,
+		present_pavlovian = false,
+		n_stimuli = 2,
+		early_stop = true,
+		n_groups = 1,
+		stimulus_group = 1,
+		stimulus_group_id = 1,
+		stimulus_middle = "",
+		feedback_middle = "",
+		optimal_side = "",
+	)
+
+	# Create feedback_optimal variable
+	denom_prop = denominator(scr_PILT_prop_common)
+
+	scr_PILT.feedback_optimal = ifelse.(
+		scr_PILT.feedback_common,
+		1.,
+		0.01
+	)
+
+	scr_PILT.feedback_suboptimal = ifelse.(
+		scr_PILT.feedback_common,
+		0.01,
+		0.5
+	)
+
+	# Assign right / left
+	scr_PILT.optimal_right = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			[0.5, 0.5], 
+			denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
+	)
+
+	# Assign feedback_right and feedback_left
+	scr_PILT.feedback_right = ifelse.(
+		scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		scr_PILT.feedback_suboptimal
+	)
+
+	scr_PILT.feedback_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		scr_PILT.feedback_suboptimal
+	)
+
+	# Assign stimuli
+	stimuli = [popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:2]
+
+	scr_PILT.stimulus_right = ifelse.(
+		scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT.stimulus_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT
+
 end
 
 # ╔═╡ b13e8f5f-7522-497e-92d1-51d782fca33b
@@ -938,12 +1044,6 @@ PILT_test = let PILT_test_template = copy(PILT_test_template)
 
 end
 
-# ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
-let
-	save_to_JSON(PILT_test, "results/trial1_PILT_test.json")
-	CSV.write("results/trial1_PILT_test.csv", PILT_test)
-end
-
 # ╔═╡ dd7112c9-35ac-4d02-a9c4-1e19efad0f31
 # Test test sequence
 let
@@ -992,171 +1092,6 @@ triplet_order = let
 	)
 end
 
-# ╔═╡ 184a054c-5a88-44f8-865e-da75a10191ec
-md"""## RLWM"""
-
-# ╔═╡ 60c50147-708a-46f8-a813-7667116fc8d2
-md"""### Post-WM test"""
-
-# ╔═╡ f89e88c9-ebfc-404f-964d-acff5c7f8985
-function integer_allocation(p::Vector{Float64}, n::Int)
-    i = floor.(Int, p * n)  # Floor to ensure sum does not exceed n
-    diff = n - sum(i)       # Remaining to distribute
-    indices = sortperm(p * n .- i, rev=true)  # Sort by largest remainder
-    i[indices[1:diff]] .+= 1  # Distribute the remainder
-    return i
-end
-
-# ╔═╡ 68873d3e-054d-4ab4-9d89-73586bb0370e
-"""
-    prop_fill_shuffle(values, props, n; rng=Xoshiro(1))
-
-Generate a shuffled vector containing `n` elements, where each unique value in `values`  
-is allocated according to the proportions specified in `props`. 
-
-# Arguments
-- `values::AbstractVector`: A vector of unique values to be sampled.  
-- `props::Vector{Float64}`: A vector of proportions (summing to 1) corresponding to `values`.  
-- `n::Int64`: The total number of elements in the output vector.  
-- `rng::AbstractRNG`: (Optional) Random number generator for shuffling (default: `Xoshiro(1)`).  
-
-# Returns
-- A shuffled vector of length `n` containing the values allocated based on `props`.  
-"""
-function prop_fill_shuffle(
-	values::AbstractVector,
-	props::Vector{Float64},
-	n::Int64;
-	rng::AbstractRNG = Xoshiro(1)
-)
-	# Find integers
-	ints = integer_allocation(props, n)
-	
-	# Fill
-	res = [fill(v, i) for (v, i) in zip(values, ints)]
-	
-	# Return shuffled
-	shuffle(rng, vcat(res...))
-end
-
-# ╔═╡ 263807b6-8212-41a5-936a-40c962c02150
-scr_PILT_seq = let rng = Xoshiro(0)
-
-	denom_prop = denominator(scr_PILT_prop_common)
-
-	@assert rem(scr_PILT_n_trials, denom_prop) == 0 "Proportion cannot be represented in scr_PILT_n_trials"
-
-	# Shuffled order of feedback common
-	feedback_common = vcat(
-		[prop_fill_shuffle(
-			[true, false], 
-			float.([scr_PILT_prop_common, 1-scr_PILT_prop_common]), denom_prop; 
-			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop - 1)]...
-	)
-
-	# Add first sequence with first confusing trial
-	feedback_common = vcat(
-		vcat(
-			fill(true, scr_PILT_first_confusing_trial - 1),
-			[false],
-			fill(true, denom_prop - scr_PILT_first_confusing_trial)
-		),
-		feedback_common
-	)
-
-	@assert length(feedback_common) == scr_PILT_n_trials "Problem with allocation of sequence"
-
-	feedback_common
-
-end
-
-# ╔═╡ 8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
-scr_PILT = let rng = Xoshiro(3)
-
-	# Initiate DataFrame with sequence and constant variables
-	scr_PILT = DataFrame(
-		session = "screening",
-		block = 1,
-		valence = 0,
-		trial = 1:length(scr_PILT_seq),
-		feedback_common = scr_PILT_seq,
-		present_pavlovian = false,
-		n_stimuli = 2,
-		early_stop = true,
-		n_groups = 1,
-		stimulus_group = 1,
-		stimulus_group_id = 1,
-		stimulus_middle = "",
-		feedback_middle = "",
-		optimal_side = "",
-	)
-
-	# Create feedback_optimal variable
-	denom_prop = denominator(scr_PILT_prop_common)
-
-	scr_PILT.feedback_optimal = ifelse.(
-		scr_PILT.feedback_common,
-		1.,
-		0.01
-	)
-
-	scr_PILT.feedback_suboptimal = ifelse.(
-		scr_PILT.feedback_common,
-		0.01,
-		0.5
-	)
-
-	# Assign right / left
-	scr_PILT.optimal_right = vcat(
-		[prop_fill_shuffle(
-			[true, false], 
-			[0.5, 0.5], 
-			denom_prop; 
-			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
-	)
-
-	# Assign feedback_right and feedback_left
-	scr_PILT.feedback_right = ifelse.(
-		scr_PILT.optimal_right,
-		scr_PILT.feedback_optimal,
-		scr_PILT.feedback_suboptimal
-	)
-
-	scr_PILT.feedback_left = ifelse.(
-		.!scr_PILT.optimal_right,
-		scr_PILT.feedback_optimal,
-		scr_PILT.feedback_suboptimal
-	)
-
-	# Assign stimuli
-	stimuli = [popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:2]
-
-	scr_PILT.stimulus_right = ifelse.(
-		scr_PILT.optimal_right,
-		stimuli[1],
-		stimuli[2]
-	)
-
-	scr_PILT.stimulus_left = ifelse.(
-		.!scr_PILT.optimal_right,
-		stimuli[1],
-		stimuli[2]
-	)
-
-	scr_PILT
-
-end
-
-# ╔═╡ cc7b17ab-0d77-4be4-bb53-53325ca85145
-let
-	# Bind screening to rest of sessions
-	all_PILT = vcat(scr_PILT, PILT, cols = :union)
-
-	# Save to file
-	save_to_JSON(all_PILT, "results/trial1_PILT.json")
-	CSV.write("results/trial1_PILT.csv", all_PILT)
-end
-
 # ╔═╡ b9134153-d9e9-4e35-bfc4-2c5c5a4329ee
 RLX_block = let rng = Xoshiro(0)
 
@@ -1197,6 +1132,9 @@ RLX_block = let rng = Xoshiro(0)
 	det_block
 
 end
+
+# ╔═╡ 184a054c-5a88-44f8-865e-da75a10191ec
+md"""## RLWM"""
 
 # ╔═╡ 6417ad94-1852-4cce-867e-a856295ec782
 # Create deterministic block
@@ -1321,11 +1259,8 @@ let task = RLWM
 
 end
 
-# ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
-let
-	save_to_JSON(RLWM, "results/trial1_WM.json")
-	CSV.write("results/trial1_WM.csv", RLWM)
-end
+# ╔═╡ 60c50147-708a-46f8-a813-7667116fc8d2
+md"""### Post-WM test"""
 
 # ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
 RLWM_test = let
@@ -1397,12 +1332,6 @@ RLWM_test = let
 	
 end
 
-# ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
-let
-	save_to_JSON(RLWM_test, "results/trial1_WM_test.json")
-	CSV.write("results/trial1_WM_test.csv", RLWM_test)
-end
-
 # ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
 # Tests for RLWM_test
 let
@@ -1421,6 +1350,303 @@ let
 
 	@info combine(groupby(RLWM_test, :session), :trial => length => :n)
 
+end
+
+# ╔═╡ d11a7fc9-6e2c-48a1-bce8-6b5f39df3eda
+md"""## Reversal task"""
+
+# ╔═╡ 3c167a3c-5577-40ce-af0d-317417c8e934
+# Reversal task parameters
+begin
+	rev_n_blocks = 30
+	rev_n_trials = 80
+	rev_prop_confusing = vcat([0, 0.1, 0.1, 0.2, 0.2], fill(0.3, rev_n_blocks - 5))
+	rev_criterion = vcat(
+		[8, 7, 6, 6, 5], 
+		shuffled_fill(
+			3:8, 
+			rev_n_blocks - 5; 
+			rng = Xoshiro(0)
+		)
+	)
+end
+
+# ╔═╡ d9085924-a630-4897-8a87-bd5943098c49
+function save_json_to_js(object, var_name::String, filename::String)
+    # Convert to JSON String
+    json_string = JSON.json(object)
+
+    # Add JS variable assignment
+    json_string = "const $(var_name) = '$json_string';"
+
+    # Append the JSON string to the file
+	@info "writing $var_name to $filename"
+    open(filename, "a") do file
+        write(file, json_string)
+    end
+end
+
+# ╔═╡ 7f254beb-3d4d-437d-a491-e45512b578ce
+function save_to_JSON(
+	df::DataFrame, 
+	filename::Function,
+	var_name
+)
+	# Initialize an empty dictionary to store the grouped data
+	sess_dict = Dict()
+	
+	# Iterate through unique blocks and their respective rows
+	for s in unique(df.session)
+
+		session_df = filter(x -> x.session == s, df)
+		session_groups = []
+		for b in unique(session_df.block)
+		    # Filter the rows corresponding to the current block
+		    block_group = filter(x -> x.block == b, session_df)
+		    
+		    # Convert each row in the block group to a dictionary and collect them into a list
+		    push!(session_groups, [Dict(pairs(row)) for row in eachrow(block_group)])
+		end
+		
+		# Store session data using session name as key
+		sess_dict[string(s)] = session_groups
+	end
+	
+	for (k, v) in sess_dict
+		save_json_to_js(v, var_name, filename(k))
+	end
+
+end
+
+# ╔═╡ cc7b17ab-0d77-4be4-bb53-53325ca85145
+let
+	# Bind screening to rest of sessions
+	all_PILT = vcat(scr_PILT, PILT, cols = :union)
+	
+	# Save to file
+	save_to_JSON(all_PILT, s -> "results/trial1_$(s)_sequences.js", "PILT_json")
+	CSV.write("results/trial1_PILT.csv", all_PILT)
+
+end
+
+# ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
+let
+	# Save to file
+	save_to_JSON(PILT_test, s -> "results/trial1_$(s)_sequences.js", "PILT_test_json")
+	CSV.write("results/trial1_PILT_test.csv", PILT_test)
+end
+
+# ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
+let
+	# Save to file
+	save_to_JSON(RLWM, s -> "results/trial1_$(s)_sequences.js", "WM_json")
+	CSV.write("results/trial1_WM.csv", RLWM)
+end
+
+# ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
+let
+	# Save to file
+	save_to_JSON(RLWM_test, s -> "results/trial1_$(s)_sequences.js", "WM_test_json")
+	CSV.write("results/trial1_WM_test.csv", RLWM_test)
+end
+
+# ╔═╡ 4899facf-6759-49c3-9905-8a418c9ebe7c
+function find_lcm_denominators(props::Vector{Float64})
+	# Convert to rational numbers
+	rational_props = rationalize.(props)
+	
+	# Extract denominators
+	denominators = [denominator(r) for r in rational_props]
+	
+	# Compute the LCM of all denominators
+	smallest_int = foldl(lcm, denominators)
+end
+
+# ╔═╡ 64a0768b-dee5-4a5a-b9b2-cfc3a1c6a6e0
+# Reversal task structure
+rev_feedback_optimal, rev_timeline = let random_seed = 1
+
+	# Compute minimal mini block length to accomodate proportions
+	mini_block_length = find_lcm_denominators(rev_prop_confusing)
+	@info "Randomizing in miniblocks of $mini_block_length trials"
+
+	# Function to create high magnitude values for miniblock
+	mini_block_high_mag(p, rng) = shuffle(rng, vcat(
+		fill(1., round(Int64, mini_block_length * (1-p))),
+		fill(0.01, round(Int64, mini_block_length * p))
+	))
+
+	# Function to create high magntidue values for block
+	block_high_mag(p, rng) = 
+		vcat(
+			[mini_block_high_mag(p, rng) 
+				for _ in 1:(div(rev_n_trials, mini_block_length))]...)
+
+	# Set random seed
+	rng = Xoshiro(random_seed)
+
+	# Initialize
+	feedback_optimal = Vector{Vector{Float64}}()
+
+	# Make sure first sixs blocks don't start with confusing feedback on first trial
+	dist_diff = 11
+	while isempty(feedback_optimal) || 
+		!all([bl[1] != 0.01 for bl in feedback_optimal[1:6]]) || dist_diff > 2
+
+		# Assign blocks
+		feedback_optimal = [block_high_mag(p, rng) for p in rev_prop_confusing]
+
+		# Check distribution of confusing feedback
+		dist = (x -> permutedims(reshape(x, div(length(x), 10), 10), (2,1))).(feedback_optimal)
+
+		dist = vcat(dist...)
+
+		dist = vec(sum(dist .== 1., dims = 1))
+		dist_diff = maximum(abs.(diff(dist)))
+	end
+
+	# Function to compute feedback_suboptimal from feedback_optimal
+	inverter(x) = 1 ./ (100 * x)
+
+	# Draw whether right is optimal on even or odd blocks
+	evenodd = Dict(s => shuffle(rng, [isodd, iseven]) for s in Symbol.(sessions))
+
+	# Create timeline variables
+	timeline = Dict(s => [[Dict(
+		:block => bl,
+		:trial => t,
+		:feedback_left => evenodd[s][1](bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:feedback_right => evenodd[s][2](bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:optimal_right => evenodd[s][2](bl),
+		:criterion => rev_criterion[bl]
+	) for t in 1:rev_n_trials] for bl in 1:rev_n_blocks] for s in Symbol.(sessions))
+	
+	for (k, v) in timeline
+		save_json_to_js(v, "reversal_json", "results/trial1_$(string(k))_sequences.js")
+	end
+
+	feedback_optimal, timeline
+end
+
+# ╔═╡ f4b4556f-28bd-4745-8709-1955abd891df
+let
+
+	f = Figure(size = (700, 600))
+
+	mp1 = data(
+		DataFrame(
+			block = repeat(1:rev_n_blocks, 2),
+			prop = vcat(rev_prop_confusing, 1. .- rev_prop_confusing),
+			feedback_type = repeat(["Confusing", "Common"], inner = rev_n_blocks)
+		)
+	) * mapping(
+		:block => "Block", 
+		:prop => "Proportion of trials", 
+		color = :feedback_type => "", 
+		stack = :feedback_type) * visual(BarPlot)
+
+	plt1 = draw!(f[1,1], mp1, axis = (; yticks = [0., 0.5, 0.7, 0.8, 0.9, 1.]))
+
+	legend!(f[1,1], plt1, 
+		valign = 1.18,
+		tellheight = false, 
+		framevisible = false,
+		orientation = :horizontal,
+		labelsize = 14
+	)
+
+	rowgap!(f[1,1].layout, 0)
+
+	rev_confusing = DataFrame(
+		block = repeat(1:rev_n_blocks, inner = rev_n_trials),
+		trial = repeat(1:rev_n_trials, outer = rev_n_blocks),
+		feedback_common = vcat(rev_feedback_optimal...) .== 1.
+	)
+
+	mp2 = data(rev_confusing) * 
+		mapping(:trial => "Trial", :block => "Block", :feedback_common) *
+		visual(Heatmap)
+
+	draw!(f[1,2], mp2, 
+		axis = (; 
+			yreversed = true, 
+			yticks = [1, 10, 20, 30],
+			subtitle = "Confusing Feedback"
+		)
+	)
+
+	insertcols!(
+		rev_confusing,
+		:rel_trial => rev_confusing.trial .- div.(rev_confusing.trial, 10) .* 10 .+ 1
+	)
+	
+	mp3 = data(
+		combine(
+			groupby(rev_confusing, :rel_trial), 
+			:feedback_common => (x -> mean(.!x)) => :feedback_confusing
+		)
+	) * mapping(
+		:rel_trial => "Trial", 
+		:feedback_confusing => "Prop. confusing feedback"
+	) * visual(ScatterLines)
+
+	draw!(f[2,1], mp3)
+
+	mp4 = mapping(1:rev_n_blocks => "Block", rev_criterion => "# optimal choices)") * visual(ScatterLines)
+
+	draw!(f[2,2], mp4, axis = (; 
+		yticks = 3:8, 
+		xticks = [1, 10, 20, 30], 
+		subtitle = "Reversal criterion")
+	)
+
+	save("results/trial1_reversal_sequence.png", f, pt_per_unit = 1)
+
+	f
+
+end
+
+# ╔═╡ 68873d3e-054d-4ab4-9d89-73586bb0370e
+"""
+    prop_fill_shuffle(values, props, n; rng=Xoshiro(1))
+
+Generate a shuffled vector containing `n` elements, where each unique value in `values`  
+is allocated according to the proportions specified in `props`. 
+
+# Arguments
+- `values::AbstractVector`: A vector of unique values to be sampled.  
+- `props::Vector{Float64}`: A vector of proportions (summing to 1) corresponding to `values`.  
+- `n::Int64`: The total number of elements in the output vector.  
+- `rng::AbstractRNG`: (Optional) Random number generator for shuffling (default: `Xoshiro(1)`).  
+
+# Returns
+- A shuffled vector of length `n` containing the values allocated based on `props`.  
+"""
+function prop_fill_shuffle(
+	values::AbstractVector,
+	props::Vector{Float64},
+	n::Int64;
+	rng::AbstractRNG = Xoshiro(1)
+)
+	# Find integers
+	ints = integer_allocation(props, n)
+	
+	# Fill
+	res = [fill(v, i) for (v, i) in zip(values, ints)]
+	
+	# Return shuffled
+	shuffle(rng, vcat(res...))
+end
+
+# ╔═╡ f89e88c9-ebfc-404f-964d-acff5c7f8985
+function integer_allocation(p::Vector{Float64}, n::Int)
+    i = floor.(Int, p * n)  # Floor to ensure sum does not exceed n
+    diff = n - sum(i)       # Remaining to distribute
+    indices = sortperm(p * n .- i, rev=true)  # Sort by largest remainder
+    i[indices[1:diff]] .+= 1  # Distribute the remainder
+    return i
 end
 
 # ╔═╡ 2c75cffc-1adc-44b6-bed3-12ed0c7025b7
@@ -1444,14 +1670,14 @@ end
 # ╠═114f2671-1888-4b11-aab1-9ad718ababe6
 # ╠═3cb53c43-6b38-4c95-b26f-36697095f463
 # ╠═de74293f-a452-4292-b5e5-b4419fb70feb
-# ╟─56abf8a4-acad-4408-a86c-aad2d5aa3cd7
+# ╠═56abf8a4-acad-4408-a86c-aad2d5aa3cd7
 # ╠═1f791569-cfad-4bc8-9aef-ea324ea7be23
 # ╠═e34ea9b5-50e6-463f-afba-f3e845186019
 # ╠═30d04b83-46b4-4e13-84b3-17a404c2d8be
 # ╠═54d7e5e4-ea89-4efc-8ae6-078d60c7bcb1
 # ╠═15cf4ca3-3cad-41f3-8ed0-23af0a5b6d61
 # ╠═af5c2af1-2a59-42ef-99c7-96958df12d93
-# ╠═fc175e9a-975a-4298-b5d2-cd02da2af666
+# ╠═7f254beb-3d4d-437d-a491-e45512b578ce
 # ╠═c34ecc54-289c-4f6f-91eb-e2d643a9c647
 # ╟─5db56189-97ae-4ab0-969c-3c6a9bf787a7
 # ╠═2005851c-6cb4-4849-a587-3562b2a14dd7
@@ -1477,6 +1703,12 @@ end
 # ╠═1491f0f9-0c40-41ca-b7a9-055259f66eb3
 # ╠═1a6d525f-5317-4b2b-a631-ea646ee20c9f
 # ╠═b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
+# ╠═d11a7fc9-6e2c-48a1-bce8-6b5f39df3eda
+# ╠═3c167a3c-5577-40ce-af0d-317417c8e934
+# ╠═64a0768b-dee5-4a5a-b9b2-cfc3a1c6a6e0
+# ╠═d9085924-a630-4897-8a87-bd5943098c49
+# ╠═f4b4556f-28bd-4745-8709-1955abd891df
+# ╠═4899facf-6759-49c3-9905-8a418c9ebe7c
 # ╠═68873d3e-054d-4ab4-9d89-73586bb0370e
 # ╠═f89e88c9-ebfc-404f-964d-acff5c7f8985
 # ╠═2c75cffc-1adc-44b6-bed3-12ed0c7025b7
