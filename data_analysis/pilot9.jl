@@ -258,6 +258,91 @@ let df = copy(PILT_data_clean)
 
 end
 
+# ╔═╡ 2d8e283c-9215-4eaa-8447-2772b7e26645
+let df = copy(PILT_data_clean)
+
+	# Absolute value of EV difference
+	df.abs_EV_diff = abs.(df.EV_diff)
+
+	# Bin variable
+	df.EV_bin = quantile_bin_centers(df.abs_EV_diff, 4)
+
+	
+	# Sumarrize by participant and trial
+	acc_curve = combine(
+		groupby(df, [:prolific_pid, :EV_bin, :trial]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize by trial
+	acc_curve_sum = combine(
+		groupby(acc_curve, [:EV_bin, :trial]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Error bands
+	acc_curve_sum.lb = acc_curve_sum.acc - acc_curve_sum.se
+	acc_curve_sum.ub = acc_curve_sum.acc + acc_curve_sum.se
+
+	# Sort
+	sort!(acc_curve_sum, [:EV_bin, :trial])
+
+	# Plot
+	mp = data(acc_curve_sum) * 
+	(
+		mapping(
+			:trial => "Trial #",
+			:acc => "Prop. optimal choice",
+			color = :EV_bin => nonnumeric => "Abs. EV difference"
+		) * visual(Lines, linewidth = 4) +
+		mapping(
+			:trial => "Trial #",
+			:lb => "Prop. optimal choice",
+			:ub => "Prop. optimal choice",
+			color = :EV_bin => nonnumeric => "Abs. EV difference"
+		) * visual(Band, alpha = 0.5)
+	) + mapping([5]) * visual(VLines, color = :grey, linestyle = :dash) +
+	mapping([0.5]) * visual(HLines, color = :grey, linestyle = :dash)
+	
+	f = Figure()
+	plt = draw!(f[1,1], mp; axis = (;yticks = 0.5:0.1:0.9))
+	legend!(
+		f[0,1], 
+		plt,
+		tellwidth = false,
+		framevisible = false,
+		orientation = :horizontal,
+		titleposition = :left
+	)
+
+	f
+
+end
+
+# ╔═╡ f6ccb84b-d67d-4b69-b44b-7ae6540cd1b1
+"""
+    add_stratified_split_group(df::DataFrame, col::Symbol; prop::Float64=0.5, nbins::Int=5, rng=Random.GLOBAL_RNG, group_col::Symbol=:split_group)
+
+Adds a column to `df` assigning each row to a group (1 or 2) such that the groups have similar distributions of `col`.
+- `prop`: Proportion in group 1 (default 0.5).
+- `nbins`: Number of bins for stratification (default 5).
+- `group_col`: Name of the new group column (default :split_group).
+Returns the modified DataFrame.
+"""
+function stratified_split_group(df::DataFrame, col::Symbol; prop::Float64=0.5, nbins::Int=5, rng=Xoshiro(0), group_col::Symbol=:split_group)
+    bins = quantile_bin_centers(df[!, col], nbins)
+    group_assignments = similar(bins, Int)
+    for b in unique(bins)
+        inds = findall(bins .== b)
+        n1 = round(Int, length(inds) * prop)
+        inds = shuffle(rng, inds)
+        group_assignments[inds[1:n1]] .= 1
+        group_assignments[inds[n1+1:end]] .= 2
+    end
+    return group_assignments
+end
+
 # ╔═╡ 7cc07d9e-c6f2-4218-a8a5-d00647dd0caa
 # Tell fitting functions the column names
 pilt_columns = Dict(
@@ -570,6 +655,41 @@ test_data_clean = let
 	test_data_clean
 end
 
+# ╔═╡ 580ad76b-95d7-463e-9702-7ee83cd62d6a
+let
+	test_data_clean.EV_bin = quantile_bin_centers(test_data_clean.EV_diff, 5)
+
+	test_data_clean.types = ifelse.(
+		test_data_clean.feedback_right .== test_data_clean.feedback_left,
+		"Identical",
+		ifelse.(
+			sign.(test_data_clean.feedback_right .== sign.(test_data_clean.feedback_left)),
+			"Same valence",
+			"Opposing valence"
+		)
+	)
+
+	test_sum = combine(
+		groupby(test_data_clean, [:prolific_pid, :EV_diff, :types]),
+		:response => (x -> mean(x .== "right")) => :right_chosen,
+		
+	)
+
+	test_sum = combine(
+		groupby(test_sum, [:EV_diff, :types]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se,
+	)
+
+	mp = data(test_sum) * 
+		(
+			mapping(:EV_diff, :right_chosen, color = :types) * visual(Scatter) +
+			mapping(:EV_diff, :right_chosen, :se, color = :types) * visual(Errorbars)
+		)
+
+	draw(mp; axis = (; xlabel = "EV right - left", ylabel = "Prop. right chosen"))
+end
+
 # ╔═╡ e408ac2e-6767-4d9d-b8ce-b8efced23288
 function prepare_data(
 	PILT_data_clean::DataFrame
@@ -640,126 +760,6 @@ function quantile_bin_centers(x::AbstractVector, nbins::Int)
     centers = [round((edges[i] + edges[i+1]) / 2, digits = 2) for i in 1:nbins]
     # Label each value by its bin center
     return [centers[i] for i in bin_idx]
-end
-
-# ╔═╡ 2d8e283c-9215-4eaa-8447-2772b7e26645
-let df = copy(PILT_data_clean)
-
-	# Absolute value of EV difference
-	df.abs_EV_diff = abs.(df.EV_diff)
-
-	# Bin variable
-	df.EV_bin = quantile_bin_centers(df.abs_EV_diff, 4)
-
-	
-	# Sumarrize by participant and trial
-	acc_curve = combine(
-		groupby(df, [:prolific_pid, :EV_bin, :trial]),
-		:response_optimal => mean => :acc
-	)
-
-	# Summarize by trial
-	acc_curve_sum = combine(
-		groupby(acc_curve, [:EV_bin, :trial]),
-		:acc => mean => :acc,
-		:acc => sem => :se
-	)
-
-	# Error bands
-	acc_curve_sum.lb = acc_curve_sum.acc - acc_curve_sum.se
-	acc_curve_sum.ub = acc_curve_sum.acc + acc_curve_sum.se
-
-	# Sort
-	sort!(acc_curve_sum, [:EV_bin, :trial])
-
-	# Plot
-	mp = data(acc_curve_sum) * 
-	(
-		mapping(
-			:trial => "Trial #",
-			:acc => "Prop. optimal choice",
-			color = :EV_bin => nonnumeric => "Abs. EV difference"
-		) * visual(Lines, linewidth = 4) +
-		mapping(
-			:trial => "Trial #",
-			:lb => "Prop. optimal choice",
-			:ub => "Prop. optimal choice",
-			color = :EV_bin => nonnumeric => "Abs. EV difference"
-		) * visual(Band, alpha = 0.5)
-	) + mapping([5]) * visual(VLines, color = :grey, linestyle = :dash) +
-	mapping([0.5]) * visual(HLines, color = :grey, linestyle = :dash)
-	
-	f = Figure()
-	plt = draw!(f[1,1], mp; axis = (;yticks = 0.5:0.1:0.9))
-	legend!(
-		f[0,1], 
-		plt,
-		tellwidth = false,
-		framevisible = false,
-		orientation = :horizontal,
-		titleposition = :left
-	)
-
-	f
-
-end
-
-# ╔═╡ f6ccb84b-d67d-4b69-b44b-7ae6540cd1b1
-"""
-    add_stratified_split_group(df::DataFrame, col::Symbol; prop::Float64=0.5, nbins::Int=5, rng=Random.GLOBAL_RNG, group_col::Symbol=:split_group)
-
-Adds a column to `df` assigning each row to a group (1 or 2) such that the groups have similar distributions of `col`.
-- `prop`: Proportion in group 1 (default 0.5).
-- `nbins`: Number of bins for stratification (default 5).
-- `group_col`: Name of the new group column (default :split_group).
-Returns the modified DataFrame.
-"""
-function stratified_split_group(df::DataFrame, col::Symbol; prop::Float64=0.5, nbins::Int=5, rng=Xoshiro(0), group_col::Symbol=:split_group)
-    bins = quantile_bin_centers(df[!, col], nbins)
-    group_assignments = similar(bins, Int)
-    for b in unique(bins)
-        inds = findall(bins .== b)
-        n1 = round(Int, length(inds) * prop)
-        inds = shuffle(rng, inds)
-        group_assignments[inds[1:n1]] .= 1
-        group_assignments[inds[n1+1:end]] .= 2
-    end
-    return group_assignments
-end
-
-# ╔═╡ 580ad76b-95d7-463e-9702-7ee83cd62d6a
-let
-	test_data_clean.EV_bin = quantile_bin_centers(test_data_clean.EV_diff, 5)
-
-	test_data_clean.types = ifelse.(
-		test_data_clean.feedback_right .== test_data_clean.feedback_left,
-		"Identical",
-		ifelse.(
-			sign.(test_data_clean.feedback_right .== sign.(test_data_clean.feedback_left)),
-			"Same valence",
-			"Opposing valence"
-		)
-	)
-
-	test_sum = combine(
-		groupby(test_data_clean, [:prolific_pid, :EV_diff, :types]),
-		:response => (x -> mean(x .== "right")) => :right_chosen,
-		
-	)
-
-	test_sum = combine(
-		groupby(test_sum, [:EV_diff, :types]),
-		:right_chosen => mean => :right_chosen,
-		:right_chosen => sem => :se,
-	)
-
-	mp = data(test_sum) * 
-		(
-			mapping(:EV_diff, :right_chosen, color = :types) * visual(Scatter) +
-			mapping(:EV_diff, :right_chosen, :se, color = :types) * visual(Errorbars)
-		)
-
-	draw(mp; axis = (; xlabel = "EV right - left", ylabel = "Prop. right chosen"))
 end
 
 # ╔═╡ fe7479df-fde4-41de-936a-af4f88b8cf8a
