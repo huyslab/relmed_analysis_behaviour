@@ -8,15 +8,16 @@ begin
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM, MixedModels
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
-	include("fetch_preprocess_data.jl")
-	include("sample_utils.jl")
-	include("plotting_utils.jl")
-	include("stats_utils.jl")
-	include("osf_utils.jl")
-	include("model_utils.jl")
-	include("PILT_models.jl")
+	include("$(pwd())/fetch_preprocess_data.jl")
+	include("$(pwd())/sample_utils.jl")
+	include("$(pwd())/plotting_utils.jl")
+	include("$(pwd())/stats_utils.jl")
+	include("$(pwd())/model_utils.jl")
+	include("$(pwd())/PILT_models.jl")
 	Turing.setprogress!(false)
 end
+
+context = "poster" # "abstract" or "poster"
 
 begin
 	# Set theme
@@ -27,7 +28,9 @@ begin
 	mm = inch / 25.4
 
 	
-	th = merge(theme_minimal(), Theme(
+	th =  Dict()
+	
+	th["abstract"] = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 7pt,
 		Axis = (
@@ -38,7 +41,23 @@ begin
 			ylabelpadding = 0
 		)
 	))
-	set_theme!(th)
+
+	th["poster"] = merge(
+			theme_minimal(),
+			Theme(
+			font = "Helvetica",
+			fontsize = 28pt,
+			Axis = (
+				xticklabelsize = 24pt,
+				yticklabelsize = 24pt,
+				spinewidth = 3pt,
+				xtickwidth = 3pt,
+				ytickwidth = 3pt
+			)
+		)
+	)
+	
+	set_theme!(th[context])
 
 end
 
@@ -83,10 +102,20 @@ begin
 	sort!(app_curve_sum, [:n_groups, :appearance])
 
     # Create figure
-	f = Figure(size = (46.5mm, 31.3mm),
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
+
+	f = Figure(size = sizes[context],
     figure_padding = 8)
 
 	# Create mapping
+	lws = Dict(
+		"abstract" => 1,
+		"poster" => 3
+	)
+
 	mp2 = (data(app_curve_sum) * (
 		mapping(
 		:appearance => "Apperance #",
@@ -100,78 +129,29 @@ begin
 		:acc => "Prop. optimal choice",
 		group = :n_groups => nonnumeric => "Set size",
 		color = :n_groups => nonnumeric => "Set size"
-	) * visual(Lines)))
+	) * visual(Lines, linewidth = lws[context]))) +
+	mapping([1/3]) * visual(HLines, color = :lightgray, linewidth = lws[context], linestyle = :dash)
 	
 	# Plot
-	plt2 = draw!(f[1,1], mp2; axis = (; ylabel = "Prop. optimal choice"))
+	plt2 = draw!(f[1,1], mp2, scales(Color = (; palette = [
+		colorant"#009ADE",  # Blue
+		colorant"#FF1F5B" # Red
+	  ])); 
+		axis = (; ylabel = "Prop. optimal choice"),
+	)
 
-    legend!(f[1,1], plt2, tellwidth = false, tellheight = false, halign = :right, valign = 0.1, 
-        orientation = :horizontal, framevisible = false, titleposition = :left, patchsize = (7,7))
+	ps = Dict(
+		"abstract" => (7,7),
+		"poster" => (20,20)
+	)
+    legend!(f[1,1], plt2, tellwidth = false, tellheight = false, halign = :right, valign = 0.15, 
+        orientation = :horizontal, framevisible = false, titleposition = :left, patchsize = ps[context])
 
-	save("results/rldm/wm_acc.pdf", f)
+	save("results/rldm/$(context)_wm_acc.pdf", f)
+
+	f
 end
 
-function RLDM_reliability_scatter!(
-	f::GridPosition;
-	df::AbstractDataFrame,
-	xlabel::AbstractString,
-	ylabel::AbstractString,
-	xcol::Symbol = :x,
-	ycol::Symbol = :y,
-	subtitle::AbstractString = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Bool = true, # Whether to apply Spearman Brown
-	markersize::Int64 = 4pt,
-	label_halign::Union{Float64, Symbol} = 0.975,
-	label_valign::Union{Float64, Symbol} = 0.025,
-	label_fontsize = 5pt
-)	
-
-    
-	# Compute correlation
-	r = cor(df[!, xcol], df[!, ycol])
-	
-	# Spearman-Brown correction
-	if correct_r
-		r = spearman_brown(r)
-	end
-
-	# Text
-	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
-
-	# Plot
-	mp = data(df) *
-			mapping(xcol, ycol) *
-			(visual(Scatter; markersize = markersize) + linear()) +
-		mapping([0], [1]) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	
-	draw!(f, mp; axis=(;
-		xlabel = xlabel, 
-		ylabel = ylabel,
-        xticklabelsize = 5pt,
-        yticklabelsize = 5pt,
-		xtickformat = tickformat,
-		ytickformat = tickformat,
-		subtitle = subtitle,
-		ylabelpadding = 0,
-		xlabelpadding = 1
-	))
-
-	if r > 0
-		Label(
-			f,
-			r_text,
-			fontsize = label_fontsize,
-			font = :bold,
-			halign = label_halign,
-			valign = label_valign,
-			tellheight = false,
-			tellwidth = false
-		)
-	end
-
-end
 
 begin
 
