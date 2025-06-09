@@ -25,6 +25,9 @@ begin
 	Turing.setprogress!(false)
 end
 
+# ╔═╡ 5f59cfe3-add9-4bd2-93c0-64feb09007ab
+context = "poster" # or "abstract"
+
 # ╔═╡ a557600f-d217-4f0d-b004-cb8b17e94471
 begin
 	# Set theme
@@ -35,7 +38,9 @@ begin
 	mm = inch / 25.4
 
 	
-	th = merge(theme_minimal(), Theme(
+	th =  Dict()
+	
+	th["abstract"] = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 7pt,
 		Axis = (
@@ -46,7 +51,23 @@ begin
 			ylabelpadding = 0
 		)
 	))
-	set_theme!(th)
+
+	th["poster"] = merge(
+			theme_minimal(),
+			Theme(
+			font = "Helvetica",
+			fontsize = 28pt,
+			Axis = (
+				xticklabelsize = 24pt,
+				yticklabelsize = 24pt,
+				spinewidth = 3pt,
+				xtickwidth = 3pt,
+				ytickwidth = 3pt
+			)
+		)
+	)
+	
+	set_theme!(th[context])
 
 end
 
@@ -64,6 +85,30 @@ PILT_data_clean = let
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
 end
+
+# ╔═╡ a0c56dbd-f328-4bdd-b803-e3b727a0b524
+function reorder_bands_lines!(f::GridPosition)
+
+	# Get plots
+	plots = extract_axis(f).scene.plots
+
+	# Select only plots of type Band or Lines
+	plots = filter(p -> isa(p, Band) || isa(p, Lines), plots)
+
+	n = length(plots)
+
+	@assert allequal(typeof.(plots[1:(n ÷ 2)])) && allequal(typeof.(plots[(n ÷ 2 + 1):n])) "Expecting plots to be ordered by type"
+
+	# Reorder bands and lines
+	new_idx = vcat(1:2:n, 2:2:n)
+
+	# Apply reordering via z-value
+	for (i, p) in enumerate(plots)
+		translate!(p, 0, 0, new_idx[i])
+	end
+
+end
+
 
 # ╔═╡ 74d5d010-04e7-43d1-a55d-ee42de085c06
 # Accuracy curveֿ by valence
@@ -102,7 +147,12 @@ let
 	)
 
 	# Create plot mapping
-	mp = (
+	lws = Dict(
+		"abstract" => 1,
+		"poster" => 3
+	)
+
+	mp = data(acc_curve_sum) * (
 	# Error band
 		mapping(
 		:trial => "Trial #",
@@ -115,17 +165,36 @@ let
 		:trial => "Trial #",
 		:acc => "Prop. optimal choice",
 		color = :val_lables => ""
-	) * visual(Lines, linewidth = 1)
-	)
+	) * visual(Lines, linewidth = lws[context])
+	) + mapping([5.]) * visual(
+		VLines, 
+		color = :lightgrey, 
+		linestyle = :dash,
+		linewidth = lws[context]) +
+	mapping([.5]) * visual(HLines, color = :lightgrey, linestyle = :dash,
+		linewidth = lws[context])
 
 	# Plot whole figure
-	f1 = Figure(
-		size = (46.5mm, 31.3mm),
-		figure_padding = 8
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
 	)
 	
-	plt1 = draw!(f1[1,1], data(acc_curve_sum) * mp; 
+	f1 = Figure(
+		size = sizes[context],
+		figure_padding = context == "abstract" ? 8 : 19
+	)
+	
+	plt1 = draw!(f1[1,1], mp, scales(Color = (; palette = [
+		colorant"#009ADE",  # Blue
+		colorant"#FF1F5B" # Red
+	  ])); 
 		axis = (; xautolimitmargin = (0, 0)))
+
+	ps = Dict(
+		"abstract" => (7,7),
+		"poster" => (20,20)
+	)
 
 	legend!(
 		f1[1,1], 
@@ -133,21 +202,20 @@ let
 		tellwidth = false,
 		tellheight = false,
 		framevisible = false,
-		valign = 0.1,
-		halign = 0.3,
-		patchsize = (7, 7)
+		valign = 0.25,
+		halign = 0.9,
+		patchsize = ps[context]
 	)
 
 	# Fix order of layers
 	reorder_bands_lines!(f1[1,1])
 
 	# Save
-	filepath = joinpath("results/rldm", "PILT_acc_curve_valence.pdf")
+	filepath = joinpath("results/rldm", "poster_PILT_acc_curve_valence.pdf")
 
 	save(filepath, f1)
-
-	f1
 	
+	f1
 end
 
 # ╔═╡ 2c410400-dd38-4a4e-a163-14c6654d1d36
@@ -331,10 +399,12 @@ end
 
 # ╔═╡ Cell order:
 # ╠═93a9cf8e-d32c-11ef-18dc-53cc297a09d1
+# ╠═5f59cfe3-add9-4bd2-93c0-64feb09007ab
 # ╠═a557600f-d217-4f0d-b004-cb8b17e94471
 # ╠═b75e74aa-5e7d-40e7-9a06-fdc3dfd2fafd
 # ╠═832ca25e-8ee5-45e8-a0f1-b22126a80bc1
 # ╠═74d5d010-04e7-43d1-a55d-ee42de085c06
+# ╠═a0c56dbd-f328-4bdd-b803-e3b727a0b524
 # ╠═2c410400-dd38-4a4e-a163-14c6654d1d36
 # ╠═7a8845f4-491e-4792-b4f7-4ca4e543f550
 # ╠═5ccf1422-d3a0-4c07-afec-cfc210398569
