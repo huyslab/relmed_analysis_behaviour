@@ -37,6 +37,12 @@ begin
 	pt = 4/3
 	mm = inch / 25.4
 
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
+
+
 	
 	th =  Dict()
 	
@@ -148,8 +154,8 @@ let
 
 	# Create plot mapping
 	lws = Dict(
-		"abstract" => 1,
-		"poster" => 3
+		"abstract" => 1pt,
+		"poster" => 3pt
 	)
 
 	mp = data(acc_curve_sum) * (
@@ -175,10 +181,6 @@ let
 		linewidth = lws[context])
 
 	# Plot whole figure
-	sizes = Dict(
-		"abstract" => (46.5mm, 31.3mm),
-		"poster" => (22.86, 11.42) .* inch ./ 2.54
-	)
 	
 	f1 = Figure(
 		size = sizes[context],
@@ -287,72 +289,65 @@ end
 
 # ╔═╡ fabf50f6-6c73-444e-96d9-665da5f76bbe
 function RLDM_reliability_scatter!(
-	f::GridPosition;
-	df::AbstractDataFrame,
-	xlabel::AbstractString,
-	ylabel::AbstractString,
-	xcol::Symbol = :x,
-	ycol::Symbol = :y,
-	subtitle::AbstractString = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Bool = true, # Whether to apply Spearman Brown
-	markersize::Int64 = 4pt,
-	label_halign::Union{Float64, Symbol} = 0.975,
-	label_valign::Union{Float64, Symbol} = 0.025,
-	label_fontsize = 5pt
-)	
+		f::GridPosition;
+		df::AbstractDataFrame,
+		xlabel::AbstractString,
+		ylabel::AbstractString,
+		xcol::Symbol = :x,
+		ycol::Symbol = :y,
+		subtitle::AbstractString = "",
+		tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+		correct_r::Bool = true, # Whether to apply Spearman Brown
+		markersize::Union{Int64,Float64} = 9,
+		label_valign = 0.025
+	)	
 
-    
-	# Compute correlation
-	r = cor(df[!, xcol], df[!, ycol])
-	
-	# Spearman-Brown correction
-	if correct_r
-		r = spearman_brown(r)
+		# Compute correlation
+		r = cor(df[!, xcol], df[!, ycol])
+		
+		# Spearman-Brown correction
+		if correct_r
+			r = spearman_brown(r)
+		end
+
+		# Text
+		r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
+
+		# Plot
+		mp = data(df) *
+				mapping(xcol, ycol) *
+				(visual(Scatter; markersize = markersize, alpha = 0.75) + linear()) +
+			mapping([0], [1]) *
+				visual(ABLines, linestyle = :dash, color = :gray70)
+		
+		draw!(f, mp; axis=(;
+			xlabel = xlabel, 
+			ylabel = ylabel,
+			xtickformat = tickformat,
+			ytickformat = tickformat,
+			subtitle = subtitle
+		))
+
+		if r > 0
+			Label(
+				f,
+				r_text,
+				fontsize = 24pt,
+				font = :bold,
+				halign = 0.975,
+				valign = label_valign,
+				tellheight = false,
+				tellwidth = false
+			)
+		end
+
 	end
-
-	# Text
-	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
-
-	# Plot
-	mp = data(df) *
-			mapping(xcol, ycol) *
-			(visual(Scatter; markersize = markersize) + linear()) +
-		mapping([0], [1]) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	
-	draw!(f, mp; axis=(;
-		xlabel = xlabel, 
-		ylabel = ylabel,
-        xticklabelsize = 5pt,
-        yticklabelsize = 5pt,
-		xtickformat = tickformat,
-		ytickformat = tickformat,
-		subtitle = subtitle,
-		ylabelpadding = 0,
-		xlabelpadding = 1
-	))
-
-	if r > 0
-		Label(
-			f,
-			r_text,
-			fontsize = label_fontsize,
-			font = :bold,
-			halign = label_halign,
-			valign = label_valign,
-			tellheight = false,
-			tellwidth = false
-		)
-	end
-
-end
 
 # ╔═╡ 5ccf1422-d3a0-4c07-afec-cfc210398569
 # Test retest of parameters
 let
 	f = Figure(
-		size = (46.5mm, 31.3mm),
+		size = sizes[context],
 		figure_padding = (1, 11, 10, 5)
 	)
 
@@ -384,15 +379,15 @@ let
 			subtitle = "$st",
 			tickformat = tf,
 			correct_r = false,
-			markersize = 2,
-			label_valign = :top
+			markersize = context == "abstract" ? 2 : 9,
+			label_valign= :top
 		)
 
 	end
 
 	colgap!(f.layout, 10)
 
-	save("results/rldm/PILT_test_retest.pdf", f)
+	save("results/rldm/$(context)_PILT_test_retest.pdf", f)
 	
 	f
 end

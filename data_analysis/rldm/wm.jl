@@ -27,6 +27,10 @@ begin
 	pt = 4/3
 	mm = inch / 25.4
 
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
 	
 	th =  Dict()
 	
@@ -102,18 +106,13 @@ begin
 	sort!(app_curve_sum, [:n_groups, :appearance])
 
     # Create figure
-	sizes = Dict(
-		"abstract" => (46.5mm, 31.3mm),
-		"poster" => (22.86, 11.42) .* inch ./ 2.54
-	)
-
 	f = Figure(size = sizes[context],
     figure_padding = 8)
 
 	# Create mapping
 	lws = Dict(
-		"abstract" => 1,
-		"poster" => 3
+		"abstract" => 1pt,
+		"poster" => 3pt
 	)
 
 	mp2 = (data(app_curve_sum) * (
@@ -152,6 +151,60 @@ begin
 	f
 end
 
+function RLDM_reliability_scatter!(
+	f::GridPosition;
+	df::AbstractDataFrame,
+	xlabel::AbstractString,
+	ylabel::AbstractString,
+	xcol::Symbol = :x,
+	ycol::Symbol = :y,
+	subtitle::AbstractString = "",
+	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+	correct_r::Bool = true, # Whether to apply Spearman Brown
+	markersize::Union{Int64,Float64} = 9,
+	label_valign = 0.025
+)	
+
+	# Compute correlation
+	r = cor(df[!, xcol], df[!, ycol])
+	
+	# Spearman-Brown correction
+	if correct_r
+		r = spearman_brown(r)
+	end
+
+	# Text
+	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
+
+	# Plot
+	mp = data(df) *
+			mapping(xcol, ycol) *
+			(visual(Scatter; markersize = markersize, alpha = 0.75) + linear()) +
+		mapping([0], [1]) *
+			visual(ABLines, linestyle = :dash, color = :gray70)
+	
+	draw!(f, mp; axis=(;
+		xlabel = xlabel, 
+		ylabel = ylabel,
+		xtickformat = tickformat,
+		ytickformat = tickformat,
+		subtitle = subtitle
+	))
+
+	if r > 0
+		Label(
+			f,
+			r_text,
+			fontsize = 24pt,
+			font = :bold,
+			halign = 0.975,
+			valign = label_valign,
+			tellheight = false,
+			tellwidth = false
+		)
+	end
+
+end
 
 begin
 
@@ -159,8 +212,10 @@ begin
 
     dropmissing!(retest_df)
 
-	fig=Figure(;    size = (46.5mm, 31.3mm),
-        figure_padding = (0, 11.5, 10, 5))
+	fig=Figure(; 
+		size = sizes[context],
+        figure_padding = (0, 11.5, 10, 5)
+	)
 
     RLDM_reliability_scatter!(
 		fig[1,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
@@ -171,6 +226,8 @@ begin
 		xcol=:w0, ycol=:w0_1, subtitle="WM weighting", markersize = 2, correct_r = false
 	)
 
-    save("results/rldm/wm_retest.pdf", fig)
+    save("results/rldm/$(context)_wm_retest.pdf", fig)
+
+	fig
 
 end
