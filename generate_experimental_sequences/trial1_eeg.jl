@@ -72,7 +72,7 @@ md"""## Post-PILT test"""
 
 # ╔═╡ ad996e31-abdb-46c9-8930-6cfa7f833cb0
 	# Post-PILT test parameters
-	PILT_test_n_blocks = 2
+	PILT_test_n_blocks = 3
 
 
 # ╔═╡ cc409bce-df5e-4b77-906e-20b8342d5b5b
@@ -921,7 +921,7 @@ end
 
 # ╔═╡ 6e7d02b8-9889-49fc-b1b0-e82e7826f9ff
 PILT_test_template = let s = 1,
-	task = filter(x -> x.session == s, PILT)
+	task = filter(x -> x.session == s && x.block < 21, PILT)
 	
 	# Find test sequence for each session
 	test, pb, pv, nm = find_best_test_sequence(
@@ -953,7 +953,7 @@ PILT_test = let PILT_test_template = copy(PILT_test_template)
 	# Create stimulus dict to replace equivalent stimuli
 	stimuli_dict = unique(
 		select(
-			PILT,
+			filter(x -> x.block < 21, PILT),
 			:session,
 			:block,
 			:stimulus_A,
