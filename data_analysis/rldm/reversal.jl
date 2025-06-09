@@ -25,6 +25,9 @@ begin
 	Turing.setprogress!(false)
 end
 
+# ╔═╡ d67226b1-b5bf-4f25-914b-8d2959618904
+context = "poster" # or "abstract"
+
 # ╔═╡ 77bfbda2-3aba-456c-bcb3-3e16ef351ce2
 begin
 	# Set theme
@@ -34,8 +37,16 @@ begin
 	pt = 4/3
 	mm = inch / 25.4
 
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
+
+
 	
-	th = merge(theme_minimal(), Theme(
+	th =  Dict()
+	
+	th["abstract"] = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 7pt,
 		Axis = (
@@ -46,7 +57,23 @@ begin
 			ylabelpadding = 0
 		)
 	))
-	set_theme!(th)
+
+	th["poster"] = merge(
+			theme_minimal(),
+			Theme(
+			font = "Helvetica",
+			fontsize = 28pt,
+			Axis = (
+				xticklabelsize = 24pt,
+				yticklabelsize = 24pt,
+				spinewidth = 3pt,
+				xtickwidth = 3pt,
+				ytickwidth = 3pt
+			)
+		)
+	)
+	
+	set_theme!(th[context])
 
 end
 
@@ -177,13 +204,18 @@ let
 	sort!(sum_pre_post, [:prolific_pid, :trial])
 
 	# Plot
+	lws = Dict(
+		"abstract" => 1pt,
+		"poster" => 3pt
+	)
+
 	mp = data(sum_pre_post) *
 		mapping(
 			:trial => "Trial relative to reversal",
 			:acc => "Prop. optimal choice",
 			group = :group => nonnumeric,
 			color = :color
-		) * visual(Lines, linewidth = 2, alpha = 0.1) +
+		) * visual(Lines, linewidth = 1pt, alpha = 0.1) +
 		
 	data(sum_sum_pre_post) *
 		(
@@ -196,23 +228,23 @@ let
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice"
 			) * 
-			visual(Scatter, markersize = 6pt) +
+			visual(Scatter, markersize = context == "abstract" ? 6pt : 16pt) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
 				group = :group => nonnumeric 
 			) * 
-			visual(Lines)
+			visual(Lines, linewidth = lws[context])
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 
-	f1 = Figure(size = (46.5mm, 31.3mm),
+	f1 = Figure(size = sizes[context],
 		figure_padding = 8)
 	draw!(f1[1,1], mp, scales(Color = (; colormap = :roma)); 
 		axis = (; xticks = -3:5, yticks = 0:0.25:1.))
 
 	# Save
-	filepath = "results/rldm/reversal_acc_curve.pdf"
+	filepath = "results/rldm/$(context)_reversal_acc_curve.pdf"
 
 	save(filepath, f1)
 
@@ -248,66 +280,59 @@ end
 
 # ╔═╡ 0a1a9d26-3256-4135-8003-9cc6151c2178
 function RLDM_reliability_scatter!(
-	f::GridPosition;
-	df::AbstractDataFrame,
-	xlabel::AbstractString,
-	ylabel::AbstractString,
-	xcol::Symbol = :x,
-	ycol::Symbol = :y,
-	subtitle::AbstractString = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Bool = true, # Whether to apply Spearman Brown
-	markersize::Int64 = 4pt,
-	label_halign::Union{Float64, Symbol} = 0.975,
-	label_valign::Union{Float64, Symbol} = 0.025,
-	label_fontsize = 5pt
-)	
+		f::GridPosition;
+		df::AbstractDataFrame,
+		xlabel::AbstractString,
+		ylabel::AbstractString,
+		xcol::Symbol = :x,
+		ycol::Symbol = :y,
+		subtitle::AbstractString = "",
+		tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+		correct_r::Bool = true, # Whether to apply Spearman Brown
+		markersize::Union{Int64,Float64} = 9,
+		label_valign = 0.025
+	)	
 
-    
-	# Compute correlation
-	r = cor(df[!, xcol], df[!, ycol])
-	
-	# Spearman-Brown correction
-	if correct_r
-		r = spearman_brown(r)
+		# Compute correlation
+		r = cor(df[!, xcol], df[!, ycol])
+		
+		# Spearman-Brown correction
+		if correct_r
+			r = spearman_brown(r)
+		end
+
+		# Text
+		r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
+
+		# Plot
+		mp = data(df) *
+				mapping(xcol, ycol) *
+				(visual(Scatter; markersize = markersize, alpha = 0.75) + linear()) +
+			mapping([0], [1]) *
+				visual(ABLines, linestyle = :dash, color = :gray70)
+		
+		draw!(f, mp; axis=(;
+			xlabel = xlabel, 
+			ylabel = ylabel,
+			xtickformat = tickformat,
+			ytickformat = tickformat,
+			subtitle = subtitle
+		))
+
+		if r > 0
+			Label(
+				f,
+				r_text,
+				fontsize = 24pt,
+				font = :bold,
+				halign = 0.975,
+				valign = label_valign,
+				tellheight = false,
+				tellwidth = false
+			)
+		end
+
 	end
-
-	# Text
-	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
-
-	# Plot
-	mp = data(df) *
-			mapping(xcol, ycol) *
-			(visual(Scatter; markersize = markersize) + linear()) +
-		mapping([0], [1]) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	
-	draw!(f, mp; axis=(;
-		xlabel = xlabel, 
-		ylabel = ylabel,
-        xticklabelsize = 5pt,
-        yticklabelsize = 5pt,
-		xtickformat = tickformat,
-		ytickformat = tickformat,
-		subtitle = subtitle,
-		ylabelpadding = 0,
-		xlabelpadding = 1
-	))
-
-	if r > 0
-		Label(
-			f,
-			r_text,
-			fontsize = label_fontsize,
-			font = :bold,
-			halign = label_halign,
-			valign = label_valign,
-			tellheight = false,
-			tellwidth = false
-		)
-	end
-
-end
 
 # ╔═╡ 77d885d3-196a-4d61-a819-8fed889a10ab
 # Test retest of mean, trials +2 - +4
@@ -334,8 +359,13 @@ let
 	)
 
 	# Plot
-	f = Figure(size = (46.5mm, 31.3mm),
+	f = Figure(size = sizes[context],
 		figure_padding = (0, 11.5, 10, 5))
+
+	ms = Dict(
+		"abstract" => 2,
+		"poster" => 9
+	)
 	
 	RLDM_reliability_scatter!(
 		f[1, 1];
@@ -346,7 +376,7 @@ let
 		ylabel = "Session 2",
 		subtitle = "Post-reversal acc.",
 		correct_r = false,
-		markersize = 2
+		markersize = ms[context]
 	)
 
 
@@ -370,10 +400,10 @@ let
 		ylabel = "",
 		subtitle = "Reward sensitivity",
 		correct_r = false,
-		markersize = 2
+		markersize = ms[context] 
 	)
 
-	save("results/rldm/reversal_test_retest.pdf", f)
+	save("results/rldm/$(context)_reversal_test_retest.pdf", f)
 
 
 	f
@@ -381,6 +411,7 @@ end
 
 # ╔═╡ Cell order:
 # ╠═23172eca-d33f-11ef-2eec-d5ccbae4cea9
+# ╠═d67226b1-b5bf-4f25-914b-8d2959618904
 # ╠═77bfbda2-3aba-456c-bcb3-3e16ef351ce2
 # ╠═8834884d-e403-4e1d-943c-d1e6a1238331
 # ╠═3217e1c8-a4c2-4a07-acb9-22a29a698d3f

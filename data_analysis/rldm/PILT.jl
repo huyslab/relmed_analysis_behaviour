@@ -25,6 +25,9 @@ begin
 	Turing.setprogress!(false)
 end
 
+# ╔═╡ 5f59cfe3-add9-4bd2-93c0-64feb09007ab
+context = "poster" # or "abstract"
+
 # ╔═╡ a557600f-d217-4f0d-b004-cb8b17e94471
 begin
 	# Set theme
@@ -34,8 +37,16 @@ begin
 	pt = 4/3
 	mm = inch / 25.4
 
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
+
+
 	
-	th = merge(theme_minimal(), Theme(
+	th =  Dict()
+	
+	th["abstract"] = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 7pt,
 		Axis = (
@@ -46,7 +57,23 @@ begin
 			ylabelpadding = 0
 		)
 	))
-	set_theme!(th)
+
+	th["poster"] = merge(
+			theme_minimal(),
+			Theme(
+			font = "Helvetica",
+			fontsize = 28pt,
+			Axis = (
+				xticklabelsize = 24pt,
+				yticklabelsize = 24pt,
+				spinewidth = 3pt,
+				xtickwidth = 3pt,
+				ytickwidth = 3pt
+			)
+		)
+	)
+	
+	set_theme!(th[context])
 
 end
 
@@ -64,6 +91,30 @@ PILT_data_clean = let
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
 end
+
+# ╔═╡ a0c56dbd-f328-4bdd-b803-e3b727a0b524
+function reorder_bands_lines!(f::GridPosition)
+
+	# Get plots
+	plots = extract_axis(f).scene.plots
+
+	# Select only plots of type Band or Lines
+	plots = filter(p -> isa(p, Band) || isa(p, Lines), plots)
+
+	n = length(plots)
+
+	@assert allequal(typeof.(plots[1:(n ÷ 2)])) && allequal(typeof.(plots[(n ÷ 2 + 1):n])) "Expecting plots to be ordered by type"
+
+	# Reorder bands and lines
+	new_idx = vcat(1:2:n, 2:2:n)
+
+	# Apply reordering via z-value
+	for (i, p) in enumerate(plots)
+		translate!(p, 0, 0, new_idx[i])
+	end
+
+end
+
 
 # ╔═╡ 74d5d010-04e7-43d1-a55d-ee42de085c06
 # Accuracy curveֿ by valence
@@ -102,7 +153,12 @@ let
 	)
 
 	# Create plot mapping
-	mp = (
+	lws = Dict(
+		"abstract" => 1pt,
+		"poster" => 3pt
+	)
+
+	mp = data(acc_curve_sum) * (
 	# Error band
 		mapping(
 		:trial => "Trial #",
@@ -115,17 +171,32 @@ let
 		:trial => "Trial #",
 		:acc => "Prop. optimal choice",
 		color = :val_lables => ""
-	) * visual(Lines, linewidth = 1)
-	)
+	) * visual(Lines, linewidth = lws[context])
+	) + mapping([5.]) * visual(
+		VLines, 
+		color = :lightgrey, 
+		linestyle = :dash,
+		linewidth = lws[context]) +
+	mapping([.5]) * visual(HLines, color = :lightgrey, linestyle = :dash,
+		linewidth = lws[context])
 
 	# Plot whole figure
+	
 	f1 = Figure(
-		size = (46.5mm, 31.3mm),
-		figure_padding = 8
+		size = sizes[context],
+		figure_padding = context == "abstract" ? 8 : 19
 	)
 	
-	plt1 = draw!(f1[1,1], data(acc_curve_sum) * mp; 
+	plt1 = draw!(f1[1,1], mp, scales(Color = (; palette = [
+		colorant"#009ADE",  # Blue
+		colorant"#FF1F5B" # Red
+	  ])); 
 		axis = (; xautolimitmargin = (0, 0)))
+
+	ps = Dict(
+		"abstract" => (7,7),
+		"poster" => (20,20)
+	)
 
 	legend!(
 		f1[1,1], 
@@ -133,21 +204,20 @@ let
 		tellwidth = false,
 		tellheight = false,
 		framevisible = false,
-		valign = 0.1,
-		halign = 0.3,
-		patchsize = (7, 7)
+		valign = 0.25,
+		halign = 0.9,
+		patchsize = ps[context]
 	)
 
 	# Fix order of layers
 	reorder_bands_lines!(f1[1,1])
 
 	# Save
-	filepath = joinpath("results/rldm", "PILT_acc_curve_valence.pdf")
+	filepath = joinpath("results/rldm", "poster_PILT_acc_curve_valence.pdf")
 
 	save(filepath, f1)
-
-	f1
 	
+	f1
 end
 
 # ╔═╡ 2c410400-dd38-4a4e-a163-14c6654d1d36
@@ -219,72 +289,65 @@ end
 
 # ╔═╡ fabf50f6-6c73-444e-96d9-665da5f76bbe
 function RLDM_reliability_scatter!(
-	f::GridPosition;
-	df::AbstractDataFrame,
-	xlabel::AbstractString,
-	ylabel::AbstractString,
-	xcol::Symbol = :x,
-	ycol::Symbol = :y,
-	subtitle::AbstractString = "",
-	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
-	correct_r::Bool = true, # Whether to apply Spearman Brown
-	markersize::Int64 = 4pt,
-	label_halign::Union{Float64, Symbol} = 0.975,
-	label_valign::Union{Float64, Symbol} = 0.025,
-	label_fontsize = 5pt
-)	
+		f::GridPosition;
+		df::AbstractDataFrame,
+		xlabel::AbstractString,
+		ylabel::AbstractString,
+		xcol::Symbol = :x,
+		ycol::Symbol = :y,
+		subtitle::AbstractString = "",
+		tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
+		correct_r::Bool = true, # Whether to apply Spearman Brown
+		markersize::Union{Int64,Float64} = 9,
+		label_valign = 0.025
+	)	
 
-    
-	# Compute correlation
-	r = cor(df[!, xcol], df[!, ycol])
-	
-	# Spearman-Brown correction
-	if correct_r
-		r = spearman_brown(r)
+		# Compute correlation
+		r = cor(df[!, xcol], df[!, ycol])
+		
+		# Spearman-Brown correction
+		if correct_r
+			r = spearman_brown(r)
+		end
+
+		# Text
+		r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
+
+		# Plot
+		mp = data(df) *
+				mapping(xcol, ycol) *
+				(visual(Scatter; markersize = markersize, alpha = 0.75) + linear()) +
+			mapping([0], [1]) *
+				visual(ABLines, linestyle = :dash, color = :gray70)
+		
+		draw!(f, mp; axis=(;
+			xlabel = xlabel, 
+			ylabel = ylabel,
+			xtickformat = tickformat,
+			ytickformat = tickformat,
+			subtitle = subtitle
+		))
+
+		if r > 0
+			Label(
+				f,
+				r_text,
+				fontsize = 24pt,
+				font = :bold,
+				halign = 0.975,
+				valign = label_valign,
+				tellheight = false,
+				tellwidth = false
+			)
+		end
+
 	end
-
-	# Text
-	r_text = "n = $(nrow(df)),$(correct_r ? " SB" : "") r = $(round(r; digits = 2))"
-
-	# Plot
-	mp = data(df) *
-			mapping(xcol, ycol) *
-			(visual(Scatter; markersize = markersize) + linear()) +
-		mapping([0], [1]) *
-			visual(ABLines, linestyle = :dash, color = :gray70)
-	
-	draw!(f, mp; axis=(;
-		xlabel = xlabel, 
-		ylabel = ylabel,
-        xticklabelsize = 5pt,
-        yticklabelsize = 5pt,
-		xtickformat = tickformat,
-		ytickformat = tickformat,
-		subtitle = subtitle,
-		ylabelpadding = 0,
-		xlabelpadding = 1
-	))
-
-	if r > 0
-		Label(
-			f,
-			r_text,
-			fontsize = label_fontsize,
-			font = :bold,
-			halign = label_halign,
-			valign = label_valign,
-			tellheight = false,
-			tellwidth = false
-		)
-	end
-
-end
 
 # ╔═╡ 5ccf1422-d3a0-4c07-afec-cfc210398569
 # Test retest of parameters
 let
 	f = Figure(
-		size = (46.5mm, 31.3mm),
+		size = sizes[context],
 		figure_padding = (1, 11, 10, 5)
 	)
 
@@ -316,25 +379,27 @@ let
 			subtitle = "$st",
 			tickformat = tf,
 			correct_r = false,
-			markersize = 2,
-			label_valign = :top
+			markersize = context == "abstract" ? 2 : 9,
+			label_valign= :top
 		)
 
 	end
 
 	colgap!(f.layout, 10)
 
-	save("results/rldm/PILT_test_retest.pdf", f)
+	save("results/rldm/$(context)_PILT_test_retest.pdf", f)
 	
 	f
 end
 
 # ╔═╡ Cell order:
 # ╠═93a9cf8e-d32c-11ef-18dc-53cc297a09d1
+# ╠═5f59cfe3-add9-4bd2-93c0-64feb09007ab
 # ╠═a557600f-d217-4f0d-b004-cb8b17e94471
 # ╠═b75e74aa-5e7d-40e7-9a06-fdc3dfd2fafd
 # ╠═832ca25e-8ee5-45e8-a0f1-b22126a80bc1
 # ╠═74d5d010-04e7-43d1-a55d-ee42de085c06
+# ╠═a0c56dbd-f328-4bdd-b803-e3b727a0b524
 # ╠═2c410400-dd38-4a4e-a163-14c6654d1d36
 # ╠═7a8845f4-491e-4792-b4f7-4ca4e543f550
 # ╠═5ccf1422-d3a0-4c07-afec-cfc210398569
