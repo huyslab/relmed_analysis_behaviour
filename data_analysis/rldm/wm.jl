@@ -217,13 +217,18 @@ begin
         figure_padding = (0, 11.5, 10, 5)
 	)
 
+	ms = Dict(
+		"abstract" => 2,
+		"poster" => 9
+	)
+
     RLDM_reliability_scatter!(
 		fig[1,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:a_pos, ycol=:a_pos_1, subtitle="QL learning rate", markersize = 2, correct_r = false
+		xcol=:a_pos, ycol=:a_pos_1, subtitle="QL learning rate", markersize = ms[context], correct_r = false
 	)
 	RLDM_reliability_scatter!(
 		fig[1,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:w0, ycol=:w0_1, subtitle="WM weighting", markersize = 2, correct_r = false
+		xcol=:w0, ycol=:w0_1, subtitle="WM weighting", markersize = ms[context], correct_r = false
 	)
 
     save("results/rldm/$(context)_wm_retest.pdf", fig)
