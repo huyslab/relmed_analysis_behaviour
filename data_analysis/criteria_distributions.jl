@@ -1,9 +1,3 @@
-### A Pluto.jl notebook ###
-# v0.20.1
-
-using Markdown
-using InteractiveUtils
-
 begin
 	cd("/home/jovyan/")
     import Pkg
@@ -16,11 +10,6 @@ begin
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
 	include("$(pwd())/fetch_preprocess_data.jl")
-	include("$(pwd())/sample_utils.jl")
-	include("$(pwd())/plotting_utils.jl")
-	include("$(pwd())/stats_utils.jl")
-	include("$(pwd())/model_utils.jl")
-	include("$(pwd())/PILT_models.jl")
 	nothing
 end
 
@@ -278,5 +267,54 @@ let
 		xlabel = "Prop. optimal choice",
 		title = "Reversal accuracy by session",
 		legend_position = :lt
+	)
+end
+
+# WM -----------------------------------
+# Load data
+# Load data
+begin
+	_, WM_data, LTM_data, WM_test_data, LTM_test_data, _, control_task_data, _, _ = load_pilot8_data(; force_download = false, return_version = "0.2")
+	nothing
+end
+
+WM_data_clean  = let
+	# Clean data
+	data_clean = exclude_PLT_sessions(WM_data, required_n_blocks = 1)
+
+	# Sort
+	sort!(
+		data_clean,
+		[:prolific_pid, :session, :block, :trial]
+	)
+
+	filter!(x -> x.response != "noresp", data_clean)
+
+end
+
+# Compute null distribution
+WM_null_distribution = let n_seeds = 10000
+
+	# Position of optimal choice
+	optimal_choice = unique(select(
+		filter(x -> x.trial > 1, WM_data_clean),
+		:session, :block, :trial, :optimal_side))
+
+	simulated_props = [mean(rand(["left", "middle", "right"], nrow(optimal_choice)) .== optimal_choice.optimal_side) for _ in 1:n_seeds]
+end
+
+# Summarize empirical accuracy and plot
+let
+	acc_sum = combine(
+        groupby(
+            filter(x -> x.trial > 1, WM_data_clean),
+            [:prolific_pid, :session]
+        ),
+        :response_optimal => mean => :response_optimal
+    )
+
+	plot_ecdf_by_session(acc_sum; 
+		null_distribution = WM_null_distribution,
+		title = "WM accuracy"
 	)
 end
