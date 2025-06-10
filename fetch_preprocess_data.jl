@@ -133,7 +133,7 @@ function REDCap_data_to_df(jspsych_data, records; participant_id_field::String =
 		on = map(Symbol, on_cols)
 	)
 
-	transform!(jspsych_data, participant_id => :prolific_pid)
+	DataFrames.transform!(jspsych_data, participant_id => :prolific_pid)
 
 	return jspsych_data
 end
@@ -1242,10 +1242,10 @@ function prepare_control_data(data::DataFrame)
 	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
 	
 	
-	transform!(control_data,
+	DataFrames.transform!(control_data,
 		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
 	# sort!(control_data, [:record_id, :trial_index])
-	transform!(groupby(control_data, :record_id),
+	DataFrames.transform!(groupby(control_data, :record_id),
 		:trial_ptype => cumsum => :trial
 	)
 
@@ -1260,7 +1260,7 @@ function prepare_control_data(data::DataFrame)
 	select!(control_report_data, [:exp_start_time, :prolific_pid, :record_id, :session, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
 
 	extract_timeline_variables!(control_task_data)
-	transform!(control_task_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	DataFrames.transform!(control_task_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
 	select!(control_task_data, Not(:responseTime))
 
 	control_task_data = merge_control_task_and_feedback(control_task_data, control_feedback_data)
