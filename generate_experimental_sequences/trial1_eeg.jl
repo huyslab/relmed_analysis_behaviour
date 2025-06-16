@@ -182,6 +182,12 @@ reversal = let random_seed = 1
 		
 end
 
+# ╔═╡ cfb06155-e1b9-4e19-ae61-72d762f24529
+let
+	# Save to file
+	CSV.write("results/trial1_eeg_reversal.csv", reversal)
+end
+
 # ╔═╡ 6d835516-0be7-42d0-bc46-d4e14dfd077d
 function create_test_sequence(
 	pilt_task::DataFrame;
@@ -1046,12 +1052,6 @@ end
 let
 	# Save to file
 	CSV.write("results/trial1_eeg_PILT_test.csv", PILT_test)
-end
-
-# ╔═╡ cfb06155-e1b9-4e19-ae61-72d762f24529
-let
-	# Save to file
-	CSV.write("results/trial1_eeg_reversal.csv", PILT_test)
 end
 
 # ╔═╡ Cell order:
