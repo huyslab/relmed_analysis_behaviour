@@ -646,7 +646,7 @@ end
 foreach(row -> print(row.prolific_pid * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 144, [:prolific_pid]]))
 
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
-foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 144, [:prolific_pid, :total_bonus]]))
+foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[:, [:prolific_pid, :total_bonus]]))
 
 # ╔═╡ fc6afa82-b9fe-41f5-a2ca-c5cb38d53b73
 function sanity_check_test(test_data_clean::DataFrame)
