@@ -147,6 +147,71 @@ md"""
 ## Prediction
 """
 
+# ╔═╡ a4338ed9-6a30-4433-be3a-da03ba093dba
+function plot_ecdf_by_session(
+	df; 
+	variable::Symbol = :response_optimal,
+	xlabel="Prop. optimal choice", 
+	ylabel="ECDF", 
+	title="ECDF of accuracy by session",
+	null_distribution::AbstractVector = Float64[],
+	legend_position::Symbol = :lt
+)
+	sessions = unique(df.session)
+	colors = Makie.wong_colors()[1:length(sessions)]
+	fig = Figure(size = (700, 400))
+	ax = Axis(
+		fig[1, 1], 
+		xlabel = xlabel, 
+		ylabel = ylabel, 
+		title = title,
+		xautolimitmargin = (0., 0.),
+		yautolimitmargin = (0., 0.),
+		ygridvisible = true,
+		yticks = 0.:0.2:1.0
+	)
+
+	for (i, sess) in enumerate(sessions)
+		vals = sort(df[!, variable][df.session .== sess])
+		n = length(vals)
+		y = range(1/n, 1; length=n)
+		lines!(ax, vals, y, color = colors[i], label = "Session $sess", linewidth = 2)
+
+		# Quintiles
+		quintiles = 0.2:0.2:0.8
+		for q in quintiles
+			idx = clamp(round(Int, q * n), 1, n)
+			xq = vals[idx]
+			yq = y[idx]
+			# Vertical line from x-axis to curve
+			lines!(ax, [xq, xq], [0, yq], color = colors[i], linestyle = :dash, linewidth = 1)
+		end
+	end
+
+	
+	# Plot of null distribution if provided
+	if !isempty(null_distribution)
+		null_pdf = Makie.KernelDensity.kde(null_distribution)
+		scaled_density = null_pdf.density ./ (maximum(null_pdf.density) * 2)
+		lines!(ax, null_pdf.x, scaled_density, color = :grey, linestyle = :dash, linewidth = 2, label = "Null distribution")
+
+		q95 = quantile(null_distribution, 0.95)
+		q90 = quantile(null_distribution, 0.9)
+		q80 = quantile(null_distribution, 0.8)
+        # Fill area under curve from q95 onwards
+        idx = findall(x -> x ≥ q80, null_pdf.x)
+        if !isempty(idx)
+            x_fill = vcat(null_pdf.x[idx], last(null_pdf.x[idx]), first(null_pdf.x[idx]))
+            y_fill = vcat(scaled_density[idx], 0.0, 0.0)
+            poly!(ax, x_fill, y_fill, color = (:grey, 0.3), strokewidth = 0, label = "Unlikely under null")
+        end
+	end
+
+	axislegend(ax, position = legend_position, framevisible = false)
+
+	fig
+end
+
 # ╔═╡ 188a9121-a69a-4e20-8600-1a8d7ca7040b
 md"""
 ## Reward
@@ -256,6 +321,9 @@ end
 begin
 	p_sum = summarize_participation(jspsych_data)
 end
+
+# ╔═╡ 5eafe623-dd80-4147-9bfb-f146dd7bba88
+foreach(row -> print(row.prolific_pid * "," * as_string(row.bonus) * "\r\n"), eachrow(p_sum[p_sum.session .== "2", [:prolific_pid, :bonus]]))
 
 # ╔═╡ 47f6b0b5-ea48-4d47-929e-388991fd52a4
 begin
@@ -744,6 +812,22 @@ begin
 	end
 end
 
+# ╔═╡ c8844022-d884-4452-aeb3-246ba0855089
+begin
+	null_pred_dist = rand(Binomial(24, 0.25), 100000)
+	pred_df = @chain control_task_data begin
+		@filter(trialphase == "control_predict_homebase")
+		@drop_missing(correct)
+		@filter(trial > 0)
+		@group_by(prolific_pid, session)
+		@summarize(n_correct = sum(correct), n = n())
+		@ungroup
+	end
+end
+
+# ╔═╡ 056b9fab-a1e1-4d8a-a23b-e4cc859dd069
+plot_ecdf_by_session(pred_df; variable=:n_correct, xlabel="# Correct out of all 24", null_distribution=null_pred_dist)
+
 # ╔═╡ d0b7207c-4e58-48ea-af3d-2503134b3f5b
 let
 	retest_df = @chain control_task_data begin
@@ -1053,6 +1137,7 @@ n = 2 # Number of splits
 # ╟─32ebb683-0618-49b5-9eea-acd005d8f336
 # ╠═443091f5-f46b-4b7c-b7c8-b98f6d9ceba9
 # ╠═5a136247-6e4b-4f6a-b76c-ba380f18d68c
+# ╠═5eafe623-dd80-4147-9bfb-f146dd7bba88
 # ╠═47f6b0b5-ea48-4d47-929e-388991fd52a4
 # ╠═b019dcd5-8eaf-4759-83ed-cc343718fd17
 # ╠═9ebce139-53fd-43de-bb82-feaf1c759910
@@ -1081,8 +1166,8 @@ n = 2 # Number of splits
 # ╟─75d53fbd-5af6-4b29-a952-b5f428c98d20
 # ╟─cc52da42-9561-4619-8d6a-237f9ac629e8
 # ╟─a395432f-0dba-4a06-bbe2-d00c596c455e
-# ╟─9c4338bb-5e7b-443b-afd4-24e87349af9e
-# ╟─2b29cc46-f722-4cf3-b1bf-9bb6310b2457
+# ╠═9c4338bb-5e7b-443b-afd4-24e87349af9e
+# ╠═2b29cc46-f722-4cf3-b1bf-9bb6310b2457
 # ╟─a83d1fda-81fe-4305-ab8e-b6c4fbce6749
 # ╟─db0ef21a-1b00-4eee-983b-f3f553730f14
 # ╟─8850fa85-de8c-4328-9df0-dde761852e7a
@@ -1092,6 +1177,9 @@ n = 2 # Number of splits
 # ╟─fa930366-523b-467b-8c3d-5fdd77565064
 # ╟─fb6d4fdf-ec68-46a2-b5dc-07f0e7cc9a40
 # ╟─8f1ab7ba-0fa0-4b0f-9b69-9d8440e60f12
+# ╟─a4338ed9-6a30-4433-be3a-da03ba093dba
+# ╟─c8844022-d884-4452-aeb3-246ba0855089
+# ╟─056b9fab-a1e1-4d8a-a23b-e4cc859dd069
 # ╟─d0b7207c-4e58-48ea-af3d-2503134b3f5b
 # ╟─1e0e87db-13bc-46db-be5d-7d2dfba7055f
 # ╟─b952e83b-85c3-4c77-b132-6bbe4f532ac4
@@ -1109,5 +1197,5 @@ n = 2 # Number of splits
 # ╠═85d9ed09-7848-4749-83c0-310e6b6fdac0
 # ╟─f74eea14-748b-4b3c-b887-bc9485ecfea3
 # ╟─8312e274-4cf4-4ad2-906d-e357ef5d4755
-# ╟─8f2909c4-7746-4994-b97e-6acc87aa84a1
+# ╠═8f2909c4-7746-4994-b97e-6acc87aa84a1
 # ╟─734a8fb3-dcdf-4e51-8c16-1bb0f2ee7808
