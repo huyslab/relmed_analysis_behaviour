@@ -224,7 +224,7 @@ Each subset of `df` (split by factor levels) is optimized separately using `opti
 The results are combined and sorted by the specified factor(s) and `:prolific_pid`.
 """
 function optimize_multiple_by_factor(
-	df::DataFrame;
+	df::AbstractDataFrame;
 	model::Function,
 	factor::Union{Symbol, Vector{Symbol}},
 	priors::Dict,

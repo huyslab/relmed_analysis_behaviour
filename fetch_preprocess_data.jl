@@ -133,7 +133,7 @@ function REDCap_data_to_df(jspsych_data, records; participant_id_field::String =
 		on = map(Symbol, on_cols)
 	)
 
-	transform!(jspsych_data, participant_id => :prolific_pid)
+	DataFrames.transform!(jspsych_data, participant_id => :prolific_pid)
 
 	return jspsych_data
 end
@@ -251,9 +251,11 @@ function load_pilot9_data(; force_download = false)
 	# Load data or download from REDCap
 	if !isfile(datafile) || force_download
 		jspsych_json, records = get_REDCap_data("pilot9"; file_field = "data", record_id_field = "record_id")
+		jspsych_json, records = get_REDCap_data("pilot9"; file_field = "data", record_id_field = "record_id")
 	
 		jspsych_data = REDCap_data_to_df(jspsych_json, records; participant_id_field = "participant_id", start_time_field = "sitting_start_time")
 
+		remove_testing!(jspsych_data)
 		remove_testing!(jspsych_data)
 
 		JLD2.@save datafile jspsych_data
@@ -269,6 +271,7 @@ function load_pilot9_data(; force_download = false)
 	
 	# Extract post-PILT test
 	test_data = prepare_test_data(jspsych_data)
+	test_data = prepare_test_data(jspsych_data)
 
 	# Exctract vigour
 	vigour_data = prepare_vigour_data(jspsych_data) 
@@ -277,10 +280,10 @@ function load_pilot9_data(; force_download = false)
 	PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Extract max press rate data
-	max_press_data = prepare_max_press_data(jspsych_data)
+	# max_press_data = prepare_max_press_data(jspsych_data)
 
 	# Extract control data
-	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+	# control_task_data, control_report_data = prepare_control_data(jspsych_data) 
 
 	return PILT_data, test_data, vigour_data, PIT_data, max_press_data, control_task_data, control_report_data, jspsych_data
 end
@@ -668,6 +671,9 @@ function prepare_test_data(df::DataFrame; task::String = "pilt")
 
 	# Select columns
 	test_data = test_data[:, Not(map(col -> all(ismissing, col), eachcol(test_data)))]
+
+	# Change all block names to same type
+	test_data.block = string.(test_data.block)
 
 	# Change all block names to same type
 	test_data.block = string.(test_data.block)
@@ -1287,10 +1293,10 @@ function prepare_control_data(data::DataFrame)
 	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
 	
 	
-	transform!(control_data,
+	DataFrames.transform!(control_data,
 		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
 	# sort!(control_data, [:record_id, :trial_index])
-	transform!(groupby(control_data, :record_id),
+	DataFrames.transform!(groupby(control_data, :record_id),
 		:trial_ptype => cumsum => :trial
 	)
 	select!(control_data, Not(Cols(:n_warnings, :plugin_version, :pre_kick_out_warned, :trial_type, :trial_ptype)))
@@ -1334,4 +1340,48 @@ function prepare_control_data(data::DataFrame)
 	end
 
 	return merged_control, control_report_data
+end
+
+"""
+    prepare_post_PILT_test_data(data::AbstractDataFrame) -> DataFrame
+
+Processes and prepares data from the PILT test phase for further analysis. This function filters rows to include only those from the PILT test phase, removes columns where all values are missing, and computes additional columns based on participant responses.
+This is for pilots prior to Pilot9 - deprecated.
+
+# Arguments
+- `data::AbstractDataFrame`: The raw experimental data, including trial phases and participant responses.
+
+# Returns
+- A DataFrame with the PILT test data, including computed columns for the chosen stimulus and whether the response was "ArrowRight". Columns with all missing values are excluded.
+"""
+function prepare_post_PILT_test_data(data::AbstractDataFrame)
+
+	# Select rows
+	test_data = filter(x -> !ismissing(x.trialphase) && (x.trialphase == "PILT_test"), data)
+
+	# Select columns
+	test_data = test_data[:, Not(map(col -> all(ismissing, col),
+		eachcol(test_data)))]
+
+	if :stimulus in names(test_data)
+		select!(test_data, Not(:stimulus))
+	end
+
+	# Compute chosen stimulus
+	@assert Set(test_data.response) ⊆ Set(["ArrowRight", "ArrowLeft", "null", "right", "left", "noresp", nothing]) "Unexpected responses in PILT test data"
+	
+	test_data.chosen_stimulus = ifelse.(
+		test_data.response .∈ (["ArrowRight", "right"],),
+		test_data.stimulus_right,
+		ifelse.(
+			test_data.response .∈ (["ArrowLeft", "left"],),
+			test_data.stimulus_left,
+			missing
+		)
+	)
+
+	test_data.right_chosen = (x -> get(Dict("ArrowRight" => true, "right" => true, "ArrowLeft" => false, "left" => false, "null" => missing, "noresp" => missing), x, missing)).(test_data.response)
+
+	return test_data
+
 end

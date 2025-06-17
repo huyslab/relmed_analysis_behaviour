@@ -44,6 +44,9 @@ function reorder_bands_lines!(f::GridPosition)
 	# Get plots
 	plots = extract_axis(f).scene.plots
 
+	# Select only plots of type Band or Lines
+	plots = filter(p -> isa(p, Band) || isa(p, Lines), plots)
+
 	n = length(plots)
 
 	@assert allequal(typeof.(plots[1:(n ÷ 2)])) && allequal(typeof.(plots[(n ÷ 2 + 1):n])) "Expecting plots to be ordered by type"

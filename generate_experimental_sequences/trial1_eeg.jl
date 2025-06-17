@@ -1,4 +1,10 @@
-# Load pacakges
+### A Pluto.jl notebook ###
+# v0.20.1
+
+using Markdown
+using InteractiveUtils
+
+# ╔═╡ d1ffbd6e-41f6-11f0-2884-51de482dd6fe
 begin
 	cd("/home/jovyan")
 	import Pkg
@@ -23,6 +29,7 @@ begin
 	nothing
 end
 
+# ╔═╡ 0d99d4cc-18f9-4f5e-ab23-6bff9bdce753
 begin
 	# Set theme	
 	th = merge(theme_minimal(), Theme(
@@ -40,25 +47,358 @@ begin
 	set_theme!(th)
 end
 
-categories = let
-
-	categories = DataFrame(CSV.File("generate_experimental_sequences/trial1_stimuli/stimuli.csv")).concept |> unique
-
-	@info "Found $(length(categories)) categories"
-
-	categories
+# ╔═╡ 52303bea-d08a-4b0d-bb30-97633d428811
+# General parameters
+begin
+	sessions = 1:2
 end
 
+# ╔═╡ 4bbb7c6d-71d3-4447-8359-348c86d05bdc
+categories = vec([string(uppercase, lowercase) for lowercase in 'a':'z', uppercase in 'A':'Z'])
 
+# ╔═╡ 83266903-2dd2-43e1-93fb-b5c5271bb02d
+md"""# PILT"""
+
+# ╔═╡ 57ca9c3d-6d91-43cf-8fc4-a8ad8dfce0dd
 # PILT parameters
 begin
 	# PILT Parameters
 	PILT_trials_per_block = 10
-			
-	# Post-PILT test parameters
-	PILT_test_n_blocks = 3
+		
 end
 
+# ╔═╡ 149549b9-5ff3-451c-9f91-41a0c240e4e8
+md"""## Post-PILT test"""
+
+# ╔═╡ ad996e31-abdb-46c9-8930-6cfa7f833cb0
+	# Post-PILT test parameters
+	PILT_test_n_blocks = 3
+
+
+# ╔═╡ cc409bce-df5e-4b77-906e-20b8342d5b5b
+md"""## Reversal task"""
+
+# ╔═╡ 531a2596-52c2-43d6-94d3-de273705a79c
+# Reversal task parameters
+begin
+	rev_n_blocks = 30
+	rev_n_trials = 80
+	rev_prop_confusing = vcat([0, 0.1, 0.1, 0.2, 0.2], fill(0.3, rev_n_blocks - 5))
+	rev_criterion = vcat(
+		[8, 7, 6, 6, 5], 
+		shuffled_fill(
+			3:8, 
+			rev_n_blocks - 5; 
+			rng = Xoshiro(0)
+		)
+	)
+end
+
+# ╔═╡ 1ac016d1-7de7-405f-987e-446efca5ff90
+function find_lcm_denominators(props::Vector{Float64})
+	# Convert to rational numbers
+	rational_props = rationalize.(props)
+	
+	# Extract denominators
+	denominators = [denominator(r) for r in rational_props]
+	
+	# Compute the LCM of all denominators
+	smallest_int = foldl(lcm, denominators)
+end
+
+# ╔═╡ af283fc5-50b0-47f6-97c6-33d5b189e76d
+# Reversal task structure
+reversal = let random_seed = 1
+
+	# Compute minimal mini block length to accomodate proportions
+	mini_block_length = find_lcm_denominators(rev_prop_confusing)
+	@info "Randomizing in miniblocks of $mini_block_length trials"
+
+	# Function to create high magnitude values for miniblock
+	mini_block_high_mag(p, rng) = shuffle(rng, vcat(
+		fill(1., round(Int64, mini_block_length * (1-p))),
+		fill(0.01, round(Int64, mini_block_length * p))
+	))
+
+	# Function to create high magntidue values for block
+	block_high_mag(p, rng) = 
+		vcat(
+			[mini_block_high_mag(p, rng) 
+				for _ in 1:(div(rev_n_trials, mini_block_length))]...)
+
+	# Set random seed
+	rng = Xoshiro(random_seed)
+
+	# Initialize
+	feedback_optimal = Vector{Vector{Float64}}()
+
+	# Make sure first sixs blocks don't start with confusing feedback on first trial
+	dist_diff = 11
+	while isempty(feedback_optimal) || 
+		!all([bl[1] != 0.01 for bl in feedback_optimal[1:6]]) || dist_diff > 2
+
+		# Assign blocks
+		feedback_optimal = [block_high_mag(p, rng) for p in rev_prop_confusing]
+
+		# Check distribution of confusing feedback
+		dist = (x -> permutedims(reshape(x, div(length(x), 10), 10), (2,1))).(feedback_optimal)
+
+		dist = vcat(dist...)
+
+		dist = vec(sum(dist .== 1., dims = 1))
+		dist_diff = maximum(abs.(diff(dist)))
+	end
+
+	# Function to compute feedback_suboptimal from feedback_optimal
+	inverter(x) = 1 ./ (100 * x)
+
+	# Draw whether right is optimal on even or odd blocks
+	evenodd = Dict(s => shuffle(rng, [isodd, iseven]) for s in Symbol.(sessions))
+
+	# Create timeline variables
+	timeline = Dict(s => [[Dict(
+		:block => bl,
+		:trial => t,
+		:feedback_left => evenodd[s][1](bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:feedback_right => evenodd[s][2](bl) ? feedback_optimal[bl][t] : 
+			inverter(feedback_optimal[bl][t]),
+		:optimal_right => evenodd[s][2](bl),
+		:criterion => rev_criterion[bl]
+	) for t in 1:rev_n_trials] for bl in 1:rev_n_blocks] for s in Symbol.(sessions))
+
+	# Convert to DataFrame since eeg experiment code wants csv
+	rows = []
+	
+	for (session, blocks) in timeline
+	    for block_trials in blocks
+	        for trial_dict in block_trials
+	            push!(rows, merge(Dict(:session => parse(Int, string(session))), trial_dict))
+	        end
+	    end
+	end
+	
+	df = DataFrame(rows)
+		
+end
+
+# ╔═╡ cfb06155-e1b9-4e19-ae61-72d762f24529
+let
+	# Save to file
+	CSV.write("results/trial1_eeg_reversal.csv", reversal)
+end
+
+# ╔═╡ 6d835516-0be7-42d0-bc46-d4e14dfd077d
+function create_test_sequence(
+	pilt_task::DataFrame;
+	random_seed::Int64, 
+	same_weight::Float64 = 6.5,
+	test_n_blocks::Int64 = PILT_test_n_blocks
+) 
+	
+	rng = Xoshiro(random_seed)
+
+	# Extract stimuli and their common feedback from task structure
+	stimuli = vcat([rename(
+		pilt_task[pilt_task.feedback_common, [:session, :block, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
+		Symbol("stimulus_$s") => :stimulus,
+		Symbol("feedback_$s") => :feedback
+	) for s in ["right", "left"]]...)
+
+	# Summarize magnitude per stimulus
+	stimuli = combine(
+		groupby(stimuli, [:session, :block, :stimulus]),
+		:feedback => StatsBase.mode => :magnitude,
+		:feedback => mean => :EV
+	)
+
+	# Step 1: Identify unique stimuli
+	unique_stimuli = unique(stimuli.stimulus)
+
+	# Step 2: Define existing pairs
+	create_pair_list(d) = [filter(x -> x.block == p, d).stimulus 
+		for p in unique(stimuli.block)]
+
+	existing_pairs = create_pair_list(stimuli)
+
+	# Step 3: Generate all possible pairs
+	all_possible_pairs = unique(sort.(collect(combinations(unique_stimuli, 2))))
+
+	# Step 6: Select pairs ensuring each stimulus is used once and magnitudes are balanced
+	final_pairs = []
+
+	# Create a priority queue for balanced selection based on pair counts
+	pair_counts = Dict{Vector{Float64}, Int}()
+
+	# Function to retrieve attribute of stimulus
+	stim_attr(s, attr) = stimuli[stimuli.stimulus .== s, :][!, attr][1]
+
+	for b in 1:test_n_blocks
+
+		used_stimuli = Set{String}()
+
+		# Step 4: Filter valid pairs: were not paired in PILT, ano same category
+		valid_pairs = 
+			filter(pair -> 
+				!(pair in existing_pairs) && 
+				!(reverse(pair) in existing_pairs) && 
+				(pair[1][1:(end-5)] != pair[2][1:(end-5)]), 
+			all_possible_pairs)
+	
+		# Step 5: Create a mapping of pairs to their magnitudes
+		magnitude_pairs = Dict{Vector{Float64}, Vector{Vector{String}}}()
+		
+		for pair in valid_pairs
+		    mag1 = stimuli[stimuli.stimulus .== pair[1], :].magnitude[1]
+		    mag2 = stimuli[stimuli.stimulus .== pair[2], :].magnitude[1]
+		    key = sort([mag1, mag2])
+			if mag1 == mag2 # Exclude same magnitude
+				continue
+			end
+		    if !haskey(magnitude_pairs, key)
+		        magnitude_pairs[key] = []
+		    end
+		    push!(magnitude_pairs[key], pair)
+		end
+		
+		# Step 5.5 - Shuffle order within each magnitude
+		for (k, v) in magnitude_pairs
+			magnitude_pairs[k] = shuffle(rng, v)
+		end
+
+		# Initialize counts
+		if b == 1
+			for key in keys(magnitude_pairs)
+			    pair_counts[key] = 0
+			end
+		end
+		
+		block_pairs = []
+		
+		while true
+		    found_pair = false
+	
+		    # Select pairs while balancing magnitudes
+		    for key in sort(collect(keys(magnitude_pairs)), by = x -> pair_counts[x] + same_weight * (x[1] == x[2])) # Sort by count, putting equal magnitude las
+		        pairs = magnitude_pairs[key]
+		
+		        for pair in pairs
+		            if !found_pair &&!(pair[1] in used_stimuli) && 
+						!(pair[2] in used_stimuli) 
+					
+		                push!(block_pairs, pair)
+		                push!(used_stimuli, pair[1])
+		                push!(used_stimuli, pair[2])
+		                pair_counts[key] += 1
+		                found_pair = true
+		                break  # Stop going over pairs
+		            end
+		        end
+		        
+		        if found_pair
+		            break  # Restart the outer loop if a pair was found
+		        end
+		    end
+
+			# Alert bad seed
+			if !found_pair
+				return DataFrame(), NaN, NaN, NaN
+			end
+		
+		    if length(used_stimuli) == length(unique_stimuli)
+		        break  # Exit if all stimuli are used or no valid pairs remain
+		    end
+		end
+
+		# Step 7 - Shuffle pair order
+		shuffle!(rng, block_pairs)
+
+		# Add block pairs to final pairs
+		append!(final_pairs, block_pairs)
+
+		# Add block pairs to existing pairs
+		append!(existing_pairs, block_pairs)
+
+		# Empty used_stimuli
+		used_stimuli = []
+	end
+
+	# Shuffle order within each pair
+	shuffle!.(rng, final_pairs)
+
+	# Step 8 - Form DataFrame
+	pairs_df = DataFrame(
+		block = repeat(1:test_n_blocks, inner = length(unique_stimuli) ÷ 2),
+		trial = repeat(1:(length(unique_stimuli) ÷ 2) * test_n_blocks),
+		stimulus_right = [p[2] for p in final_pairs],
+		stimulus_left = [p[1] for p in final_pairs],
+		feedback_right = [stimuli[stimuli.stimulus .== p[2], :].magnitude[1] for p in final_pairs],
+		feedback_left = [stimuli[stimuli.stimulus .== p[1], :].magnitude[1] for p in final_pairs],
+		EV_right = [stimuli[stimuli.stimulus .== p[2], :].EV[1] for p in final_pairs],
+		EV_left = [stimuli[stimuli.stimulus .== p[1], :].EV[1] for p in final_pairs],
+		original_block_right = [stimuli[stimuli.stimulus .== p[2], :].block[1] for p in final_pairs],
+		original_block_left = [stimuli[stimuli.stimulus .== p[1], :].block[1] for p in final_pairs]
+	)
+
+	# Same / different block variable
+	pairs_df.same_block = pairs_df.original_block_right .== pairs_df.original_block_left
+
+	# Valence variables
+	pairs_df.valence_left = sign.(pairs_df.EV_left)
+	pairs_df.valence_right = sign.(pairs_df.EV_right)
+	pairs_df.same_valence = pairs_df.valence_left .== pairs_df.valence_right
+
+	# Compute sequence stats
+	prop_same_block = (mean(pairs_df.same_block)) 
+	prop_same_valence = (mean(pairs_df.same_valence))
+	n_same_magnitude = sum(pairs_df.feedback_right .== pairs_df.feedback_left)
+	
+	pairs_df, prop_same_block, prop_same_valence, n_same_magnitude
+end
+
+# ╔═╡ b04341bc-82e0-4660-8809-42d852b5a95d
+# Choose test sequence with best stats
+function find_best_test_sequence(
+	task::DataFrame; # PILT task structure
+	n_seeds::Int64 = 100, # Number of random seeds to try
+	same_weight::Float64 = 4.1 # Weight reducing the number of same magntiude pairs
+) 
+
+	# Initialize stats variables
+	prop_block = []
+	prop_valence = []
+	n_magnitude = []
+
+	# Run over seeds
+	for s in 1:n_seeds
+		_, pb, pv, nm = create_test_sequence(task, random_seed = s, same_weight = same_weight)
+
+		push!(prop_block, pb)
+		push!(prop_valence, pv)
+		push!(n_magnitude, nm)
+	end
+
+	# First, choose a sequence with the minimal number of same-magnitude pairs
+	pass_magnitude = (1:n_seeds)[n_magnitude .== 
+		minimum(filter(x -> !isnan(x), n_magnitude))]
+
+	@assert !isempty(pass_magnitude)
+
+	# Apply magnitude selection
+	prop_block = prop_block[pass_magnitude]
+	prop_valence = prop_valence[pass_magnitude]
+
+	# Compute deviation from goal
+	dev_valence = abs.(prop_block .- 0.5)
+
+	# Choose best sequence
+	chosen = pass_magnitude[argmin(dev_valence)]
+
+	# Return sequence and stats
+	return create_test_sequence(task, random_seed = chosen, same_weight = same_weight)
+end
+
+# ╔═╡ 15527827-4835-42a8-88c5-cba1d6e9719a
 function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T}, num_quantiles::Int) where T
     quantile_edges = quantile(reference_values, range(0, 1, length=num_quantiles+1))
     
@@ -77,19 +417,24 @@ function discretize_to_quantiles(values::Vector{T}, reference_values::Vector{T},
     return categorical_values
 end
 
+# ╔═╡ 71e38508-9a0d-4ab3-9e39-75f529d5672a
 PILT_blocks = let rng = Xoshiro(0)
 
 	coins = [-1., -0.5, -0.01, 0.01, 0.5, 1.]
 
 	# Create all magnitdue combinations
-	outcome_combinations = collect(product(coins, coins))
+	all_outcome_combinations = collect(product(coins, coins))
 
-	# Select only upper triangular
-	outcome_combinations = 
-		outcome_combinations[triu(trues(size(outcome_combinations)))]
+	outcome_combinations = vcat(
+		filter(x -> x[1] < x[2], vec(all_outcome_combinations)), # First iteration of all relevant combinations
+		[all_outcome_combinations[i, j] for (i,j) in zip(1:5, 2:6)] # Adding 5 more adjacent to the diagonal
+	)
+
+	outcome_combinations_extra = [all_outcome_combinations[i, j] for (i,j) in zip(1:4, 3:6)]
 
 	# Convert to vector of vectors
 	outcome_combinations = collect.(outcome_combinations)
+	outcome_combinations_extra = collect.(outcome_combinations_extra)
 
 	# Shuffle order within pair, keeping B stim outcome distribution flat
 	criteria = false 
@@ -106,7 +451,6 @@ PILT_blocks = let rng = Xoshiro(0)
 		criteria = maximum(B_stim_counts) - minimum(B_stim_counts) == 1
 
 	end
-
 
 	# Shuffle order, under constraints
 	criteria = false 
@@ -136,6 +480,13 @@ PILT_blocks = let rng = Xoshiro(0)
 
 	end
 
+	# Shuffle order of extra blocks
+	shuffle!.(rng, outcome_combinations_extra)
+	shuffle!(rng, outcome_combinations_extra)
+
+	# Concatenate
+	outcome_combinations = vcat(outcome_combinations, outcome_combinations_extra)
+	
 	# Arrange into DataFrame
 	PILT_blocks_long = DataFrame(
 		block = repeat(1:length(outcome_combinations), outer = 2),
@@ -217,7 +568,7 @@ PILT_blocks = let rng = Xoshiro(0)
         # println(EV_diff_bin_counts)
         # println(maximum(EV_diff_bin_counts) - minimum(EV_diff_bin_counts))
 
-        EV_diff_uniform = EV_diff_counts_sd < 2.5
+        EV_diff_uniform = EV_diff_counts_sd < 2.85
 
         # Check if the first two blocks primary outcome matches secondary in sign
 		first_mathces = all((r -> sign(r.primary_outcome) == 
@@ -233,7 +584,7 @@ PILT_blocks = let rng = Xoshiro(0)
 
 		EV_B_bin_counts = values(countmap(EV_B_bin))
 
-		B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) == 1
+		B_uniform = maximum(EV_B_bin_counts) - minimum(EV_B_bin_counts) <= 2
 
 		criteria2 = first_mathces && B_uniform && EV_diff_uniform
 
@@ -283,12 +634,13 @@ PILT_blocks = let rng = Xoshiro(0)
     @assert all(PILT_blocks.EV_A .!= PILT_blocks.EV_B) "EVs are not different"
 
     @info "Proportion of blocks with repeating stimulus B optimal: $(mean(PILT_blocks.EV_B .> PILT_blocks.EV_A))"
+	@info "Proportion of blocks withing the first 20 with repeating stimulus B optimal: $(mean(PILT_blocks.EV_B[1:20] .> PILT_blocks.EV_A[1:20]))"
 
 	PILT_blocks
 
 end
 
-
+# ╔═╡ 4c093483-9436-44b5-bcdd-299538d4d05b
 # Assign stimulus images
 PILT_stimuli = let random_seed = 0
 
@@ -301,8 +653,9 @@ PILT_stimuli = let random_seed = 0
 				n_phases = 1,
 				n_pairs = fill(1, maximum(PILT_blocks.block)),
 				categories = categories,
-				rng = Xoshiro(random_seed)
-		), 1, :session => s) for s in 1:2
+				rng = Xoshiro(random_seed),
+				ext = "png"
+		), 1, :session => s) for s in sessions
 		]...
 	)
 
@@ -319,18 +672,21 @@ PILT_stimuli = let random_seed = 0
 	stimuli
 end
 
+
+# ╔═╡ 2a83846a-cc71-44b0-b75c-1b2b487d256c
 # Create PILT sequence
-PILT_sequence = let rng = Xoshiro(2)
+PILT = let rng = Xoshiro(2)
 
     position_criterion = false
     PILT_sequence = DataFrame()
-    while !position_criterion
+    while !position_criterion 
 
-        # All positions of common feedback
-        common_feedback_positions = Dict(
-            n_confusing => shuffle(rng, collect(combinations(1:PILT_trials_per_block, n_confusing)))
-            for n_confusing in unique(PILT_blocks.n_confusing)
-        )
+		# All positions of common feedback
+		common_feedback_positions = Dict(
+			n_confusing => shuffle(rng, collect(combinations(1:PILT_trials_per_block, n_confusing)))
+			for n_confusing in unique(PILT_blocks.n_confusing)
+		)
+
 
         # Helper function to assign common feedback
         get_sequence = function(indices::Vector{Int})
@@ -360,7 +716,7 @@ PILT_sequence = let rng = Xoshiro(2)
             :feedback_common => mean => :feedback_common
         ).feedback_common)
 
-        position_criterion = position_sd < 0.001
+        position_criterion = position_sd < 0.0282
 
         if position_criterion
             @info "SD of position proportions: $(position_sd)"
@@ -399,7 +755,7 @@ PILT_sequence = let rng = Xoshiro(2)
     # Randomize appearance on left / right
     DataFrames.transform!(
         groupby(PILT_sequence, [:session, :block]),
-        :n_confusing => (x -> shuffled_fill([true, false], length(x))) => :A_on_right
+        :n_confusing => (x -> shuffled_fill([true, false], length(x), rng = rng)) => :A_on_right
     )
 
     # Create stimulus on left / right
@@ -447,8 +803,10 @@ PILT_sequence = let rng = Xoshiro(2)
 
 end
 
+
+# ╔═╡ b7034df7-868c-49b9-b883-e050738e0c33
 # Validate task DataFrame
-let task = PILT_sequence
+let task = PILT
 	@assert maximum(task.block) == length(unique(task.block)) "Error in block numbering"
 
 	@assert all(combine(groupby(task, :session), 
@@ -501,8 +859,10 @@ let task = PILT_sequence
 
 end
 
+
+# ╔═╡ 9d3736ba-004f-4d1a-9595-e138ba6cb2b9
 # Visualize PILT seuqnce
-let task = PILT_sequence
+let task = PILT
 
 	f = Figure(size = (700, 300))
 
@@ -553,301 +913,21 @@ let task = PILT_sequence
 	
 
 
-	save("results/pilot9_pilt_trial_plan.png", f, pt_per_unit = 1)
+	save("results/trial1_eeg_pilt_trial_plan.png", f, pt_per_unit = 1)
 
 	f
 
 end
 
+
+# ╔═╡ 48620cba-b84f-4c14-aafa-1f39ffa99787
 let
-	# Save to file
-	save_to_JSON(PILT_sequence, "results/pilot9_PILT.json")
-	CSV.write("results/pilot9_PILT.csv", PILT_sequence)
+	CSV.write("results/trial1_eeg_PILT.csv", PILT)
 end
 
-# Test phase ---------------------------------------------------------
-function create_test_sequence(
-	pilt_task::DataFrame;
-	random_seed::Int64, 
-	same_weight::Float64 = 6.5,
-	test_n_blocks::Int64 = PILT_test_n_blocks
-) 
-	
-	rng = Xoshiro(random_seed)
-
-	# Extract stimuli and their feedback from task structure
-	stimuli = vcat([rename(
-		pilt_task[!, [:session, :block, Symbol("stimulus_$s"), Symbol("feedback_$s")]],
-		Symbol("stimulus_$s") => :stimulus,
-		Symbol("feedback_$s") => :feedback
-	) for s in ["right", "left"]]...)
-
-	# Summarize EV per stimulus
-	stimuli = combine(
-		groupby(stimuli, [:session, :block, :stimulus]),
-		:feedback => mean => :EV,
-        :feedback => StatsBase.mode => :feedback
-	)
-
-    # Bin EV into six bins, separating positive and negative
-    stimuli.EV_bin = let
-        # Separate positive and negative EVs
-        pos_EVs = filter(x -> x > 0, stimuli.EV)
-        neg_EVs = filter(x -> x < 0, stimuli.EV)
-        
-        # Create 3 bins for positive values
-        if !isempty(pos_EVs)
-            # Calculate quantiles to create 3 equally sized bins
-            pos_edges = quantile(pos_EVs, [0, 1/3, 2/3, 1])
-            # Calculate midpoints for bin labels
-            pos_midpoints = [(pos_edges[i] + pos_edges[i+1])/2 for i in 1:3]
-        else
-            pos_edges = Float64[]
-            pos_midpoints = Float64[]
-        end
-        
-        # Create 3 bins for negative values
-        if !isempty(neg_EVs)
-            # Calculate quantiles to create 3 equally sized bins
-            neg_edges = quantile(neg_EVs, [0, 1/3, 2/3, 1])
-            # Calculate midpoints for bin labels
-            neg_midpoints = [(neg_edges[i] + neg_edges[i+1])/2 for i in 1:3]
-        else
-            neg_edges = Float64[]
-            neg_midpoints = Float64[]
-        end
-        
-        # Function to assign bin using the midpoint as the label
-        function assign_bin(ev)
-            if ev > 0
-                for i in 1:3
-                    if ev <= pos_edges[i+1]
-                        return pos_midpoints[i]
-                    end
-                end
-            elseif ev < 0
-                for i in 2:4
-                    if ev <= neg_edges[i]
-                        return neg_midpoints[i-1]
-                    end
-                end
-            end
-            error("EV value $ev does not fit into any bin")
-        end
-        
-        # Apply binning to each EV value
-        [assign_bin(ev) for ev in stimuli.EV]
-    end
-    
-    # Additional check to verify distribution of bins
-    bin_counts = countmap(stimuli.EV_bin)
-    @assert allequal(values(bin_counts)) "EV bins are not equally distributed"
-
-	# Step 1: Identify unique stimuli
-	unique_stimuli = unique(stimuli.stimulus)
-
-	# Step 2: Define existing pairs
-	create_pair_list(d) = [filter(x -> x.block == p, d).stimulus 
-		for p in unique(stimuli.block)]
-
-	existing_pairs = create_pair_list(stimuli)
-
-	# Step 3: Generate all possible pairs
-	all_possible_pairs = unique(sort.(collect(combinations(unique_stimuli, 2))))
-
-	# Step 6: Select pairs ensuring each stimulus is used once and EVs are balanced
-	final_pairs = []
-	used_stimuli = Set{String}()
-
-	# Create a priority queue for balanced selection based on pair counts
-	pair_counts = Dict{Vector{Float64}, Int}()
-
-	# Function to retrieve attribute of stimulus
-	stim_attr(s, attr) = stimuli[stimuli.stimulus .== s, :][!, attr][1]
-
-	for b in 1:test_n_blocks
-
-		# Step 4: Filter valid pairs: were not paired in PILT, ano same category
-		valid_pairs = 
-			filter(pair -> 
-				!(pair in existing_pairs) && 
-				!(reverse(pair) in existing_pairs) && 
-				(pair[1][1:(end-5)] != pair[2][1:(end-5)]), 
-			all_possible_pairs)
-	
-		# Step 5: Create a mapping of pairs to their magnitudes
-		EV_pairs = Dict{Vector{Float64}, Vector{Vector{String}}}()
-		
-		for pair in valid_pairs
-		    EV1 = stimuli[stimuli.stimulus .== pair[1], :].EV_bin[1]
-		    EV2 = stimuli[stimuli.stimulus .== pair[2], :].EV_bin[1]
-		    key = sort([EV1, EV2])
-		    if !haskey(EV_pairs, key)
-		        EV_pairs[key] = []
-		    end
-		    push!(EV_pairs[key], pair)
-		end
-	
-		@assert sum(length(vec) for vec in values(EV_pairs)) == length(valid_pairs)
-	
-		# Step 5.5 - Shuffle order within each magnitude
-		for (k, v) in EV_pairs
-			EV_pairs[k] = shuffle(rng, v)
-		end
-
-		# Initialize counts
-		if b == 1
-			for key in keys(EV_pairs)
-			    pair_counts[key] = 0
-			end
-		end
-		
-		block_pairs = []
-		
-		while true
-		    found_pair = false
-	
-		    # Select pairs while balancing magnitudes
-		    for key in sort(collect(keys(EV_pairs)), by = x -> pair_counts[x] + same_weight * (x[1] == x[2])) # Sort by count, putting equal magnitude las
-		        pairs = EV_pairs[key]
-	
-				# First try to find a same block pair
-		        for pair in pairs
-		            if !(pair[1] in used_stimuli) && !(pair[2] in used_stimuli)  && 
-						stim_attr(pair[1], "block") == stim_attr(pair[2], "block")
-					
-		                push!(block_pairs, pair)
-		                push!(used_stimuli, pair[1])
-		                push!(used_stimuli, pair[2])
-		                pair_counts[key] += 1
-		                found_pair = true
-		                break  # Stop going over pairs
-		            end
-		        end
-	
-				# Then try different block pair
-		        for pair in pairs
-		            if !found_pair &&!(pair[1] in used_stimuli) && 
-						!(pair[2] in used_stimuli) 
-					
-		                push!(block_pairs, pair)
-		                push!(used_stimuli, pair[1])
-		                push!(used_stimuli, pair[2])
-		                pair_counts[key] += 1
-		                found_pair = true
-		                break  # Stop going over pairs
-		            end
-		        end
-		        
-		        if found_pair
-		            break  # Restart the outer loop if a pair was found
-		        end
-		    end
-
-			# Alert bad seed
-			if !found_pair
-				return DataFrame(), NaN, NaN, NaN
-			end
-		
-		    if length(used_stimuli) == length(unique_stimuli)
-		        break  # Exit if all stimuli are used or no valid pairs remain
-		    end
-		end
-
-		# Step 7 - Shuffle pair order
-		shuffle!(rng, block_pairs)
-
-		# Add block pairs to final pairs
-		append!(final_pairs, block_pairs)
-
-		# Add block pairs to existing pairs
-		append!(existing_pairs, block_pairs)
-
-		# Empty used_stimuli
-		used_stimuli = []
-	end
-
-	# Shuffle order within each pair
-	shuffle!.(rng, final_pairs)
-
-	# Step 8 - Form DataFrame
-	pairs_df = DataFrame(
-		block = repeat(1:test_n_blocks, inner = length(unique_stimuli) ÷ 2),
-		trial = repeat(1:(length(unique_stimuli) ÷ 2) * test_n_blocks),
-		stimulus_right = [p[2] for p in final_pairs],
-		stimulus_left = [p[1] for p in final_pairs],
-		EV_right = [stimuli[stimuli.stimulus .== p[2], :].EV[1] for p in final_pairs],
-		EV_left = [stimuli[stimuli.stimulus .== p[1], :].EV[1] for p in final_pairs],
-        feedback_right = [stimuli[stimuli.stimulus .== p[2], :].feedback[1] for p in final_pairs],
-		feedback_left = [stimuli[stimuli.stimulus .== p[1], :].feedback[1] for p in final_pairs],
-		original_block_right = [stimuli[stimuli.stimulus .== p[2], :].block[1] for p in final_pairs],
-		original_block_left = [stimuli[stimuli.stimulus .== p[1], :].block[1] for p in final_pairs]
-	)
-
-	# Same / different block variable
-	pairs_df.same_block = pairs_df.original_block_right .== pairs_df.original_block_left
-
-	# Valence variables
-	pairs_df.valence_left = sign.(pairs_df.EV_left)
-	pairs_df.valence_right = sign.(pairs_df.EV_right)
-	pairs_df.same_valence = pairs_df.valence_left .== pairs_df.valence_right
-
-    # Optimal choice variable
-    pairs_df.optimal_right = pairs_df.EV_right .> pairs_df.EV_left
-
-	# Compute sequence stats
-	prop_same_block = (mean(pairs_df.same_block)) 
-	prop_same_valence = (mean(pairs_df.same_valence))
-	n_same_EV = sum(pairs_df.EV_right .== pairs_df.EV_left)
-	
-	pairs_df, prop_same_block, prop_same_valence, n_same_EV
-end
-
-# Choose test sequence with best stats
-function find_best_test_sequence(
-	task::DataFrame; # PILT task structure
-	n_seeds::Int64 = 100, # Number of random seeds to try
-	same_weight::Float64 = 4.1 # Weight reducing the number of same magntiude pairs
-) 
-
-	# Initialize stats variables
-	prop_block = []
-	prop_valence = []
-	n_magnitude = []
-
-	# Run over seeds
-	for s in 1:n_seeds
-		_, pb, pv, nm = create_test_sequence(task, random_seed = s, same_weight = same_weight)
-
-		push!(prop_block, pb)
-		push!(prop_valence, pv)
-		push!(n_magnitude, nm)
-	end
-
-	# First, choose a sequence with the minimal number of same-magnitude pairs
-	pass_magnitude = (1:n_seeds)[n_magnitude .== 
-		minimum(filter(x -> !isnan(x), n_magnitude))]
-
-	@assert !isempty(pass_magnitude)
-
-	# Apply magnitude selection
-	prop_block = prop_block[pass_magnitude]
-	prop_valence = prop_valence[pass_magnitude]
-
-	# Compute deviation from goal
-	dev_block = abs.(prop_block .- 1/3)
-	dev_valence = abs.(prop_block .- 0.5)
-
-	# Choose best sequence
-	chosen = pass_magnitude[argmin(dev_valence)]
-
-	# Return sequence and stats
-	return create_test_sequence(task, random_seed = chosen, same_weight = same_weight)
-end
-
-
+# ╔═╡ 6e7d02b8-9889-49fc-b1b0-e82e7826f9ff
 PILT_test_template = let s = 1,
-	task = filter(x -> x.session == s, PILT_sequence)
+	task = filter(x -> x.session == s && x.block < 21, PILT)
 	
 	# Find test sequence for each session
 	test, pb, pv, nm = find_best_test_sequence(
@@ -861,22 +941,25 @@ PILT_test_template = let s = 1,
 
 	@info "Session $s: proportion of same block pairs: $pb"
 	@info "Session $s: proportion of same valence pairs: $pv"
-	@info "Session $s: number of same magnitude pairs: $nm"
-
-    @assert all(test.EV_left .!= test.EV_right) "EVs are not different"
 
 	# Create magnitude_pair variable
 	test.EV_pair = [sort([r.EV_left, r.EV_right]) for r in eachrow(test)]
+	test.primary_outcome_pair = [sort([r.feedback_left, r.feedback_right]) for r in eachrow(test)]
+
+	# Create optimal_right
+	test.optimal_right = test.EV_right .> test.EV_left
 
 	test
 end
 
+
+# ╔═╡ dae14142-7ad7-4846-9923-4643e7a2fa36
 PILT_test = let PILT_test_template = copy(PILT_test_template)
 
 	# Create stimulus dict to replace equivalent stimuli
 	stimuli_dict = unique(
 		select(
-			PILT_sequence,
+			filter(x -> x.block < 21, PILT),
 			:session,
 			:block,
 			:stimulus_A,
@@ -915,6 +998,14 @@ PILT_test = let PILT_test_template = copy(PILT_test_template)
 		on = :stimulus_right
 	)
 
+	function find_stim(e, s)
+		println(e)
+		println(s)
+		
+
+	end
+
+
 	# Create multisession
 	PILT_test = vcat(
 		[
@@ -929,22 +1020,64 @@ PILT_test = let PILT_test_template = copy(PILT_test_template)
 				:stimulus_essence_left => ByRow(e -> only(filter(
 						x -> (x.stimulus_essence == e) & (x.session == s), stimuli_dict).stimulus)) => :stimulus_left
 			)
-		for s in 1:2]...
+		for s in sessions]...
 	)
 
 end
 
+# ╔═╡ d0665196-1862-4bbd-b766-47052f72f07e
 # Test test sequence
 let
 	@assert all(PILT_test_template.stimulus_left .== filter(x -> x.session == 1, PILT_test).stimulus_left) "Final sequence for wk0 does not match template"
 
 	@assert all(PILT_test_template.stimulus_right .== filter(x -> x.session == 1, PILT_test).stimulus_right) "Final sequence for wk0 does not match template"
 
+	@assert all(PILT_test.EV_left .!= PILT_test.EV_right) "EVs are not different"
+
+	@assert all(PILT_test.feedback_left .!= PILT_test.feedback_right)
+
+	@assert all(PILT_test.stimulus_right .!= PILT_test.stimulus_left)
+
+	trials_per_session = combine(
+		groupby(PILT_test, :session),
+		:trial => length => :n
+	).n
+
+	@info "Test trials per session: $(only(unique(trials_per_session)))"
+
+	@assert length(values(countmap(PILT_test_template.primary_outcome_pair))) == 15 "Didn't cover all primary outcome combinations"
 end
 
+# ╔═╡ 01440120-ec95-4c62-92cf-cc50bedf99ec
 let
-	save_to_JSON(PILT_test, "results/pilot9_PILT_test.json")
-	CSV.write("results/pilot9_PILT_test.csv", PILT_test)
+	# Save to file
+	CSV.write("results/trial1_eeg_PILT_test.csv", PILT_test)
 end
 
-
+# ╔═╡ Cell order:
+# ╠═d1ffbd6e-41f6-11f0-2884-51de482dd6fe
+# ╠═0d99d4cc-18f9-4f5e-ab23-6bff9bdce753
+# ╠═52303bea-d08a-4b0d-bb30-97633d428811
+# ╠═4bbb7c6d-71d3-4447-8359-348c86d05bdc
+# ╠═83266903-2dd2-43e1-93fb-b5c5271bb02d
+# ╠═57ca9c3d-6d91-43cf-8fc4-a8ad8dfce0dd
+# ╠═71e38508-9a0d-4ab3-9e39-75f529d5672a
+# ╠═4c093483-9436-44b5-bcdd-299538d4d05b
+# ╠═2a83846a-cc71-44b0-b75c-1b2b487d256c
+# ╠═b7034df7-868c-49b9-b883-e050738e0c33
+# ╠═9d3736ba-004f-4d1a-9595-e138ba6cb2b9
+# ╠═48620cba-b84f-4c14-aafa-1f39ffa99787
+# ╠═149549b9-5ff3-451c-9f91-41a0c240e4e8
+# ╠═ad996e31-abdb-46c9-8930-6cfa7f833cb0
+# ╠═6e7d02b8-9889-49fc-b1b0-e82e7826f9ff
+# ╠═dae14142-7ad7-4846-9923-4643e7a2fa36
+# ╠═d0665196-1862-4bbd-b766-47052f72f07e
+# ╠═01440120-ec95-4c62-92cf-cc50bedf99ec
+# ╠═cc409bce-df5e-4b77-906e-20b8342d5b5b
+# ╠═531a2596-52c2-43d6-94d3-de273705a79c
+# ╠═af283fc5-50b0-47f6-97c6-33d5b189e76d
+# ╠═cfb06155-e1b9-4e19-ae61-72d762f24529
+# ╠═1ac016d1-7de7-405f-987e-446efca5ff90
+# ╠═b04341bc-82e0-4660-8809-42d852b5a95d
+# ╠═6d835516-0be7-42d0-bc46-d4e14dfd077d
+# ╠═15527827-4835-42a8-88c5-cba1d6e9719a

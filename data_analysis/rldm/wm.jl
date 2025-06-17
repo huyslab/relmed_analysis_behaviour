@@ -8,15 +8,16 @@ begin
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, Turing, SHA, HypothesisTests, GLM, MixedModels
 	using LogExpFunctions: logistic, logit
 	import OpenScienceFramework as OSF
-	include("fetch_preprocess_data.jl")
-	include("sample_utils.jl")
-	include("plotting_utils.jl")
-	include("stats_utils.jl")
-	include("osf_utils.jl")
-	include("model_utils.jl")
-	include("PILT_models.jl")
+	include("$(pwd())/fetch_preprocess_data.jl")
+	include("$(pwd())/sample_utils.jl")
+	include("$(pwd())/plotting_utils.jl")
+	include("$(pwd())/stats_utils.jl")
+	include("$(pwd())/model_utils.jl")
+	include("$(pwd())/PILT_models.jl")
 	Turing.setprogress!(false)
 end
+
+context = "poster" # "abstract" or "poster"
 
 begin
 	# Set theme
@@ -26,8 +27,14 @@ begin
 	pt = 4/3
 	mm = inch / 25.4
 
+	sizes = Dict(
+		"abstract" => (46.5mm, 31.3mm),
+		"poster" => (22.86, 11.42) .* inch ./ 2.54
+	)
 	
-	th = merge(theme_minimal(), Theme(
+	th =  Dict()
+	
+	th["abstract"] = merge(theme_minimal(), Theme(
 		font = "Helvetica",
 		fontsize = 7pt,
 		Axis = (
@@ -38,7 +45,23 @@ begin
 			ylabelpadding = 0
 		)
 	))
-	set_theme!(th)
+
+	th["poster"] = merge(
+			theme_minimal(),
+			Theme(
+			font = "Helvetica",
+			fontsize = 28pt,
+			Axis = (
+				xticklabelsize = 24pt,
+				yticklabelsize = 24pt,
+				spinewidth = 3pt,
+				xtickwidth = 3pt,
+				ytickwidth = 3pt
+			)
+		)
+	)
+	
+	set_theme!(th[context])
 
 end
 
@@ -83,10 +106,15 @@ begin
 	sort!(app_curve_sum, [:n_groups, :appearance])
 
     # Create figure
-	f = Figure(size = (46.5mm, 31.3mm),
+	f = Figure(size = sizes[context],
     figure_padding = 8)
 
 	# Create mapping
+	lws = Dict(
+		"abstract" => 1pt,
+		"poster" => 3pt
+	)
+
 	mp2 = (data(app_curve_sum) * (
 		mapping(
 		:appearance => "Apperance #",
@@ -100,15 +128,27 @@ begin
 		:acc => "Prop. optimal choice",
 		group = :n_groups => nonnumeric => "Set size",
 		color = :n_groups => nonnumeric => "Set size"
-	) * visual(Lines)))
+	) * visual(Lines, linewidth = lws[context]))) +
+	mapping([1/3]) * visual(HLines, color = :lightgray, linewidth = lws[context], linestyle = :dash)
 	
 	# Plot
-	plt2 = draw!(f[1,1], mp2; axis = (; ylabel = "Prop. optimal choice"))
+	plt2 = draw!(f[1,1], mp2, scales(Color = (; palette = [
+		colorant"#009ADE",  # Blue
+		colorant"#FF1F5B" # Red
+	  ])); 
+		axis = (; ylabel = "Prop. optimal choice"),
+	)
 
-    legend!(f[1,1], plt2, tellwidth = false, tellheight = false, halign = :right, valign = 0.1, 
-        orientation = :horizontal, framevisible = false, titleposition = :left, patchsize = (7,7))
+	ps = Dict(
+		"abstract" => (7,7),
+		"poster" => (20,20)
+	)
+    legend!(f[1,1], plt2, tellwidth = false, tellheight = false, halign = :right, valign = 0.15, 
+        orientation = :horizontal, framevisible = false, titleposition = :left, patchsize = ps[context])
 
-	save("results/rldm/wm_acc.pdf", f)
+	save("results/rldm/$(context)_wm_acc.pdf", f)
+
+	f
 end
 
 function RLDM_reliability_scatter!(
@@ -121,13 +161,10 @@ function RLDM_reliability_scatter!(
 	subtitle::AbstractString = "",
 	tickformat::Union{Function, Makie.Automatic} = Makie.automatic,
 	correct_r::Bool = true, # Whether to apply Spearman Brown
-	markersize::Int64 = 4pt,
-	label_halign::Union{Float64, Symbol} = 0.975,
-	label_valign::Union{Float64, Symbol} = 0.025,
-	label_fontsize = 5pt
+	markersize::Union{Int64,Float64} = 9,
+	label_valign = 0.025
 )	
 
-    
 	# Compute correlation
 	r = cor(df[!, xcol], df[!, ycol])
 	
@@ -142,29 +179,25 @@ function RLDM_reliability_scatter!(
 	# Plot
 	mp = data(df) *
 			mapping(xcol, ycol) *
-			(visual(Scatter; markersize = markersize) + linear()) +
+			(visual(Scatter; markersize = markersize, alpha = 0.75) + linear()) +
 		mapping([0], [1]) *
 			visual(ABLines, linestyle = :dash, color = :gray70)
 	
 	draw!(f, mp; axis=(;
 		xlabel = xlabel, 
 		ylabel = ylabel,
-        xticklabelsize = 5pt,
-        yticklabelsize = 5pt,
 		xtickformat = tickformat,
 		ytickformat = tickformat,
-		subtitle = subtitle,
-		ylabelpadding = 0,
-		xlabelpadding = 1
+		subtitle = subtitle
 	))
 
 	if r > 0
 		Label(
 			f,
 			r_text,
-			fontsize = label_fontsize,
+			fontsize = 24pt,
 			font = :bold,
-			halign = label_halign,
+			halign = 0.975,
 			valign = label_valign,
 			tellheight = false,
 			tellwidth = false
@@ -179,18 +212,27 @@ begin
 
     dropmissing!(retest_df)
 
-	fig=Figure(;    size = (46.5mm, 31.3mm),
-        figure_padding = (0, 11.5, 10, 5))
+	fig=Figure(; 
+		size = sizes[context],
+        figure_padding = (0, 11.5, 10, 5)
+	)
+
+	ms = Dict(
+		"abstract" => 2,
+		"poster" => 9
+	)
 
     RLDM_reliability_scatter!(
 		fig[1,1]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:a_pos, ycol=:a_pos_1, subtitle="QL learning rate", markersize = 2, correct_r = false
+		xcol=:a_pos, ycol=:a_pos_1, subtitle="QL learning rate", markersize = ms[context], correct_r = false
 	)
 	RLDM_reliability_scatter!(
 		fig[1,2]; df=retest_df, xlabel="Session 1", ylabel="Session 2", 
-		xcol=:w0, ycol=:w0_1, subtitle="WM weighting", markersize = 2, correct_r = false
+		xcol=:w0, ycol=:w0_1, subtitle="WM weighting", markersize = ms[context], correct_r = false
 	)
 
-    save("results/rldm/wm_retest.pdf", fig)
+    save("results/rldm/$(context)_wm_retest.pdf", fig)
+
+	fig
 
 end
