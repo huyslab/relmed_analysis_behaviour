@@ -230,3 +230,63 @@ let df = data_clean
 	f
 end
 
+# Plot RT by apperance
+let df = copy(data_clean)
+
+	# Create figure
+	f = Figure()
+
+	# Nice labels for response_optimal
+	df.response = ifelse.(
+		df.response_optimal,
+		"Correct",
+		"Error"
+	)
+
+	# Summarize by appearance
+	rt_app = combine(
+		groupby(
+			filter(x -> x.rt > 200, df), 
+			[:prolific_pid, :task, :appearance, :response]
+		),
+		:rt => mean => :rt
+	)
+
+	# Summarize by apperance and n_groups
+	rt_app_sum = combine(
+		groupby(rt_app, [:task, :appearance, :response]),
+		:rt => mean => :rt,
+		:rt => sem => :se
+	)
+
+	# Compute bounds
+	rt_app_sum.lb = rt_app_sum.rt .- rt_app_sum.se
+	rt_app_sum.ub = rt_app_sum.rt .+ rt_app_sum.se
+
+	# Sort
+	sort!(rt_app_sum, [:task, :response, :appearance])
+
+	# Create mapping
+	mp1 = (data(rt_app_sum) * (
+		mapping(
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :task => "Task",
+			col = :response
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+			:appearance => "Apperance #",
+			:rt,
+			color = :task => "Task",
+			col = :response
+	) * visual(Lines)))
+	
+	# Plot
+	plt1 = draw!(f[1,1], mp1; axis=(; ylabel = "Prop. optimal choice ±SE"))
+
+	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+
+	f
+end
