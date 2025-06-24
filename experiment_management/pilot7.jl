@@ -14,7 +14,7 @@ begin
     Pkg.instantiate()
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
 	using LogExpFunctions: logistic, logit
-	using Tidier
+	using Tidier, PlutoUI
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
 	include("plotting_utils.jl")
@@ -45,6 +45,9 @@ begin
 	set_theme!(th)
 end
 
+# ╔═╡ ecc2e199-ad7f-4148-9d13-df62fef6fe46
+TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
+
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
@@ -63,6 +66,9 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
   ╠═╡ =#
+
+# ╔═╡ 14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
+@save "pilot7_psum.jld2" p_sum_pilot7 = p_sum
 
 # ╔═╡ eeffa44e-a9e6-43dd-b47d-00670299e0f2
 #=╠═╡
@@ -108,6 +114,7 @@ let
 	# Clean data
 	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
 	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
+	# PILT_data_clean = filter(x -> x.block <= 5, PILT_data_clean)
 
 	# Sumarrize by participant and trial
 	acc_curve = combine(
@@ -139,6 +146,14 @@ let
 	
 	
 	draw(mp; legend = (; show = false))
+end
+  ╠═╡ =#
+
+# ╔═╡ 13b4b55e-ad52-4c05-b9ec-9eb802cffae0
+#=╠═╡
+let
+	PILT_data_clean = exclude_PLT_sessions(PILT_data, required_n_blocks = 20)
+	PILT_data_clean = filter(x -> x.response != "noresp", PILT_data_clean)
 end
   ╠═╡ =#
 
@@ -273,6 +288,32 @@ let
 end
   ╠═╡ =#
 
+# ╔═╡ ce1f3229-1675-495a-9a8a-5ae94194bdce
+md"""
+### Max press rate
+"""
+
+# ╔═╡ eabc7639-612f-4bad-843e-1d8e802740c7
+#=╠═╡
+filter!(x -> x.trial_presses > 0, max_press_data)
+  ╠═╡ =#
+
+# ╔═╡ 0ca7bef1-439c-4718-b620-9dd8a0cc35fd
+@chain max_press_data begin
+	data(_) * mapping(:avg_speed) * visual(Hist)
+	draw
+end
+
+# ╔═╡ 516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
+@chain max_press_data begin
+	describe(:all)
+end
+
+# ╔═╡ f242aecf-b5c3-47ed-a511-f0b9e75f209c
+#=╠═╡
+quantile(max_press_data.avg_speed, [0.1, 0.25, 0.5, 0.75, 0.9])
+  ╠═╡ =#
+
 # ╔═╡ 7559e78d-7bd8-4450-a215-d74a0b1d670a
 md"""
 ### Vigour
@@ -285,6 +326,13 @@ begin
 	transform!(vigour_data, [:trial_presses, :trial_duration] => ((x, y) -> x .* 1000 ./ y) => :press_per_sec);
 	nothing;
 end
+  ╠═╡ =#
+
+# ╔═╡ 7be9ab7d-357f-4833-9660-d0678fb3a672
+#=╠═╡
+data(vigour_data) * 
+	mapping(:magnitude => nonnumeric, :press_per_sec; col=:ratio => nonnumeric) * 
+	visual(RainClouds) |> draw
   ╠═╡ =#
 
 # ╔═╡ 243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
@@ -318,6 +366,19 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in Vigour task"))
 end
+
+# ╔═╡ 2bd5807d-776d-44af-88f3-29f4eb17a1a0
+#=╠═╡
+let
+	avg_df = @chain vigour_data begin
+		@group_by(trial_number)
+		@summarize(trial_presses = mean(trial_presses), se = mean(trial_presses)/sqrt(length(prolific_pid)))
+		@ungroup
+	end
+	p = data(vigour_data) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
+    draw(p)
+end
+  ╠═╡ =#
 
 # ╔═╡ 3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 let
@@ -384,6 +445,16 @@ end
 let
 	PIT_acc_df = @chain test_data begin
 		@filter(block == "pavlovian")
+		@mutate(
+			magnitude_left = case_when(
+				contains(stimulus_left, "PIT4") => -0.01,
+				contains(stimulus_left, "PIT6") => -1.0,
+				true => magnitude_left),
+			magnitude_right = case_when(
+				contains(stimulus_right, "PIT4") => -0.01,
+				contains(stimulus_right, "PIT6") => -1.0,
+				true => magnitude_right)
+		)
 		@group_by(same_valence)
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
 		@ungroup
@@ -392,12 +463,50 @@ let
 	@info "PIT acc for in the same valence: $(round(PIT_acc_df.acc[PIT_acc_df.same_valence.==true][1]; digits=2))"
 	@chain test_data begin
 		@filter(block == "pavlovian")
+		@mutate(
+			magnitude_left = case_when(
+				contains(stimulus_left, "PIT4") => -0.01,
+				contains(stimulus_left, "PIT6") => -1.0,
+				true => magnitude_left),
+			magnitude_right = case_when(
+				contains(stimulus_right, "PIT4") => -0.01,
+				contains(stimulus_right, "PIT6") => -1.0,
+				true => magnitude_right)
+		)
 		@group_by(prolific_pid, exp_start_time, session, same_valence)
 		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
 		@ungroup
 		data(_) * mapping(:same_valence => nonnumeric => "Same valence", :acc => "PIT test accuracy", color=:same_valence => nonnumeric => "Same valence") * visual(RainClouds)
 		draw()
 	end
+end
+
+# ╔═╡ b3fdfcd9-ca07-4433-b5bd-fe660cc8c0db
+let
+	avg_df = @chain PIT_data begin
+		@filter(coin==0)
+		@group_by(trial_number)
+		@summarize(trial_presses = mean(trial_presses), se = mean(trial_presses)/sqrt(length(prolific_pid)))
+		@ungroup
+	end
+	p = data(@filter(PIT_data, coin==0)) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
+    draw(p)
+end
+
+# ╔═╡ 9d159f32-4f76-439b-8226-909d1f8ff347
+@chain test_data begin
+		@filter(block == "pavlovian")
+		@mutate(
+			magnitude_left = case_when(
+				contains(stimulus_left, "PIT4") => -0.01,
+				contains(stimulus_left, "PIT6") => -1.0,
+				true => magnitude_left),
+			magnitude_right = case_when(
+				contains(stimulus_right, "PIT4") => -0.01,
+				contains(stimulus_right, "PIT6") => -1.0,
+				true => magnitude_right)
+		)
+		@filter(same_valence)
 end
 
 # ╔═╡ dc957d66-1219-4a97-be46-c6c5c189c8ba
@@ -558,6 +667,26 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
     return grouped_data, avg_w_data
 end
 
+# ╔═╡ 9ad3f111-7b4b-45c5-bc9d-cce3bd0e0c72
+let
+	df = @chain PIT_data begin
+		@arrange(prolific_pid, session, magnitude, ratio)
+		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
+		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
+	end
+	grouped_data, avg_w_data = avg_presses_w_fn(df, [:coin, :pig], :press_per_sec)
+	p = data(avg_w_data) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric) *
+	(
+	visual(Lines, linewidth=1, color=:gray) +
+	visual(Errorbars, whiskerwidth=4) *
+	mapping(:se_y, color=:coin => nonnumeric) +
+	visual(Scatter) *
+	mapping(color=:coin => nonnumeric)
+	)
+	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
+end
+
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
 let
 	df = @chain PIT_data begin
@@ -660,10 +789,10 @@ let
 		@filter(coin==0)
 		@bind_rows(vigour_data)
 		@mutate(trialphase=categorical(trialphase, levels=["vigour_trial", "pit_trial"], ordered=true))
-		@mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
+		# @mutate(trialphase=~recode(trialphase, "vigour_trial" => "Vigour", "pit_trial" => "PIT w/o coin"))
 		@filter(reward_per_press in !!common_rpp)
 	end
-	plot_presses_vs_var(PIT_data; x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
+	plot_presses_vs_var(@bind_rows(PIT_data, instrumental_data); x_var=:reward_per_press, y_var=:press_per_sec, grp_var=:trialphase, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
   ╠═╡ =#
 
@@ -757,32 +886,45 @@ end
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
+# ╠═ecc2e199-ad7f-4148-9d13-df62fef6fe46
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═e60b5430-adef-4f12-906c-9b70de436833
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+# ╠═14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
 # ╠═eeffa44e-a9e6-43dd-b47d-00670299e0f2
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
 # ╟─5d487d8d-d494-45a7-af32-7494f1fb70f2
 # ╠═2ff04c44-5f86-4617-9a13-6d4228dff359
 # ╠═d0a2ba1e-8413-48f8-8bbc-542f3555a296
+# ╠═13b4b55e-ad52-4c05-b9ec-9eb802cffae0
 # ╠═2897a681-e8dd-4091-a2a0-bd3d4cd23209
 # ╠═176c54de-e84c-45e5-872e-2471e575776d
 # ╠═9405f724-0fd7-40fe-85bc-bef22707e6fa
 # ╟─18956db1-4ad1-4881-a1e7-8362cf59f011
 # ╠═18e9fccd-cc0d-4e8f-9e02-9782a03093d7
 # ╠═17666d61-f5fc-4a8d-9624-9ae79f3de6bb
+# ╟─ce1f3229-1675-495a-9a8a-5ae94194bdce
+# ╠═eabc7639-612f-4bad-843e-1d8e802740c7
+# ╠═0ca7bef1-439c-4718-b620-9dd8a0cc35fd
+# ╠═516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
+# ╠═f242aecf-b5c3-47ed-a511-f0b9e75f209c
 # ╟─7559e78d-7bd8-4450-a215-d74a0b1d670a
 # ╟─7563e3f6-8fe2-41cc-8bdf-c05c86e3285e
+# ╠═7be9ab7d-357f-4833-9660-d0678fb3a672
 # ╟─243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╟─814aec54-eb08-4627-9022-19f41bcdac9f
+# ╠═2bd5807d-776d-44af-88f3-29f4eb17a1a0
 # ╟─3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
 # ╟─43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╟─89258a40-d4c6-4831-8cf3-d69d984c4f6e
-# ╟─a6794b95-fe5e-4010-b08b-f124bff94f9f
-# ╟─8f6d8e98-6d73-4913-a02d-97525176549a
-# ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
+# ╠═a6794b95-fe5e-4010-b08b-f124bff94f9f
+# ╠═9ad3f111-7b4b-45c5-bc9d-cce3bd0e0c72
+# ╠═8f6d8e98-6d73-4913-a02d-97525176549a
+# ╠═ffd08086-f12c-4b8a-afb6-435c8729241e
+# ╠═b3fdfcd9-ca07-4433-b5bd-fe660cc8c0db
+# ╠═9d159f32-4f76-439b-8226-909d1f8ff347
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╠═29d320df-c984-496a-8d81-6967dd72e964
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15

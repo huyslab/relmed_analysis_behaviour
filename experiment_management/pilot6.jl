@@ -1,17 +1,19 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
 
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
+    #! format: off
     quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
+    #! format: on
 end
 
 # ╔═╡ 237a05f6-9e0e-11ef-2433-3bdaa51dbed4
@@ -70,6 +72,27 @@ end
 begin
 	include("questionnaire_utils.jl")
 	prepare_questionnaire_data(jspsych_data; save_data=true)
+end
+
+# ╔═╡ f85a72d4-0959-4579-9c22-ae9362da75e3
+70.0284/32.8655
+
+# ╔═╡ 36e9f8f1-9c35-45e0-8d6b-0578e5ab38a0
+function lognormal_mean(x)
+	sum(pdf(LogNormal(log(40), 0.3), collect(skipmissing(x))) .* collect(skipmissing(x)))/sum(pdf(LogNormal(log(40), 0.3), collect(skipmissing(x))))
+end
+
+# ╔═╡ 61774f1c-ce18-4a2d-b271-745c93d412a8
+let 
+	vigour_bonus = vigour_data |>
+		x -> groupby(x, [:prolific_pid, :session]) |>
+		x -> combine(x, :trial_reward => lognormal_mean => :vigour_bonus)
+	pit_bonus = PIT_data |>
+		x -> groupby(x, [:prolific_pid, :session]) |>
+		x -> combine(x, :trial_reward => lognormal_mean => :pit_bonus)
+	innerjoin(vigour_bonus, pit_bonus, on = [:prolific_pid, :session]) |>
+		x -> @mutate(x, total_bonus = vigour_bonus + pit_bonus) |>
+		x -> combine(x, :total_bonus => mean)
 end
 
 # ╔═╡ cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -454,6 +477,17 @@ let
 	draw(plot; axis, figure=(;title="No-response trial distribution in Vigour task"))
 end
 
+# ╔═╡ 6f7acf24-dbdc-4919-badb-9fe58712eacd
+let
+	avg_df = @chain vigour_data begin
+		@group_by(session, trial_number)
+		@summarize(trial_presses = mean(trial_presses), se = mean(trial_presses)/sqrt(length(prolific_pid)))
+		@ungroup
+	end
+	p = data(vigour_data) * mapping(:trial_number, :trial_presses, color=:session) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses, color=:session) * visual(ScatterLines)
+    draw(p)
+end
+
 # ╔═╡ 3d05e879-aa5c-4840-9f4f-ad35b8d9519a
 let
 	test_acc_df = @chain post_vigour_test_data begin
@@ -473,6 +507,15 @@ let
 	mapping(:acc) *
 	visual(Hist) |>
 	draw(;axis=(;xlabel="Accuracy",ylabel="Count (#Participant)"))
+end
+
+# ╔═╡ 0874e16f-1a89-4103-aa56-ada2a5622f2f
+let
+	@info quantile(vigour_data.press_per_sec, [0.1, 0.5, 0.9]) .* 3
+	data(vigour_data) *
+		mapping(:press_per_sec) *
+		AlgebraOfGraphics.density() |>
+	draw()
 end
 
 # ╔═╡ 665aa690-4f37-4a31-b87e-3b4aee66b3b1
@@ -513,6 +556,24 @@ let
 	draw(plot; axis, figure=(;title="No-response trial distribution in PIT task"))
 end
 
+# ╔═╡ 8ad8c4be-3aaa-4f06-bc47-0123287b558c
+let
+	pav_eff = @chain PIT_data begin
+			@filter(coin != 0)
+			@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+			@group_by(prolific_pid, valence)
+			@summarize(press_per_sec = mean(press_per_sec))
+			@ungroup
+			@pivot_wider(names_from = valence, values_from = press_per_sec)
+			@mutate(diff = pos - neg)
+	end
+	@info "% ΔValence>1: $(round(mean(pav_eff.diff.>1)...;digits=2))"
+	data(pav_eff) *
+		mapping(:diff) *
+		AlgebraOfGraphics.density() |>
+	draw(axis=(;xlabel="ΔValence"))
+end
+
 # ╔═╡ ffd08086-f12c-4b8a-afb6-435c8729241e
 let
 	PIT_acc_df = @chain test_data begin
@@ -531,6 +592,136 @@ let
 		data(_) * mapping(:same_valence => nonnumeric => "Same valence", :acc => "PIT test accuracy", color=:same_valence => nonnumeric => "Same valence", col=:session) * visual(RainClouds)
 		draw()
 	end
+end
+
+# ╔═╡ 70366452-db2e-4834-b612-59108841683f
+let
+	PIT_acc_df = @chain test_data begin
+		@filter(block == "pavlovian")
+		@mutate(valence = ifelse(magnitude_left * magnitude_right < 0, "Different", ifelse(magnitude_left > 0, "Positive", "Negative")))
+		@group_by(valence)
+		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+		@ungroup
+	end
+	@info "PIT acc for NOT in the same valence: $(round(PIT_acc_df.acc[PIT_acc_df.valence.=="Different"]...; digits=2))"
+	@info "PIT acc for in the positive valence: $(round(PIT_acc_df.acc[PIT_acc_df.valence.=="Positive"]...; digits=2))"
+	@info "PIT acc for in the negative valence: $(round(PIT_acc_df.acc[PIT_acc_df.valence.=="Negative"]...; digits=2))"
+
+	p = @chain test_data begin
+		@filter(block == "pavlovian")
+		@mutate(valence = ifelse(magnitude_left * magnitude_right < 0, "Different", ifelse(magnitude_left > 0, "Positive", "Negative")))
+		@mutate(correct = (magnitude_right .> magnitude_left) .== right_chosen)
+		@filter(!ismissing(correct))
+		@group_by(prolific_pid, valence)
+		@summarize(acc = mean(correct))
+		@ungroup
+		data(_) * mapping(:valence, :acc, color=:valence => "Valence") * visual(RainClouds; clouds=hist, hist_bins = 20, plot_boxplots = false)
+	end
+	draw(p;axis=(;xlabel="Pavlovian valence", ylabel="PIT test accuracy"))
+end
+
+# ╔═╡ 16ced201-fb4c-4040-bba6-b29dcb8b4da9
+let
+	pav_eff = @chain PIT_data begin
+			@filter(coin != 0)
+			@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+			@group_by(prolific_pid, valence)
+			@summarize(press_per_sec = mean(press_per_sec))
+			@ungroup
+			@pivot_wider(names_from = valence, values_from = press_per_sec)
+			@mutate(diff = pos - neg)
+	end
+	acc_grp_df = @chain test_data begin
+		@filter(block == "pavlovian")
+		@mutate(valence = ifelse(magnitude_left * magnitude_right < 0, "Different", ifelse(magnitude_left > 0, "Positive", "Negative")))
+		@group_by(prolific_pid,valence)
+		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+		@ungroup()
+	end
+	acc_grp_df.acc_grp = cut(acc_grp_df.acc, [0.5, 0.75]; extend=true)
+	data(@inner_join(pav_eff, acc_grp_df)) *
+		mapping(:acc, :diff, col=:valence) * (visual(Scatter, alpha = 0.2) + AlgebraOfGraphics.linear()) |>
+	draw(axis=(;xlabel="Post-test accuracy", ylabel="ΔValence"))
+end
+
+# ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
+function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
+    # Define grouping columns
+    group_cols = grp_var === nothing ? [:prolific_pid, x_var...] : [:prolific_pid, grp_var, x_var...]
+    # Group and calculate mean presses for each participant
+    grouped_data = groupby(vigour_data, Cols(group_cols...)) |>
+                   x -> combine(x, y_var => mean => :mean_y) |>
+                        x -> sort(x, Cols(group_cols...))
+    # Calculate the average across all participants
+    avg_w_data = @chain grouped_data begin
+        @group_by(prolific_pid)
+        @mutate(sub_mean = mean(mean_y))
+        @ungroup
+        @mutate(grand_mean = mean(mean_y))
+        @mutate(mean_y_w = mean_y - sub_mean + grand_mean)
+        groupby(Cols(grp_var === nothing ? x_var : [grp_var, x_var...]))
+        @summarize(
+            n = n(),
+            avg_y = mean(mean_y),
+            se_y = std(mean_y_w) / sqrt(length(prolific_pid)))
+        @ungroup
+    end
+    return grouped_data, avg_w_data
+end
+
+# ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
+let
+	df = @chain PIT_data begin
+		@arrange(prolific_pid, session, magnitude, ratio)
+		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
+		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
+	end
+	grouped_data, avg_w_data = avg_presses_w_fn(df, [:session, :coin, :pig], :press_per_sec)
+	p = data(avg_w_data) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:pig, row=:session) *
+	(
+	visual(Lines, linewidth=1, color=:gray) +
+	visual(Errorbars, whiskerwidth=4) *
+	mapping(:se_y, color=:coin => nonnumeric) +
+	visual(Scatter) *
+	mapping(color=:coin => nonnumeric)
+	)
+	p_ind = data(@mutate(grouped_data, avg_y = mean_y)) * mapping(:coin=>nonnumeric, :avg_y, col=:pig, row=:session, group=:prolific_pid) * visual(Lines, linewidth = 0.1, color=:gray80)
+	draw(p_ind + p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
+end
+
+# ╔═╡ baf2480d-a7ea-4eba-9c11-808da603142e
+let
+	using ColorSchemes
+	colors=ColorSchemes.PRGn_7.colors;
+	colors[4]=colorant"rgb(210, 210, 210)";
+
+	acc_grp_df = @chain test_data begin
+		@filter(block == "pavlovian")
+		@group_by(prolific_pid)
+		@summarize(acc = mean(skipmissing((magnitude_right > magnitude_left) == right_chosen)))
+		@ungroup()
+	end
+	# acc_quantile = quantile(acc_grp_df.acc, [0.25, 0.5, 0.75])
+	# @info "Acc at each quantile: $([@sprintf("%.1f%%", v * 100) for v in acc_quantile])"
+	acc_grp_df.acc_grp = cut(acc_grp_df.acc, [0.5, 0.75]; extend=true)
+
+	grouped_data, avg_w_data = avg_presses_w_fn(innerjoin(PIT_data, acc_grp_df, on=[:prolific_pid]), [:coin, :acc_grp], :press_per_sec)
+	
+	p = data(avg_w_data) *
+	mapping(:coin=>nonnumeric, :avg_y, col=:acc_grp) *
+	(
+		visual(Lines, linewidth=2, color=:gray75) +
+		visual(Errorbars, whiskerwidth=4) *
+		mapping(:se_y, color=:coin => nonnumeric => :"Coin value") +
+		visual(Scatter, markersize=10) *
+		mapping(color=:coin => nonnumeric => :"Coin value")
+	)
+	fig = Figure(;size=(8, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p, scales(Color = (; palette=colors)); axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec", xticklabelrotation=pi/4))
+	Label(fig[0,:], "Press Rates by Pavlovian Stimuli Across Test Accuracy", tellwidth = false)
+
+	fig
 end
 
 # ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
@@ -669,6 +860,27 @@ begin
 	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
 end
 
+# ╔═╡ f1e41618-42b2-4e30-a33c-a198aa86ac23
+p_sum
+
+# ╔═╡ 35fb49f6-1a00-407b-bb98-89115103a9ca
+filter(x -> (!ismissing(x.finished)) & (x.finished .== true), p_sum) |>
+	x -> combine(x, :vigour_bonus => mean)
+
+# ╔═╡ d0aac275-814f-48d9-9c50-566928b88904
+let 
+	vigour_bonus = vigour_data |>
+		x -> groupby(x, [:prolific_pid, :session]) |>
+		x -> combine(x, :total_reward => (x -> (maximum(x)/100)) => :vigour_bonus)
+	pit_bonus = PIT_data |>
+		x -> groupby(x, [:prolific_pid, :session]) |>
+		x -> combine(x, :total_reward => (x -> (maximum(x)/100)) => :pit_bonus)
+	innerjoin(vigour_bonus, pit_bonus, on = [:prolific_pid, :session]) |>
+		x -> @mutate(x, total_bonus = vigour_bonus + pit_bonus) |>
+		x -> semijoin(x, filter(x -> !ismissing(x.finished) & (x.finished .== true), p_sum), on=:prolific_pid) |>
+		x -> combine(x, :total_bonus => mean)
+end
+
 # ╔═╡ 6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 for r in eachrow(filter(x -> x.session == "2", p_sum))
 	if r.total_bonus > 0.
@@ -684,51 +896,6 @@ let
 	for r in eachrow(sess2_df)
 		println(r.prolific_pid, ", ")
 	end
-end
-
-# ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
-function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
-    # Define grouping columns
-    group_cols = grp_var === nothing ? [:prolific_pid, x_var...] : [:prolific_pid, grp_var, x_var...]
-    # Group and calculate mean presses for each participant
-    grouped_data = groupby(vigour_data, Cols(group_cols...)) |>
-                   x -> combine(x, y_var => mean => :mean_y) |>
-                        x -> sort(x, Cols(group_cols...))
-    # Calculate the average across all participants
-    avg_w_data = @chain grouped_data begin
-        @group_by(prolific_pid)
-        @mutate(sub_mean = mean(mean_y))
-        @ungroup
-        @mutate(grand_mean = mean(mean_y))
-        @mutate(mean_y_w = mean_y - sub_mean + grand_mean)
-        groupby(Cols(grp_var === nothing ? x_var : [grp_var, x_var...]))
-        @summarize(
-            n = n(),
-            avg_y = mean(mean_y),
-            se_y = std(mean_y_w) / sqrt(length(prolific_pid)))
-        @ungroup
-    end
-    return grouped_data, avg_w_data
-end
-
-# ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
-let
-	df = @chain PIT_data begin
-		@arrange(prolific_pid, session, magnitude, ratio)
-		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
-		@mutate(pig=categorical(pig,levels=["Mag 2, FR 16","Mag 2, FR 8","Mag 5, FR 8","Mag 1, FR 1"]))
-	end
-	grouped_data, avg_w_data = avg_presses_w_fn(df, [:session, :coin, :pig], :press_per_sec)
-	p = data(avg_w_data) *
-	mapping(:coin=>nonnumeric, :avg_y, col=:pig=>nonnumeric, row=:session) *
-	(
-	visual(Lines, linewidth=1, color=:gray) +
-	visual(Errorbars, whiskerwidth=4) *
-	mapping(:se_y, color=:coin => nonnumeric) +
-	visual(Scatter) *
-	mapping(color=:coin => nonnumeric)
-	)
-	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
 end
 
 # ╔═╡ e3f88292-fdb9-4628-88ee-8d935f00a761
@@ -825,6 +992,12 @@ end
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═36b348cc-a3bf-41e7-aac9-1f6d858304a2
 # ╠═c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
+# ╠═f1e41618-42b2-4e30-a33c-a198aa86ac23
+# ╠═35fb49f6-1a00-407b-bb98-89115103a9ca
+# ╠═d0aac275-814f-48d9-9c50-566928b88904
+# ╠═f85a72d4-0959-4579-9c22-ae9362da75e3
+# ╠═36e9f8f1-9c35-45e0-8d6b-0578e5ab38a0
+# ╠═61774f1c-ce18-4a2d-b271-745c93d412a8
 # ╠═6ca0676f-b107-4cc7-b0d2-32cc345dab0d
 # ╠═31792570-9a09-45df-90a6-287f1bd55929
 # ╟─cb4f46a2-1e9b-4006-8893-6fc609bcdf52
@@ -844,13 +1017,19 @@ end
 # ╠═243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
 # ╟─0312ce5f-be36-4d9b-aee3-04497f846537
 # ╠═814aec54-eb08-4627-9022-19f41bcdac9f
+# ╠═6f7acf24-dbdc-4919-badb-9fe58712eacd
 # ╠═3d05e879-aa5c-4840-9f4f-ad35b8d9519a
+# ╠═0874e16f-1a89-4103-aa56-ada2a5622f2f
 # ╟─665aa690-4f37-4a31-b87e-3b4aee66b3b1
 # ╠═43d5b727-9761-48e3-bbc6-89af0c4f3116
 # ╠═89258a40-d4c6-4831-8cf3-d69d984c4f6e
 # ╠═a6794b95-fe5e-4010-b08b-f124bff94f9f
+# ╠═8ad8c4be-3aaa-4f06-bc47-0123287b558c
 # ╠═8f6d8e98-6d73-4913-a02d-97525176549a
-# ╠═ffd08086-f12c-4b8a-afb6-435c8729241e
+# ╟─ffd08086-f12c-4b8a-afb6-435c8729241e
+# ╠═70366452-db2e-4834-b612-59108841683f
+# ╟─baf2480d-a7ea-4eba-9c11-808da603142e
+# ╠═16ced201-fb4c-4040-bba6-b29dcb8b4da9
 # ╠═dc957d66-1219-4a97-be46-c6c5c189c8ba
 # ╟─91f6a95c-4f2e-4213-8be5-3ca57861ed15
 # ╟─ce27b319-d728-46f5-aaf1-051fe252bf8b

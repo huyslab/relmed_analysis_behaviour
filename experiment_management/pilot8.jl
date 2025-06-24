@@ -47,19 +47,17 @@ begin
 	)
 	
 	set_theme!(th)
-
-	spearman_brown(
-	r;
-	n = 2 # Number of splits
-	) = (n * r) / (1 + (n - 1) * r)
 end
+
+# ╔═╡ 7993cf0a-3af3-4c74-921f-6ae6f0638b5f
+TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
 
 # ╔═╡ d5811081-d5e2-4a6e-9fc9-9d70332cb338
 md"""## Participant management"""
 
 # ╔═╡ f9cbc7fa-5998-4500-a5b7-9f93258e7608
 begin
-	PILT_data, WM_data, LTM_data, WM_test_data, LTM_test_data, max_press_data, raw_control_task_data, raw_control_report_data, jspsych_data = load_pilot8_data(; force_download = false, return_version = "0.2")
+	_, _, _, _, _, _, raw_control_task_data, raw_control_report_data, jspsych_data = load_pilot8_data(; force_download = false, return_version = "0.2")
 	nothing
 end
 
@@ -72,6 +70,173 @@ begin
 		@filter(age != "CONSENT_REVOKED")
 		@mutate(age = as_float(age))
 	end
+end
+
+# ╔═╡ a9271e63-6457-47c0-99c4-07304bb31a93
+md"""
+## Control task
+"""
+
+# ╔═╡ ff6f5e8a-8fa1-4d6f-ad72-e3592a781fab
+begin
+	p_careless = @chain jspsych_data begin
+		@group_by(prolific_pid)
+		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
+		@mutate(careless = n_quiz_fail > 0)
+	end
+end
+
+# ╔═╡ e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	@save "control_task_data.jld2" {compress=true} control_task_data
+	@save "control_report_data.jld2" {compress=true} control_report_data
+end
+  ╠═╡ =#
+
+# ╔═╡ af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	CSV.write("control_task_data.csv", control_task_data; transform=(col, val) -> something(val, missing))
+	CSV.write("control_report_data.csv", control_report_data; transform=(col, val) -> something(val, missing))
+end
+  ╠═╡ =#
+
+# ╔═╡ b4c02bfd-3252-441f-a2b8-6178beb2b144
+md"""
+## Helper functions
+"""
+
+# ╔═╡ 83c4cd4a-616a-4762-8dff-f6439fd948f7
+"""
+    extract_debrief_responses(data::DataFrame) -> DataFrame
+
+Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
+
+# Returns
+- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
+"""
+function extract_debrief_responses(data::DataFrame)
+	# Select trials
+	debrief = filter(x -> !ismissing(x.trialphase) && 
+		occursin(r"(acceptability|debrief)", x.trialphase) &&
+		!(occursin("pre", x.trialphase)), data)
+
+
+	# Select variables
+	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
+
+	# Long to wide
+	debrief = unstack(
+		debrief,
+		[:prolific_pid, :exp_start_time],
+		:trialphase,
+		:response
+	)
+	
+
+	# Parse JSON and make into DataFrame
+	expected_keys = dropmissing(debrief)[1, Not([:prolific_pid, :exp_start_time])]
+	expected_keys = Dict([c => collect(keys(JSON.parse(expected_keys[c]))) 
+		for c in names(expected_keys)])
+	
+	debrief_colnames = names(debrief[!, Not([:prolific_pid, :exp_start_time])])
+	
+	# Expand JSON strings with defaults for missing fields
+	expanded = [
+	    DataFrame([
+	        # Parse JSON or use empty Dict if missing
+	        let parsed = ismissing(row[col]) ? Dict() : JSON.parse(row[col])
+	            # Fill missing keys with a default value (e.g., `missing`)
+	            Dict(key => get(parsed, key, missing) for key in expected_keys[col])
+	        end
+	        for row in eachrow(debrief)
+	    ])
+	    for col in debrief_colnames
+	]
+	expanded = hcat(expanded...)
+
+	# hcat together
+	return hcat(debrief[!, Not(debrief_colnames)], expanded)
+end
+
+# ╔═╡ 5c1c7680-d743-4488-a8fc-c81cb23cb87e
+"""
+    summarize_participation(data::DataFrame) -> DataFrame
+
+Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
+
+This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
+
+# Returns
+- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
+"""
+function summarize_participation(data::DataFrame)
+
+	function extract_PILT_bonus(outcome)
+
+		if all(ismissing.(outcome)) # Return missing if participant didn't complete
+			return missing
+		else # Parse JSON
+			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
+			bonus = JSON.parse(bonus)[1] 
+			return maximum([0., bonus])
+		end
+
+	end
+	
+	participants = combine(groupby(data, [:prolific_pid, :session, :record_id, :exp_start_time]),
+		:trialphase => (x -> "experiment_end_message" in x) => :finished,
+		:trialphase => (x -> "kick-out" in x) => :kick_out,
+		:outcomes => extract_PILT_bonus => :PILT_bonus,
+		[:trial_type, :trialphase, :block, :n_stimuli] => 
+			((t, p, b, n) -> sum((t .== "PILT") .& (.!ismissing.(p) .&& p .!= "PILT_test") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
+		[:trial_type, :block, :trialphase] => 
+			((t, b, p) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (p .== "wm"))) => :n_trial_WM,
+		[:trial_type, :block, :trialphase] => 
+			((t, b, p) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (p .== "ltm"))) => :n_trial_LTM,
+		[:block, :trial_type, :trialphase, :n_stimuli] => 
+			((x, t, p, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2) .& (.!ismissing.(p) .&& p .!= "PILT_test")])))) => :n_blocks_PILT,
+		[:block, :trial_type, :trialphase] => 
+			((x, t, p) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (p .== "wm")])))) => :n_blocks_WM,
+		[:block, :trial_type, :trialphase] => 
+			((x, t, p) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (p .== "ltm")])))) => :n_blocks_LTM,
+		:trialphase => (x -> sum(skipmissing(x .∈ Ref(["control_explore", "control_predict_homebase", "control_reward"])))) => :n_trial_control,
+		[:trialphase, :correct] =>
+			((p, c) -> sum(c[.!ismissing.(p) .&& p .== "control_reward_feedback"]) * 5 / 100) => :control_bonus,
+		:trialPresses => (x -> mean(filter(y -> !ismissing(y), x))) =>  :max_trial_presses,
+		:n_warnings => maximum => :n_warnings,
+		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
+		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
+	)
+
+	# Compute totla bonus
+	insertcols!(participants, :n_trial_PILT, 
+		:total_bonus => ifelse.(
+			ismissing.(participants.control_bonus),
+			fill(0., nrow(participants)),
+			participants.control_bonus
+		) .+ ifelse.(
+			ismissing.(participants.PILT_bonus),
+			fill(0., nrow(participants)),
+			participants.PILT_bonus
+		)
+	)
+
+	debrief = extract_debrief_responses(data)
+
+	participants = leftjoin(participants, debrief, 
+		on = [:prolific_pid, :exp_start_time])
+
+	return participants
 end
 
 # ╔═╡ 8c7c8ee7-86e6-48d4-9a8c-e24b4c35e239
@@ -109,20 +274,6 @@ end
 # ╔═╡ 8013dd07-e36b-4449-addf-b5fdbeed3f75
 foreach(row -> print(row.prolific_pid * "," * as_string(row.total_bonus) * "\r\n"), eachrow(p_sum[p_sum.n_trial_control .== 192, [:prolific_pid, :total_bonus]]))
 
-# ╔═╡ a9271e63-6457-47c0-99c4-07304bb31a93
-md"""
-## Control task
-"""
-
-# ╔═╡ ff6f5e8a-8fa1-4d6f-ad72-e3592a781fab
-begin
-	p_careless = @chain jspsych_data begin
-		@group_by(prolific_pid)
-		@summarize(n_quiz_fail = sum(skipmissing(trialphase == "control_instruction_quiz_failure")))
-		@mutate(careless = n_quiz_fail > 0)
-	end
-end
-
 # ╔═╡ 62b9994b-a426-4be0-96d3-75a8e106722d
 begin
 	finished_participants = filter(x -> x.n_trial_control .== 192, p_sum)
@@ -137,36 +288,13 @@ end
 combine(groupby(control_task_data, :prolific_pid), :time_elapsed => (x -> (maximum(x) - minimum(x))/60000) => :duration_m) |>
 describe
 
-# ╔═╡ e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	@save "control_task_data.jld2" {compress=true} control_task_data
-	@save "control_report_data.jld2" {compress=true} control_report_data
-end
-  ╠═╡ =#
-
-# ╔═╡ af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	CSV.write("control_task_data.csv", control_task_data; transform=(col, val) -> something(val, missing))
-	CSV.write("control_report_data.csv", control_report_data; transform=(col, val) -> something(val, missing))
-end
-  ╠═╡ =#
-
-# ╔═╡ b2d724e5-146a-4812-8431-a77893ea4735
+# ╔═╡ 3fc647cb-4e05-490a-b1b4-3240db3a1823
 begin
 	threshold_df = (; y = [6, 12, 18], threshold = ["Low", "Mid", "High"])
 	spec2 = data(threshold_df) * mapping(:y, color = :threshold) * visual(HLines)
-end
-
-# ╔═╡ 3fc647cb-4e05-490a-b1b4-3240db3a1823
-begin
 	@chain control_task_data begin
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "First half", "Second half"))
 		@filter(trialphase == "control_explore")
-		@drop_missing(trial_presses)
-		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
 		@group_by(prolific_pid, trial_stage, current)
 		@summarize(trial_presses = mean(trial_presses))
 		@ungroup()
@@ -195,8 +323,8 @@ let
 	workshop_reliability_scatter!(
 		fig[1,1];
 		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β0)),
-		xlabel="Trial 1-72",
-		ylabel="Trial 73-144",
+		xlabel="First half",
+		ylabel="Second half",
 		xcol=:x,
 		ycol=:y,
 		subtitle="β0",
@@ -205,8 +333,8 @@ let
 	workshop_reliability_scatter!(
 		fig[1,2];
 		df=dropmissing(unstack(split_df, [:prolific_pid], :half, :β_current)),
-		xlabel="Trial 1-72",
-		ylabel="Trial 73-144",
+		xlabel="First half",
+		ylabel="Second half",
 		xcol=:x,
 		ycol=:y,
 		subtitle="β[Current]",
@@ -283,8 +411,8 @@ end
 # ╔═╡ bc08a966-4236-4a5e-9539-5913f8f64651
 begin
 	@chain control_task_data begin
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "First half", "Second half"))
 		@filter(trialphase == "control_predict_homebase")
-		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
 		@drop_missing(correct)
 		@group_by(prolific_pid, trial_stage)
 		@summarize(acc = mean(correct))
@@ -296,8 +424,8 @@ end
 
 # ╔═╡ bb771903-c617-42c2-b3ae-7e48b09aacf9
 @chain control_task_data begin
+		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "First half", "Second half"))
 		@filter(trialphase == "control_predict_homebase")
-		@mutate(trial_stage = ifelse(trial <= maximum(trial)/2, "Trial 1-96", "Trial 97-192"))
 		@drop_missing(correct)
 		@group_by(prolific_pid, trial_stage)
 		@summarize(acc = mean(correct))
@@ -318,6 +446,9 @@ begin
 		draw(;axis=(;xlabel = "Trial", ylabel = "Confidence rating (0-4)"), figure=(;size=(800, 400)))
 	end
 end
+
+# ╔═╡ 24022d73-fbb4-4b87-b1af-311e43bd7849
+control_task_data
 
 # ╔═╡ 85fd37d4-39f5-4c31-92a9-2c597a1c790a
 begin
@@ -442,141 +573,6 @@ begin
 	quantile(max_presses, 0.05)
 end
 
-# ╔═╡ b4c02bfd-3252-441f-a2b8-6178beb2b144
-md"""
-## Helper functions
-"""
-
-# ╔═╡ 5c1c7680-d743-4488-a8fc-c81cb23cb87e
-"""
-    summarize_participation(data::DataFrame) -> DataFrame
-
-Summarizes participants' performance in a study based on their trial outcomes and responses, for the purpose of approving and paying bonuses.
-
-This function processes experimental data, extracting key performance metrics such as whether the participant finished the experiment, whether they were kicked out, and their respective bonuses (PILT and vigour). It also computes the number of specific trial types and blocks completed, as well as warnings received. The output is a DataFrame with these aggregated values, merged with debrief responses for each participant.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participant performance, trial outcomes, and responses.
-
-# Returns
-- A summarized DataFrame with performance metrics for each participant, including bonuses and trial information.
-"""
-function summarize_participation(data::DataFrame)
-
-	function extract_PILT_bonus(outcome)
-
-		if all(ismissing.(outcome)) # Return missing if participant didn't complete
-			return missing
-		else # Parse JSON
-			bonus = filter(x -> !ismissing(x), unique(outcome))[1]
-			bonus = JSON.parse(bonus)[1] 
-			return maximum([0., bonus])
-		end
-
-	end
-	
-	participants = combine(groupby(data, [:prolific_pid, :session, :record_id, :exp_start_time]),
-		:trialphase => (x -> "experiment_end_message" in x) => :finished,
-		:trialphase => (x -> "kick-out" in x) => :kick_out,
-		:outcomes => extract_PILT_bonus => :PILT_bonus,
-		[:trial_type, :trialphase, :block, :n_stimuli] => 
-			((t, p, b, n) -> sum((t .== "PILT") .& (.!ismissing.(p) .&& p .!= "PILT_test") .& (typeof.(b) .== Int64) .& (n .== 2))) => :n_trial_PILT,
-		[:trial_type, :block, :trialphase] => 
-			((t, b, p) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (p .== "wm"))) => :n_trial_WM,
-		[:trial_type, :block, :trialphase] => 
-			((t, b, p) -> sum((t .== "PILT") .& (typeof.(b) .== Int64) .& (p .== "ltm"))) => :n_trial_LTM,
-		[:block, :trial_type, :trialphase, :n_stimuli] => 
-			((x, t, p, n) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (n .== 2) .& (.!ismissing.(p) .&& p .!= "PILT_test")])))) => :n_blocks_PILT,
-		[:block, :trial_type, :trialphase] => 
-			((x, t, p) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (p .== "wm")])))) => :n_blocks_WM,
-		[:block, :trial_type, :trialphase] => 
-			((x, t, p) -> length(unique(filter(y -> isa(y, Int64), x[(t .== "PILT") .& (p .== "ltm")])))) => :n_blocks_LTM,
-		:trialphase => (x -> sum(skipmissing(x .∈ Ref(["control_explore", "control_predict_homebase", "control_reward"])))) => :n_trial_control,
-		[:trialphase, :correct] =>
-			((p, c) -> sum(c[.!ismissing.(p) .&& p .== "control_reward_feedback"]) * 5 / 100) => :control_bonus,
-		:trialPresses => (x -> mean(filter(y -> !ismissing(y), x))) =>  :max_trial_presses,
-		:n_warnings => maximum => :n_warnings,
-		:time_elapsed => (x -> maximum(x) / 1000 / 60) => :duration,
-		:trialphase => (x -> sum(skipmissing(x .== "control_instruction_quiz_failure"), init=0)) => :n_quiz_failure
-	)
-
-	# Compute totla bonus
-	insertcols!(participants, :n_trial_PILT, 
-		:total_bonus => ifelse.(
-			ismissing.(participants.control_bonus),
-			fill(0., nrow(participants)),
-			participants.control_bonus
-		) .+ ifelse.(
-			ismissing.(participants.PILT_bonus),
-			fill(0., nrow(participants)),
-			participants.PILT_bonus
-		)
-	)
-
-	debrief = extract_debrief_responses(data)
-
-	participants = leftjoin(participants, debrief, 
-		on = [:prolific_pid, :exp_start_time])
-
-	return participants
-end
-
-# ╔═╡ 83c4cd4a-616a-4762-8dff-f6439fd948f7
-"""
-    extract_debrief_responses(data::DataFrame) -> DataFrame
-
-Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
-
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
-
-# Returns
-- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
-"""
-function extract_debrief_responses(data::DataFrame)
-	# Select trials
-	debrief = filter(x -> !ismissing(x.trialphase) && 
-		occursin(r"(acceptability|debrief)", x.trialphase) &&
-		!(occursin("pre", x.trialphase)), data)
-
-
-	# Select variables
-	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
-
-	# Long to wide
-	debrief = unstack(
-		debrief,
-		[:prolific_pid, :exp_start_time],
-		:trialphase,
-		:response
-	)
-	
-
-	# Parse JSON and make into DataFrame
-	expected_keys = dropmissing(debrief)[1, Not([:prolific_pid, :exp_start_time])]
-	expected_keys = Dict([c => collect(keys(JSON.parse(expected_keys[c]))) 
-		for c in names(expected_keys)])
-	
-	debrief_colnames = names(debrief[!, Not([:prolific_pid, :exp_start_time])])
-	
-	# Expand JSON strings with defaults for missing fields
-	expanded = [
-	    DataFrame([
-	        # Parse JSON or use empty Dict if missing
-	        let parsed = ismissing(row[col]) ? Dict() : JSON.parse(row[col])
-	            # Fill missing keys with a default value (e.g., `missing`)
-	            Dict(key => get(parsed, key, missing) for key in expected_keys[col])
-	        end
-	        for row in eachrow(debrief)
-	    ])
-	    for col in debrief_colnames
-	]
-	expanded = hcat(expanded...)
-
-	# hcat together
-	return hcat(debrief[!, Not(debrief_colnames)], expanded)
-end
-
 # ╔═╡ fc6afa82-b9fe-41f5-a2ca-c5cb38d53b73
 function sanity_check_test(test_data_clean::DataFrame)
 		@assert Set(test_data_clean.response) in 
@@ -645,6 +641,7 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╔═╡ Cell order:
 # ╠═237a05f6-9e0e-11ef-2433-3bdaa51dbed4
 # ╠═0d120e19-28c2-4a98-b873-366615a5f784
+# ╠═7993cf0a-3af3-4c74-921f-6ae6f0638b5f
 # ╟─d5811081-d5e2-4a6e-9fc9-9d70332cb338
 # ╠═f9cbc7fa-5998-4500-a5b7-9f93258e7608
 # ╠═dacf8afd-8608-417b-b69d-6fd1be678c86
@@ -660,7 +657,6 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═ef837154-28e6-4e50-bec4-efe04f45a6cd
 # ╠═e1ff3af0-4e8b-4bf7-9c30-cf227853d7d3
 # ╠═af4bb053-7412-4b00-bb3c-5f1eb8cd9e5b
-# ╠═b2d724e5-146a-4812-8431-a77893ea4735
 # ╠═3fc647cb-4e05-490a-b1b4-3240db3a1823
 # ╠═8ed8fb59-1635-49b9-af03-e33e68089167
 # ╠═ba46e28b-f4e0-4e0f-b687-fca77c7f381c
@@ -669,6 +665,7 @@ function sanity_check_test(test_data_clean::DataFrame)
 # ╠═bc08a966-4236-4a5e-9539-5913f8f64651
 # ╠═bb771903-c617-42c2-b3ae-7e48b09aacf9
 # ╠═bf50e3bd-c697-4e8b-93ff-558ec99711b0
+# ╠═24022d73-fbb4-4b87-b1af-311e43bd7849
 # ╠═85fd37d4-39f5-4c31-92a9-2c597a1c790a
 # ╠═c75dfcb1-4aa9-47a1-952a-6553b4035a7b
 # ╠═dff932c8-1317-4566-88c6-7b33cbc04b3f

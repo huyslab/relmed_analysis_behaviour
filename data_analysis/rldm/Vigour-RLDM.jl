@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.1
 
 using Markdown
 using InteractiveUtils
@@ -139,6 +139,16 @@ let
 	end
 
 	fig
+end
+
+# ╔═╡ b64b0102-36b6-4d12-a66c-a93219cab403
+let
+	avg_press_rate = @chain @filter(vigour_data, trial_number > 1) begin
+		@group_by(prolific_pid, session)
+		@summarize(press_rate = mean(press_per_sec))
+		@ungroup()
+	end
+	UnequalVarianceTTest(avg_press_rate.press_rate[avg_press_rate.session.=="1"], avg_press_rate.press_rate[avg_press_rate.session.=="2"])
 end
 
 # ╔═╡ 8856b335-e79f-4a4e-a73b-032ff796321f
@@ -1276,16 +1286,6 @@ let
 	lmfit = lm(@formula(Δvigour_pps ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_chg_df)
 	@info ftest(lmfit.model)
 	lmfit
-end
-
-# ╔═╡ b64b0102-36b6-4d12-a66c-a93219cab403
-let
-	avg_press_rate = @chain @filter(vigour_data, trial_number > 1) begin
-		@group_by(prolific_pid, session)
-		@summarize(press_rate = mean(press_per_sec))
-		@ungroup()
-	end
-	UnequalVarianceTTest(avg_press_rate.press_rate[avg_press_rate.session.=="1"], avg_press_rate.press_rate[avg_press_rate.session.=="2"])
 end
 
 # ╔═╡ ca862c35-ae01-40ba-9786-1fd4c5af24dc

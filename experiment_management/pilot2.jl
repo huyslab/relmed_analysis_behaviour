@@ -1,10 +1,11 @@
 ### A Pluto.jl notebook ###
-# v0.19.43
+# v0.19.46
 
 using Markdown
 using InteractiveUtils
 
 # ╔═╡ da2aa306-75f9-11ef-2592-2be549c73d82
+# ╠═╡ show_logs = false
 begin
 	cd("/home/jovyan/")
     import Pkg
@@ -12,7 +13,7 @@ begin
     Pkg.activate("relmed_environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics
+	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, Dates, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics
 	using LogExpFunctions: logistic, logit
 	include("fetch_preprocess_data.jl")
 	include("sample_utils.jl")
@@ -115,9 +116,17 @@ end
 # ╔═╡ 4eb3aaed-6028-49a2-9f13-4e915ee2701c
 p_sum = summarize_participation(jspsych_data)
 
+# ╔═╡ 99deaa70-9bec-4da4-8f0d-1d28ade2f191
+filter(x -> !ismissing(x.finished) && x.finished, p_sum)
+
+# ╔═╡ fd03411b-d9ba-4c75-ad74-53fa046f0d49
+mean(skipmissing(p_sum.vigour_bonus))
+
 # ╔═╡ Cell order:
 # ╠═da2aa306-75f9-11ef-2592-2be549c73d82
 # ╠═6eba46dc-855c-47ca-8fa9-8405b9566809
 # ╠═4eb3aaed-6028-49a2-9f13-4e915ee2701c
+# ╠═99deaa70-9bec-4da4-8f0d-1d28ade2f191
+# ╠═fd03411b-d9ba-4c75-ad74-53fa046f0d49
 # ╠═d203faab-d4ea-41b2-985b-33eb8397eecc
 # ╠═f47e6aba-00ea-460d-8310-5b24ed7fe336

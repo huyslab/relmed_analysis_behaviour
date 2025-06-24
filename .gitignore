@@ -1,47 +1,66 @@
+# Development environments
+.vscode/
 *.vscode
-saved_models/*
-build.log
-*.jl.cov
-*.jl.*.cov
-*.jl.mem
-deps/deps.jl
-.DS_Store
-/data/*
-tmp/*
-:w
-*token*
+.vscode-server/
+*.code-workspace
+relmed_analysis_behaviour-haoyang_dev.code-workspace
 .ipython/
-c
-.Rhistory
-Icon
-results/*
-*.sif
-*.db
-*.pickle
-*.RData
-*checkpoint.*py*
-*/.ipynb_checkpoints/*
-*checkpoint*
-*.pyc
-.bash_history
-.cache/
 .jupyter/
-.local/
-.npm/
-.viminfo
+.Rproj.user/
 .cmdstanr/
+.dotnet/
+.npm/
+.local/
+.cache/
+.ssh/
+
+# System files
+.DS_Store
+Icon
+.bash_history
+.viminfo
+.gitconfig
+.Rhistory
+
+# Temporary files
+:w
+c
+tmp/*
 env.list
 
-Icon
-.Rproj.user/
-.dotnet/
-.ssh/
-.julia/logs/
+# Data and results
+/data/*
 /data_analysis/workshop/*.html
+results/*
+saved_models/*
 generate_experimental_sequences/THINGS/
 generate_experimental_sequences/pilot7_stims/
 generate_experimental_sequences/pilot7_stims_OLD/
 generate_experimental_sequences/trial1_stimuli/
+
+# Julia specific
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+deps/deps.jl
+.julia/
+.julia/logs/
+
+# Python specific
+*.pyc
+*checkpoint*
+*checkpoint.*py*
+*/.ipynb_checkpoints/*
+
+# Logs and build files
+build.log
+
+# Archives and large files
 *.zip
-.gitconfig
-.vscode-server/
+*.sif
+*.db
+*.pickle
+*.RData
+
+# Tokens and secrets
+*token*

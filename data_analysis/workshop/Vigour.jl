@@ -35,6 +35,7 @@ TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true
 begin
 	osf_folder = "/Workshop figures/Vigour/"
 	proj = setup_osf("Task development")
+	upload = false
 end
 
 # ╔═╡ 93bc3812-c620-4a8d-a312-de9fd0e55327
@@ -98,11 +99,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_rate_dist.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -122,11 +125,13 @@ x -> filter(:n_session => (==(2)), x)
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_session.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -141,11 +146,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate_matched_session.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -162,11 +169,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_reward_rate.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -212,11 +221,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_press_by_conds.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -258,11 +269,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -296,11 +309,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_motor_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -338,11 +353,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_motor.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -388,11 +405,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -434,12 +453,14 @@ let
 		# Save
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rppdiff_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
-		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+			
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -485,11 +506,71 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rppdiff.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
+
+	fig
+end
+
+# ╔═╡ 9ca0e902-ed3e-4431-b4f4-ebf4ce2570dc
+md"""
+##### Low and high RPP
+"""
+
+# ╔═╡ 14e7a5f9-61cc-4cc4-aa13-3116592f4739
+let
+	retest_df = @chain vigour_data begin
+		@filter(trial_number != 0)
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		unstack([:prolific_pid, :low_rpp], :session, :n_presses)
+		dropmissing
+	end
+
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=@filter(retest_df, low_rpp == "low_rpp"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate in Low RPP",
+		correct_r=false
+	)
+
+	workshop_reliability_scatter!(
+		fig[1,2];
+		df=@filter(retest_df, low_rpp == "high_rpp"),
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Press Rate in High RPP",
+		correct_r=false
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_byrpp.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 
 	fig
 end
@@ -533,11 +614,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_rpp.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -583,11 +666,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -635,11 +720,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_rpp_beta_splithalf_firstsecond.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -688,11 +775,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_rpp_beta.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -732,11 +821,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_reg_model_fr_n_rm.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -793,11 +884,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -856,11 +949,13 @@ let
 		filepaths = joinpath("results/workshop/vigour", "Vigour_sess$(s)_fr_n_rm_beta_splithalf_evenodd.png")
 		save(filepaths, fig; px_per_unit = 4)
 		
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		push!(figs, fig)
 	end
@@ -915,11 +1010,13 @@ let
 	filepaths = joinpath("results/workshop/vigour", "Vigour_retest_fr_n_rm_beta.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+				filepaths,
+				proj,
+				osf_folder
+			)
+	end
 	
 	fig
 end
@@ -1050,11 +1147,13 @@ begin
 		filepaths = joinpath("results/workshop/vigour", "Vigour_test_acc_by_reward_diff.png")
 		save(filepaths, fig; px_per_unit = 4)
 	
-		upload_to_osf(
-				filepaths,
-				proj,
-				osf_folder
-			)
+		if upload
+			upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+		end
 		
 		fig
 end
@@ -1116,6 +1215,245 @@ let
 	all_vigour_df
 end
 
+# ╔═╡ 73648056-1b86-4b31-a679-ad0eba7a90ce
+md"""
+## Acceptability ratings and behaviors in Vigour
+"""
+
+# ╔═╡ 84d3afa0-ee47-4d1c-92b0-904d69c295cb
+begin
+	acceptability = @chain CSV.read("results/workshop/acceptability.csv", DataFrame) begin
+		@select(prolific_pid, session, starts_with("vigour"))
+		@mutate(session=string(session))
+	end
+	
+	acceptability_chg = @chain acceptability begin
+		stack(_, names(_, startswith("vigour_")))
+		@mutate(key = string(variable) * "_" * string(session))
+		unstack(:prolific_pid, :key, :value)
+		dropmissing
+		@mutate(
+			vigour_enjoy_diff = vigour_enjoy_2 - vigour_enjoy_1,
+			vigour_difficulty_diff = vigour_difficulty_2 - vigour_difficulty_1,
+			vigour_clear_diff = vigour_clear_2 - vigour_clear_1
+		)
+		@select(prolific_pid, ends_with("diff"))
+	end
+	nothing
+end
+
+# ╔═╡ 281188c1-bf7e-4d48-841d-d4cf506c2af5
+md"""
+### Changes in ratings and press rates
+"""
+
+# ╔═╡ d8141f2b-1a79-4638-a2df-096ac6b8d11a
+motor_accept_chg_df = let
+	motor_chg = @chain vigour_data begin
+		@group_by(prolific_pid, session)
+		@summarize(vigour_pps = mean(press_per_sec))
+		@ungroup
+		unstack(:prolific_pid, :session, :vigour_pps)
+		dropmissing
+		@mutate(Δvigour_pps = var"2" - var"1")
+		@select(prolific_pid, Δvigour_pps, ends_with("diff"))
+	end
+	innerjoin(motor_chg, acceptability_chg, on = :prolific_pid)
+end;
+
+# ╔═╡ 9a0aec0f-6bb1-4877-a53b-6572e8673ff4
+let
+	using HypothesisTests
+	lmfit = lm(@formula(Δvigour_pps ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), motor_accept_chg_df)
+	@info ftest(lmfit.model)
+	lmfit
+end
+
+# ╔═╡ ca862c35-ae01-40ba-9786-1fd4c5af24dc
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain motor_accept_chg_df begin
+		stack([:vigour_enjoy_diff, :vigour_difficulty_diff, :vigour_clear_diff])
+		data(_) * mapping(:value, :Δvigour_pps; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear_diff" => "Clarity",
+					"vigour_difficulty_diff" => "Difficulty",
+					"vigour_enjoy_diff" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="ΔSession of Acceptability rating", ylabel="ΔSession of Press rate"),
+		# facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
+# ╔═╡ eb2f1f73-ad2e-430e-95ee-a41a35e7a700
+md"""
+### Changes in ratings and ΔPress rates
+"""
+
+# ╔═╡ 1c692fc8-2cee-432e-8d31-96de8c34c85e
+rpp_diff_accept_chg_df = let
+	rpp_diff_chg = @chain vigour_data begin
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = low_rpp, values_from = n_presses)
+		@mutate(vigour_pps_rpp_diff = low_rpp - high_rpp)
+		@select(prolific_pid, session, vigour_pps_rpp_diff)
+		unstack(:prolific_pid, :session, :vigour_pps_rpp_diff)
+		dropmissing
+		@mutate(Δvigour_pps_rpp_diff = var"2" - var"1")
+		@select(prolific_pid, Δvigour_pps_rpp_diff, ends_with("diff"))
+	end
+	innerjoin(rpp_diff_chg, acceptability_chg, on = :prolific_pid)
+end;
+
+# ╔═╡ aa9d6dee-6d82-4bd0-a65d-879e05aa645f
+let
+	lmfit = lm(@formula(Δvigour_pps_rpp_diff ~ vigour_enjoy_diff + vigour_difficulty_diff + vigour_clear_diff), rpp_diff_accept_chg_df)
+	@info ftest(lmfit.model)
+	lmfit
+end
+
+# ╔═╡ ee6e32e9-3ba0-49ee-9898-4ef3b500017c
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain rpp_diff_accept_chg_df begin
+		stack([:vigour_enjoy_diff, :vigour_difficulty_diff, :vigour_clear_diff])
+		data(_) * mapping(:value, :Δvigour_pps_rpp_diff; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear_diff" => "Clarity",
+					"vigour_difficulty_diff" => "Difficulty",
+					"vigour_enjoy_diff" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="ΔSession of Acceptability rating", ylabel="ΔSession of ΔPress rate"),
+		# facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
+# ╔═╡ 8071b160-ce69-4eab-9e7f-f906cbadefcb
+md"""
+### Ratings and press rates
+"""
+
+# ╔═╡ d3be488c-4a03-4322-bd9f-bd4d5caeec20
+motor_accept_df = let
+	motor = @chain vigour_data begin
+		@group_by(prolific_pid, session)
+		@summarize(vigour_pps = mean(press_per_sec))
+		@ungroup
+	end
+	innerjoin(motor, acceptability, on = [:prolific_pid, :session]) |>
+	x -> groupby(x, [:prolific_pid]) |>
+	x -> combine(x, names(x, r"^vigour_") .=> mean .=> names(x, r"^vigour_")) |>
+	x -> DataFrames.transform(x, names(x, r"^vigour_") .=> zscore .=> names(x, r"^vigour_"))
+end;
+
+# ╔═╡ 578c941a-1827-491a-821c-8bcfc5994be0
+let
+	lm(@formula(vigour_pps ~ vigour_enjoy + vigour_difficulty + vigour_clear), motor_accept_df)
+end
+
+# ╔═╡ 65dd8535-7080-4b05-b55f-02fd4b8975a9
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain motor_accept_df begin
+		stack([:vigour_enjoy, :vigour_difficulty, :vigour_clear])
+		groupby([:prolific_pid, :variable])
+		combine([:vigour_pps, :value] .=> mean .=> [:vigour_pps, :value])
+		data(_) * mapping(:value, :vigour_pps; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear" => "Clarity",
+					"vigour_difficulty" => "Difficulty",
+					"vigour_enjoy" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="Acceptability rating", ylabel="Press rate"),
+		facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
+# ╔═╡ 778a9298-a022-45e9-8ff9-3b1093eb3bcd
+md"""
+### Ratings and ΔPress rates
+"""
+
+# ╔═╡ 9be683d6-4781-4291-8cce-8eb4a0a9009f
+rpp_diff_accept_df = let
+	rpp_diff = @chain vigour_data begin
+		@arrange(prolific_pid, session, reward_per_press)
+		@group_by(prolific_pid, session)
+		@mutate(low_rpp = if_else(reward_per_press <= median(reward_per_press), "low_rpp", "high_rpp"))
+		@ungroup
+		@group_by(prolific_pid, session, low_rpp)
+		@summarize(n_presses = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = low_rpp, values_from = n_presses)
+		@mutate(vigour_pps_rpp_diff = low_rpp - high_rpp)
+	end
+	innerjoin(rpp_diff, acceptability, on = [:prolific_pid, :session]) |>
+	x -> groupby(x, [:prolific_pid]) |>
+	x -> combine(x, names(x, r"^vigour_") .=> mean .=> names(x, r"^vigour_")) |>
+	x -> DataFrames.transform(x, names(x, r"^vigour_") .=> zscore .=> names(x, r"^vigour_"))
+end;
+
+# ╔═╡ 22f2194d-888a-4392-9a5b-16f3a1749f88
+let
+	lm(@formula(vigour_pps_rpp_diff ~ vigour_enjoy + vigour_difficulty + vigour_clear), rpp_diff_accept_df)
+end
+
+# ╔═╡ e1724936-833a-4eda-84cd-6ec5c49d5019
+let
+	fig=Figure(;size=(15, 6) .* 144 ./ 2.54)
+	p = @chain rpp_diff_accept_df begin
+		stack([:vigour_enjoy, :vigour_difficulty, :vigour_clear])
+		groupby([:prolific_pid, :variable])
+		combine([:vigour_pps_rpp_diff, :value] .=> mean .=> [:vigour_pps_rpp_diff, :value])
+		data(_) * mapping(:value, :vigour_pps_rpp_diff; col=:variable) * (visual(Scatter, alpha=0.2) + AlgebraOfGraphics.linear())
+	end
+	draw!(
+		fig[1,1], p, 
+		scales(
+			Col=(;
+				categories=[
+					"vigour_clear" => "Clarity",
+					"vigour_difficulty" => "Difficulty",
+					"vigour_enjoy" => "Enjoyment"
+				]
+			)
+		);
+		axis=(;xlabel="Acceptability rating", ylabel="Δ(Press rates|RPP)"),
+		facet=(; linkxaxes=:none)
+	)
+	fig
+end
+
 # ╔═╡ Cell order:
 # ╠═b41e7252-a075-11ef-039c-f532a7fb0a94
 # ╠═28b7224d-afb4-4474-b346-7ee353b6d3d3
@@ -1124,39 +1462,59 @@ end
 # ╟─1f8ca836-f2f7-4965-bf07-5656cf6c4ec6
 # ╠═1c0196e9-de9a-4dfa-acb5-357c02821c5d
 # ╟─8255895b-a337-4c8a-a1a7-0983499f684e
-# ╠═de48ee97-d79a-46e4-85fb-08dd569bf7ef
+# ╟─de48ee97-d79a-46e4-85fb-08dd569bf7ef
 # ╟─99e3d02a-39d2-4c90-97ce-983670c50c38
-# ╠═4be713bc-4af3-4363-94f7-bc68c71609c2
+# ╟─4be713bc-4af3-4363-94f7-bc68c71609c2
 # ╟─bd55dd69-c927-45e2-98cf-04f0aa919853
-# ╠═d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
-# ╠═bd3c7bce-be8d-4ed1-b194-f6811daebebe
-# ╠═7e7959a7-d60c-4280-9ec9-269edfc3f2a4
+# ╟─d970091a-9316-4d9f-b7ba-9ac0eaf36ae4
+# ╟─bd3c7bce-be8d-4ed1-b194-f6811daebebe
+# ╟─7e7959a7-d60c-4280-9ec9-269edfc3f2a4
 # ╟─75d4fc7b-63db-4160-9a56-1105244c24f1
-# ╠═e3faa2fc-c085-4fc1-80ef-307904a38f33
+# ╟─e3faa2fc-c085-4fc1-80ef-307904a38f33
 # ╟─18f08be5-ffbe-455a-a870-57df5c007e01
 # ╟─aa0f06fc-4668-499c-aa81-4069b90076aa
-# ╠═b9d78883-eb28-4984-af6b-afb76dd85349
-# ╠═f188af11-d2a4-4e1c-9cc7-b63bc386ef57
+# ╟─b9d78883-eb28-4984-af6b-afb76dd85349
+# ╟─f188af11-d2a4-4e1c-9cc7-b63bc386ef57
 # ╟─9b8909ca-2804-45a4-9085-e6ed5e1f1c49
-# ╠═33a27773-b242-49b3-9318-59c15e9602f9
+# ╟─33a27773-b242-49b3-9318-59c15e9602f9
 # ╟─e6dfc8f4-b0e2-4fe5-9a2d-826e3f505c72
-# ╠═4fc4a680-0934-49de-a785-08cac3a8be3e
-# ╠═7b096527-2420-4e0d-9d72-8289a42a78fe
+# ╟─4fc4a680-0934-49de-a785-08cac3a8be3e
+# ╟─7b096527-2420-4e0d-9d72-8289a42a78fe
 # ╟─c02b47f4-3e96-4a09-a212-13671b8fad25
-# ╠═4d3da833-7333-442c-96ed-9e2fba0a4298
+# ╟─4d3da833-7333-442c-96ed-9e2fba0a4298
+# ╟─9ca0e902-ed3e-4431-b4f4-ebf4ce2570dc
+# ╟─14e7a5f9-61cc-4cc4-aa13-3116592f4739
 # ╟─d6a73b37-2079-4ed1-ac49-e7c596fc0997
 # ╟─6f11e67c-84b2-457d-9727-825e0631860b
-# ╠═68985a71-98c4-485b-a800-643aea8b8a5e
-# ╠═cea80eac-27cd-4757-ba4b-498f1add5c4f
-# ╠═81ab693c-431d-4b73-a148-84846e448f4d
+# ╟─68985a71-98c4-485b-a800-643aea8b8a5e
+# ╟─cea80eac-27cd-4757-ba4b-498f1add5c4f
+# ╟─81ab693c-431d-4b73-a148-84846e448f4d
 # ╟─e8c04ee8-a851-4409-9919-ec5227f96689
-# ╠═198f34e5-c89b-4667-82e0-50164fed3491
+# ╟─198f34e5-c89b-4667-82e0-50164fed3491
 # ╟─cc7e08b3-e245-4483-8cac-086a673a2861
-# ╠═42e2e827-253d-4881-bfc9-65d206e6201d
-# ╠═5d98b42c-2e9a-4111-b2de-5c14d28d4c96
-# ╠═cb9e5cb5-070c-427e-9895-2e27b0d3344e
-# ╠═0e33dab6-6824-4883-8c47-5dd69aa288df
+# ╟─42e2e827-253d-4881-bfc9-65d206e6201d
+# ╟─5d98b42c-2e9a-4111-b2de-5c14d28d4c96
+# ╟─cb9e5cb5-070c-427e-9895-2e27b0d3344e
+# ╟─0e33dab6-6824-4883-8c47-5dd69aa288df
 # ╟─7ad7369a-f063-4270-8859-2e23d6c4ea94
-# ╠═c0ae5758-efef-42fa-9f46-1ec4e231c550
+# ╟─c0ae5758-efef-42fa-9f46-1ec4e231c550
 # ╟─160ddb0e-99a2-4f24-af4a-10d4ec82b782
-# ╠═46b37450-d9af-48d1-bd31-8f812acc94de
+# ╟─46b37450-d9af-48d1-bd31-8f812acc94de
+# ╟─73648056-1b86-4b31-a679-ad0eba7a90ce
+# ╟─84d3afa0-ee47-4d1c-92b0-904d69c295cb
+# ╟─281188c1-bf7e-4d48-841d-d4cf506c2af5
+# ╟─d8141f2b-1a79-4638-a2df-096ac6b8d11a
+# ╟─9a0aec0f-6bb1-4877-a53b-6572e8673ff4
+# ╟─ca862c35-ae01-40ba-9786-1fd4c5af24dc
+# ╟─eb2f1f73-ad2e-430e-95ee-a41a35e7a700
+# ╟─1c692fc8-2cee-432e-8d31-96de8c34c85e
+# ╟─aa9d6dee-6d82-4bd0-a65d-879e05aa645f
+# ╟─ee6e32e9-3ba0-49ee-9898-4ef3b500017c
+# ╟─8071b160-ce69-4eab-9e7f-f906cbadefcb
+# ╟─d3be488c-4a03-4322-bd9f-bd4d5caeec20
+# ╟─578c941a-1827-491a-821c-8bcfc5994be0
+# ╟─65dd8535-7080-4b05-b55f-02fd4b8975a9
+# ╟─778a9298-a022-45e9-8ff9-3b1093eb3bcd
+# ╟─9be683d6-4781-4291-8cce-8eb4a0a9009f
+# ╟─22f2194d-888a-4392-9a5b-16f3a1749f88
+# ╟─e1724936-833a-4eda-84cd-6ec5c49d5019

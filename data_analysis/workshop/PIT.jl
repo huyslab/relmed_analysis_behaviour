@@ -46,6 +46,7 @@ TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true
 begin
 	osf_folder = "/Workshop figures/PIT/"
 	proj = setup_osf("Task development")
+	upload = false
 end
 
 # ╔═╡ 8a279439-49a3-4aec-adf9-b6b580f81199
@@ -129,11 +130,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_reward_rate.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -153,11 +156,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_cmp_with_vigour.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -194,11 +199,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_pavlovian.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -230,11 +237,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_pavlovian_pig.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -288,11 +297,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_test_acc_by_valence.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -324,11 +335,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_retest_test_acc.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 	fig
 end
 
@@ -362,11 +375,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_pavlovian_acc.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -400,11 +415,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_press_by_rpp_acc.png")
 	save(filepaths, fig; px_per_unit = 4)
 
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -538,11 +555,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_retest_valdiff.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -702,11 +721,13 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_retest_slope.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 
 	fig
 end
@@ -832,11 +853,98 @@ let
 	filepaths = joinpath("results/workshop/PIT", "PIT_retest_asymm.png")
 	save(filepaths, fig; px_per_unit = 4)
 	
-	upload_to_osf(
-			filepaths,
-			proj,
-			osf_folder
-		)
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
+		
+	fig
+end
+
+# ╔═╡ a5a8534e-6a9d-4ecc-8289-5c6ac23f28e8
+md"""
+### Appetitive bias & aversive bias
+"""
+
+# ╔═╡ 80b42f2c-823f-4c58-b2f0-84a7acc23a01
+let
+	retest_df = @chain PIT_data begin
+		@mutate(valence = ifelse(coin == 0, "zero", ifelse(coin > 0, "pos", "neg")))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(bias = pos - zero)
+		unstack([:prolific_pid], :session, :bias)
+		dropmissing()
+	end
+
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Appetitive Bias",
+		correct_r=false
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_pos_bias.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
+		
+	fig
+end
+
+# ╔═╡ ae5edcad-62bc-4e25-81d7-038c3a19a6a5
+let
+	retest_df = @chain PIT_data begin
+		@mutate(valence = ifelse(coin == 0, "zero", ifelse(coin > 0, "pos", "neg")))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(bias = neg - zero)
+		unstack([:prolific_pid], :session, :bias)
+		dropmissing()
+	end
+
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Aversive Bias",
+		correct_r=false
+	)
+	
+	# Save
+	filepaths = joinpath("results/workshop/PIT", "PIT_retest_neg_bias.png")
+	save(filepaths, fig; px_per_unit = 4)
+	
+	if upload
+		upload_to_osf(
+					filepaths,
+					proj,
+					osf_folder
+				)
+	end
 		
 	fig
 end
@@ -847,7 +955,7 @@ md"""
 """
 
 # ╔═╡ 10230022-aa20-497d-875c-b073a295e9ea
-let
+all_pit_df = let
 	pit_instrument_w0_pav_df = @chain PIT_data begin
 		@filter(coin==0)
 		@group_by(prolific_pid, session)
@@ -897,8 +1005,106 @@ let
      for df in [PIT_acc_df, pit_valence_diff_df, pit_valence_slope_df, pit_asymmetry_df]
           leftjoin!(all_pit_df, df, on=[:prolific_pid, :session])
      end
-	CSV.write("results/workshop/pit_measures.csv", all_pit_df)
 	all_pit_df
+end
+
+# ╔═╡ a848e863-125a-471f-ac44-5a5c8eaf689e
+CSV.write("results/workshop/pit_measures.csv", all_pit_df)
+
+# ╔═╡ 11276fb8-e5cc-40a3-9f18-2b73d573355d
+md"""
+## Acceptability ratings and PIT effects
+"""
+
+# ╔═╡ 185b6624-6d72-4074-aedc-4f0ac09de3e2
+begin
+	acceptability = @chain CSV.read("results/workshop/acceptability.csv", DataFrame) begin
+		@select(prolific_pid, session, starts_with("pit_"))
+		@mutate(session=string(session))
+	end
+	
+	acceptability_chg = @chain acceptability begin
+		stack(_, names(_, startswith("pit_")))
+		@mutate(key = string(variable) * "_" * string(session))
+		unstack(:prolific_pid, :key, :value)
+		dropmissing
+		@mutate(
+			pit_enjoy_diff = pit_enjoy_2 - pit_enjoy_1,
+			pit_difficulty_diff = pit_difficulty_2 - pit_difficulty_1,
+			pit_clear_diff = pit_clear_2 - pit_clear_1
+		)
+		@select(prolific_pid, ends_with("diff"))
+	end
+	nothing
+end
+
+# ╔═╡ f2ca2237-194f-4b5c-bdbd-83235080de29
+pit_accept_long = @chain all_pit_df begin
+	innerjoin(acceptability, on = [:prolific_pid, :session])
+	stack([:pit_pps, :pit_acc, :pit_valence_diff, :pit_neg_b, :pit_pos_b, :pit_asymm]; variable_name=:pit_var, value_name=:pit_val)
+	stack([:pit_enjoy, :pit_difficulty, :pit_clear]; variable_name=:accept_var, value_name=:accept_val)
+end
+
+# ╔═╡ 23dd2d35-7478-4419-93f0-c76dc305842a
+let
+	fig=Figure(;size=(10, 16) .* 144 ./ 2.54)
+	p=data(pit_accept_long) * 
+		mapping(:accept_val=>:Rating, :pit_val=>:Measure; col=:accept_var, row=:pit_var) *
+		(visual(RainClouds))
+	draw!(fig[1,1], p, scales(
+		Row=(;categories=[
+			"pit_pps" => "Press rate",
+			"pit_acc" => "Test acc.",
+			"pit_valence_diff" => "PIT effect",
+			"pit_neg_b" => "Neg. Slope",
+			"pit_pos_b" => "Pos. Slope",
+			"pit_asymm" => "Asymm."]),
+		Col=(;categories=[
+			"pit_enjoy" => "Enjoyment",
+			"pit_difficulty" => "Difficulty",
+			"pit_clear" => "Clarity"]));
+			facet=(; linkxaxes=:none, linkyaxes=:none))
+	fig
+end
+
+# ╔═╡ 9fa45141-ea59-4f6f-8972-05c05323a170
+md"""
+## Acceptability ratings by PIT effect clusters
+"""
+
+# ╔═╡ f7a805e5-0527-4fb8-b102-1b20f9b8ef7a
+let
+	pit_cluster_df = @chain PIT_data begin
+		@filter(coin != 0)
+		@mutate(valence = ifelse(coin > 0, "pos", "neg"))
+		@group_by(prolific_pid, session, valence)
+		@summarize(press_per_sec = mean(press_per_sec))
+		@ungroup
+		@pivot_wider(names_from = valence, values_from = press_per_sec)
+		@mutate(diff = pos - neg)
+		unstack([:prolific_pid], :session, :diff)
+		dropmissing()
+		@mutate(cluster=case_when(
+			var"1" < 2 && var"2" < 2 => "Both small",
+			var"1" < 2 && var"2" >= 2 => "S1 small",
+			var"1" >= 2 && var"2" < 2 => "S2 small",
+			true => "Both large"
+		))
+		leftjoin(acceptability, on = [:prolific_pid])
+		stack([:pit_enjoy, :pit_difficulty, :pit_clear], variable_name=:pit_var, value_name=:pit_val)
+		@group_by(cluster, session, pit_var)
+		@summarize(pit_val = mean(pit_val), se = std(pit_val)/sqrt(length(pit_val)))
+		@ungroup
+	end
+	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
+	p=data(pit_cluster_df) *
+		(
+			mapping(:session => :Session, :pit_val => :Rating, dodge_x=:cluster, col=:pit_var, color=:cluster => :Cluster) * visual(Scatter) + 
+			mapping(:session => :Session, :pit_val => :Rating, :se, dodge_x=:cluster, col=:pit_var, color=:cluster => :Cluster) * visual(Errorbars)
+		)
+	p=draw!(fig[1,1], p, scales(DodgeX = (; width = 0.25), Col=(;categories=["pit_enjoy" => "Enjoyment", "pit_difficulty" => "Difficulty", "pit_clear" => "Clarity"])))
+	legend!(fig[1,2], p)
+	fig
 end
 
 # ╔═╡ Cell order:
@@ -940,5 +1146,15 @@ end
 # ╟─ec623a4a-c506-47b3-9c17-737fee355511
 # ╟─53979178-5e41-4ef1-82d5-c10193b642ef
 # ╠═c8256d50-0537-4424-8528-03a5e95f2a08
+# ╟─a5a8534e-6a9d-4ecc-8289-5c6ac23f28e8
+# ╠═80b42f2c-823f-4c58-b2f0-84a7acc23a01
+# ╠═ae5edcad-62bc-4e25-81d7-038c3a19a6a5
 # ╟─f658b1db-1fbd-4343-ad0c-b507b1c352b2
 # ╠═10230022-aa20-497d-875c-b073a295e9ea
+# ╠═a848e863-125a-471f-ac44-5a5c8eaf689e
+# ╟─11276fb8-e5cc-40a3-9f18-2b73d573355d
+# ╠═185b6624-6d72-4074-aedc-4f0ac09de3e2
+# ╠═f2ca2237-194f-4b5c-bdbd-83235080de29
+# ╠═23dd2d35-7478-4419-93f0-c76dc305842a
+# ╠═9fa45141-ea59-4f6f-8972-05c05323a170
+# ╠═f7a805e5-0527-4fb8-b102-1b20f9b8ef7a

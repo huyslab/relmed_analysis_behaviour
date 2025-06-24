@@ -25,17 +25,20 @@ RUN apt-get update --yes && \
     pkg-config \
     build-essential \
     libxml2-dev \
-    libssl-dev \ 
+    libssl-dev \
     tmux \
     vim && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install R
 RUN mamba install --yes \
-     'r-base' && \
+     'r-base' 'r-essentials' && \
      mamba clean --all -f -y && \
      fix-permissions "${CONDA_DIR}" && \
      fix-permissions "/home/${NB_USER}"
+
+# Verify Rscript is installed
+RUN which Rscript && Rscript --version
 
 # install Julia packages in /opt/julia instead of ${HOME}
 ENV JULIA_DEPOT_PATH=/opt/julia \
@@ -55,26 +58,23 @@ RUN chmod +x /opt/setup-scripts/install-julia-environment.bash
 RUN /opt/setup-scripts/install-julia-environment.bash && \
     fix-permissions "/home/${NB_USER}"
 
-# # Set CRAN date
+# Set CRAN date
 RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024-05-03"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
 
 # Run script installing R packages
 COPY docker_setup/install_r.R install_r.R
 RUN ["Rscript", "install_r.R"]
 
-
 # CMDSTAN pre-requisites
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    clang &&\
+    clang && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
-# Run script installing cmdstand
+# Run script installing cmdstan
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
 RUN ["Rscript", "install_cmdstan.R"]
 RUN fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home
 ENV CMDSTAN_HOME=/home/jovyan/.cmdstanr/cmdstan-2.34.1
-
