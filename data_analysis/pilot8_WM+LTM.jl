@@ -1,10 +1,3 @@
-### A Pluto.jl notebook ###
-# v0.20.1
-
-using Markdown
-using InteractiveUtils
-
-# ╔═╡ d39433ea-0edd-11f0-01e1-89c989a532f3
 begin
 	cd("/home/jovyan/")
     import Pkg
@@ -14,13 +7,12 @@ begin
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
 	using LogExpFunctions: logistic, logit
 	using Tidier
-	include("fetch_preprocess_data.jl")
-	include("sample_utils.jl")
-	include("plotting_utils.jl")
+	include("$(pwd())/fetch_preprocess_data.jl")
+	include("$(pwd())/sample_utils.jl")
+	include("$(pwd())/plotting_utils.jl")
 	nothing
 end
 
-# ╔═╡ 88470afd-7ced-45ca-8384-a558269e48a5
 begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
@@ -44,71 +36,70 @@ begin
 	set_theme!(th)
 end
 
-# ╔═╡ c00b3551-9d5c-4aa2-93e3-b3e20b9a7aba
+# Helper functions
+begin
+	recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
+
+	function compute_delays(vec::AbstractVector)
+		last_seen = Dict{Any, Int}()
+		delays = zeros(Int, length(vec))
+
+		for (i, val) in enumerate(vec)
+			delays[i] = haskey(last_seen, val) ? (i - last_seen[val]) : 0
+			last_seen[val] = i
+		end
+
+		return delays
+	end
+
+	function clean_WM_LTM_data(
+		df::AbstractDataFrame
+	)
+		# Clean data
+		data_clean = exclude_PLT_sessions(df, required_n_blocks = 1)
+
+		# Sort
+		sort!(
+			data_clean,
+			[:prolific_pid, :session, :block, :trial]
+		)
+
+		# Apperance number
+		transform!(
+			groupby(data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
+			:trial => (x -> 1:length(x)) => :appearance
+		)
+
+		# Compute delays
+		DataFrames.transform!(
+			groupby(
+				data_clean,
+				:prolific_pid
+			),
+			:stimulus_group => compute_delays => :delay,
+		) 
+
+		data_clean = filter(x -> x.response != "noresp", data_clean)
+
+		# Previous correct
+		DataFrames.transform!(
+			groupby(
+				data_clean,
+				[:prolific_pid, :stimulus_group]
+			),
+			:response_optimal => lag => :previous_optimal,
+		)
+
+	end
+end
+
 # Load data
 begin
 	_, WM_data, LTM_data, WM_test_data, LTM_test_data, _, control_task_data, _, _ = load_pilot8_data(; force_download = false, return_version = "0.2")
 	nothing
 end
 
-# ╔═╡ 782ad153-2090-44e5-ad35-d034b84218a5
-recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
 
-# ╔═╡ fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
-function compute_delays(vec::AbstractVector)
-    last_seen = Dict{Any, Int}()
-    delays = zeros(Int, length(vec))
-
-    for (i, val) in enumerate(vec)
-        delays[i] = haskey(last_seen, val) ? (i - last_seen[val]) : 0
-        last_seen[val] = i
-    end
-
-    return delays
-end
-
-# ╔═╡ f7e64bb7-244f-4803-bb41-d9a833eb4b7d
-function clean_WM_LTM_data(
-	df::AbstractDataFrame
-)
-	# Clean data
-	data_clean = exclude_PLT_sessions(df, required_n_blocks = 1)
-
-	# Sort
-	sort!(
-		data_clean,
-		[:prolific_pid, :session, :block, :trial]
-	)
-
-	# Apperance number
-	transform!(
-		groupby(data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
-		:trial => (x -> 1:length(x)) => :appearance
-	)
-
-	# Compute delays
-	DataFrames.transform!(
-		groupby(
-			data_clean,
-			:prolific_pid
-		),
-		:stimulus_group => compute_delays => :delay,
-	) 
-
-	data_clean = filter(x -> x.response != "noresp", data_clean)
-
-	# Previous correct
-	DataFrames.transform!(
-		groupby(
-			data_clean,
-			[:prolific_pid, :stimulus_group]
-		),
-		:response_optimal => lag => :previous_optimal,
-	)
-
-end
-
-# ╔═╡ b64500f3-7d41-4f38-bac7-7cdd1a0b9302
 # Clean and prepare data, and combine
 data_clean  = let
 	WM_data_clean, LTM_data_clean = clean_WM_LTM_data.([WM_data, LTM_data])
@@ -124,7 +115,7 @@ data_clean  = let
 	)
 end
 
-# ╔═╡ dfb624c9-8363-4c8e-b12e-03518b418bc2
+# Plot learning curve
 let df = data_clean
 
 	# Create figure
@@ -174,7 +165,7 @@ let df = data_clean
 	f
 end
 
-# ╔═╡ b7546403-153e-43bc-a360-bbb562b0762c
+# Plot learning curve with delay bins
 let df = data_clean
 	
 	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
@@ -200,7 +191,7 @@ let df = data_clean
 	sort!(app_curve_sum, [:task, :delay_bin, :appearance])
 
 	# Create mapping
-	mp = (data(app_curve_sum) * (
+	mp2 = (data(app_curve_sum) * (
 		mapping(
 			:appearance => "Apperance #",
 			:lb,
@@ -232,20 +223,10 @@ let df = data_clean
 
 	f = Figure()
 
-	plt = draw!(f[1,1], mp; axis=(; ylabel = "Prop. optimal choice ±SE"))
+	plt = draw!(f[1,1], mp2; axis=(; ylabel = "Prop. optimal choice ±SE"))
 
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
 	f
 end
 
-# ╔═╡ Cell order:
-# ╠═d39433ea-0edd-11f0-01e1-89c989a532f3
-# ╠═88470afd-7ced-45ca-8384-a558269e48a5
-# ╠═c00b3551-9d5c-4aa2-93e3-b3e20b9a7aba
-# ╠═b64500f3-7d41-4f38-bac7-7cdd1a0b9302
-# ╠═dfb624c9-8363-4c8e-b12e-03518b418bc2
-# ╠═b7546403-153e-43bc-a360-bbb562b0762c
-# ╠═782ad153-2090-44e5-ad35-d034b84218a5
-# ╠═f7e64bb7-244f-4803-bb41-d9a833eb4b7d
-# ╠═fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
