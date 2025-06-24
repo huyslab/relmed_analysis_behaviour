@@ -283,10 +283,79 @@ let df = copy(data_clean)
 	) * visual(Lines)))
 	
 	# Plot
-	plt1 = draw!(f[1,1], mp1; axis=(; ylabel = "Prop. optimal choice ±SE"))
+	plt1 = draw!(f[1,1], mp1; axis=(; ylabel = "RT (mean±SE)"))
 
 	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
+
+	f
+end
+
+# Plot RT by appearance and delay bins
+let df = copy(data_clean)
+	
+	# Bin delays
+	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
+	
+	# Summarize by participant
+	rt_app_delay = combine(
+		groupby(
+			filter(x -> x.response_optimal, df), 
+			[:prolific_pid, :task, :delay_bin, :appearance]
+		),
+		:rt => mean => :rt
+	)
+
+	# Summarize across participants
+	rt_app_delay_sum = combine(
+		groupby(rt_app_delay, [:task, :delay_bin, :appearance]),
+		:rt => mean => :rt,
+		:rt => sem => :se
+	)
+
+	# Compute bounds
+	rt_app_delay_sum.lb = rt_app_delay_sum.rt .- rt_app_delay_sum.se
+	rt_app_delay_sum.ub = rt_app_delay_sum.rt .+ rt_app_delay_sum.se
+
+	# Sort
+	sort!(rt_app_delay_sum, [:task, :delay_bin, :appearance])
+
+	# Create mapping
+	mp2 = (data(rt_app_delay_sum) * (
+		mapping(
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :delay_bin  => "Delay",
+			col = :task
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+			:appearance => "Apperance #",
+			:rt,
+			color = :delay_bin  => "Delay",
+			col = :task
+	) * visual(Lines))) + (
+		data(filter(x -> x.delay_bin == "0", rt_app_delay_sum)) *
+		(mapping(
+			:appearance  => "Apperance #",
+			:rt,
+			:se,
+			color = :delay_bin => "Delay",
+			col = :task
+		) * visual(Errorbars) +
+		mapping(
+			:appearance  => "Apperance #",
+			:rt,
+			color = :delay_bin  => "Delay",
+			col = :task
+		) * visual(Scatter))
+	)
+
+	f = Figure()
+
+	plt = draw!(f[1,1], mp2; axis=(; ylabel = "RT (mean±SE)"))
+
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
 	f
 end
