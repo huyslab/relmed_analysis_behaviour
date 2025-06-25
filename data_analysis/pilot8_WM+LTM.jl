@@ -458,6 +458,8 @@ test_df = let
 		WM_test,
 		LTM_test
 	)
+
+	filter!(x -> x.response != "noresp", test_df)
 end
 
 function quantile_bin_mean(var::AbstractVector; n_bins::Int)
@@ -521,8 +523,65 @@ let n_bins = 8, test_df = copy(test_df)
 	f
 end
 
+let n_bins = 4, test_df = copy(test_df)
+
+	# Absolute Δ value
+	test_df.abs_Δ_value = abs.(test_df.Δ_value)
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		[:abs_Δ_value, :task] => ((x,t) -> quantile_bin_mean(x; n_bins = only(unique(t)) == "1 stim" ? 4 : 8)) => :Δ_value_bin
+	)
+
+	# Accuracy variable
+	test_df.accuracy = ifelse.(
+		test_df.Δ_value .== 0,
+		true,
+		ifelse.(
+			test_df.Δ_value .> 0,
+			test_df.right_chosen,
+			.!test_df.right_chosen
+		)
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_value_bin, :accuracy, :task]),
+		:rt => mean => :rt
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_value_bin, :accuracy, :task]),
+		:rt => mean => :rt,
+		:rt => sem => :se
+	)
+
+	# Look only at accurate choices
+	filter!(x -> x.accuracy, test_val_sum)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_value_bin,
+			:rt,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:Δ_value_bin,
+			:rt,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure()
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
+
 # Plot test data by # of appearances
-let n_bins = 6,
+let n_bins = 5,
 	test_df = copy(test_df)
 
 	# Compute apperance difference
