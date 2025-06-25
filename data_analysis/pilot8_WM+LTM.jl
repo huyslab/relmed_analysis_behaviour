@@ -359,3 +359,213 @@ let df = copy(data_clean)
 
 	f
 end
+
+function summarize_value_merge_to_test(
+	df::AbstractDataFrame,
+	test_df::AbstractDataFrame;
+)
+
+	# Summarize value by participant and stimulus
+	value_sum = combine(
+		groupby(df, [:prolific_pid, :chosen_stimulus]),
+		:chosen_feedback => mean => :value,
+	)
+
+	# Merge with test data
+	for side in ["left", "right"]
+		
+		leftjoin!(
+			test_df,
+			rename(
+				value_sum, 
+				:chosen_stimulus => Symbol("stimulus_$side"),
+				:value => Symbol("value_$side")
+			),
+			on = [:prolific_pid, Symbol("stimulus_$side")]
+		)
+	end
+
+	# Compute Δ value
+	test_df.Δ_value = test_df.value_right .- test_df.value_left
+
+
+	# Summarize apperance by participants and stimulus group
+	apperance_sum = combine(
+		groupby(df, [:prolific_pid, :stimulus_group_id]),
+		:chosen_feedback => length => :n_trials,
+	)
+
+	stimulus_group = unique(vcat(
+		[
+			unique(select(
+				df, 
+				:stimulus_group_id,
+				Symbol("stimulus_$side") => :stimulus
+			))
+			for side in ["left", "middle", "right"]
+		]...
+	))
+
+	# Merge with apperance sum
+	apperance_sum = innerjoin(
+		apperance_sum,
+		stimulus_group,
+		on = :stimulus_group_id
+	)
+
+	# Merge with test data
+	for side in ["left", "right"]
+		leftjoin!(
+			test_df,
+			select(
+				apperance_sum, 
+				:prolific_pid,
+				:stimulus => Symbol("stimulus_$side"),
+				:n_trials => Symbol("n_trials_$side")
+			),
+			on = [:prolific_pid, Symbol("stimulus_$side")]
+		)
+	end
+	
+	
+	# Compute right chosen
+	test_df.right_chosen = test_df.response .== "right"
+
+	dropmissing!(test_df, [:value_left, :value_right, :Δ_value, :right_chosen])
+
+	return test_df
+end
+
+WM_test = summarize_value_merge_to_test(
+	filter(x -> x.task == "1 stim", data_clean),
+	copy(WM_test_data)
+)
+
+# Prepare test data
+test_df = let 
+	# Summarize value and merge with test data
+	WM_test = summarize_value_merge_to_test(
+		filter(x -> x.task == "1 stim", data_clean),
+		copy(WM_test_data)
+	)
+
+	LTM_test = summarize_value_merge_to_test(
+		filter(x -> x.task == "3 stims", data_clean),
+		copy(LTM_test_data)
+	)
+
+	WM_test.task .= "1 stim"
+	LTM_test.task .= "3 stims"
+
+	# Combine test data
+	test_df = vcat(
+		WM_test,
+		LTM_test
+	)
+end
+
+function quantile_bin_mean(var::AbstractVector; n_bins::Int)
+
+	found_bins = false
+	tn_bins = n_bins
+	edges = Float64[]
+	while !found_bins
+		edges = unique(quantile(var, range(0, 1; length=tn_bins+1)))
+
+		if length(edges) >= (n_bins + 1)
+			found_bins = true
+		else
+			tn_bins += 1
+		end
+	end
+	bin = cut(var, edges; extend=true)
+	bin_mean = [mean(var[bin .== b]) for b in bin]
+	return bin_mean
+end
+
+
+# Plot test data by Δ value
+let n_bins = 8, test_df = copy(test_df)
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		:Δ_value => (x -> quantile_bin_mean(x; n_bins = n_bins)) => :Δ_value_bin
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_value_bin, :task]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_value_bin, :task]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_value_bin,
+			:right_chosen,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:Δ_value_bin,
+			:right_chosen,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure()
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
+
+# Plot test data by # of appearances
+let n_bins = 5,
+	test_df = copy(test_df)
+
+	# Compute apperance difference
+	test_df.Δ_appearance = test_df.n_trials_right .- test_df.n_trials_left
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		:Δ_appearance => (x -> quantile_bin_mean(x; n_bins = n_bins)) => :Δ_appearance
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_appearance, :task]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_appearance, :task]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_appearance,
+			:right_chosen,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:Δ_appearance,
+			:right_chosen,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure()
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
