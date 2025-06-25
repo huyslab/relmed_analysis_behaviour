@@ -575,7 +575,7 @@ let n_bins = 4, test_df = copy(test_df)
 	) * visual(Scatter)))
 
 	f = Figure()
-	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "|Δ stimulus value|", ylabel = "RT (mean±SE)"))
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 	f
 end
