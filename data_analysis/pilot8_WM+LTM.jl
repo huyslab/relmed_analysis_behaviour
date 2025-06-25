@@ -436,10 +436,6 @@ function summarize_value_merge_to_test(
 	return test_df
 end
 
-WM_test = summarize_value_merge_to_test(
-	filter(x -> x.task == "1 stim", data_clean),
-	copy(WM_test_data)
-)
 
 # Prepare test data
 test_df = let 
@@ -526,7 +522,7 @@ let n_bins = 8, test_df = copy(test_df)
 end
 
 # Plot test data by # of appearances
-let n_bins = 5,
+let n_bins = 6,
 	test_df = copy(test_df)
 
 	# Compute apperance difference
@@ -565,7 +561,7 @@ let n_bins = 5,
 	) * visual(Scatter)))
 
 	f = Figure()
-	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ learning stage appearances\nright - left", ylabel = "Prop. right chosen ±SE"))
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 	f
 end
