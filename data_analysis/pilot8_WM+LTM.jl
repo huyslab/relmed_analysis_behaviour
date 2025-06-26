@@ -369,6 +369,7 @@ function summarize_value_merge_to_test(
 	value_sum = combine(
 		groupby(df, [:prolific_pid, :chosen_stimulus]),
 		:chosen_feedback => mean => :value,
+		:chosen_feedback => StatsBase.mode => :common_outcome
 	)
 
 	# Merge with test data
@@ -379,7 +380,8 @@ function summarize_value_merge_to_test(
 			rename(
 				value_sum, 
 				:chosen_stimulus => Symbol("stimulus_$side"),
-				:value => Symbol("value_$side")
+				:value => Symbol("value_$side"),
+				:common_outcome => Symbol("common_outcome_$side")
 			),
 			on = [:prolific_pid, Symbol("stimulus_$side")]
 		)
@@ -621,6 +623,89 @@ let n_bins = 5,
 
 	f = Figure()
 	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ learning stage appearances\nright - left", ylabel = "Prop. right chosen ±SE"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
+
+# Plot test data by Δ value
+let test_df = copy(test_df)
+
+	test_df.outcome_pair = string.(sort.([[r.common_outcome_left, r.common_outcome_right] for r in eachrow(test_df)]))
+
+	# Higher chosen variable
+	test_df.higher_chosen = ifelse.(
+		test_df.common_outcome_right .≈ test_df.common_outcome_left,
+		0.5,
+		ifelse.(
+			test_df.common_outcome_right .> test_df.common_outcome_left,
+			test_df.right_chosen,
+			.!test_df.right_chosen
+		)
+	)
+	
+	# Summarize by outcome
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :outcome_pair, :task]),
+		:higher_chosen => mean => :higher_chosen
+	)
+
+
+	test_val_sum = combine(
+		groupby(test_val, [:outcome_pair, :task]),
+		:higher_chosen => mean => :higher_chosen,
+		:higher_chosen => sem => :se
+	)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:outcome_pair,
+			:higher_chosen,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:outcome_pair,
+			:higher_chosen,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure()
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Common outcome for each choice", ylabel = "Prop. higher chosen ±SE"))
+	
+	
+	# Plot RT
+	# Summarize by outcome
+	rt_out = combine(
+		groupby(test_df, [:prolific_pid, :outcome_pair, :higher_chosen, :task]),
+		:rt => mean => :rt
+	)
+
+
+	rt_out_sum = combine(
+		groupby(rt_out, [:outcome_pair, :higher_chosen, :task]),
+		:rt => mean => :rt,
+		:rt => sem => :se
+	)
+
+	filter!(x -> x.higher_chosen > 0, rt_out_sum)
+
+	mp = (data(rt_out_sum) * (
+		mapping(
+			:outcome_pair,
+			:rt,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:outcome_pair,
+			:rt,
+			color = :task => "Task"
+	) * visual(Scatter)))
+	
+	plt = draw!(f[2,1], mp; axis=(; xlabel = "Common outcome for each choice", ylabel = "RT (mean±SE)"))
+
+	
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 	f
 end
