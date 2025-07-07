@@ -9,6 +9,30 @@ begin
 	nothing
 end
 
+begin
+	# Set theme
+	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
+	
+	th = Theme(
+		font = "Helvetica",
+		fontsize = 16,
+		Axis = (
+			xgridvisible = false,
+			ygridvisible = false,
+			rightspinevisible = false,
+			topspinevisible = false,
+			xticklabelsize = 14,
+			yticklabelsize = 14,
+			spinewidth = 1.5,
+			xtickwidth = 1.5,
+			ytickwidth = 1.5
+		)
+	)
+	
+	set_theme!(th)
+end
+
+
 # Function to compute delays since last appearance of each stimulus
 # This function returns a vector of delays for each element in the input vector.
 # If the element has not appeared before, the delay is 0.
@@ -78,3 +102,38 @@ let
     axislegend(ax)
     f
 end
+
+function compute_moving_unique_count(stimulus_groups::AbstractVector, window_size::Int=8)
+    n = length(stimulus_groups)
+    moving_counts = zeros(Int, n)
+    
+    for i in 1:n
+        # Determine the start of the window (at least 1, at most window_size trials back)
+        start_idx = max(1, i - window_size + 1)
+        
+        # Count unique stimulus groups in the window ending at current trial
+        window_groups = stimulus_groups[start_idx:i]
+        moving_counts[i] = length(unique(window_groups))
+    end
+    
+    return moving_counts
+end
+
+transform!(
+	groupby(stimulus_sequence, :sequence),
+	:stimulus_group => compute_moving_unique_count => :moving_unique_count
+)
+
+let
+
+	data(stimulus_sequence) * mapping(
+		:trial,
+		:moving_unique_count,
+		color = :sequence
+	) * visual(Lines) |> draw()
+end
+
+combine(
+	groupby(stimulus_sequence, :sequence),
+	:stimulus_group => (x -> length(unique(x))) => :n_groups
+)
