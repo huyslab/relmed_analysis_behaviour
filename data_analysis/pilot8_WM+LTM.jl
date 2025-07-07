@@ -19,21 +19,32 @@ begin
 	
 	th = Theme(
 		font = "Helvetica",
-		fontsize = 16,
+		fontsize = 44,
 		Axis = (
 			xgridvisible = false,
 			ygridvisible = false,
 			rightspinevisible = false,
 			topspinevisible = false,
-			xticklabelsize = 14,
-			yticklabelsize = 14,
-			spinewidth = 1.5,
-			xtickwidth = 1.5,
-			ytickwidth = 1.5
-		)
+			xticklabelsize = 40,
+			yticklabelsize = 40,
+			spinewidth = 4,
+			xtickwidth = 4,
+			ytickwidth = 4
+		),
+		figure_padding = 25
 	)
 	
 	set_theme!(th)
+	
+	ppi = 96
+	pt = 96/72
+	cm = ppi / 2.54
+
+	lw = 3pt
+	ms = 20pt
+
+	keynote_figure_size =  (30.32cm, 31.08cm)
+	keynote_wide_figure_size = (38.68cm, 31.08cm)
 end
 
 # Helper functions
@@ -119,7 +130,7 @@ end
 let df = data_clean
 
 	# Create figure
-	f = Figure()
+	f = Figure(size = keynote_figure_size)
 
 	
 	# Summarize by appearance
@@ -154,13 +165,21 @@ let df = data_clean
 			:appearance => "Apperance #",
 			:acc,
 			color = :task => "Task"
-	) * visual(Lines)))
+	) * visual(Lines; linewidth = lw)))
 	
 	# Plot
-	plt1 = draw!(f[1,1], mp1; axis=(; ylabel = "Prop. optimal choice ±SE"))
+	plt1 = draw!(f[1,1], mp1; 
+		axis=(; 
+			ylabel = "Prop. optimal choice ±SE",
+			xautolimitmargin = (0, 0),
+			yautolimitmargin = (0, 0)
+		)
+	)
 
 	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
+	# Save figure
+	save("results/WM_LTM_learning_curve.png", f; pt_per_unit = 1)
 
 	f
 end
@@ -204,7 +223,7 @@ let df = data_clean
 			:acc => "Prop. optimal choice",
 			color = :delay_bin  => "Delay",
 			col = :task
-	) * visual(Lines))) + (
+	) * visual(Lines; linewidth = lw))) + (
 		data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
 		(mapping(
 			:appearance  => "Apperance #",
@@ -212,20 +231,27 @@ let df = data_clean
 			:se,
 			color = :delay_bin => "Delay",
 			col = :task
-		) * visual(Errorbars) +
+		) * visual(Errorbars, linewidth = lw) +
 		mapping(
 			:appearance  => "Apperance #",
 			:acc,
 			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Scatter))
+		) * visual(Scatter, markersize = ms))
 	)
 
-	f = Figure()
+	f = Figure(size = keynote_wide_figure_size)
 
-	plt = draw!(f[1,1], mp2; axis=(; ylabel = "Prop. optimal choice ±SE"))
+	plt = draw!(f[1,1], mp2; 
+		axis=(; 
+			ylabel = "Prop. optimal choice ±SE"
+		)
+	)
 
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	# Save figure
+	save("results/WM_LTM_learning_curve_delay_bins.png", f; pt_per_unit = 1)
 
 	f
 end
@@ -234,7 +260,7 @@ end
 let df = copy(data_clean)
 
 	# Create figure
-	f = Figure()
+	f = Figure(size = keynote_figure_size)
 
 	# Nice labels for response_optimal
 	df.response = ifelse.(
@@ -280,13 +306,20 @@ let df = copy(data_clean)
 			:rt,
 			color = :task => "Task",
 			col = :response
-	) * visual(Lines)))
+	) * visual(Lines, linewidth = lw)))
 	
 	# Plot
-	plt1 = draw!(f[1,1], mp1; axis=(; ylabel = "RT (mean±SE)"))
+	plt1 = draw!(f[1,1], mp1; axis=(; 
+			ylabel = "RT (mean±SE)",
+			xautolimitmargin = (0, 0),
+			yautolimitmargin = (0, 0)
+		)
+	)
 
 	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
+	# Save figure
+	save("results/WM_LTM_RT_appearance.png", f; pt_per_unit = 1)
 
 	f
 end
@@ -334,7 +367,7 @@ let df = copy(data_clean)
 			:rt,
 			color = :delay_bin  => "Delay",
 			col = :task
-	) * visual(Lines))) + (
+	) * visual(Lines; linewidth = lw))) + (
 		data(filter(x -> x.delay_bin == "0", rt_app_delay_sum)) *
 		(mapping(
 			:appearance  => "Apperance #",
@@ -342,21 +375,24 @@ let df = copy(data_clean)
 			:se,
 			color = :delay_bin => "Delay",
 			col = :task
-		) * visual(Errorbars) +
+		) * visual(Errorbars; linewidth = lw) +
 		mapping(
 			:appearance  => "Apperance #",
 			:rt,
 			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Scatter))
+		) * visual(Scatter; markersize = ms))
 	)
 
-	f = Figure()
+	f = Figure(size = keynote_wide_figure_size)
 
-	plt = draw!(f[1,1], mp2; axis=(; ylabel = "RT (mean±SE)"))
+	plt = draw!(f[1,1], mp2; axis=(; ylabel = "Correct choice RT (mean±SE)"))
 
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
+
+	# Save figure
+	save("results/WM_LTM_RT_appearance_delay_bins.png", f; pt_per_unit = 1)
 	f
 end
 
@@ -512,16 +548,21 @@ let n_bins = 8, test_df = copy(test_df)
 			:right_chosen,
 			:se,
 			color = :task => "Task"
-	) * visual(Errorbars) +
+	) * visual(Errorbars; linewidth = lw) +
 		mapping(
 			:Δ_value_bin,
 			:right_chosen,
 			color = :task => "Task"
-	) * visual(Scatter)))
+	) * visual(Scatter; markersize = ms)))
 
-	f = Figure()
+	f = Figure(size = keynote_figure_size)
 	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	
+	# Save figure
+	save("results/WM_LTM_test_value_bins.png", f; pt_per_unit = 1)
+
 	f
 end
 
@@ -576,7 +617,7 @@ let n_bins = 4, test_df = copy(test_df)
 			color = :task => "Task"
 	) * visual(Scatter)))
 
-	f = Figure()
+	f = Figure(size = keynote_figure_size)
 	plt = draw!(f[1,1], mp; axis=(; xlabel = "|Δ stimulus value|", ylabel = "RT (mean±SE)"))
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 	f
@@ -621,7 +662,7 @@ let n_bins = 5,
 			color = :task => "Task"
 	) * visual(Scatter)))
 
-	f = Figure()
+	f = Figure(size = keynote_figure_size)
 	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ learning stage appearances\nright - left", ylabel = "Prop. right chosen ±SE"))
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 	f
