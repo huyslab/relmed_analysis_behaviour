@@ -609,114 +609,6 @@ begin
 	scr_PILT_first_confusing_trial = 4
 end
 
-# ╔═╡ 263807b6-8212-41a5-936a-40c962c02150
-scr_PILT_seq = let rng = Xoshiro(0)
-
-	denom_prop = denominator(scr_PILT_prop_common)
-
-	@assert rem(scr_PILT_n_trials, denom_prop) == 0 "Proportion cannot be represented in scr_PILT_n_trials"
-
-	# Shuffled order of feedback common
-	feedback_common = vcat(
-		[prop_fill_shuffle(
-			[true, false], 
-			float.([scr_PILT_prop_common, 1-scr_PILT_prop_common]), denom_prop; 
-			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop - 1)]...
-	)
-
-	# Add first sequence with first confusing trial
-	feedback_common = vcat(
-		vcat(
-			fill(true, scr_PILT_first_confusing_trial - 1),
-			[false],
-			fill(true, denom_prop - scr_PILT_first_confusing_trial)
-		),
-		feedback_common
-	)
-
-	@assert length(feedback_common) == scr_PILT_n_trials "Problem with allocation of sequence"
-
-	feedback_common
-
-end
-
-# ╔═╡ 8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
-scr_PILT = let rng = Xoshiro(3)
-
-	# Initiate DataFrame with sequence and constant variables
-	scr_PILT = DataFrame(
-		session = "screening",
-		block = 1,
-		valence = 0,
-		trial = 1:length(scr_PILT_seq),
-		feedback_common = scr_PILT_seq,
-		present_pavlovian = false,
-		n_stimuli = 2,
-		early_stop = true,
-		n_groups = 1,
-		stimulus_group = 1,
-		stimulus_group_id = 1,
-		stimulus_middle = "",
-		feedback_middle = "",
-		optimal_side = "",
-	)
-
-	# Create feedback_optimal variable
-	denom_prop = denominator(scr_PILT_prop_common)
-
-	scr_PILT.feedback_optimal = ifelse.(
-		scr_PILT.feedback_common,
-		1.,
-		0.01
-	)
-
-	scr_PILT.feedback_suboptimal = ifelse.(
-		scr_PILT.feedback_common,
-		0.01,
-		0.5
-	)
-
-	# Assign right / left
-	scr_PILT.optimal_right = vcat(
-		[prop_fill_shuffle(
-			[true, false], 
-			[0.5, 0.5], 
-			denom_prop; 
-			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
-	)
-
-	# Assign feedback_right and feedback_left
-	scr_PILT.feedback_right = ifelse.(
-		scr_PILT.optimal_right,
-		scr_PILT.feedback_optimal,
-		scr_PILT.feedback_suboptimal
-	)
-
-	scr_PILT.feedback_left = ifelse.(
-		.!scr_PILT.optimal_right,
-		scr_PILT.feedback_optimal,
-		scr_PILT.feedback_suboptimal
-	)
-
-	# Assign stimuli
-	stimuli = [popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:2]
-
-	scr_PILT.stimulus_right = ifelse.(
-		scr_PILT.optimal_right,
-		stimuli[1],
-		stimuli[2]
-	)
-
-	scr_PILT.stimulus_left = ifelse.(
-		.!scr_PILT.optimal_right,
-		stimuli[1],
-		stimuli[2]
-	)
-
-	scr_PILT
-
-end
-
 # ╔═╡ b13e8f5f-7522-497e-92d1-51d782fca33b
 md"""## Post-PILT test"""
 
@@ -1083,7 +975,7 @@ end
 # ╔═╡ 9f300301-b018-4bea-8fc4-4bc889b11afd
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
-		"generate_experimental_sequences/wm_stimulus_sequence_short_9stim.csv"))
+		"generate_experimental_sequences/pilot8_wm_stimulus_sequence.csv"))
 
 	select!(
 		triplet_order, 
@@ -1092,265 +984,11 @@ triplet_order = let
 	)
 end
 
-# ╔═╡ b9134153-d9e9-4e35-bfc4-2c5c5a4329ee
-RLX_block = let rng = Xoshiro(0)
-
-	n_trials = nrow(triplet_order)
-
-	# Basic variables
-	det_block = DataFrame(
-		block = fill(1, n_trials),
-		trial = 1:n_trials,
-		stimulus_group = triplet_order.stimulus_group,
-		delay = triplet_order.delay
-	)
-
-	# Draw optimal feedback
-	DataFrames.transform!(
-		groupby(det_block, :stimulus_group),
-		:trial => (x -> prop_fill_shuffle(
-			[1., 0.5],
-			[1 - RLX_prop_fifty, RLX_prop_fifty],
-			length(x),
-			rng = rng
-			)
-		) => :feedback_optimal
-	) 
-
-	@info "Proportion fifty pence: $(mean(det_block.feedback_optimal .== 0.5))"
-
-	# Copy over multiple sessions, skipping screening ------------
-	det_block = vcat(
-		[insertcols(
-			det_block,
-			1,
-			:session => s
-		) for s in sessions[2:end]]...
-	)
-
-
-	det_block
-
-end
-
 # ╔═╡ 184a054c-5a88-44f8-865e-da75a10191ec
 md"""## RLWM"""
 
-# ╔═╡ 6417ad94-1852-4cce-867e-a856295ec782
-# Create deterministic block
-RLWM = let RLWM = copy(RLX_block),
-	rng = Xoshiro(0)
-
-
-	# Assign stimuli --------
-
-	stimuli = unique(select(RLWM, :session, :stimulus_group))
-
-	stimuli.stimulus_left = [
-		popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:nrow(stimuli)
-	]
-		
-	leftjoin!(
-		RLWM,
-		stimuli,
-		on = [:session, :stimulus_group]
-	)
-
-	# Replicate - for RLWM there is only one stimulus, but this is requirement of js script
-	RLWM.stimulus_middle = RLWM.stimulus_left
-	RLWM.stimulus_right = RLWM.stimulus_left
-	
-	# Assign stimuli locations -----------------------------
-	# Count appearances per stimulus_group
-	stimulus_ordering = combine(
-		groupby(RLWM, [:session, :stimulus_group]),
-		:stimulus_group => length => :n
-	)
-
-	# Sort by descending n to distribute largest trials first
-	shuffle!(rng, stimulus_ordering)
-	sort!(stimulus_ordering, [:session, :n], rev=true)
-
-	for gdf in groupby(stimulus_ordering, :session)
-
-		# Track total counts per action
-		action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
-	
-		# Placeholder for optimal action
-		gdf.optimal_action .= 99
-		
-		# Assign actions to balance total n
-		for row in eachrow(gdf)
-		    # Pick the action with the smallest current total
-		    best_action = argmin(action_sums)
-		    row.optimal_action = best_action
-		    action_sums[best_action] += row.n
-		end
-
-	end
-
-	# Join with data frame
-	leftjoin!(
-		RLWM,
-		select(stimulus_ordering, [:session, :stimulus_group, :optimal_action]),
-		on = [:session, :stimulus_group]
-	)
-
-	@info "Proportion optimal in each location: $([round(mean((x -> x == i).(RLWM.optimal_action)), digits = 3) for i in 1:3])"
-
-	# Additional variables --------
-
-	# Assign feedback to action
-	for (i, side) in enumerate(["left", "middle", "right"])
-		RLWM[!, Symbol("feedback_$side")] = ifelse.(
-			(x -> x == i).(RLWM.optimal_action),
-			RLWM.feedback_optimal,
-			fill(0.01, nrow(RLWM))
-		)
-	end
-
-	# For compatibility with probabilistic block
-	RLWM.feedback_common .= true
-
-	# Valence variable
-	RLWM.valence .= 1
-
-	# Apperance variable
-	DataFrames.transform!(
-		groupby(RLWM, [:session, :block, :stimulus_group]),
-		:trial => (x -> 1:length(x)) => :appearance
-	)
-
-	# Cumulative triplet index
-	RLWM.stimulus_group_id = RLWM.stimulus_group .+ (maximum(RLWM.stimulus_group) .* (RLWM.block .- 1))
-
-	# Create optimal_side variable
-	RLWM.optimal_side = (x -> ["left", "middle", "right"][x]).(RLWM.optimal_action)
-		
-
-	# Add variables needed for experiment code
-	insertcols!(
-		RLWM,
-		:n_stimuli => 1,
-		:optimal_right => "",
-		:present_pavlovian => false,
-		:n_groups => maximum(RLWM.stimulus_group),
-		:early_stop => false
-	)
-
-	RLWM
-
-end
-
-# ╔═╡ e6f984aa-20dc-4a7d-8a3b-75728995a1f7
-# Checks
-let task = RLWM
-	@assert all(combine(groupby(task, [:session]), 
-		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
-
-	@assert all(combine(groupby(task, [:session, :block]), 
-		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
-	
-	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
-
-	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
-
-	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
-
-end
-
 # ╔═╡ 60c50147-708a-46f8-a813-7667116fc8d2
 md"""### Post-WM test"""
-
-# ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
-RLWM_test = let
-
-	RLWM_test = DataFrame()
-
-	for gdf in groupby(RLWM, :session)
-
-		# Reset random seed so that randomization is the same across sessions
-		rng = Xoshiro(0)
-
-		# Get unique stimuli
-		RLWM_stimuli = combine(groupby(gdf, :stimulus_left), :trial => length)
-
-		filter!(x -> x.trial_length > 2, RLWM_stimuli)
-
-		RLWM_stimuli = RLWM_stimuli.stimulus_left
-	
-		# Get all combinations
-		RLWM_pairs = collect(combinations(RLWM_stimuli, 2))
-	
-		# Shuffle order within pair
-		shuffle!.(rng, RLWM_pairs)
-	
-		# Repeat flipped
-		RWLM_blocks = [iseven(i) ? reverse.(RLWM_pairs) : RLWM_pairs for i in 1:RLX_test_n_blocks]
-	
-		# Assemble into DataFrame
-		RLWM_test_session = vcat([DataFrame(
-			block = fill(i, length(stims)),
-			stimulus_left = [x[1] for x in stims],
-			stimulus_right = [x[2] for x in stims]
-		) for (i, stims) in enumerate(RWLM_blocks)]...)
-	
-		# Shuffle trial order within block
-		DataFrames.transform!(
-			groupby(RLWM_test_session, :block),
-			:block => (x -> shuffle(rng, 1:length(x))) => :trial
-		)
-	
-		sort!(RLWM_test_session, [:block, :trial])
-
-		# Add session variable
-		insertcols!(
-			RLWM_test_session,
-			1,
-			:session => gdf.session[1],
-		)
-	
-		# Add variables needed for JS ------------------
-		insertcols!(
-			RLWM_test_session,
-			:feedback_left => 1.,
-			:feedback_right => 1.,
-			:EV_left => 1.,
-			:EV_right => 1.,
-			:same_valence => true,
-			:same_block => true,
-			:original_block_left => 1,
-			:original_block_right => 1,
-			:optimal_right => :true
-		)
-
-		RLWM_test = vcat(RLWM_test, RLWM_test_session)
-
-	end
-
-	RLWM_test
-	
-end
-
-# ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
-# Tests for RLWM_test
-let
-
-	# Make sure all stimuli are in RLWM
-	test_stimuli = unique(
-		vcat(
-			RLWM_test.stimulus_left,
-			RLWM_test.stimulus_right
-		)
-	)
-
-	RLWM_stimuli =  unique(RLWM.stimulus_left)
-
-	@assert all((x -> x in RLWM_stimuli).(test_stimuli)) "Test stimuli not in RLWM sequence"
-
-	@info combine(groupby(RLWM_test, :session), :trial => length => :n)
-
-end
 
 # ╔═╡ d11a7fc9-6e2c-48a1-bce8-6b5f39df3eda
 md"""## Reversal task"""
@@ -1418,36 +1056,11 @@ function save_to_JSON(
 
 end
 
-# ╔═╡ cc7b17ab-0d77-4be4-bb53-53325ca85145
-let
-	# Bind screening to rest of sessions
-	all_PILT = vcat(scr_PILT, PILT, cols = :union)
-	
-	# Save to file
-	save_to_JSON(all_PILT, s -> "results/trial1_$(s)_sequences.js", "PILT_json")
-	CSV.write("results/trial1_PILT.csv", all_PILT)
-
-end
-
 # ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
 let
 	# Save to file
 	save_to_JSON(PILT_test, s -> "results/trial1_$(s)_sequences.js", "PILT_test_json")
 	CSV.write("results/trial1_PILT_test.csv", PILT_test)
-end
-
-# ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
-let
-	# Save to file
-	save_to_JSON(RLWM, s -> "results/trial1_$(s)_sequences.js", "WM_json")
-	CSV.write("results/trial1_WM.csv", RLWM)
-end
-
-# ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
-let
-	# Save to file
-	save_to_JSON(RLWM_test, s -> "results/trial1_$(s)_sequences.js", "WM_test_json")
-	CSV.write("results/trial1_WM_test.csv", RLWM_test)
 end
 
 # ╔═╡ 4899facf-6759-49c3-9905-8a418c9ebe7c
@@ -1608,6 +1221,15 @@ let
 
 end
 
+# ╔═╡ f89e88c9-ebfc-404f-964d-acff5c7f8985
+function integer_allocation(p::Vector{Float64}, n::Int)
+    i = floor.(Int, p * n)  # Floor to ensure sum does not exceed n
+    diff = n - sum(i)       # Remaining to distribute
+    indices = sortperm(p * n .- i, rev=true)  # Sort by largest remainder
+    i[indices[1:diff]] .+= 1  # Distribute the remainder
+    return i
+end
+
 # ╔═╡ 68873d3e-054d-4ab4-9d89-73586bb0370e
 """
     prop_fill_shuffle(values, props, n; rng=Xoshiro(1))
@@ -1640,13 +1262,391 @@ function prop_fill_shuffle(
 	shuffle(rng, vcat(res...))
 end
 
-# ╔═╡ f89e88c9-ebfc-404f-964d-acff5c7f8985
-function integer_allocation(p::Vector{Float64}, n::Int)
-    i = floor.(Int, p * n)  # Floor to ensure sum does not exceed n
-    diff = n - sum(i)       # Remaining to distribute
-    indices = sortperm(p * n .- i, rev=true)  # Sort by largest remainder
-    i[indices[1:diff]] .+= 1  # Distribute the remainder
-    return i
+# ╔═╡ 263807b6-8212-41a5-936a-40c962c02150
+scr_PILT_seq = let rng = Xoshiro(0)
+
+	denom_prop = denominator(scr_PILT_prop_common)
+
+	@assert rem(scr_PILT_n_trials, denom_prop) == 0 "Proportion cannot be represented in scr_PILT_n_trials"
+
+	# Shuffled order of feedback common
+	feedback_common = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			float.([scr_PILT_prop_common, 1-scr_PILT_prop_common]), denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop - 1)]...
+	)
+
+	# Add first sequence with first confusing trial
+	feedback_common = vcat(
+		vcat(
+			fill(true, scr_PILT_first_confusing_trial - 1),
+			[false],
+			fill(true, denom_prop - scr_PILT_first_confusing_trial)
+		),
+		feedback_common
+	)
+
+	@assert length(feedback_common) == scr_PILT_n_trials "Problem with allocation of sequence"
+
+	feedback_common
+
+end
+
+# ╔═╡ 8e7ac8e9-3de3-469a-b8b3-2ec88bb0b356
+scr_PILT = let rng = Xoshiro(3)
+
+	# Initiate DataFrame with sequence and constant variables
+	scr_PILT = DataFrame(
+		session = "screening",
+		block = 1,
+		valence = 0,
+		trial = 1:length(scr_PILT_seq),
+		feedback_common = scr_PILT_seq,
+		present_pavlovian = false,
+		n_stimuli = 2,
+		early_stop = true,
+		n_groups = 1,
+		stimulus_group = 1,
+		stimulus_group_id = 1,
+		stimulus_middle = "",
+		feedback_middle = "",
+		optimal_side = "",
+	)
+
+	# Create feedback_optimal variable
+	denom_prop = denominator(scr_PILT_prop_common)
+
+	scr_PILT.feedback_optimal = ifelse.(
+		scr_PILT.feedback_common,
+		1.,
+		0.01
+	)
+
+	scr_PILT.feedback_suboptimal = ifelse.(
+		scr_PILT.feedback_common,
+		0.01,
+		0.5
+	)
+
+	# Assign right / left
+	scr_PILT.optimal_right = vcat(
+		[prop_fill_shuffle(
+			[true, false], 
+			[0.5, 0.5], 
+			denom_prop; 
+			rng = rng) for _ in 1:(scr_PILT_n_trials ÷ denom_prop)]...
+	)
+
+	# Assign feedback_right and feedback_left
+	scr_PILT.feedback_right = ifelse.(
+		scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		scr_PILT.feedback_suboptimal
+	)
+
+	scr_PILT.feedback_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		scr_PILT.feedback_optimal,
+		scr_PILT.feedback_suboptimal
+	)
+
+	# Assign stimuli
+	stimuli = [popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:2]
+
+	scr_PILT.stimulus_right = ifelse.(
+		scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT.stimulus_left = ifelse.(
+		.!scr_PILT.optimal_right,
+		stimuli[1],
+		stimuli[2]
+	)
+
+	scr_PILT
+
+end
+
+# ╔═╡ cc7b17ab-0d77-4be4-bb53-53325ca85145
+let
+	# Bind screening to rest of sessions
+	all_PILT = vcat(scr_PILT, PILT, cols = :union)
+	
+	# Save to file
+	save_to_JSON(all_PILT, s -> "results/trial1_$(s)_sequences.js", "PILT_json")
+	CSV.write("results/trial1_PILT.csv", all_PILT)
+
+end
+
+# ╔═╡ b9134153-d9e9-4e35-bfc4-2c5c5a4329ee
+RLX_block = let rng = Xoshiro(0)
+
+	n_trials = nrow(triplet_order)
+
+	# Basic variables
+	det_block = DataFrame(
+		block = fill(1, n_trials),
+		trial = 1:n_trials,
+		stimulus_group = triplet_order.stimulus_group,
+		delay = triplet_order.delay
+	)
+
+	# Draw optimal feedback
+	DataFrames.transform!(
+		groupby(det_block, :stimulus_group),
+		:trial => (x -> prop_fill_shuffle(
+			[1., 0.5],
+			[1 - RLX_prop_fifty, RLX_prop_fifty],
+			length(x),
+			rng = rng
+			)
+		) => :feedback_optimal
+	) 
+
+	@info "Proportion fifty pence: $(mean(det_block.feedback_optimal .== 0.5))"
+
+	# Copy over multiple sessions, skipping screening ------------
+	det_block = vcat(
+		[insertcols(
+			det_block,
+			1,
+			:session => s
+		) for s in sessions[2:end]]...
+	)
+
+
+	det_block
+
+end
+
+# ╔═╡ 6417ad94-1852-4cce-867e-a856295ec782
+# Create deterministic block
+RLWM = let RLWM = copy(RLX_block),
+	rng = Xoshiro(0)
+
+
+	# Assign stimuli --------
+
+	stimuli = unique(select(RLWM, :session, :stimulus_group))
+
+	stimuli.stimulus_left = [
+		popat!(categories, rand(rng, 1:length(categories))) * "_1.jpg" for _ in 1:nrow(stimuli)
+	]
+		
+	leftjoin!(
+		RLWM,
+		stimuli,
+		on = [:session, :stimulus_group]
+	)
+
+	# Replicate - for RLWM there is only one stimulus, but this is requirement of js script
+	RLWM.stimulus_middle = RLWM.stimulus_left
+	RLWM.stimulus_right = RLWM.stimulus_left
+	
+	# Assign stimuli locations -----------------------------
+	# Count appearances per stimulus_group
+	stimulus_ordering = combine(
+		groupby(RLWM, [:session, :stimulus_group]),
+		:stimulus_group => length => :n
+	)
+
+	# Sort by descending n to distribute largest trials first
+	shuffle!(rng, stimulus_ordering)
+	sort!(stimulus_ordering, [:session, :n], rev=true)
+
+	for gdf in groupby(stimulus_ordering, :session)
+
+		# Track total counts per action
+		action_sums = Dict(1 => 0, 2 => 0, 3 => 0)
+	
+		# Placeholder for optimal action
+		gdf.optimal_action .= 99
+		
+		# Assign actions to balance total n
+		for row in eachrow(gdf)
+		    # Pick the action with the smallest current total
+		    best_action = argmin(action_sums)
+		    row.optimal_action = best_action
+		    action_sums[best_action] += row.n
+		end
+
+	end
+
+	# Join with data frame
+	leftjoin!(
+		RLWM,
+		select(stimulus_ordering, [:session, :stimulus_group, :optimal_action]),
+		on = [:session, :stimulus_group]
+	)
+
+	@info "Proportion optimal in each location: $([round(mean((x -> x == i).(RLWM.optimal_action)), digits = 3) for i in 1:3])"
+
+	# Additional variables --------
+
+	# Assign feedback to action
+	for (i, side) in enumerate(["left", "middle", "right"])
+		RLWM[!, Symbol("feedback_$side")] = ifelse.(
+			(x -> x == i).(RLWM.optimal_action),
+			RLWM.feedback_optimal,
+			fill(0.01, nrow(RLWM))
+		)
+	end
+
+	# For compatibility with probabilistic block
+	RLWM.feedback_common .= true
+
+	# Valence variable
+	RLWM.valence .= 1
+
+	# Apperance variable
+	DataFrames.transform!(
+		groupby(RLWM, [:session, :block, :stimulus_group]),
+		:trial => (x -> 1:length(x)) => :appearance
+	)
+
+	# Cumulative triplet index
+	RLWM.stimulus_group_id = RLWM.stimulus_group .+ (maximum(RLWM.stimulus_group) .* (RLWM.block .- 1))
+
+	# Create optimal_side variable
+	RLWM.optimal_side = (x -> ["left", "middle", "right"][x]).(RLWM.optimal_action)
+		
+
+	# Add variables needed for experiment code
+	insertcols!(
+		RLWM,
+		:n_stimuli => 1,
+		:optimal_right => "",
+		:present_pavlovian => false,
+		:n_groups => maximum(RLWM.stimulus_group),
+		:early_stop => false
+	)
+
+	RLWM
+
+end
+
+# ╔═╡ e6f984aa-20dc-4a7d-8a3b-75728995a1f7
+# Checks
+let task = RLWM
+	@assert all(combine(groupby(task, [:session]), 
+		:block => issorted => :sorted).sorted) "Task structure not sorted by block"
+
+	@assert all(combine(groupby(task, [:session, :block]), 
+		:trial => issorted => :sorted).sorted) "Task structure not sorted by trial number"
+	
+	@assert all(sign.(task.valence) == sign.(task.feedback_right)) "Valence doesn't match feedback sign"
+
+	@assert all(sign.(task.valence) == sign.(task.feedback_left)) "Valence doesn't match feedback sign"
+
+	@info "Overall proportion of common feedback: $(round(mean(task.feedback_common), digits = 2))"
+
+end
+
+# ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
+let
+	# Save to file
+	save_to_JSON(RLWM, s -> "results/trial1_$(s)_sequences.js", "WM_json")
+	CSV.write("results/trial1_WM.csv", RLWM)
+end
+
+# ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
+RLWM_test = let
+
+	RLWM_test = DataFrame()
+
+	for gdf in groupby(RLWM, :session)
+
+		# Reset random seed so that randomization is the same across sessions
+		rng = Xoshiro(0)
+
+		# Get unique stimuli
+		RLWM_stimuli = combine(groupby(gdf, :stimulus_left), :trial => length)
+
+		filter!(x -> x.trial_length > 2, RLWM_stimuli)
+
+		RLWM_stimuli = RLWM_stimuli.stimulus_left
+	
+		# Get all combinations
+		RLWM_pairs = collect(combinations(RLWM_stimuli, 2))
+	
+		# Shuffle order within pair
+		shuffle!.(rng, RLWM_pairs)
+	
+		# Repeat flipped
+		RWLM_blocks = [iseven(i) ? reverse.(RLWM_pairs) : RLWM_pairs for i in 1:RLX_test_n_blocks]
+	
+		# Assemble into DataFrame
+		RLWM_test_session = vcat([DataFrame(
+			block = fill(i, length(stims)),
+			stimulus_left = [x[1] for x in stims],
+			stimulus_right = [x[2] for x in stims]
+		) for (i, stims) in enumerate(RWLM_blocks)]...)
+	
+		# Shuffle trial order within block
+		DataFrames.transform!(
+			groupby(RLWM_test_session, :block),
+			:block => (x -> shuffle(rng, 1:length(x))) => :trial
+		)
+	
+		sort!(RLWM_test_session, [:block, :trial])
+
+		# Add session variable
+		insertcols!(
+			RLWM_test_session,
+			1,
+			:session => gdf.session[1],
+		)
+	
+		# Add variables needed for JS ------------------
+		insertcols!(
+			RLWM_test_session,
+			:feedback_left => 1.,
+			:feedback_right => 1.,
+			:EV_left => 1.,
+			:EV_right => 1.,
+			:same_valence => true,
+			:same_block => true,
+			:original_block_left => 1,
+			:original_block_right => 1,
+			:optimal_right => :true
+		)
+
+		RLWM_test = vcat(RLWM_test, RLWM_test_session)
+
+	end
+
+	RLWM_test
+	
+end
+
+# ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
+let
+	# Save to file
+	save_to_JSON(RLWM_test, s -> "results/trial1_$(s)_sequences.js", "WM_test_json")
+	CSV.write("results/trial1_WM_test.csv", RLWM_test)
+end
+
+# ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
+# Tests for RLWM_test
+let
+
+	# Make sure all stimuli are in RLWM
+	test_stimuli = unique(
+		vcat(
+			RLWM_test.stimulus_left,
+			RLWM_test.stimulus_right
+		)
+	)
+
+	RLWM_stimuli =  unique(RLWM.stimulus_left)
+
+	@assert all((x -> x in RLWM_stimuli).(test_stimuli)) "Test stimuli not in RLWM sequence"
+
+	@info combine(groupby(RLWM_test, :session), :trial => length => :n)
+
 end
 
 # ╔═╡ 2c75cffc-1adc-44b6-bed3-12ed0c7025b7
