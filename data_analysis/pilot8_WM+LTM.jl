@@ -1,10 +1,3 @@
-### A Pluto.jl notebook ###
-# v0.20.1
-
-using Markdown
-using InteractiveUtils
-
-# ╔═╡ d39433ea-0edd-11f0-01e1-89c989a532f3
 begin
 	cd("/home/jovyan/")
     import Pkg
@@ -14,117 +7,118 @@ begin
 	using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates
 	using LogExpFunctions: logistic, logit
 	using Tidier
-	include("fetch_preprocess_data.jl")
-	include("sample_utils.jl")
-	include("plotting_utils.jl")
+	include("$(pwd())/fetch_preprocess_data.jl")
+	include("$(pwd())/sample_utils.jl")
+	include("$(pwd())/plotting_utils.jl")
 	nothing
 end
 
-# ╔═╡ 88470afd-7ced-45ca-8384-a558269e48a5
 begin
 	# Set theme
 	inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
 	
 	th = Theme(
 		font = "Helvetica",
-		fontsize = 16,
+		fontsize = 44,
 		Axis = (
 			xgridvisible = false,
 			ygridvisible = false,
 			rightspinevisible = false,
 			topspinevisible = false,
-			xticklabelsize = 14,
-			yticklabelsize = 14,
-			spinewidth = 1.5,
-			xtickwidth = 1.5,
-			ytickwidth = 1.5
-		)
+			xticklabelsize = 40,
+			yticklabelsize = 40,
+			spinewidth = 4,
+			xtickwidth = 4,
+			ytickwidth = 4
+		),
+		figure_padding = 25
 	)
 	
 	set_theme!(th)
+	
+	ppi = 96
+	pt = 96/72
+	cm = ppi / 2.54
+
+	lw = 3pt
+	ms = 20pt
+
+	keynote_figure_size =  (30.32cm, 31.08cm)
+	keynote_wide_figure_size = (38.68cm, 31.08cm)
 end
 
-# ╔═╡ c00b3551-9d5c-4aa2-93e3-b3e20b9a7aba
+# Helper functions
+begin
+	recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
+
+	function compute_delays(vec::AbstractVector)
+		last_seen = Dict{Any, Int}()
+		delays = zeros(Int, length(vec))
+
+		for (i, val) in enumerate(vec)
+			delays[i] = haskey(last_seen, val) ? (i - last_seen[val]) : 0
+			last_seen[val] = i
+		end
+
+		return delays
+	end
+
+	function clean_WM_LTM_data(
+		df::AbstractDataFrame
+	)
+		# Clean data
+		data_clean = exclude_PLT_sessions(df, required_n_blocks = 1)
+
+		# Sort
+		sort!(
+			data_clean,
+			[:prolific_pid, :session, :block, :trial]
+		)
+
+		# Apperance number
+		transform!(
+			groupby(data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
+			:trial => (x -> 1:length(x)) => :appearance
+		)
+
+		# Compute delays
+		DataFrames.transform!(
+			groupby(
+				data_clean,
+				:prolific_pid
+			),
+			:stimulus_group => compute_delays => :delay,
+		) 
+
+		data_clean = filter(x -> x.response != "noresp", data_clean)
+
+		# Previous correct
+		DataFrames.transform!(
+			groupby(
+				data_clean,
+				[:prolific_pid, :stimulus_group]
+			),
+			:response_optimal => lag => :previous_optimal,
+		)
+
+	end
+end
+
 # Load data
 begin
 	_, WM_data, LTM_data, WM_test_data, LTM_test_data, _, control_task_data, _, _ = load_pilot8_data(; force_download = false, return_version = "0.2")
 	nothing
 end
 
-# ╔═╡ 9a500fea-07e6-4859-84d3-abf82e679be2
-function equi_groups(x::AbstractVector; n::Int = 3, labels = ["Early", "Mid", "Late"])
-	min_x, max_x = extrema(x)
-	edges = range(min_x, max_x, length=n+1)[2:end]  # Define n equal-width bins
-	return [findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x]
-end
 
-# ╔═╡ 7dd18147-82eb-4f53-9a20-a0b9711721cc
-# Recoding function
-recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
-
-# ╔═╡ fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
-function compute_delays(vec::AbstractVector)
-    last_seen = Dict{Any, Int}()
-    delays = zeros(Int, length(vec))
-
-    for (i, val) in enumerate(vec)
-        delays[i] = haskey(last_seen, val) ? (i - last_seen[val]) : 0
-        last_seen[val] = i
-    end
-
-    return delays
-end
-
-# ╔═╡ f7e64bb7-244f-4803-bb41-d9a833eb4b7d
-function clean_WM_LTM_data(
-	df::AbstractDataFrame
-)
-	# Clean data
-	data_clean = exclude_PLT_sessions(df, required_n_blocks = 1)
-
-	# Sort
-	sort!(
-		data_clean,
-		[:prolific_pid, :session, :block, :trial]
-	)
-
-	# Apperance number
-	transform!(
-		groupby(data_clean, [:prolific_pid, :exp_start_time, :session, :block, :stimulus_group]),
-		:trial => (x -> 1:length(x)) => :appearance
-	)
-
-	# Compute delays
-	DataFrames.transform!(
-		groupby(
-			data_clean,
-			:prolific_pid
-		),
-		:stimulus_group => compute_delays => :delay,
-	) 
-
-	data_clean = filter(x -> x.response != "noresp", data_clean)
-
-	# Previous correct
-	DataFrames.transform!(
-		groupby(
-			data_clean,
-			[:prolific_pid, :stimulus_group]
-		),
-		:response_optimal => lag => :previous_optimal,
-	)
-
-end
-
-# ╔═╡ b64500f3-7d41-4f38-bac7-7cdd1a0b9302
 # Clean and prepare data, and combine
 data_clean  = let
 	WM_data_clean, LTM_data_clean = clean_WM_LTM_data.([WM_data, LTM_data])
 
 	# Indicator variable
-	WM_data_clean.task .= "WM"
+	WM_data_clean.task .= "1 stim"
 
-	LTM_data_clean.task .= "LTM"
+	LTM_data_clean.task .= "3 stims"
 
 	data_clean = vcat(
 		WM_data_clean,
@@ -132,49 +126,11 @@ data_clean  = let
 	)
 end
 
-# ╔═╡ dfb624c9-8363-4c8e-b12e-03518b418bc2
+# Plot learning curve
 let df = data_clean
 
-	# Sumarrize by participant, trial, task
-	acc_curve = combine(
-		groupby(df, [:prolific_pid, :task, :trial]),
-		:response_optimal => mean => :acc
-	)
-
-	# Summarize by trial and task
-	acc_curve_sum = combine(
-		groupby(acc_curve, [:task, :trial]),
-		:acc => mean => :acc,
-		:acc => sem => :se
-	)
-
-	# Compute bounds
-	acc_curve_sum.lb = acc_curve_sum.acc .- acc_curve_sum.se
-	acc_curve_sum.ub = acc_curve_sum.acc .+ acc_curve_sum.se
-
-	# Sort
-	sort!(acc_curve_sum, [:task, :trial])
-
 	# Create figure
-	f = Figure(size = (700, 350))
-
-	# Create mapping
-	mp1 = (data(acc_curve_sum) * (
-		mapping(
-			:trial => "Trial #",
-			:lb,
-			:ub,
-			color = :task
-	) * visual(Band, alpha = 0.5) +
-		mapping(
-			:trial => "Trial #",
-			:acc => "Prop. optimal choice",
-			color = :task
-	) * visual(Lines)))
-	
-	# Plot
-	plt1 = draw!(f[1,1], mp1, axis = (; ylabel = "Prop. optimal choice"))
-	legend!(f[0,1:2], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f = Figure(size = keynote_figure_size)
 
 	
 	# Summarize by appearance
@@ -198,29 +154,37 @@ let df = data_clean
 	sort!(app_curve_sum, [:task, :appearance])
 
 	# Create mapping
-	mp2 = (data(app_curve_sum) * (
+	mp1 = (data(app_curve_sum) * (
 		mapping(
 			:appearance => "Apperance #",
 			:lb,
 			:ub,
-			color = :task
+			color = :task => "Task"
 	) * visual(Band, alpha = 0.5) +
 		mapping(
 			:appearance => "Apperance #",
-			:acc => "Prop. optimal choice",
-			color = :task
-	) * visual(Lines)))
+			:acc,
+			color = :task => "Task"
+	) * visual(Lines; linewidth = lw)))
 	
 	# Plot
-	plt2 = draw!(f[1,2], mp2)
+	plt1 = draw!(f[1,1], mp1; 
+		axis=(; 
+			ylabel = "Prop. optimal choice ±SE",
+			xautolimitmargin = (0, 0),
+			yautolimitmargin = (0, 0)
+		)
+	)
+
+	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	# Save figure
+	save("results/WM_LTM_learning_curve.png", f; pt_per_unit = 1)
 
 	f
 end
 
-# ╔═╡ 58df33c7-1713-448d-8fbf-75f167b1ad50
-data_clean |> describe
-
-# ╔═╡ b7546403-153e-43bc-a360-bbb562b0762c
+# Plot learning curve with delay bins
 let df = data_clean
 	
 	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
@@ -259,7 +223,7 @@ let df = data_clean
 			:acc => "Prop. optimal choice",
 			color = :delay_bin  => "Delay",
 			col = :task
-	) * visual(Lines))) + (
+	) * visual(Lines; linewidth = lw))) + (
 		data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
 		(mapping(
 			:appearance  => "Apperance #",
@@ -267,179 +231,440 @@ let df = data_clean
 			:se,
 			color = :delay_bin => "Delay",
 			col = :task
-		) * visual(Errorbars) +
+		) * visual(Errorbars, linewidth = lw) +
 		mapping(
 			:appearance  => "Apperance #",
 			:acc,
 			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Scatter))
+		) * visual(Scatter, markersize = ms))
 	)
 
-	f = Figure()
+	f = Figure(size = keynote_wide_figure_size)
 
-	plt = draw!(f[1,1], mp2)
+	plt = draw!(f[1,1], mp2; 
+		axis=(; 
+			ylabel = "Prop. optimal choice ±SE"
+		)
+	)
 
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	# Save figure
+	save("results/WM_LTM_learning_curve_delay_bins.png", f; pt_per_unit = 1)
 
 	f
 end
 
-# ╔═╡ 3f9001f2-9f20-43cf-8bac-f296b8e6129a
-let df = data_clean,
-	appearance_breaks = [1, 2, 4, 14, 20]
-	appearance_labels = ["1", "2", "3-4", "5-14", "15-20"]
+# Plot RT by apperance
+let df = copy(data_clean)
 
-	df.learning_phase = recoder(df.appearance, appearance_breaks, appearance_labels) 
+	# Create figure
+	f = Figure(size = keynote_figure_size)
 
-	df.learning_phase = CategoricalArray(df.learning_phase, levels = appearance_labels)
+	# Nice labels for response_optimal
+	df.response = ifelse.(
+		df.response_optimal,
+		"Correct",
+		"Error"
+	)
 
-	delay_sum = combine(
+	# Summarize by appearance
+	rt_app = combine(
 		groupby(
-			df,
-			[:prolific_pid, :task, :learning_phase, :delay]
+			filter(x -> x.rt > 200, df), 
+			[:prolific_pid, :task, :appearance, :response]
 		),
-		:response_optimal => mean => :acc
+		:rt => mean => :rt
 	)
 
-	delay_sum = combine(
-		groupby(
-			delay_sum,
-			[:task, :delay, :learning_phase]
-		),
-		:acc => mean => :acc,
-		:acc => sem => :se
+	# Summarize by apperance and n_groups
+	rt_app_sum = combine(
+		groupby(rt_app, [:task, :appearance, :response]),
+		:rt => mean => :rt,
+		:rt => sem => :se
 	)
 
-	sort!(delay_sum, [:task, :delay, :learning_phase])
+	# Compute bounds
+	rt_app_sum.lb = rt_app_sum.rt .- rt_app_sum.se
+	rt_app_sum.ub = rt_app_sum.rt .+ rt_app_sum.se
 
-	mp = data(delay_sum) * (
+	# Sort
+	sort!(rt_app_sum, [:task, :response, :appearance])
+
+	# Create mapping
+	mp1 = (data(rt_app_sum) * (
 		mapping(
-			:delay, 
-			:acc, 
-			color = :learning_phase => nonnumeric => "Appearance #",
-			col = :task
-		) * visual(Lines) +
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :task => "Task",
+			col = :response
+	) * visual(Band, alpha = 0.5) +
 		mapping(
-			:delay, 
-			:acc, 
-			color = :learning_phase => nonnumeric =>  "Appearance #",
-			col = :task
-		) * visual(Scatter) +
-		mapping(
-			:delay, 
-			:acc, 
-			:se, 
-			color = :learning_phase  => nonnumeric =>  "Appearance #",
-			col = :task
-		) * visual(Errorbars)
-	)
-
-	f = Figure()
-
-	plt = draw!(f[1,1], mp, axis = (; 
-		ylabel = "Prop. optimal choice",
-		xlabel = "Delay"
-	))
-
-	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
-		
-	f
+			:appearance => "Apperance #",
+			:rt,
+			color = :task => "Task",
+			col = :response
+	) * visual(Lines, linewidth = lw)))
 	
-end
-
-# ╔═╡ 178bfb62-9c88-4f7a-9054-0ed58f852c7f
-let df = data_clean
-
-	# Divide into learning phases
-	df.learning_phase = equi_groups(
-		df.appearance;
-		n=2,
-		labels = ["1-10", "13-20"]
+	# Plot
+	plt1 = draw!(f[1,1], mp1; axis=(; 
+			ylabel = "RT (mean±SE)",
+			xautolimitmargin = (0, 0),
+			yautolimitmargin = (0, 0)
+		)
 	)
 
+	legend!(f[0,1], plt1, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	# Save figure
+	save("results/WM_LTM_RT_appearance.png", f; pt_per_unit = 1)
+
+	f
+end
+
+# Plot RT by appearance and delay bins
+let df = copy(data_clean)
+	
+	# Bin delays
+	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
+	
 	# Summarize by participant
-	delay_sum = combine(
+	rt_app_delay = combine(
 		groupby(
-			df,
-			[:prolific_pid, :task, :learning_phase, :previous_optimal, :delay]
+			filter(x -> x.response_optimal, df), 
+			[:prolific_pid, :task, :delay_bin, :appearance]
 		),
-		:response_optimal => mean => :acc
+		:rt => mean => :rt
 	)
 
 	# Summarize across participants
-	delay_sum = combine(
-		groupby(
-			delay_sum,
-			[:delay, :task, :learning_phase, :previous_optimal]
-		),
-		:acc => mean => :acc,
-		:acc => sem => :se,
-		:acc => length => :n
-	)
-	
-	# Sort for plotting
-	sort!(delay_sum, [:task, :delay, :learning_phase, :previous_optimal])
-
-	# Filter
-	filter!(x -> x.n > 10, delay_sum)
-
-	# Label previous_optimal
-	delay_sum.previous_optimal = passmissing(ifelse).(
-		delay_sum.previous_optimal,
-		fill("Correct", nrow(delay_sum)),
-		fill("Error", nrow(delay_sum))
+	rt_app_delay_sum = combine(
+		groupby(rt_app_delay, [:task, :delay_bin, :appearance]),
+		:rt => mean => :rt,
+		:rt => sem => :se
 	)
 
-	mp = data(delay_sum) * (
+	# Compute bounds
+	rt_app_delay_sum.lb = rt_app_delay_sum.rt .- rt_app_delay_sum.se
+	rt_app_delay_sum.ub = rt_app_delay_sum.rt .+ rt_app_delay_sum.se
+
+	# Sort
+	sort!(rt_app_delay_sum, [:task, :delay_bin, :appearance])
+
+	# Create mapping
+	mp2 = (data(rt_app_delay_sum) * (
 		mapping(
-			:delay, 
-			:acc, 
-			color = :learning_phase  => "Apperance #",
-			group = :previous_optimal => "Previous choice",
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Lines) +
+	) * visual(Band, alpha = 0.5) +
 		mapping(
-			:delay, 
-			:acc, 
-			color = :learning_phase  => "Apperance #",
-			marker = :previous_optimal => "Previous choice",
+			:appearance => "Apperance #",
+			:rt,
+			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Scatter) +
+	) * visual(Lines; linewidth = lw))) + (
+		data(filter(x -> x.delay_bin == "0", rt_app_delay_sum)) *
+		(mapping(
+			:appearance  => "Apperance #",
+			:rt,
+			:se,
+			color = :delay_bin => "Delay",
+			col = :task
+		) * visual(Errorbars; linewidth = lw) +
 		mapping(
-			:delay, 
-			:acc, 
-			:se, 
-			color = :learning_phase => "Apperance #",
-			group = :previous_optimal => "Previous choice",
+			:appearance  => "Apperance #",
+			:rt,
+			color = :delay_bin  => "Delay",
 			col = :task
-		) * visual(Errorbars)
+		) * visual(Scatter; markersize = ms))
 	)
 
-	f = Figure()
+	f = Figure(size = keynote_wide_figure_size)
 
-	plt = draw!(f[1,1], mp, axis = (; 
-		ylabel = "Prop. optimal choice",
-		xlabel = "Delay"
-	))
+	plt = draw!(f[1,1], mp2; axis=(; ylabel = "Correct choice RT (mean±SE)"))
 
-	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left, nbanks = 2)
-		
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+
+	# Save figure
+	save("results/WM_LTM_RT_appearance_delay_bins.png", f; pt_per_unit = 1)
 	f
-	
 end
 
-# ╔═╡ Cell order:
-# ╠═d39433ea-0edd-11f0-01e1-89c989a532f3
-# ╠═88470afd-7ced-45ca-8384-a558269e48a5
-# ╠═c00b3551-9d5c-4aa2-93e3-b3e20b9a7aba
-# ╠═b64500f3-7d41-4f38-bac7-7cdd1a0b9302
-# ╠═dfb624c9-8363-4c8e-b12e-03518b418bc2
-# ╠═58df33c7-1713-448d-8fbf-75f167b1ad50
-# ╠═b7546403-153e-43bc-a360-bbb562b0762c
-# ╠═3f9001f2-9f20-43cf-8bac-f296b8e6129a
-# ╠═178bfb62-9c88-4f7a-9054-0ed58f852c7f
-# ╠═9a500fea-07e6-4859-84d3-abf82e679be2
-# ╠═7dd18147-82eb-4f53-9a20-a0b9711721cc
-# ╠═f7e64bb7-244f-4803-bb41-d9a833eb4b7d
-# ╠═fd49957d-14ad-41a0-b2a9-f5c5ef353f3d
+function summarize_value_merge_to_test(
+	df::AbstractDataFrame,
+	test_df::AbstractDataFrame;
+)
+
+	# Summarize value by participant and stimulus
+	value_sum = combine(
+		groupby(df, [:prolific_pid, :chosen_stimulus]),
+		:chosen_feedback => mean => :value,
+		:chosen_feedback => StatsBase.mode => :common_outcome
+	)
+
+	# Merge with test data
+	for side in ["left", "right"]
+		
+		leftjoin!(
+			test_df,
+			rename(
+				value_sum, 
+				:chosen_stimulus => Symbol("stimulus_$side"),
+				:value => Symbol("value_$side"),
+				:common_outcome => Symbol("common_outcome_$side")
+			),
+			on = [:prolific_pid, Symbol("stimulus_$side")]
+		)
+	end
+
+	# Compute Δ value
+	test_df.Δ_value = test_df.value_right .- test_df.value_left
+
+
+	# Summarize apperance by participants and stimulus group
+	apperance_sum = combine(
+		groupby(df, [:prolific_pid, :stimulus_group_id]),
+		:chosen_feedback => length => :n_trials,
+	)
+
+	stimulus_group = unique(vcat(
+		[
+			unique(select(
+				df, 
+				:stimulus_group_id,
+				Symbol("stimulus_$side") => :stimulus
+			))
+			for side in ["left", "middle", "right"]
+		]...
+	))
+
+	# Merge with apperance sum
+	apperance_sum = innerjoin(
+		apperance_sum,
+		stimulus_group,
+		on = :stimulus_group_id
+	)
+
+	# Merge with test data
+	for side in ["left", "right"]
+		leftjoin!(
+			test_df,
+			select(
+				apperance_sum, 
+				:prolific_pid,
+				:stimulus => Symbol("stimulus_$side"),
+				:n_trials => Symbol("n_trials_$side")
+			),
+			on = [:prolific_pid, Symbol("stimulus_$side")]
+		)
+	end
+	
+	
+	# Compute right chosen
+	test_df.right_chosen = test_df.response .== "right"
+
+	dropmissing!(test_df, [:value_left, :value_right, :Δ_value, :right_chosen])
+
+	return test_df
+end
+
+
+# Prepare test data
+test_df = let 
+	# Summarize value and merge with test data
+	WM_test = summarize_value_merge_to_test(
+		filter(x -> x.task == "1 stim", data_clean),
+		copy(WM_test_data)
+	)
+
+	LTM_test = summarize_value_merge_to_test(
+		filter(x -> x.task == "3 stims", data_clean),
+		copy(LTM_test_data)
+	)
+
+	WM_test.task .= "1 stim"
+	LTM_test.task .= "3 stims"
+
+	# Combine test data
+	test_df = vcat(
+		WM_test,
+		LTM_test
+	)
+
+	filter!(x -> x.response != "noresp", test_df)
+end
+
+function quantile_bin_mean(var::AbstractVector; n_bins::Int)
+
+	found_bins = false
+	tn_bins = n_bins
+	edges = Float64[]
+	while !found_bins
+		edges = unique(quantile(var, range(0, 1; length=tn_bins+1)))
+
+		if length(edges) >= (n_bins + 1)
+			found_bins = true
+		else
+			tn_bins += 1
+		end
+	end
+	bin = cut(var, edges; extend=true)
+	bin_mean = [mean(var[bin .== b]) for b in bin]
+	return bin_mean
+end
+
+
+# Plot test data by Δ value
+let n_bins = 8, test_df = copy(test_df)
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		:Δ_value => (x -> quantile_bin_mean(x; n_bins = n_bins)) => :Δ_value_bin
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_value_bin, :task]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_value_bin, :task]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_value_bin,
+			:right_chosen,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars; linewidth = lw) +
+		mapping(
+			:Δ_value_bin,
+			:right_chosen,
+			color = :task => "Task"
+	) * visual(Scatter; markersize = ms)))
+
+	f = Figure(size = keynote_figure_size)
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ stimulus value\nright - left", ylabel = "Prop. right chosen ±SE"))
+	
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	
+	# Save figure
+	save("results/WM_LTM_test_value_bins.png", f; pt_per_unit = 1)
+
+	f
+end
+
+let n_bins = 4, test_df = copy(test_df)
+
+	# Absolute Δ value
+	test_df.abs_Δ_value = abs.(test_df.Δ_value)
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		[:abs_Δ_value, :task] => ((x,t) -> quantile_bin_mean(x; n_bins = only(unique(t)) == "1 stim" ? 4 : 8)) => :Δ_value_bin
+	)
+
+	# Accuracy variable
+	test_df.accuracy = ifelse.(
+		test_df.Δ_value .== 0,
+		true,
+		ifelse.(
+			test_df.Δ_value .> 0,
+			test_df.right_chosen,
+			.!test_df.right_chosen
+		)
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_value_bin, :accuracy, :task]),
+		:rt => mean => :rt
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_value_bin, :accuracy, :task]),
+		:rt => mean => :rt,
+		:rt => sem => :se
+	)
+
+	# Look only at accurate choices
+	filter!(x -> x.accuracy, test_val_sum)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_value_bin,
+			:rt,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:Δ_value_bin,
+			:rt,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure(size = keynote_figure_size)
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "|Δ stimulus value|", ylabel = "RT (mean±SE)"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
+
+# Plot test data by # of appearances
+let n_bins = 5,
+	test_df = copy(test_df)
+
+	# Compute apperance difference
+	test_df.Δ_appearance = test_df.n_trials_right .- test_df.n_trials_left
+
+	# Bin into equiprobable bins
+	DataFrames.transform!(
+		groupby(test_df, :task),
+		:Δ_appearance => (x -> quantile_bin_mean(x; n_bins = n_bins)) => :Δ_appearance
+	)
+
+	# Summarize by bin
+	test_val = combine(
+		groupby(test_df, [:prolific_pid, :Δ_appearance, :task]),
+		:right_chosen => mean => :right_chosen
+	)
+
+	test_val_sum = combine(
+		groupby(test_val, [:Δ_appearance, :task]),
+		:right_chosen => mean => :right_chosen,
+		:right_chosen => sem => :se
+	)
+
+	# Plot
+	mp = (data(test_val_sum) * (
+		mapping(
+			:Δ_appearance,
+			:right_chosen,
+			:se,
+			color = :task => "Task"
+	) * visual(Errorbars) +
+		mapping(
+			:Δ_appearance,
+			:right_chosen,
+			color = :task => "Task"
+	) * visual(Scatter)))
+
+	f = Figure(size = keynote_figure_size)
+	plt = draw!(f[1,1], mp; axis=(; xlabel = "Δ learning stage appearances\nright - left", ylabel = "Prop. right chosen ±SE"))
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+	f
+end
+
