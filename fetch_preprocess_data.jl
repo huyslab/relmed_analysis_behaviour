@@ -280,10 +280,10 @@ function load_pilot9_data(; force_download = false)
 	PIT_data = prepare_PIT_data(jspsych_data)
 
 	# Extract max press rate data
-	# max_press_data = prepare_max_press_data(jspsych_data)
+	max_press_data = prepare_max_press_data(jspsych_data)
 
 	# Extract control data
-	# control_task_data, control_report_data = prepare_control_data(jspsych_data) 
+	control_task_data, control_report_data = prepare_control_data(jspsych_data) 
 
 	return PILT_data, test_data, vigour_data, PIT_data, max_press_data, control_task_data, control_report_data, jspsych_data
 end
