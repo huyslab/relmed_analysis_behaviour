@@ -361,7 +361,7 @@ function plot_estimates(results::ExperimentResults, dataset::Vector{<:NamedTuple
     p3 = data(long_weights_df) *
          mapping(:y, :x, :value) *
          visual(Heatmap)
-    p3_leg = draw!(fig[1, 1][1, 3], p3, scales(Color=(; colormap=ColorSchemes.linear_blue_95_50_c20_n256)); axis=(; title="Transition weights over time", xlabel="Trial", ylabel="Matrix weight"))
+    p3_leg = draw!(fig[1, 1][1, 3], p3, scales(Color=(; colormap=ColorSchemes.linear_blue_95_50_c20_n256)); axis=(; title="Transition weights over time", xlabel="Trial", ylabel="Matrices"))
     colorbar!(fig[1, 1][1, 4], p3_leg; label="Weight")
 
     # Betas over time
@@ -460,7 +460,7 @@ function plot_batch_estimates(results_list::Vector{ExperimentResults}, datasets_
     transform!(long_weights_df, :variable => ByRow(x -> parse(Int, match(r"[0-9]+", x).match)) => :y)
 
     p3 = data(long_weights_df) *
-         mapping(:y, :x, :value) *
+         mapping(:x, :y, :value) *
          visual(Heatmap)
 
     p3_leg = draw!(fig[1, 1][1, 3], p3, scales(Color=(; colormap=ColorSchemes.linear_blue_95_50_c20_n256));

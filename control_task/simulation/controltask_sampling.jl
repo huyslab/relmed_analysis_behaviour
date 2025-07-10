@@ -12,16 +12,16 @@ Random.seed!(123)
 # generate some experiments 
 #
 
-nTrials = 144
+nTrials = 72
 
-nSamples = 24 * 100
+nSamples = 24 * 40
 alpha = 10;  # dirichlet variance for weights 
 sigma = 1     # beta variance 
 
 #betatrue = 1 .* [1 5 10 20] # true control parameters 
 #betatrue = 1 .* [.5 5] # true control parameters 
 # betatrue = [5 10 20] # true control parameters 
-betatrue = [2 5 8] .* 3 # true control parameters 
+betatrue = [2 4 6] .* 3 # true control parameters 
 nbeta = length(betatrue)
 
 Tc = [4 3 2 1] # true controlled transition matrix 
