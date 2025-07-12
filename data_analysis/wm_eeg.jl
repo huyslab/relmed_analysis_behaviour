@@ -117,3 +117,69 @@ let
 
     f
 end
+
+# Plot learning curve with delay bins
+let df = copy(eeg_wm)
+	
+	df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
+	
+	# Summarize by participant
+	app_curve = combine(
+		groupby(df, [:participant, :delay_bin, :appearance]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize across participants
+	app_curve_sum = combine(
+		groupby(app_curve, [:delay_bin, :appearance]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	app_curve_sum.lb = app_curve_sum.acc .- app_curve_sum.se
+	app_curve_sum.ub = app_curve_sum.acc .+ app_curve_sum.se
+
+	# Sort
+	sort!(app_curve_sum, [:delay_bin, :appearance])
+
+	# Create mapping
+	mp2 = (data(app_curve_sum) * (
+		mapping(
+			:appearance => "Apperance #",
+			:lb,
+			:ub,
+			color = :delay_bin  => "Delay",
+	) * visual(Band, alpha = 0.5) +
+		mapping(
+			:appearance => "Apperance #",
+			:acc => "Prop. optimal choice",
+			color = :delay_bin  => "Delay",
+	) * visual(Lines;))) + (
+		data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
+		(mapping(
+			:appearance  => "Apperance #",
+			:acc,
+			:se,
+			color = :delay_bin => "Delay",
+		) * visual(Errorbars) +
+		mapping(
+			:appearance  => "Apperance #",
+			:acc,
+			color = :delay_bin  => "Delay",
+		) * visual(Scatter))
+	)
+
+	f = Figure()
+
+	plt = draw!(f[1,1], mp2; 
+		axis=(; 
+			ylabel = "Prop. optimal choice ±SE"
+		)
+	)
+
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	f
+end
+
