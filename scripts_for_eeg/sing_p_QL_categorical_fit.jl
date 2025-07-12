@@ -168,8 +168,8 @@ if plot_things
                 println(e)
                 # Print more details about the data
                 println("Data types:")
-                println("stimulus_group: $(typeof(data.stimulus_group)), unique values: $(unique(data.stimulus_group))")
-                println("choice: $(typeof(data.choice)), unique values: $(unique(data.choice))")
+                println("stimulus_group: $(typeof(this_dat.stimulus_group)), unique values: $(unique(this_dat.stimulus_group))")
+                println("choice: $(typeof(this_dat.choice)), unique values: $(unique(this_dat.choice))")
                 rethrow(e)
             end
         
