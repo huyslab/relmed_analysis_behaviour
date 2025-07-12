@@ -146,25 +146,25 @@ let df = copy(eeg_wm)
 	# Create mapping
 	mp2 = (data(app_curve_sum) * (
 		mapping(
-			:appearance => "Apperance #",
+			:appearance => "Appearance #",
 			:lb,
 			:ub,
 			color = :delay_bin  => "Delay",
 	) * visual(Band, alpha = 0.5) +
 		mapping(
-			:appearance => "Apperance #",
+			:appearance => "Appearance #",
 			:acc => "Prop. optimal choice",
 			color = :delay_bin  => "Delay",
 	) * visual(Lines;))) + (
 		data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
 		(mapping(
-			:appearance  => "Apperance #",
+			:appearance  => "Appearance #",
 			:acc,
 			:se,
 			color = :delay_bin => "Delay",
 		) * visual(Errorbars) +
 		mapping(
-			:appearance  => "Apperance #",
+			:appearance  => "Appearance #",
 			:acc,
 			color = :delay_bin  => "Delay",
 		) * visual(Scatter))
