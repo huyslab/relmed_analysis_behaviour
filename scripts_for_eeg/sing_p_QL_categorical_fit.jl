@@ -50,7 +50,7 @@ begin
 	end
 end
 
-# Auxillary variables
+# Auxiliary variables
 begin
 	# Model priors
     priors = Dict(
