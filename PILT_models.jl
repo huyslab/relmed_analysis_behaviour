@@ -138,6 +138,82 @@ function unpack_single_p_QL(
 end
 
 
+@model function single_p_QL_categorical(;
+	block::Vector{Int64}, # Block number
+	outcomes::Matrix{Float64}, # Outcomes for options, columns for each action
+	choice, # Choice index (1 to n_actions). Not typed so that it can be simulated
+	initV::Union{Nothing, Float64} = nothing, # Initial Q values,
+	priors::Dict = Dict(
+        :ρ => truncated(Normal(0., 1.), lower = 0.),
+        :a => Normal(0., 0.5)
+    )
+)
+
+    # Get number of actions from outcomes matrix
+    n_actions = size(outcomes, 2)
+    
+    # initial values
+    initV = isnothing(initV) ? mean([mean([0.01, mean([0.5, 1.])]), mean([1., mean([0.5, 0.01])])]) : initV
+    initial_Q::AbstractArray{Float64} = fill(initV, 1, n_actions)
+
+	# Priors on parameters
+	ρ ~ priors[:ρ]
+	a ~ priors[:a]
+
+	# Compute learning rate
+	α = a2α(a) # hBayesDM uses Phi_approx from Stan. Here, logistic with the variance of the logistic multiplying a to equate the scales to that of a probit function.
+
+	# Initialize Q values, with sign depending on block valence
+	Qs = repeat(initial_Q .* ρ, length(block)) .* sign.(outcomes[:, 1])
+
+	# Loop over trials, updating Q values and incrementing log-density
+	for i in 1:length(block)
+		
+		# Define choice distribution using softmax
+		choice[i] ~ Distributions.Categorical(softmax(Qs[i, :]))
+
+		# Prediction error
+		PE = outcomes[i, choice[i]] * ρ - Qs[i, choice[i]]
+
+		# Update Q value
+		if (i != length(block)) && (block[i] == block[i+1])
+			Qs[i + 1, choice[i]] = Qs[i, choice[i]] + α * PE
+			# Copy unchanged Q-values for other actions
+			for j in 1:n_actions
+				if j != choice[i]
+					Qs[i + 1, j] = Qs[i, j]
+				end
+			end
+		end
+	end
+
+	return Qs
+
+end
+
+
+function unpack_single_p_QL_categorical(
+	data::AbstractDataFrame;
+	columns::Dict{String, Any} = Dict(
+		"block" => :block,
+		"trial" => :trial,
+		"feedback_columns" => [:feedback_left, :feedback_middle, :feedback_right],
+		"choice" => :isOptimal
+	)
+)
+
+	check_PILT_data(data; columns)
+
+	return (;
+		block = data[!, columns["block"]],
+		choice = data[!, columns["choice"]],
+		outcomes = Matrix(data[!, columns["feedback_columns"]])
+	)
+end
+
+
+
+
 """
     single_p_QL_recip(; 
         block::Vector{Int64}, 
