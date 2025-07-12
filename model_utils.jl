@@ -127,13 +127,15 @@ function optimize(
 	model::Function,
 	estimate::String = "MAP",
     priors::Dict,
-	n_starts::Int64 = 5
+	n_starts::Int64 = 5,
+	kwargs... # Key-word arguments to model
 )
 	
 	# Pass data to model
     data_model = model(;
         data...,
-        priors = priors
+        priors = priors,
+		kwargs... # Key-word arguments to model
     )
 
 	if estimate == "MLE"
