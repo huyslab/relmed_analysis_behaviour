@@ -29,7 +29,6 @@ begin
 		using AlgebraOfGraphics, CairoMakie
 		
 		# Set theme
-		inter_bold = assetpath(pwd() * "/fonts/Inter/Inter-Bold.ttf")
 		
 		th = Theme(
 			font = "Helvetica",
