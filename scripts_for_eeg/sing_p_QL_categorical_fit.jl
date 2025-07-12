@@ -131,7 +131,7 @@ if plot_things
 		for i in 1:n_bootstraps
 	
 			# Sample blocks with replacement
-			block_sample = sample(rng, unique(data.stimulus_group), maximum(data.stimulus_group))
+			block_sample = sample(rng, unique(data.stimulus_group), length(unique(data.stimulus_group)))
             # println("Bootstrap sample: ", block_sample)
 	
 			# Subset data
