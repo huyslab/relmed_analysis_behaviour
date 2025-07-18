@@ -9,9 +9,6 @@ includet("ControlEffortTask.jl")
 using .ControlEffortTask
 
 pars = TaskParameters(
-     n_trials=72,
-     beta_true=[2, 4, 6] .* 3,
-     n_particles=40,
      alpha=10
 )
 
