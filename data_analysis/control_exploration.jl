@@ -31,7 +31,7 @@ begin
     )
   )
 
-  set_theme!(th)
+  set_theme!(merge(theme_minimal(), th))
 end
 
 begin
@@ -113,10 +113,326 @@ spearman_brown(
   n=2 # Number of splits
 ) = (n * r) / (1 + (n - 1) * r)
 
+function add_ship_onehot(df)
+  colors = ["blue", "green", "yellow", "red"]
+  for color in colors
+    df = DataFrames.transform(df, [:left, :right] => ByRow((l, r) -> (l == color || r == color) ? 1 : 0) => Symbol(color))
+  end
+  return df
+end
+
+function calc_trial_interval(trial_index, occurrence)
+  interval = Vector{Union{AbstractFloat,Missing}}(missing, length(trial_index))
+  idx = findall(occurrence .== 1)
+  if !isempty(idx)
+    prev_trial = trial_index[idx[1]]
+    interval[idx[1]] = Inf  # or 0/missing if you prefer
+    for i in 2:length(idx)
+      curr_trial = trial_index[idx[i]]
+      interval[idx[i]] = curr_trial - prev_trial
+      prev_trial = curr_trial
+    end
+  end
+  return interval
+end
+
+function add_explorative_response(df; metric::String="occurrence")
+  if metric == "occurrence"
+    return transform(df,
+      [:response, :left, :right, :blue, :green, :yellow, :red] =>
+        ByRow((resp, left, right, blue, green, yellow, red) -> begin
+          if ismissing(resp)
+            missing
+          else
+            left_val = left == "blue" ? blue : left == "green" ? green : left == "yellow" ? yellow : red
+            right_val = right == "blue" ? blue : right == "green" ? green : right == "yellow" ? yellow : red
+
+            if (resp == "left" && left_val < right_val) || (resp == "right" && right_val < left_val)
+              1.0
+            elseif left_val == right_val
+              0.5
+            else
+              0.0
+            end
+          end
+        end) => :explorative_cat
+    )
+  elseif metric == "interval"
+    return transform(df,
+      [:response, :left, :right, :blue, :green, :yellow, :red] =>
+        ByRow((resp, left, right, blue, green, yellow, red) -> begin
+          if ismissing(resp)
+            missing
+          else
+            left_val = left == "blue" ? blue : left == "green" ? green : left == "yellow" ? yellow : red
+            right_val = right == "blue" ? blue : right == "green" ? green : right == "yellow" ? yellow : red
+
+            if (resp == "left" && left_val > right_val) || (resp == "right" && right_val > left_val)
+              1.0
+            elseif left_val == right_val
+              0.5
+            else
+              0.0
+            end
+          end
+        end) => :explorative_cat
+    )
+  elseif metric == "control"
+    return transform(df,
+      [:next_response, :next_left, :next_right, :blue, :green, :yellow, :red] =>
+        ByRow((resp, left, right, blue, green, yellow, red) -> begin
+          if ismissing(resp)
+            missing
+          else
+            left_val = left == "blue" ? blue : left == "green" ? green : left == "yellow" ? yellow : red
+            right_val = right == "blue" ? blue : right == "green" ? green : right == "yellow" ? yellow : red
+
+            if (resp == "left" && left_val < right_val) || (resp == "right" && right_val < left_val)
+              1.0
+            elseif left_val == right_val
+              0.5
+            else
+              0.0
+            end
+          end
+        end) => :explorative_cat
+    )
+  else
+    error("Unknown metric: $metric")
+  end
+end
+
+function add_explorative_measure(df; metric::String="occurrence")
+  if metric == "occurrence" || metric == "interval"
+    return transform(df,
+      [:response, :left, :right, :blue, :green, :yellow, :red] =>
+        ByRow((resp, left, right, blue, green, yellow, red) -> begin
+          if ismissing(resp)
+            missing
+          else
+            left_val = left == "blue" ? blue : left == "green" ? green : left == "yellow" ? yellow : red
+            right_val = right == "blue" ? blue : right == "green" ? green : right == "yellow" ? yellow : red
+            left_val - right_val
+          end
+        end) => :explorative_val
+    )
+  elseif metric == "control"
+    return transform(df,
+      [:next_response, :next_left, :next_right, :blue, :green, :yellow, :red] =>
+        ByRow((resp, left, right, blue, green, yellow, red) -> begin
+          if ismissing(resp)
+            missing
+          else
+            left_val = left == "blue" ? blue : left == "green" ? green : left == "yellow" ? yellow : red
+            right_val = right == "blue" ? blue : right == "green" ? green : right == "yellow" ? yellow : red
+            left_val - right_val
+          end
+        end) => :explorative_val
+    )
+  else
+    error("Unknown metric: $metric")
+  end
+end
+
+function plot_explore_trend(
+  df::DataFrame;
+  xlabel::String="Trial",
+  ylabel::String="P(Explorative)",
+  xcol::Symbol=:trial_number,
+  ycol::Symbol=:explorative_cat,
+  title::String="Exploration Trend by ...",
+  caption::String=""
+)
+  f = Figure(size=(600, 600))
+
+  # Group average plot
+  df_grp = dropmissing(df, [xcol, ycol])
+  df_grp = combine(groupby(df_grp, [:session, xcol]),
+    :explorative_cat => mean => :explorative)
+  sort!(df_grp, [:session, xcol])
+  p_grp = data(df_grp) *
+          mapping(xcol, :explorative, color=:session => :Session) * (visual(ScatterLines) + linear())
+  fig = draw!(f[1, 1], p_grp;
+    axis=(; xlabel=xlabel, ylabel=ylabel))
+  legend!(f[1, 2], fig)
+
+  # Individual participant plot
+  df_ind = dropmissing(df, [xcol, ycol])
+  df_ind = combine(groupby(df_ind, [:prolific_pid, :session, xcol]),
+    :explorative_cat => mean => :explorative)
+  sort!(df_ind, [:prolific_pid, :session, xcol])
+  p_ind = data(df_ind) *
+          mapping(xcol, :explorative, group=:prolific_pid, color=:session, col=:session) * linear(interval=nothing)
+  draw!(f[2, :], p_ind, scales(Col=(; categories=["1" => "Session 1", "2" => "Session 2"]));
+    axis=(; xlabel=xlabel, ylabel=ylabel))
+
+  Label(f[0, :], title; tellheight=true, tellwidth=false)
+  Label(f[end+1, :], caption; tellheight=true, tellwidth=false)
+  f
+end
+
+function plot_explore_trend_reliability(
+  df::DataFrame;
+  title::String="Test-retest: ...",
+  ycol::Symbol=:explorative_cat,
+  xcol::Symbol=:trial_number,
+  caption::String=""
+)
+  glm_coef(data) = coef(lm(Term(ycol) ~ Term(xcol), data))
+
+  retest_df = @chain df begin
+    transform(xcol => (x -> x .- mean(x)), renamecols=false)
+    @drop_missing(explorative_cat)
+    groupby([:prolific_pid, :session])
+    combine(AsTable([ycol, xcol]) => (x -> [glm_coef(x)]) => [:β0, :β_trial])
+  end
+
+  fig = Figure(; size=(12, 6) .* 144 ./ 2.54)
+  workshop_reliability_scatter!(
+    fig[1, 1];
+    df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β0)),
+    xlabel="Session 1",
+    ylabel="Session 2",
+    xcol=Symbol(string(1)),
+    ycol=Symbol(string(2)),
+    subtitle="Avg. exploration",
+    correct_r=false
+  )
+
+  workshop_reliability_scatter!(
+    fig[1, 2];
+    df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β_trial)),
+    xlabel="Session 1",
+    ylabel="Session 2",
+    xcol=Symbol(string(1)),
+    ycol=Symbol(string(2)),
+    subtitle="Exploration trend",
+    correct_r=false
+  )
+  Label(fig[0, :], title)
+  Label(fig[end+1, :], caption, halign=:right)
+  fig
+end
+
+function plot_bias_and_sensitivity_reliability(
+  df::DataFrame;
+  xcol::Symbol=:explorative_val,
+  ycol::Symbol=:response_left,
+  title="Test-retest: ...",
+  caption=""
+)
+  # Predict probabilities for a range of x
+
+  glm_model(df) = glm(Term(ycol) ~ Term(xcol), df, Bernoulli(), LogitLink())
+  glm_coef(df) = coef(glm_model(df))
+
+  df = dropmissing(df, [ycol, xcol])
+  subset!(df, xcol => ByRow(x -> !isinf(x) && !isnan(x)))
+
+  coef_df = groupby(df, [:prolific_pid, :session]) |>
+            x -> combine(x, AsTable([ycol, xcol]) => (x -> [glm_coef(x)]) => [:β0, :β_explorative])
+
+  # Coefficient distribution plot
+  coef_long = stack(coef_df, [:β0, :β_explorative], variable_name=:parameter, value_name=:value)
+  coef_long = transform(coef_long, :parameter => ByRow(x -> x == "β0" ? "Bias" : "Sensitivity") => :parameter_label)
+
+  coef_plot = data(coef_long) * 
+    mapping(:session => nonnumeric, :value, group=:prolific_pid, col=:parameter_label) * 
+    (visual(Scatter, markersize=8, alpha=0.5) + visual(Lines, linewidth=1.5, alpha=0.3)) +
+    mapping(0) * visual(HLines, color=:gray, linestyle=:dash, linewidth=1)
+
+  fig = Figure(; size=(12, 10) .* 144 ./ 2.54)
+  draw!(fig[1, 1:2], coef_plot;
+  facet=(; linkyaxes=:none),
+  axis=(; xlabel="Session", ylabel="Parameter Value"))
+
+  # println(filter(x -> (x.session .== "2" .&& x.β0 .< -15), coef_df))
+
+  workshop_reliability_scatter!(
+    fig[2, 1];
+    df=dropmissing(unstack(coef_df, [:prolific_pid], :session, :β0)),
+    xlabel="Session 1",
+    ylabel="Session 2",
+    xcol=Symbol(string(1)),
+    ycol=Symbol(string(2)),
+    subtitle="Bias",
+    correct_r=false
+  )
+
+  workshop_reliability_scatter!(
+    fig[2, 2];
+    df=dropmissing(unstack(coef_df, [:prolific_pid], :session, :β_explorative)),
+    xlabel="Session 1",
+    ylabel="Session 2",
+    xcol=Symbol(string(1)),
+    ycol=Symbol(string(2)),
+    subtitle="Sensitivity",
+    correct_r=false
+  )
+  Label(fig[0, :], title)
+  Label(fig[end+1, :], caption, halign=:right)
+  fig
+end
+
+function plot_choice_pred_curves(
+  df::DataFrame;
+  xcol::Symbol=:explorative_val,
+  ycol::Symbol=:response_left,
+  xlabel::String="Left - Right",
+  ylabel::String="P(Left)",
+  title="Choice Prediction Curves",
+  caption=""
+)
+  glm_model(df) = glm(Term(ycol) ~ Term(xcol), df, Bernoulli(), LogitLink())
+
+  df = dropmissing(df, [ycol, xcol])
+  subset!(df, xcol => ByRow(x -> !isinf(x) && !isnan(x)))
+
+  fig = Figure(size=(600, 400))
+
+  # Create prediction grid
+  x_pred = range(minimum(df[!, xcol]), maximum(df[!, xcol]), length=100)
+
+  # Get individual curves for each participant/session
+  individual_curves = combine(groupby(df, [:prolific_pid, :session])) do sdf
+    if nrow(sdf) > 5  # Ensure enough data points
+      model = glm_model(sdf)
+      pred_df = DataFrame(xcol => x_pred)
+      pred_df.predicted_prob = predict(model, pred_df)
+      pred_df[!, :prolific_pid] .= sdf.prolific_pid[1]
+      pred_df[!, :session] .= sdf.session[1]
+      return pred_df
+    else
+      return DataFrame()  # Skip if insufficient data
+    end
+  end
+
+  # Average the curves across participants
+  avg_curve = combine(groupby(individual_curves, [xcol, :session])) do gdf
+    DataFrame(avg_prob=mean(gdf.predicted_prob))
+  end
+
+  avg_curve_data = combine(groupby(df, [xcol, :session]), ycol => mean => :avg_prob)
+  sort!(avg_curve_data, [:session, xcol])
+
+  # Plot
+  plt = (data(individual_curves) * mapping(xcol, :predicted_prob, color=:session, col=:session) * visual(Lines, alpha=0.2)) +
+        (data(avg_curve) * mapping(xcol, :avg_prob, color=:session, col=:session) * visual(Lines, linewidth=3)) +
+        (mapping(0.5) * visual(HLines, color=:gray, linestyle=:dash)) +
+        (mapping(0) * visual(VLines, color=:gray, linestyle=:dash))
+
+  draw!(fig[1, 1], plt,
+    scales(Col=(; categories=["1" => "Session 1", "2" => "Session 2"])),
+    axis=(; xlabel=xlabel, ylabel=ylabel))
+  Label(fig[0, :], title, tellwidth=false)
+  Label(fig[end+1, :], caption, halign=:right, tellwidth=false)
+  fig
+end
+
 begin
   p_sum = summarize_participation(jspsych_data)
   p_no_double_take = exclude_double_takers(p_sum) |>
-                     x -> filter(x -> !ismissing(x.finished) && x.finished, x)
+    x -> filter(x -> !ismissing(x.finished) && x.finished, x)
 end
 
 begin
@@ -126,143 +442,57 @@ begin
   nothing
 end
 
-begin
-	function add_ship_onehot(df)
-			colors = ["blue", "green", "yellow", "red"]
-			for color in colors
-					df = DataFrames.transform(df, [:left, :right] => ByRow((l, r) -> (l == color || r == color) ? 1 : 0) => Symbol(color))
-			end
-			return df
-	end
-
-	explore_choice_df = @chain control_task_data begin
-		filter(x -> x.trialphase .== "control_explore", _)
-		select([:prolific_pid, :session, :trial, :left, :right, :response])
-		groupby([:prolific_pid, :session])
-		DataFrames.transform(
-			:trial => (x -> 1:length(x)) => :trial_number
-		)
-		add_ship_onehot(_)
-	end
-end
-
-function calc_trial_interval(trial_index, occurrence)
-  interval = Vector{Union{AbstractFloat, Missing}}(missing, length(trial_index))
-  idx = findall(occurrence .== 1)
-  if !isempty(idx)
-      prev_trial = trial_index[idx[1]]
-      interval[idx[1]] = Inf  # or 0/missing if you prefer
-      for i in 2:length(idx)
-          curr_trial = trial_index[idx[i]]
-          interval[idx[i]] = curr_trial - prev_trial
-          prev_trial = curr_trial
-      end
-  end
-  return interval
-end
-
-function add_explorative_response(df; metric::String = "occurrence")
-  explorative_values = Vector{Union{Float64, Missing}}(undef, 0)
-  if metric == "occurrence"
-    for row in eachrow(df)
-      if ismissing(row.response)
-        push!(explorative_values, missing)
-      elseif (row.response == "left" && row[row.left] < row[row.right]) || (row.response == "right" && row[row.right] < row[row.left])
-        push!(explorative_values, 1.0)
-      elseif row[row.right] == row[row.left]
-        push!(explorative_values, 0.5)
-      else
-        push!(explorative_values, 0.0)
-      end
-    end
-  elseif metric == "interval"
-    for row in eachrow(df)
-      if ismissing(row.response)
-        push!(explorative_values, missing)
-      elseif (row.response == "left" && row[row.left] > row[row.right]) || (row.response == "right" && row[row.right] > row[row.left])
-        push!(explorative_values, 1.0)
-      elseif row[row.right] == row[row.left]
-        push!(explorative_values, 0.5)
-      else
-        push!(explorative_values, 0.0)
-      end
-    end
-  elseif metric == "choice"
-  elseif metric == "control"
-  end
-  df.explorative = explorative_values
-  return df
+explore_choice_df = @chain control_task_data begin
+  filter(x -> x.trialphase .== "control_explore", _)
+  select([:prolific_pid, :session, :trial, :left, :right, :response, :control_rule_used])
+  groupby([:prolific_pid, :session])
+  DataFrames.transform(
+    :trial => (x -> 1:length(x)) => :trial_number
+  )
+  add_ship_onehot(_)
 end
 
 # Summarize choices by the number of occurrence
 begin
 	explore_by_occur = @chain explore_choice_df begin
 		groupby([:prolific_pid, :session])
-		DataFrames.transform(
+		transform(
 			[:blue, :green, :yellow, :red] .=> cumsum, renamecols=false
 		)
 		add_explorative_response(_, metric="occurrence")
+    add_explorative_measure(_, metric="occurrence")
+    transform(:response => ByRow(passmissing(x -> x == "left" ? 1 : 0)) => :response_left)
 	end
 end
 
-p_explore_occur_avg = @chain explore_by_occur begin
-	dropmissing(_)
-	@group_by(session, trial)
-	@summarize(explorative = mean(explorative))
-	@ungroup
-	@arrange(session, trial)
-	data(_) * mapping(:trial, :explorative, color=:session) * (visual(Scatter) + linear())
-	draw(;axis=(;title = "Avg. exploration trend", xlabel = "Trial", ylabel = "Explorative? (by occurence)"), figure=(;size=(600, 400)))
-end
-display(p_explore_occur_avg)
-
-p_explore_occur_ind_trend = @chain explore_by_occur begin
-	dropmissing(_)
-	@group_by(prolific_pid, session, trial_number)
-	@summarize(explorative = mean(explorative))
-	@ungroup
-	@arrange(prolific_pid, session, trial_number)
-	data(_) * mapping(:trial_number, :explorative, group=:prolific_pid, color=:session, col=:session) * (linear(interval=nothing))
-	draw(;axis=(;xlabel = "Trial", ylabel = "Explorative? (by occurrence)"), figure=(;size=(600, 400)))
-end
-display(p_explore_occur_ind_trend)
+plot_explore_trend(
+  explore_by_occur;
+  xlabel="Trial",
+  ylabel="P(Explorative)",
+  xcol=:trial_number,
+  ycol=:explorative_cat,
+  title="Exploration Trend by # Occurrence",
+  caption=""
+)
 
 # Test-retest reliability of exploration by occurrence (explorative trend)
-let
-	glm_coef(data) = coef(lm(@formula(explorative ~ trial_number), data))
-	
-	retest_df = @chain explore_by_occur begin
-		transform(:trial_number => (x -> x .- mean(x)), renamecols=false)
-		@drop_missing(explorative)
-		groupby([:prolific_pid, :session])
-		combine(AsTable([:explorative, :trial_number]) => (x -> [glm_coef(x)]) => [:β0, :β_trial])
-	end
+plot_explore_trend_reliability(
+  explore_by_occur;
+  title = "Test-retest: Exploration by # Occurrence",
+  caption = "Explore[0/0.5/1 | # Occur] ~ 1 + Trial",
+)
 
-	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
-	workshop_reliability_scatter!(
-		fig[1,1];
-		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β0)),
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Avg. exploration",
-		correct_r=false
-	)
+plot_choice_pred_curves(
+  explore_by_occur;
+  title = "Choice Prediction Curves by # Occurrence Difference",
+  xlabel = "Left(#Occur) - Right(#Occur)"
+)
 
-	workshop_reliability_scatter!(
-		fig[1,2];
-		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β_trial)),
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Exploration trend",
-		correct_r=false
-	)
-	Label(fig[0, :], "Test-retest: exploration by occurrence")
-	display(fig)
-end
+plot_bias_and_sensitivity_reliability(
+  subset(explore_by_occur, :prolific_pid => ByRow(x -> x !==("670cf1a20d1fa15c58a175f7")));
+  title = "Test-retest: Exploration by # Occurrence Difference",
+)
+
 
 # Summarize choices by the length of the interval
 begin
@@ -275,72 +505,43 @@ begin
       [:trial_number, :red]    => ((t, x) -> calc_trial_interval(t, x)) => :red
     )
     add_explorative_response(_, metric="interval")
+    add_explorative_measure(_, metric="interval")
+    transform(:response => ByRow(passmissing(x -> x == "left" ? 1 : 0)) => :response_left)
   end
 end
 
-p_explore_int_avg = @chain explore_by_interval begin
-	dropmissing([:explorative, :response])
-	@group_by(session, trial)
-	@summarize(explorative = mean(explorative))
-	@ungroup
-	@arrange(session, trial)
-	data(_) * mapping(:trial, :explorative, color=:session) * (visual(Scatter) + linear())
-	draw(;axis=(;title = "Avg. exploration trend", xlabel = "Trial", ylabel = "Explorative? (by interval)"), figure=(;size=(600, 400)))
-end
-display(p_explore_int_avg)
-
-p_explore_int_ind_trend = @chain explore_by_interval begin
-	dropmissing([:explorative, :response])
-	@group_by(prolific_pid, session, trial_number)
-	@summarize(explorative = mean(explorative))
-	@ungroup
-	@arrange(prolific_pid, session, trial_number)
-	data(_) * mapping(:trial_number, :explorative, group=:prolific_pid, color=:session, col=:session) * (linear(interval=nothing))
-	draw(axis=(;xlabel = "Trial", ylabel = "Explorative? (by interval)"), figure=(;size=(600, 400)))
-end
-display(p_explore_int_ind_trend)
+plot_explore_trend(
+  explore_by_interval;
+  xlabel="Trial",
+  ylabel="P(Explorative)",
+  xcol=:trial_number,
+  ycol=:explorative_cat,
+  title="Exploration Trend by # Interval",
+  caption=""
+)
 
 # Test-retest reliability of exploration by interval (explorative trend)
-let
-	glm_coef(data) = coef(lm(@formula(explorative ~ trial_number), data))
-	
-	retest_df = @chain explore_by_interval begin
-		transform(:trial_number => (x -> x .- mean(x)), renamecols=false)
-		@drop_missing(explorative)
-		groupby([:prolific_pid, :session])
-		combine(AsTable([:explorative, :trial_number]) => (x -> [glm_coef(x)]) => [:β0, :β_trial])
-	end
+plot_explore_trend_reliability(
+  explore_by_interval;
+  title = "Test-retest: Exploration by # Interval",
+  caption = "Explore[0/0.5/1 | # Interval] ~ 1 + Trial",
+)
 
-	fig=Figure(;size=(12, 6) .* 144 ./ 2.54)
-	workshop_reliability_scatter!(
-		fig[1,1];
-		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β0)),
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Avg. exploration",
-		correct_r=false
-	)
+plot_choice_pred_curves(
+  explore_by_interval;
+  title = "Choice Prediction Curves by # Interval Difference",
+  xlabel = "Left(#Interval) - Right(#Interval)"
+)
 
-	workshop_reliability_scatter!(
-		fig[1,2];
-		df=dropmissing(unstack(retest_df, [:prolific_pid], :session, :β_trial)),
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Exploration trend",
-		correct_r=false
-	)
-	Label(fig[0, :], "Test-retest: exploration by interval")
-	display(fig)
-end
+plot_bias_and_sensitivity_reliability(
+  subset(explore_by_interval, :prolific_pid => ByRow(x -> x !==("670cf1a20d1fa15c58a175f7")));
+  title = "Test-retest: Exploration by # Interval Difference",
+)
 
 # Are these two measures of exploration correlated?
 let
-  x_df = select(explore_by_occur, :prolific_pid, :session, :trial_number, :explorative => :explorative_occur)
-  y_df = select(explore_by_interval, :prolific_pid, :session, :trial_number, :explorative => :explorative_interval)
+  x_df = select(explore_by_occur, :prolific_pid, :session, :trial_number, :explorative_cat => :explorative_occur)
+  y_df = select(explore_by_interval, :prolific_pid, :session, :trial_number, :explorative_cat => :explorative_interval)
 
   # Combine the two dataframes
   combined_df = dropmissing(innerjoin(x_df, y_df, on=[:prolific_pid, :session, :trial_number]))
@@ -384,7 +585,7 @@ let
   println(session_trend_corrs)
 end
 
-# Summarize choices by the number of choices
+# Summarize choices by the number of controlled choices
 begin
   explore_nchoice_df = @chain explore_choice_df begin
     groupby([:prolific_pid, :session])
@@ -392,26 +593,58 @@ begin
       [:response, :left, :right] .=> lead => x -> "next_" * x,
     )
     transform(
-      [:response, :left, :right, :blue, :green, :yellow, :red] => 
-      ByRow((resp, left, right, blue, green, yellow, red) -> begin
+      [:response, :control_rule_used, :left, :right, :blue, :green, :yellow, :red] => 
+      ByRow((resp, rule, left, right, blue, green, yellow, red) -> begin
         if ismissing(resp)
           return (blue=0, green=0, yellow=0, red=0)
         end
         
         chosen_color = resp == "left" ? left : right
-        unchosen_color = resp == "left" ? right : left
-        
+        controlled = !ismissing(rule) && rule == "control"
+
         return (
-          blue = chosen_color == "blue" ? blue : (unchosen_color == "blue" ? 0 : blue),
-          green = chosen_color == "green" ? green : (unchosen_color == "green" ? 0 : green),
-          yellow = chosen_color == "yellow" ? yellow : (unchosen_color == "yellow" ? 0 : yellow),
-          red = chosen_color == "red" ? red : (unchosen_color == "red" ? 0 : red)
+          blue = controlled && chosen_color == "blue" ? blue : 0,
+          green = controlled && chosen_color == "green" ? green : 0,
+          yellow = controlled && chosen_color == "yellow" ? yellow : 0,
+          red = controlled && chosen_color == "red" ? red : 0
         )
       end) => [:blue, :green, :yellow, :red]
     )
     groupby([:prolific_pid, :session])
     transform([:blue, :green, :yellow, :red] .=> cumsum .=> [:blue, :green, :yellow, :red])
-    # add_explorative_response(_, metric="choice")
+    add_explorative_response(_, metric="control")
+    add_explorative_measure(_, metric="control")
+    transform(:next_response => ByRow(passmissing(x -> x == "left" ? 1 : 0)) => :next_response_left)
+    transform([:next_left, :next_right] => ByRow(passmissing((x, y) -> !(x == "blue" || y == "blue"))) => :has_no_blue)
   end
 end
 
+plot_explore_trend(
+  subset(explore_nchoice_df, :has_no_blue => ByRow(x -> x == true), skipmissing=true);
+  xlabel="Trial",
+  ylabel="P(Explorative)",
+  xcol=:trial_number,
+  ycol=:explorative_cat,
+  title="Exploration Trend by # Controlled Choices",
+  caption=""
+)
+
+# Test-retest reliability of exploration by interval (explorative trend)
+plot_explore_trend_reliability(
+  subset(explore_nchoice_df, :has_no_blue => ByRow(x -> x == true), skipmissing=true);
+  title = "Test-retest: Exploration by # Controlled Choices",
+  caption = "Explore[0/0.5/1 | # Controlled Choices] ~ 1 + Trial",
+)
+
+plot_choice_pred_curves(
+  subset(explore_nchoice_df, :has_no_blue => ByRow(x -> x == true), skipmissing=true);
+  title = "Choice Prediction Curves by # Controlled Choices",
+  ycol = :next_response_left,
+  xlabel = "Left(#Controlled) - Right(#Controlled)"
+)
+
+plot_bias_and_sensitivity_reliability(
+  subset(subset(explore_nchoice_df, :has_no_blue => ByRow(x -> x == true), skipmissing=true), :prolific_pid => ByRow(x -> x !==("670cf1a20d1fa15c58a175f7")));
+  ycol = :next_response_left,
+  title = "Test-retest: Exploration by # Controlled Choices",
+)
