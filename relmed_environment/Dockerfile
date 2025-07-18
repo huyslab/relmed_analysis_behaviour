@@ -78,3 +78,44 @@ RUN fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home
 ENV CMDSTAN_HOME=/home/jovyan/.cmdstanr/cmdstan-2.34.1
+
+# Install Quarto CLI
+# Version number of Quarto to download and use
+# See https://github.com/quarto-dev/quarto-cli/releases for existing versions
+ARG QUARTO_VERSION=1.7.32
+
+# Install Quarto CLI and dependencies
+RUN apt-get update --yes && \
+    apt-get install --yes --no-install-recommends \
+        pandoc \
+        pandoc-citeproc \
+        curl \
+        gdebi-core \
+        librsvg2-bin && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Download and install Quarto CLI
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        QUARTO_ARCH="amd64"; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        QUARTO_ARCH="arm64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    curl -LO https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-${QUARTO_ARCH}.deb && \
+    gdebi --non-interactive quarto-${QUARTO_VERSION}-linux-${QUARTO_ARCH}.deb && \
+    rm quarto-${QUARTO_VERSION}-linux-${QUARTO_ARCH}.deb
+
+# Install TinyTeX for PDF conversion (optional - install basic packages only)
+USER ${NB_USER}
+RUN wget -qO- "https://yihui.org/tinytex/install-bin-unix.sh" | sh && \
+    echo 'export PATH="$HOME/.TinyTeX/bin/$(uname -m)-linux:$PATH"' >> ~/.bashrc && \
+    export PATH="$HOME/.TinyTeX/bin/$(uname -m)-linux:$PATH" && \
+    echo "TinyTeX installation completed. Package management will be done on-demand."
+
+# Switch back to root for any final setup
+USER root
+
+# Fix permissions
+RUN fix-permissions "/home/${NB_USER}"
