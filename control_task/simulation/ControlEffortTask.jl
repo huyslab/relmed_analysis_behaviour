@@ -575,7 +575,212 @@ function run_batch_experiment(pars::TaskParameters, stimuli::Vector{<:NamedTuple
     return results, datasets
 end
 
+# Functions for alpha-prediction accuracy simulation
+
+# Function to compute weighted average transition matrix from particle weights
+function compute_weighted_transition_matrix(weight_estimates::Matrix{Float64}, trial::Int, pars::TaskParameters)
+    @unpack n_states = pars
+    
+    # Get transition matrices
+    Tcs, true_index = ControlEffortTask.initialize_transition_matrices(pars)
+    
+    # Get weights for this trial
+    trial_weights = weight_estimates[:, trial]
+    
+    # Compute weighted average transition matrix
+    weighted_matrix = zeros(n_states, n_states)
+    for i in 1:size(Tcs, 3)
+        weighted_matrix .+= trial_weights[i] * Tcs[:, :, i]
+    end
+    
+    return weighted_matrix, true_index, Tcs
+end
+
+# Function to compute accuracy against ground truth
+function compute_transition_accuracy(weighted_matrix::Matrix{Float64}, true_matrix::Matrix{Float64})
+    # Method 1: Frobenius norm distance (lower is better)
+    frobenius_distance = norm(weighted_matrix - true_matrix, 2)
+    
+    # # Method 2: Maximum probability accuracy (higher is better)
+    # # For each state, check if the highest probability transition matches true transition
+    # n_states = size(weighted_matrix, 1)
+    # correct_predictions = 0
+    
+    # for state in 1:n_states
+    #     predicted_next = argmax(weighted_matrix[:, state])
+    #     true_next = argmax(true_matrix[:, state])
+    #     if predicted_next == true_next
+    #         correct_predictions += 1
+    #     end
+    # end
+    
+    # accuracy = correct_predictions / n_states
+    
+    # Method 2: Mean probability assigned to true transitions (higher is better)
+    # This directly measures how much probability mass is on the correct transitions
+    accuracy = mean(weighted_matrix[true_matrix .== 1.0])
+    
+    return accuracy, frobenius_distance
+end
+
+# Function to run simulation for different alpha values
+function run_alpha_simulation(alpha_values::Vector{Float64}; 
+                            n_participants::Int=25, 
+                            n_trials::Int=72,
+                            actor_fn::Union{Nothing,Function}=nothing,
+                            random_seed::Int=123)
+    
+    Random.seed!(random_seed)
+    
+    # Generate fixed stimulus sequence
+    base_pars = TaskParameters(n_trials=n_trials, alpha=1.0)  # alpha will be overridden
+    # stimuli_sequence = generate_stimuli(base_pars; mode=:factorial, shuffle=true)
+    stimuli_sequence = generate_stimuli(base_pars; mode=:csv, csv_path="trials.csv", shuffle=false)
+    
+    # Results storage
+    results_df = DataFrame()
+    
+    for alpha in alpha_values
+        @info "Running simulation for alpha = $alpha"
+        
+        # Update parameters with current alpha
+        pars = TaskParameters(n_trials=n_trials, alpha=alpha)
+        
+        # Run batch experiments
+        results_list, datasets_list = run_batch_experiment(
+            pars, stimuli_sequence; 
+            n_participants=n_participants, 
+            actor=actor_fn,
+            show_plots=false
+        )
+        
+        # Analyze each participant's results
+        for (p_idx, results) in enumerate(results_list)
+            
+            # Get ground truth transition matrix
+            _, true_index, Tcs = compute_weighted_transition_matrix(results.weight_estimates, 1, pars)
+            true_matrix = Tcs[:, :, true_index]
+            
+            # Compute accuracy for each trial
+            for trial in 1:n_trials
+                weighted_matrix, _, _ = compute_weighted_transition_matrix(
+                    results.weight_estimates, trial, pars
+                )
+                
+                accuracy, frobenius_dist = compute_transition_accuracy(weighted_matrix, true_matrix)
+                
+                # Store results
+                push!(results_df, (
+                    alpha = alpha,
+                    participant = p_idx,
+                    trial = trial,
+                    accuracy = accuracy,
+                    frobenius_distance = frobenius_dist,
+                    effective_sample_size = results.diagnostics[trial].effective_sample_size,
+                    resampled = results.diagnostics[trial].resampled
+                ))
+            end
+        end
+    end
+    
+    return results_df
+end
+
+# Function to create visualization
+function plot_alpha_comparison(results_df::DataFrame)
+    fig = Figure(size=(12, 8))
+    
+    # Aggregate data by alpha and trial
+    summary_df = combine(
+        groupby(results_df, [:alpha, :trial]),
+        :accuracy => mean => :mean_accuracy,
+        :accuracy => std => :std_accuracy,
+        :frobenius_distance => mean => :mean_frobenius,
+        :frobenius_distance => std => :std_frobenius,
+        :effective_sample_size => mean => :mean_ess,
+        :resampled => (x -> mean(x)) => :prop_resampled
+    )
+    
+    # Plot 1: Accuracy over trials for different alpha values
+    ax1 = Axis(fig[1, 1], 
+               xlabel="Trial", 
+               ylabel="Transition Matrix Accuracy", 
+               title="Accuracy vs Trial for Different Alpha Values")
+    
+    alpha_values = sort(unique(summary_df.alpha))
+    colors = [:red, :blue, :green, :orange, :purple, :brown]
+    
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, summary_df)
+        
+        # Plot mean with error bands
+        lines!(ax1, alpha_data.trial, alpha_data.mean_accuracy, 
+               color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+        
+        band!(ax1, alpha_data.trial, 
+              alpha_data.mean_accuracy .- alpha_data.std_accuracy,
+              alpha_data.mean_accuracy .+ alpha_data.std_accuracy,
+              color=(colors[mod1(i, length(colors))], 0.2))
+    end
+    
+    axislegend(ax1, position=:rb)
+    
+    # Plot 2: Frobenius distance over trials
+    ax2 = Axis(fig[1, 2], 
+               xlabel="Trial", 
+               ylabel="Frobenius Distance", 
+               title="Distance from True Matrix vs Trial")
+    
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, summary_df)
+        lines!(ax2, alpha_data.trial, alpha_data.mean_frobenius, 
+               color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    end
+    
+    # # Plot 3: Effective sample size over trials
+    # ax3 = Axis(fig[2, 1], 
+    #            xlabel="Trial", 
+    #            ylabel="Effective Sample Size", 
+    #            title="ESS vs Trial")
+    
+    # for (i, alpha) in enumerate(alpha_values)
+    #     alpha_data = filter(row -> row.alpha == alpha, summary_df)
+    #     lines!(ax3, alpha_data.trial, alpha_data.mean_ess, 
+    #            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    # end
+    
+    # # Plot 4: Proportion of resampled trials
+    # ax4 = Axis(fig[2, 2], 
+    #            xlabel="Trial", 
+    #            ylabel="Proportion Resampled", 
+    #            title="Resampling Rate vs Trial")
+    
+    # for (i, alpha) in enumerate(alpha_values)
+    #     alpha_data = filter(row -> row.alpha == alpha, summary_df)
+    #     lines!(ax4, alpha_data.trial, alpha_data.prop_resampled, 
+    #            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    # end
+    
+    return fig
+end
+
+# Function to analyze final performance
+function analyze_final_performance(results_df::DataFrame; final_trials::Int=10)
+    # Look at performance in the last N trials
+    final_df = filter(row -> row.trial > maximum(results_df.trial) - final_trials, results_df)
+    
+    final_summary = combine(
+        groupby(final_df, :alpha),
+        :accuracy => mean => :final_accuracy,
+        :accuracy => std => :final_accuracy_std,
+        :frobenius_distance => mean => :final_frobenius,
+        :frobenius_distance => std => :final_frobenius_std
+    )
+    
+    return final_summary
+end
+
 # Export main functions
-export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, generate_stimuli, particle_filter, plot_estimates
+export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, generate_stimuli, particle_filter, plot_estimates, run_alpha_simulation, plot_alpha_comparison, analyze_final_performance
 
 end # module
