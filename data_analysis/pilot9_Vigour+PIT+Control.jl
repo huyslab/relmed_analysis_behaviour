@@ -75,6 +75,11 @@ end
 # ╔═╡ 9ebce139-53fd-43de-bb82-feaf1c759910
 PIT_doubt_PID = ["677afec8954cc9493035dc74", "67f7f3a41fcb35f0eaac48ef", "680d70786b6a8ca0af164c89", "66226d86cdae406d48c9e4c6", "681106ac93d01f1615c6f003"]
 
+# ╔═╡ 93930b3f-76bc-4464-8ac3-d15636e3be32
+md"""
+# Max press rate
+"""
+
 # ╔═╡ cae69da2-ec7f-4df6-a69d-d0677185d108
 md"""
 # Vigour
@@ -140,6 +145,16 @@ md"""
 # ╔═╡ db0ef21a-1b00-4eee-983b-f3f553730f14
 md"""
 ### Exploration
+"""
+
+# ╔═╡ 4c154df6-e9fb-4f23-ba8b-b8ee7e971b1b
+md"""
+- Exploration due to the number of choice occurrence
+"""
+
+# ╔═╡ 8777fb08-e33b-4694-82a3-b77e0894b5ca
+md"""
+- Exploration due to the interval from last seen
 """
 
 # ╔═╡ fb6d4fdf-ec68-46a2-b5dc-07f0e7cc9a40
@@ -334,6 +349,34 @@ end
 
 # ╔═╡ b019dcd5-8eaf-4759-83ed-cc343718fd17
 @count(p_no_double_take, session)
+
+# ╔═╡ 221efdd3-1310-49bd-8049-e48e510f80f0
+begin
+	filter!(x -> !(x.prolific_pid in []), raw_max_press_data);
+	max_press_data = semijoin(raw_max_press_data, p_no_double_take, on=:record_id)
+	nothing;
+end
+
+# ╔═╡ 0b92e3fe-5174-4c20-abf7-7fdb83008cf3
+let
+	retest_df = @chain max_press_data begin
+		unstack(:prolific_pid, :session, :avg_speed, combine=last)
+		@drop_missing
+	end
+	
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	workshop_reliability_scatter!(
+		fig[1,1];
+		df=retest_df,
+		xlabel="Session 1",
+		ylabel="Session 2",
+		xcol=Symbol(string(1)),
+		ycol=Symbol(string(2)),
+		subtitle="Test-retest Max Press Rate (Press/sec)",
+		correct_r=false
+	)
+	fig
+end
 
 # ╔═╡ a590ab5d-647a-4d4f-b3d2-9ef03e7b7f73
 begin
@@ -609,6 +652,25 @@ begin
 	end
 end
 
+# ╔═╡ 06c96074-41f1-4675-98d2-49aa62f96191
+subset(control_task_data, [:response, :trial_presses] => ByRow((x, y) -> !ismissing.(x) && y .== 0); skipmissing=true) |>
+x -> subset(x, :trialphase => ByRow(==("control_explore"))) |>
+x -> combine(groupby(x, [:participant_id, :session, :trialphase]), :participant_id => length)
+
+# ╔═╡ f0c1f127-064b-4a93-9b59-0c76fa96070b
+control_task_data
+
+# ╔═╡ b53da5a9-d78b-41f6-81d5-6921b6cf5aae
+begin
+	@chain control_task_data begin
+		@filter(trialphase == "control_explore")
+		groupby([:prolific_pid, :session])
+		transform(
+			:trial => (x -> 1:length(x)) => :trial_number
+		)
+	end
+end
+
 # ╔═╡ 2b29cc46-f722-4cf3-b1bf-9bb6310b2457
 let
 	glm_coef(data) = coef(lm(@formula(trial_presses ~ current), data))
@@ -691,112 +753,6 @@ end
 @chain control_task_data begin
 	@filter(trialphase == "control_explore")
 	@summary(rt)
-end
-
-# ╔═╡ fa6064ce-626b-4309-9183-b129e925058b
-begin
-	explore_by_times = @chain control_task_data begin
-		@filter(trialphase == "control_explore")
-		@arrange(prolific_pid, session, trial)
-		@group_by(prolific_pid, session, left)
-		@mutate(left_prev_occur = row_number())
-		@ungroup()
-		@arrange(prolific_pid, session, trial)
-		@group_by(prolific_pid, session, right)
-		@mutate(right_prev_occur = row_number())
-		@ungroup()
-		@arrange(prolific_pid, session, trial)
-		@drop_missing(response)
-		@filter(left_prev_occur != right_prev_occur)
-		@mutate(explorative = ((response == "right") && (left_prev_occur > right_prev_occur)) || ((response == "left") && (left_prev_occur < right_prev_occur)))
-	end
-	@chain explore_by_times begin
-		@group_by(session, trial)
-		@summarize(explorative = mean(explorative), upper = mean(explorative) + std(explorative)/sqrt(length(explorative)), lower = mean(explorative) - std(explorative)/sqrt(length(explorative)))
-		@ungroup
-		@arrange(session, trial)
-		data(_) * mapping(:trial, :explorative, color=:session) * (visual(Scatter) + linear())
-		draw(;axis=(;xlabel = "Trial", ylabel = "Explorative? (by occurence)"), figure=(;size=(600, 400)))
-	end
-end
-
-# ╔═╡ dc8445f6-965c-4d57-af9d-136059fe72ec
-let
-	retest_df = @chain explore_by_times begin
-		@group_by(prolific_pid, session)
-		@summarize(p_explorative = mean(explorative))
-		@ungroup
-		unstack([:prolific_pid], :session, :p_explorative)
-		dropmissing()
-	end
-
-	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
-	workshop_reliability_scatter!(
-		fig[1,1];
-		df=retest_df,
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Test-retest: Exploration by occurence",
-		correct_r=false
-	)
-	fig
-end
-
-# ╔═╡ 143f8d33-fabd-4af1-b7ba-69984084a533
-let
-	retest_df = @chain explore_by_times begin
-		@mutate(half = ifelse(~denserank(trial) <= maximum(~denserank(trial))/2, "x", "y"))
-		@group_by(prolific_pid, session, half)
-		@summarize(p_explorative = mean(explorative))
-		@ungroup
-		unstack([:prolific_pid, :session], :half, :p_explorative)
-		@mutate(explore_change = y - x)
-		select(Not(Cols(:x, :y)))
-		unstack([:prolific_pid], :session, :explore_change)
-		dropmissing()
-	end
-
-	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
-	workshop_reliability_scatter!(
-		fig[1,1];
-		df=retest_df,
-		xlabel="Session 1",
-		ylabel="Session 2",
-		xcol=Symbol(string(1)),
-		ycol=Symbol(string(2)),
-		subtitle="Test-retest: Exploration tendency change",
-		correct_r=false
-	)
-	fig
-end
-
-# ╔═╡ fa930366-523b-467b-8c3d-5fdd77565064
-begin
-	explore_by_interval = @chain control_task_data begin
-		@filter(trialphase == "control_explore")
-		@arrange(prolific_pid, session, trial)
-		groupby([:prolific_pid, :session, :left])
-		transform(:trial => (x -> vcat(0, diff(x))) => :left_prev_occur) # trial number includes those for control prediction
-		@ungroup()
-		@arrange(prolific_pid, session, trial)
-		groupby([:prolific_pid, :session, :right])
-		transform(:trial => (x -> vcat(0, diff(x))) => :right_prev_occur) # trial number includes those for control prediction
-		@ungroup()
-		@arrange(prolific_pid, session, trial)
-		@drop_missing(response)
-		@filter(left_prev_occur != right_prev_occur)
-		@mutate(explorative = ((response == "right") && (left_prev_occur > right_prev_occur)) || ((response == "left") && (left_prev_occur < right_prev_occur)))
-	end
-	@chain explore_by_interval begin
-		@group_by(session, trial)
-		@summarize(explorative = mean(explorative), upper = mean(explorative) + std(explorative)/sqrt(length(explorative)), lower = mean(explorative) - std(explorative)/sqrt(length(explorative)))
-		@ungroup
-		@arrange(session, trial)
-		data(_) * mapping(:trial, :explorative, color=:session) * (visual(Scatter) + linear())
-		draw(;axis=(;xlabel = "Trial", ylabel = "Explorative? (by interval)"), figure=(;size=(600, 400)))
-	end
 end
 
 # ╔═╡ 8f1ab7ba-0fa0-4b0f-9b69-9d8440e60f12
@@ -1141,6 +1097,9 @@ n = 2 # Number of splits
 # ╠═47f6b0b5-ea48-4d47-929e-388991fd52a4
 # ╠═b019dcd5-8eaf-4759-83ed-cc343718fd17
 # ╠═9ebce139-53fd-43de-bb82-feaf1c759910
+# ╟─93930b3f-76bc-4464-8ac3-d15636e3be32
+# ╟─221efdd3-1310-49bd-8049-e48e510f80f0
+# ╠═0b92e3fe-5174-4c20-abf7-7fdb83008cf3
 # ╟─cae69da2-ec7f-4df6-a69d-d0677185d108
 # ╟─a590ab5d-647a-4d4f-b3d2-9ef03e7b7f73
 # ╟─8a0f53d3-2054-4845-b96d-29399b5aa340
@@ -1161,20 +1120,21 @@ n = 2 # Number of splits
 # ╟─bbde0375-f1a9-47e3-b7d0-885a4e0b8548
 # ╟─abe9466b-e4cc-4803-afdf-ada8f482a732
 # ╟─6db5310b-7e8b-42e9-bf8a-38c862e9396c
-# ╟─009447fb-3719-49df-af9d-06f2f26908f3
+# ╠═009447fb-3719-49df-af9d-06f2f26908f3
 # ╟─5c38974b-06a9-4497-8ed8-0cf30e313abd
 # ╟─75d53fbd-5af6-4b29-a952-b5f428c98d20
 # ╟─cc52da42-9561-4619-8d6a-237f9ac629e8
 # ╟─a395432f-0dba-4a06-bbe2-d00c596c455e
 # ╠═9c4338bb-5e7b-443b-afd4-24e87349af9e
+# ╠═06c96074-41f1-4675-98d2-49aa62f96191
+# ╠═f0c1f127-064b-4a93-9b59-0c76fa96070b
+# ╠═b53da5a9-d78b-41f6-81d5-6921b6cf5aae
 # ╠═2b29cc46-f722-4cf3-b1bf-9bb6310b2457
 # ╟─a83d1fda-81fe-4305-ab8e-b6c4fbce6749
 # ╟─db0ef21a-1b00-4eee-983b-f3f553730f14
 # ╟─8850fa85-de8c-4328-9df0-dde761852e7a
-# ╟─fa6064ce-626b-4309-9183-b129e925058b
-# ╟─dc8445f6-965c-4d57-af9d-136059fe72ec
-# ╟─143f8d33-fabd-4af1-b7ba-69984084a533
-# ╟─fa930366-523b-467b-8c3d-5fdd77565064
+# ╟─4c154df6-e9fb-4f23-ba8b-b8ee7e971b1b
+# ╟─8777fb08-e33b-4694-82a3-b77e0894b5ca
 # ╟─fb6d4fdf-ec68-46a2-b5dc-07f0e7cc9a40
 # ╟─8f1ab7ba-0fa0-4b0f-9b69-9d8440e60f12
 # ╟─a4338ed9-6a30-4433-be3a-da03ba093dba
@@ -1196,6 +1156,6 @@ n = 2 # Number of splits
 # ╟─e1bd1abf-ab0b-4bbf-a9c7-76891414cd0a
 # ╠═85d9ed09-7848-4749-83c0-310e6b6fdac0
 # ╟─f74eea14-748b-4b3c-b887-bc9485ecfea3
-# ╟─8312e274-4cf4-4ad2-906d-e357ef5d4755
+# ╠═8312e274-4cf4-4ad2-906d-e357ef5d4755
 # ╠═8f2909c4-7746-4994-b97e-6acc87aa84a1
-# ╟─734a8fb3-dcdf-4e51-8c16-1bb0f2ee7808
+# ╠═734a8fb3-dcdf-4e51-8c16-1bb0f2ee7808
