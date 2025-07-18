@@ -15,14 +15,14 @@ Types
 ==========================================================#
 
 @with_kw mutable struct TaskParameters
-    n_trials::Int = 144
+    n_trials::Int = 72
     n_states::Int = 4
-    n_particles::Int = 100
+    n_particles::Int = 40
     n_matrices::Int = factorial(n_states)
     n_samples::Int = n_matrices * n_particles
     alpha::Float64 = 10.0
     sigma::Float64 = 1.0
-    beta_true::Vector{Float64} = [5.0, 10.0, 20.0]
+    beta_true::Vector{Float64} = [2, 4, 6] .* 3 # true beta values for each wind condition
     Tc::Vector{Int} = [4, 3, 2, 1]
     Tu::Vector{Int} = [2, 3, 4, 1]
 end
