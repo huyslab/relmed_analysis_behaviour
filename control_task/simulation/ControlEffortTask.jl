@@ -624,16 +624,17 @@ function compute_transition_accuracy(weighted_matrix::Matrix{Float64}, true_matr
 end
 
 # Function to run simulation for different alpha values
-function run_alpha_simulation(alpha_values::Vector{Float64}; 
-                            n_participants::Int=25, 
-                            n_trials::Int=72,
-                            actor_fn::Union{Nothing,Function}=nothing,
-                            random_seed::Int=123)
+function run_alpha_simulation(alpha_values::Vector{Float64};
+    n_participants::Int=25,
+    n_trials::Int=72,
+    n_particles::Int=100,
+    actor::Union{Nothing,Function}=nothing,
+    random_seed::Int=123)
     
     Random.seed!(random_seed)
     
     # Generate fixed stimulus sequence
-    base_pars = TaskParameters(n_trials=n_trials, alpha=1.0)  # alpha will be overridden
+    base_pars = TaskParameters(n_trials=n_trials, n_particles=n_particles, alpha=1.0)  # alpha will be overridden
     # stimuli_sequence = generate_stimuli(base_pars; mode=:factorial, shuffle=true)
     stimuli_sequence = generate_stimuli(base_pars; mode=:csv, csv_path="trials.csv", shuffle=false)
     
@@ -650,7 +651,7 @@ function run_alpha_simulation(alpha_values::Vector{Float64};
         results_list, datasets_list = run_batch_experiment(
             pars, stimuli_sequence; 
             n_participants=n_participants, 
-            actor=actor_fn,
+            actor=actor,
             show_plots=false
         )
         
