@@ -492,6 +492,20 @@ let
 	fig
 end
 
+# ╔═╡ 2daf00e1-a475-4b7c-a793-e619f40e71fa
+let
+	avg_w_data = combine(groupby(PIT_data, [:session, :prolific_pid, :coin_cat]), :press_per_sec => mean => :press_per_sec)
+	sort!(avg_w_data, [:prolific_pid, :session, :coin_cat])
+	p = data(avg_w_data) *
+	mapping(:coin_cat, :press_per_sec, group=:prolific_pid) *
+	visual(Lines, linewidth=2, color=:gray75, alpha = 0.2)
+	fig=Figure(;size=(8, 6) .* 144 ./ 2.54)
+	p = draw!(fig[1,1], p; axis=(;xlabel="Pavlovian stimuli (coin value)", ylabel="Press/sec"))
+	# legend!(fig[1,2], p)
+
+	fig
+end
+
 # ╔═╡ 8e186be5-f2a2-4285-a62a-9c021b2dd172
 let
 	df = @chain PIT_data begin
@@ -1113,7 +1127,8 @@ n = 2 # Number of splits
 # ╟─5230eada-33ba-413f-88a0-96f76164bc12
 # ╟─95bb623c-090d-4338-aa3f-7b31d47d87b2
 # ╠═ad6c8a9d-f0a7-4b6f-b012-dbe33b894a12
-# ╟─12b6b34d-cfc5-48cd-8d50-150c4e388405
+# ╠═12b6b34d-cfc5-48cd-8d50-150c4e388405
+# ╠═2daf00e1-a475-4b7c-a793-e619f40e71fa
 # ╟─8e186be5-f2a2-4285-a62a-9c021b2dd172
 # ╟─827751f8-ef30-472b-84f5-631fb212ba14
 # ╠═d889a3bb-04cc-433f-94e1-a8c71739f82f
