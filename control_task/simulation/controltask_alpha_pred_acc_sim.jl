@@ -67,3 +67,19 @@ end
         visual(Lines)
     draw(scales(Color=(; palette=:Oranges_3)); axis=(; title="Alpha Simulation Results", xlabel="Trial", ylabel="Prop. resampled"))
 end
+
+# Run the comprehensive natural evidence analysis
+natural_results = comprehensive_natural_evidence_analysis(
+    alpha_values=[1.0, 10.0, 100.0],
+    n_particles=1000,
+    n_participants=50,
+    n_trials=72,
+    actor=actor_fn
+)
+
+# Display the plots
+display(natural_results.fig_patterns)
+display(natural_results.fig_timeline)
+
+# Look at the summary
+println(natural_results.summary_df)

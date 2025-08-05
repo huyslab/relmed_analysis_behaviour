@@ -781,6 +781,495 @@ function analyze_final_performance(results_df::DataFrame; final_trials::Int=10)
     return final_summary
 end
 
+# Add these functions to your ControlEffortTask module
+
+#==========================================================
+Natural Evidence Analysis Functions
+==========================================================#
+
+# Function to identify contrasting evidence trials from actual data
+function identify_contrasting_evidence(dataset::Vector{<:NamedTuple}, pars::TaskParameters)
+    """
+    Identifies trials where the observed outcome contradicts different transition matrices
+    """
+    # Get all possible transition matrices
+    Tcs, true_index = initialize_transition_matrices(pars)
+    n_matrices = size(Tcs, 3)
+    
+    # Analyze each trial
+    evidence_analysis = DataFrame()
+    
+    for (trial_idx, trial_data) in enumerate(dataset)
+        # Only analyze controlled trials (where the outcome reflects the transition matrix)
+        if trial_data.controlled
+            boat = trial_data.chosen_boat
+            outcome = trial_data.next_state
+            
+            # Check which matrices this evidence supports/contradicts
+            for matrix_idx in 1:n_matrices
+                predicted_outcome = findfirst(Tcs[:, boat, matrix_idx] .== 1.0)
+                is_consistent = (predicted_outcome == outcome)
+                
+                push!(evidence_analysis, (
+                    trial = trial_idx,
+                    matrix_idx = matrix_idx,
+                    is_true_matrix = (matrix_idx == true_index),
+                    predicted_outcome = predicted_outcome,
+                    actual_outcome = outcome,
+                    is_consistent = is_consistent,
+                    boat = boat,
+                    effort = trial_data.effort,
+                    wind = trial_data.wind
+                ))
+            end
+        end
+    end
+    
+    return evidence_analysis
+end
+
+# Function to track belief updates against natural contrasting evidence
+function analyze_natural_evidence_updates(alpha_values::Vector{Float64};
+    n_participants::Int=10,
+    n_particles::Int=100,
+    n_trials::Int=72,
+    actor::Union{Nothing,Function}=nothing,
+    random_seed::Int=123)
+    
+    Random.seed!(random_seed)
+
+    results_df = DataFrame()
+    
+    # Generate fixed stimulus sequence
+    base_pars = TaskParameters(n_trials=n_trials, alpha=1.0)
+    # stimuli_sequence = generate_stimuli(base_pars; mode=:factorial, shuffle=true)
+    stimuli_sequence = generate_stimuli(base_pars; mode=:csv, csv_path="trials.csv", shuffle=false)
+    
+    for alpha in alpha_values
+        @info "Analyzing natural evidence for alpha = $alpha"
+        
+        pars = TaskParameters(n_trials=n_trials, n_particles=n_particles, alpha=alpha)
+        
+        for participant in 1:n_participants
+            # Generate dataset for this participant
+            dataset = map(stimuli_sequence) do stimulus
+                actions = generate_actions(stimulus; actor=actor)
+                outcomes = compute_outcomes(stimulus, actions, pars)
+                merge(stimulus, actions, outcomes)
+            end
+            
+            # Identify contrasting evidence trials
+            evidence_analysis = identify_contrasting_evidence(dataset, pars)
+            
+            # Run particle filter while tracking detailed dynamics
+            particle_results, trial_dynamics = run_detailed_particle_filter(pars, dataset, evidence_analysis)
+            
+            # Store results
+            for (trial_idx, dynamics) in enumerate(trial_dynamics)
+                trial_evidence = filter(row -> row.trial == trial_idx, evidence_analysis)
+                n_contradictions = sum(.!trial_evidence.is_consistent)
+                n_confirmations = sum(trial_evidence.is_consistent)
+                
+                push!(results_df, merge(dynamics, (
+                    alpha = alpha,
+                    participant = participant,
+                    trial = trial_idx,
+                    n_contradictions = n_contradictions,
+                    n_confirmations = n_confirmations,
+                    evidence_strength = n_confirmations - n_contradictions,
+                    is_controlled = nrow(trial_evidence) > 0  # Had controlled outcome
+                )))
+            end
+        end
+    end
+    
+    return results_df
+end
+
+# Detailed particle filter that tracks dynamics
+function run_detailed_particle_filter(pars::TaskParameters, dataset::Vector{<:NamedTuple}, evidence_analysis::DataFrame)
+    @unpack n_states, n_samples, n_particles, n_trials, beta_true = pars
+    
+    # Initialize particles
+    particle_weights = ones(n_samples) / n_samples
+    n_betas = length(beta_true)
+    betas = randn(n_betas, n_samples) .+ beta_true .* 0.1 .+ 10.0
+    
+    n_transmats = factorial(n_states)
+    Tcs, true_index = initialize_transition_matrices(pars)
+    weights = zeros(n_transmats, n_samples)
+    
+    # Initialize transition matrix beliefs
+    for i in 1:n_transmats
+        alpha_init = ones(n_transmats)
+        weights[:, (1:n_particles).+(i-1)*n_particles] = rand(Dirichlet(alpha_init), n_particles)
+    end
+    
+    trial_dynamics = []
+    
+    for trial in 1:min(n_trials, length(dataset))
+        trial_data = dataset[trial]
+        
+        # Store pre-update state
+        pre_mean_weights = weights * particle_weights
+        pre_particle_weights = copy(particle_weights)
+        
+        # Update particles
+        p_controls, p_next_states = update_particles!(betas, weights, particle_weights, trial_data, Tcs, pars)
+        
+        # Calculate post-update state
+        post_mean_weights = weights * particle_weights
+        
+        # Calculate dynamics metrics
+        belief_shift = norm(post_mean_weights - pre_mean_weights)
+        ess = 1.0 / sum(particle_weights .^ 2)
+        max_weight = maximum(particle_weights)
+        weight_entropy = -sum(w * log(w + eps()) for w in particle_weights)
+        
+        # Matrix-specific belief changes
+        matrix_belief_changes = abs.(post_mean_weights - pre_mean_weights)
+        max_matrix_change = maximum(matrix_belief_changes)
+        
+        # Check if resampling occurred
+        resampled = ess < 0.7 * n_samples
+        if resampled
+            resample_particles!(betas, weights, particle_weights)
+        end
+        
+        # Store dynamics
+        push!(trial_dynamics, (
+            belief_shift = belief_shift,
+            effective_sample_size = ess,
+            max_particle_weight = max_weight,
+            particle_entropy = weight_entropy,
+            max_matrix_change = max_matrix_change,
+            resampled = resampled,
+            belief_true_matrix = post_mean_weights[true_index],
+            mean_likelihood = mean(p_next_states)
+        ))
+    end
+    
+    return nothing, trial_dynamics  # We don't need the full results, just dynamics
+end
+
+# Function to analyze evidence patterns over trials
+function analyze_evidence_patterns(results_df::DataFrame)
+    """
+    Analyzes how different types of evidence (contradictory vs confirmatory) 
+    affect belief updates for different alpha values
+    """
+    
+    # Categorize trials by evidence type
+    results_df.evidence_type = map(results_df.evidence_strength) do strength
+        if strength > 0
+            "confirmatory"
+        elseif strength < 0
+            "contradictory" 
+        else
+            "neutral"
+        end
+    end
+    
+    # Add trial phase (early vs late learning)
+    results_df.learning_phase = map(results_df.trial) do trial
+        if trial <= 24
+            "early"
+        elseif trial <= 48
+            "middle"
+        else
+            "late"
+        end
+    end
+    
+    # Aggregate by alpha, evidence type, and learning phase
+    summary_df = combine(
+        groupby(results_df, [:alpha, :evidence_type, :learning_phase]),
+        :belief_shift => mean => :mean_belief_shift,
+        :belief_shift => std => :std_belief_shift,
+        :effective_sample_size => mean => :mean_ess,
+        :resampled => (x -> sum(x)/length(x)) => :resampling_rate,
+        :max_matrix_change => mean => :mean_matrix_change,
+        :particle_entropy => mean => :mean_particle_entropy,
+        nrow => :n_trials
+    )
+    
+    return summary_df
+end
+
+# Visualization function for natural evidence analysis
+function plot_natural_evidence_analysis(results_df::DataFrame)
+    fig = Figure(size=(800, 600))
+    
+    # Process data
+    summary_df = analyze_evidence_patterns(results_df)
+    
+    alpha_values = sort(unique(summary_df.alpha))
+    colors = Dict("contradictory" => :red, "confirmatory" => :blue, "neutral" => :gray)
+    phases = ["early", "middle", "late"]
+    
+    # Plot 1: Belief shift by evidence type and alpha (early trials)
+    early_df = filter(row -> row.learning_phase == "early", summary_df)
+    
+    ax1 = Axis(fig[1, 1],
+               xlabel="Alpha",
+               ylabel="Mean Belief Shift",
+               title="Belief Updates in Early Trials",
+               xscale=log10)
+    
+    for evidence_type in ["contradictory", "neutral", "confirmatory"]
+        type_data = filter(row -> row.evidence_type == evidence_type, early_df)
+        if nrow(type_data) > 0
+            lines!(ax1, type_data.alpha, type_data.mean_belief_shift,
+                   color=colors[evidence_type], linewidth=3, label=evidence_type)
+            CairoMakie.scatter!(ax1, type_data.alpha, type_data.mean_belief_shift,
+                    color=colors[evidence_type], markersize=8)
+        end
+    end
+    axislegend(ax1, position=:rt)
+    
+    # Plot 2: Resampling rate by evidence type and alpha
+    ax2 = Axis(fig[1, 2],
+               xlabel="Alpha", 
+               ylabel="Resampling Rate",
+               title="Particle Degeneracy by Evidence Type",
+               xscale=log10)
+    
+    for evidence_type in ["contradictory", "neutral", "confirmatory"]
+        type_data = filter(row -> row.evidence_type == evidence_type, early_df)
+        if nrow(type_data) > 0
+            lines!(ax2, type_data.alpha, type_data.resampling_rate,
+                   color=colors[evidence_type], linewidth=3)
+            CairoMakie.scatter!(ax2, type_data.alpha, type_data.resampling_rate,
+                    color=colors[evidence_type], markersize=8)
+        end
+    end
+    
+    # Plot 3: Learning phase comparison for contradictory evidence
+    contra_df = filter(row -> row.evidence_type == "contradictory", summary_df)
+    
+    ax3 = Axis(fig[2, 1],
+               xlabel="Alpha",
+               ylabel="Mean Belief Shift", 
+               title="Contradictory Evidence Across Learning Phases",
+               xscale=log10)
+    
+    phase_colors = [:orange, :red, :darkred]
+    for (i, phase) in enumerate(phases)
+        phase_data = filter(row -> row.learning_phase == phase, contra_df)
+        if nrow(phase_data) > 0
+            lines!(ax3, phase_data.alpha, phase_data.mean_belief_shift,
+                   color=phase_colors[i], linewidth=3, label=phase)
+            CairoMakie.scatter!(ax3, phase_data.alpha, phase_data.mean_belief_shift,
+                    color=phase_colors[i], markersize=8)
+        end
+    end
+    axislegend(ax3, position=:rt)
+    
+    # Plot 4: Effective sample size over learning phases
+    ax4 = Axis(fig[2, 2],
+               xlabel="Alpha",
+               ylabel="Mean Effective Sample Size",
+               title="Particle Diversity Across Phases", 
+               xscale=log10)
+    
+    for (i, phase) in enumerate(phases)
+        phase_data = filter(row -> row.learning_phase == phase, contra_df)
+        if nrow(phase_data) > 0
+            lines!(ax4, phase_data.alpha, phase_data.mean_ess,
+                   color=phase_colors[i], linewidth=3, label=phase)
+        end
+    end
+    
+    return fig, summary_df
+end
+
+# Function to track trial-by-trial natural evidence effects
+function track_natural_evidence_timeline(alpha_values::Vector{Float64};
+    n_participants::Int=10,
+    n_particles::Int=100,
+    max_trials::Int=24,  # Focus on early trials where most learning happens
+    actor::Union{Nothing,Function}=nothing,
+    random_seed::Int=123)
+
+    Random.seed!(random_seed)
+    
+    timeline_df = DataFrame()
+    
+    for alpha in alpha_values
+        @info "Tracking natural evidence timeline for alpha = $alpha"
+        
+        pars = TaskParameters(n_trials=max_trials, n_particles=n_particles, alpha=alpha)
+        
+        for participant in 1:n_participants
+            # Generate dataset
+            # stimuli_sequence = generate_stimuli(pars; mode=:factorial, shuffle=true)
+            stimuli_sequence = generate_stimuli(pars; mode=:csv, csv_path="trials.csv", shuffle=false)
+            dataset = map(stimuli_sequence) do stimulus
+                actions = generate_actions(stimulus; actor=actor)
+                outcomes = compute_outcomes(stimulus, actions, pars)
+                merge(stimulus, actions, outcomes)
+            end
+            
+            # Track cumulative contradictory evidence
+            evidence_analysis = identify_contrasting_evidence(dataset, pars)
+            _, true_index = initialize_transition_matrices(pars)
+            
+            # Run particle filter with detailed tracking
+            _, trial_dynamics = run_detailed_particle_filter(pars, dataset, evidence_analysis)
+            
+            # Calculate cumulative evidence against true matrix
+            cumulative_contradictions = 0
+            cumulative_confirmations = 0
+            
+            for trial in 1:min(max_trials, length(dataset))
+                trial_evidence = filter(row -> row.trial == trial && !row.is_true_matrix, evidence_analysis)
+                trial_confirmations = filter(row -> row.trial == trial && row.is_true_matrix, evidence_analysis)
+                
+                if nrow(trial_evidence) > 0
+                    cumulative_contradictions += sum(trial_evidence.is_consistent)
+                end
+                if nrow(trial_confirmations) > 0  
+                    cumulative_confirmations += sum(trial_confirmations.is_consistent)
+                end
+                
+                push!(timeline_df, merge(trial_dynamics[trial], (
+                    alpha = alpha,
+                    participant = participant,
+                    trial = trial,
+                    cumulative_contradictions = cumulative_contradictions,
+                    cumulative_confirmations = cumulative_confirmations,
+                    net_evidence = cumulative_confirmations - cumulative_contradictions
+                )))
+            end
+        end
+    end
+    
+    return timeline_df
+end
+
+# Plot timeline analysis
+function plot_evidence_timeline(timeline_df::DataFrame)
+    fig = Figure(size=(800, 600))
+    
+    # Aggregate by alpha and trial
+    agg_df = combine(
+        groupby(timeline_df, [:alpha, :trial]),
+        :belief_shift => mean => :mean_belief_shift,
+        :belief_true_matrix => mean => :mean_true_belief,
+        :effective_sample_size => mean => :mean_ess,
+        :resampled => (x -> sum(x)/length(x)) => :resampling_rate,
+        :net_evidence => mean => :mean_net_evidence
+    )
+    
+    alpha_values = sort(unique(agg_df.alpha))
+    colors = [:red, :blue, :green, :orange, :purple, :brown, :pink]
+    
+    # Plot 1: Belief in true matrix over time
+    ax1 = Axis(fig[1, 1],
+               xlabel="Trial",
+               ylabel="Belief in True Matrix",
+               title="Learning True Transition Matrix")
+    
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, agg_df)
+        lines!(ax1, alpha_data.trial, alpha_data.mean_true_belief,
+               color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    end
+    axislegend(ax1, position=:rb)
+    
+    # Plot 2: Belief shift magnitude over trials  
+    ax2 = Axis(fig[1, 2],
+               xlabel="Trial",
+               ylabel="Mean Belief Shift",
+               title="Trial-by-Trial Belief Changes")
+    
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, agg_df)
+        lines!(ax2, alpha_data.trial, alpha_data.mean_belief_shift,
+               color=colors[mod1(i, length(colors))], linewidth=2)
+    end
+    
+    # Plot 3: Resampling rate over time
+    ax3 = Axis(fig[2, 1],
+               xlabel="Trial", 
+               ylabel="Resampling Rate",
+               title="Particle Degeneracy Over Time")
+    
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, agg_df)
+        lines!(ax3, alpha_data.trial, alpha_data.resampling_rate,
+               color=colors[mod1(i, length(colors))], linewidth=2)
+    end
+    
+    # Plot 4: Net evidence accumulation
+    ax4 = Axis(fig[2, 2],
+               xlabel="Trial",
+               ylabel="Net Evidence (Confirmatory - Contradictory)",
+               title="Evidence Accumulation Pattern")
+    
+    # Just show one alpha as example since evidence pattern should be similar
+    example_data = filter(row -> row.alpha == alpha_values[1], agg_df)
+    lines!(ax4, example_data.trial, example_data.mean_net_evidence,
+           color=:black, linewidth=3)
+    hlines!(ax4, [0], color=:gray, linestyle=:dash)
+    
+    return fig
+end
+
+# Main function to run natural evidence analysis
+function comprehensive_natural_evidence_analysis(;
+    alpha_values::Vector{Float64}=[0.5, 5.0, 50.0, 500.0],
+    n_participants::Int=20,
+    n_particles::Int=100,
+    n_trials::Int=72,
+    actor::Union{Nothing,Function}=nothing)
+    
+    @info "Running comprehensive natural evidence analysis..."
+    
+    # 1. Analyze natural evidence patterns
+    @info "1. Analyzing evidence update patterns..."
+    results_df = analyze_natural_evidence_updates(
+        alpha_values; n_participants=n_participants, n_particles=n_particles, n_trials=n_trials, actor=actor
+    )
+    
+    # 2. Track timeline for early trials
+    @info "2. Tracking evidence timeline..."
+    timeline_df = track_natural_evidence_timeline(
+        alpha_values; n_participants=n_participants, n_particles=n_particles, max_trials=24, actor=actor
+    )
+    
+    # 3. Create visualizations
+    @info "3. Creating visualizations..."
+    fig1, summary_df = plot_natural_evidence_analysis(results_df)
+    fig2 = plot_evidence_timeline(timeline_df)
+    
+    # 4. Summary statistics
+    @info "4. Computing summary statistics..."
+    
+    # Early trial contradictory evidence analysis
+    early_contra = filter(row -> 
+        row.learning_phase == "early" && row.evidence_type == "contradictory", 
+        analyze_evidence_patterns(results_df)
+    )
+    
+    println("\n=== EARLY CONTRADICTORY EVIDENCE ANALYSIS ===")
+    println("Alpha | Mean Shift | Resampling Rate | Mean ESS")
+    for row in eachrow(early_contra)
+        println("$(row.alpha) | $(round(row.mean_belief_shift, digits=4)) | $(round(row.resampling_rate, digits=3)) | $(round(row.mean_ess, digits=1))")
+    end
+    
+    return (
+        results_df = results_df,
+        timeline_df = timeline_df, 
+        summary_df = summary_df,
+        fig_patterns = fig1,
+        fig_timeline = fig2
+    )
+end
+
+# Export the new functions
+export initialize_transition_matrices, identify_contrasting_evidence, analyze_natural_evidence_updates, analyze_evidence_patterns, plot_natural_evidence_analysis, track_natural_evidence_timeline, plot_evidence_timeline, comprehensive_natural_evidence_analysis, generate_actions, compute_outcomes
+
 # Export main functions
 export TaskParameters, run_experiment, run_batch_experiment, generate_dataset, generate_stimuli, particle_filter, plot_estimates, run_alpha_simulation, plot_alpha_comparison, analyze_final_performance
 
