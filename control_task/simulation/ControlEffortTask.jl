@@ -689,8 +689,8 @@ end
 
 # Function to create visualization
 function plot_alpha_comparison(results_df::DataFrame)
-    fig = Figure(size=(12, 8))
-    
+    fig = Figure(size=(600, 400))
+
     # Aggregate data by alpha and trial
     summary_df = combine(
         groupby(results_df, [:alpha, :trial]),
@@ -701,67 +701,67 @@ function plot_alpha_comparison(results_df::DataFrame)
         :effective_sample_size => mean => :mean_ess,
         :resampled => (x -> mean(x)) => :prop_resampled
     )
-    
+
     # Plot 1: Accuracy over trials for different alpha values
-    ax1 = Axis(fig[1, 1], 
-               xlabel="Trial", 
-               ylabel="Transition Matrix Accuracy", 
-               title="Accuracy vs Trial for Different Alpha Values")
-    
+    ax1 = Axis(fig[1, 1],
+        xlabel="Trial",
+        ylabel="Accuracy",
+        title="Transition Matrix Accuracy")
+
     alpha_values = sort(unique(summary_df.alpha))
     colors = [:red, :blue, :green, :orange, :purple, :brown]
-    
+
     for (i, alpha) in enumerate(alpha_values)
         alpha_data = filter(row -> row.alpha == alpha, summary_df)
-        
+
         # Plot mean with error bands
-        lines!(ax1, alpha_data.trial, alpha_data.mean_accuracy, 
-               color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
-        
-        band!(ax1, alpha_data.trial, 
-              alpha_data.mean_accuracy .- alpha_data.std_accuracy,
-              alpha_data.mean_accuracy .+ alpha_data.std_accuracy,
-              color=(colors[mod1(i, length(colors))], 0.2))
+        lines!(ax1, alpha_data.trial, alpha_data.mean_accuracy,
+            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+
+        band!(ax1, alpha_data.trial,
+            alpha_data.mean_accuracy .- alpha_data.std_accuracy,
+            alpha_data.mean_accuracy .+ alpha_data.std_accuracy,
+            color=(colors[mod1(i, length(colors))], 0.2))
     end
-    
+
     axislegend(ax1, position=:rb)
-    
+
     # Plot 2: Frobenius distance over trials
-    ax2 = Axis(fig[1, 2], 
-               xlabel="Trial", 
-               ylabel="Frobenius Distance", 
-               title="Distance from True Matrix vs Trial")
-    
+    ax2 = Axis(fig[1, 2],
+        xlabel="Trial",
+        ylabel="Frobenius Distance",
+        title="Distance from True Matrix")
+
     for (i, alpha) in enumerate(alpha_values)
         alpha_data = filter(row -> row.alpha == alpha, summary_df)
-        lines!(ax2, alpha_data.trial, alpha_data.mean_frobenius, 
-               color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+        lines!(ax2, alpha_data.trial, alpha_data.mean_frobenius,
+            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
     end
-    
-    # # Plot 3: Effective sample size over trials
-    # ax3 = Axis(fig[2, 1], 
-    #            xlabel="Trial", 
-    #            ylabel="Effective Sample Size", 
-    #            title="ESS vs Trial")
-    
-    # for (i, alpha) in enumerate(alpha_values)
-    #     alpha_data = filter(row -> row.alpha == alpha, summary_df)
-    #     lines!(ax3, alpha_data.trial, alpha_data.mean_ess, 
-    #            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
-    # end
-    
-    # # Plot 4: Proportion of resampled trials
-    # ax4 = Axis(fig[2, 2], 
-    #            xlabel="Trial", 
-    #            ylabel="Proportion Resampled", 
-    #            title="Resampling Rate vs Trial")
-    
-    # for (i, alpha) in enumerate(alpha_values)
-    #     alpha_data = filter(row -> row.alpha == alpha, summary_df)
-    #     lines!(ax4, alpha_data.trial, alpha_data.prop_resampled, 
-    #            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
-    # end
-    
+
+    # Plot 3: Effective sample size over trials
+    ax3 = Axis(fig[2, 1],
+        xlabel="Trial",
+        ylabel="ESS",
+        title="Effective Sample Size")
+
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, summary_df)
+        lines!(ax3, alpha_data.trial, alpha_data.mean_ess,
+            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    end
+
+    # Plot 4: Proportion of resampled trials
+    ax4 = Axis(fig[2, 2],
+        xlabel="Trial",
+        ylabel="Proportion Resampled",
+        title="Resampling Rate Change")
+
+    for (i, alpha) in enumerate(alpha_values)
+        alpha_data = filter(row -> row.alpha == alpha, summary_df)
+        lines!(ax4, alpha_data.trial, alpha_data.prop_resampled,
+            color=colors[mod1(i, length(colors))], linewidth=2, label="α=$alpha")
+    end
+
     return fig
 end
 
