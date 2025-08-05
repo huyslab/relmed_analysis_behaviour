@@ -32,8 +32,8 @@ if !@isdefined(results_df) || true  # Only run if not already defined
     println(final_perf)
     
     # Save results
-    CSV.write("alpha_simulation_results.csv", results_df)
-    @info "Results saved to alpha_simulation_results.csv"
+    # CSV.write("alpha_simulation_results.csv", results_df)
+    # @info "Results saved to alpha_simulation_results.csv"
 end
 
 @chain results_df begin
