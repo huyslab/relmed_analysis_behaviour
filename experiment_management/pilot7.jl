@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.1
+# v0.20.13
 
 using Markdown
 using InteractiveUtils
@@ -56,30 +56,6 @@ md"""## Participant management"""
 #=╠═╡
 begin
 	PILT_data, test_data, vigour_data, post_vigour_test_data, PIT_data, WM_data, max_press_data, jspsych_data = load_pilot7_data(; force_download = false, return_version = "7.0")
-end
-  ╠═╡ =#
-
-# ╔═╡ c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
-#=╠═╡
-begin
-	p_sum = summarize_participation(jspsych_data)
-	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
-end
-  ╠═╡ =#
-
-# ╔═╡ 14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
-@save "pilot7_psum.jld2" p_sum_pilot7 = p_sum
-
-# ╔═╡ eeffa44e-a9e6-43dd-b47d-00670299e0f2
-#=╠═╡
-let
-
-	for r in eachrow(filter(x -> !ismissing(x.finished), p_sum))
-		println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
-	end
-
-	
-	p_sum
 end
   ╠═╡ =#
 
@@ -299,15 +275,19 @@ filter!(x -> x.trial_presses > 0, max_press_data)
   ╠═╡ =#
 
 # ╔═╡ 0ca7bef1-439c-4718-b620-9dd8a0cc35fd
+#=╠═╡
 @chain max_press_data begin
 	data(_) * mapping(:avg_speed) * visual(Hist)
 	draw
 end
+  ╠═╡ =#
 
 # ╔═╡ 516f2e8c-3ef4-406e-a2cb-b735b84b9ec4
+#=╠═╡
 @chain max_press_data begin
 	describe(:all)
 end
+  ╠═╡ =#
 
 # ╔═╡ f242aecf-b5c3-47ed-a511-f0b9e75f209c
 #=╠═╡
@@ -336,14 +316,17 @@ data(vigour_data) *
   ╠═╡ =#
 
 # ╔═╡ 243e92bc-b2fb-4f76-9de3-08f8a2e4b25d
+#=╠═╡
 begin
 	@chain vigour_data begin
 		@filter(press_per_sec > 11)
 		@count(prolific_pid)
 	end
 end
+  ╠═╡ =#
 
 # ╔═╡ 0312ce5f-be36-4d9b-aee3-04497f846537
+#=╠═╡
 let
 	n_miss_df = @chain vigour_data begin
 		@mutate(pig = "Mag " * string(magnitude) * ", FR " * string(ratio))
@@ -366,6 +349,7 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in Vigour task"))
 end
+  ╠═╡ =#
 
 # ╔═╡ 2bd5807d-776d-44af-88f3-29f4eb17a1a0
 #=╠═╡
@@ -381,6 +365,7 @@ end
   ╠═╡ =#
 
 # ╔═╡ 3d05e879-aa5c-4840-9f4f-ad35b8d9519a
+#=╠═╡
 let
 	test_acc_df = @chain post_vigour_test_data begin
 		@mutate(
@@ -400,6 +385,7 @@ let
 	visual(Hist) |>
 	draw(;axis=(;xlabel="Accuracy",ylabel="Count (#Participant)"))
 end
+  ╠═╡ =#
 
 # ╔═╡ 665aa690-4f37-4a31-b87e-3b4aee66b3b1
 md"""
@@ -416,6 +402,7 @@ end
   ╠═╡ =#
 
 # ╔═╡ 89258a40-d4c6-4831-8cf3-d69d984c4f6e
+#=╠═╡
 let
 	n_miss_df =  @chain PIT_data begin
 		# @filter(coin != 0)
@@ -440,8 +427,10 @@ let
 	# Draw the plot
 	draw(plot; axis, figure=(;title="No-response trial distribution in PIT task"))
 end
+  ╠═╡ =#
 
 # ╔═╡ ffd08086-f12c-4b8a-afb6-435c8729241e
+#=╠═╡
 let
 	PIT_acc_df = @chain test_data begin
 		@filter(block == "pavlovian")
@@ -480,8 +469,10 @@ let
 		draw()
 	end
 end
+  ╠═╡ =#
 
 # ╔═╡ b3fdfcd9-ca07-4433-b5bd-fe660cc8c0db
+#=╠═╡
 let
 	avg_df = @chain PIT_data begin
 		@filter(coin==0)
@@ -492,8 +483,10 @@ let
 	p = data(@filter(PIT_data, coin==0)) * mapping(:trial_number, :trial_presses) * AlgebraOfGraphics.linear() + data(avg_df) * mapping(:trial_number, :trial_presses) * visual(ScatterLines)
     draw(p)
 end
+  ╠═╡ =#
 
 # ╔═╡ 9d159f32-4f76-439b-8226-909d1f8ff347
+#=╠═╡
 @chain test_data begin
 		@filter(block == "pavlovian")
 		@mutate(
@@ -507,6 +500,68 @@ end
 				true => magnitude_right)
 		)
 		@filter(same_valence)
+end
+  ╠═╡ =#
+
+# ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
+#=╠═╡
+jspsych_data |> names
+  ╠═╡ =#
+
+# ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
+"""
+    extract_debrief_responses(data::DataFrame) -> DataFrame
+
+Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
+
+# Arguments
+- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
+
+# Returns
+- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
+"""
+function extract_debrief_responses(data::DataFrame)
+	# Select trials
+	debrief = filter(x -> !ismissing(x.trialphase) && 
+		occursin(r"(acceptability|debrief)", x.trialphase) &&
+		!(occursin("pre", x.trialphase)), data)
+
+
+	# Select variables
+	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
+
+	# Long to wide
+	debrief = unstack(
+		debrief,
+		[:prolific_pid, :exp_start_time],
+		:trialphase,
+		:response
+	)
+	
+
+	# Parse JSON and make into DataFrame
+	expected_keys = dropmissing(debrief)[1, Not([:prolific_pid, :exp_start_time])]
+	expected_keys = Dict([c => collect(keys(JSON.parse(expected_keys[c]))) 
+		for c in names(expected_keys)])
+	
+	debrief_colnames = names(debrief[!, Not([:prolific_pid, :exp_start_time])])
+	
+	# Expand JSON strings with defaults for missing fields
+	expanded = [
+	    DataFrame([
+	        # Parse JSON or use empty Dict if missing
+	        let parsed = ismissing(row[col]) ? Dict() : JSON.parse(row[col])
+	            # Fill missing keys with a default value (e.g., `missing`)
+	            Dict(key => get(parsed, key, missing) for key in expected_keys[col])
+	        end
+	        for row in eachrow(debrief)
+	    ])
+	    for col in debrief_colnames
+	]
+	expanded = hcat(expanded...)
+
+	# hcat together
+	return hcat(debrief[!, Not(debrief_colnames)], expanded)
 end
 
 # ╔═╡ dc957d66-1219-4a97-be46-c6c5c189c8ba
@@ -581,66 +636,31 @@ function summarize_participation(data::DataFrame)
 	return participants
 end
 
-# ╔═╡ 29d320df-c984-496a-8d81-6967dd72e964
+# ╔═╡ c6d0d8c2-2c26-4e9c-8c1b-a9b23d985971
 #=╠═╡
-jspsych_data |> names
+begin
+	p_sum = summarize_participation(jspsych_data)
+	@info "# Valid data samples: $(sum(skipmissing(p_sum.finished)))"
+end
   ╠═╡ =#
 
-# ╔═╡ 91f6a95c-4f2e-4213-8be5-3ca57861ed15
-"""
-    extract_debrief_responses(data::DataFrame) -> DataFrame
+# ╔═╡ 14c09bd0-e6d4-4a15-a48e-11bf5114d9f9
+#=╠═╡
+@save "pilot7_psum.jld2" p_sum_pilot7 = p_sum
+  ╠═╡ =#
 
-Extracts and processes debrief responses from the experimental data. It filters for debrief trials, then parses and expands JSON-formatted Likert scale and text responses into separate columns for each question.
+# ╔═╡ eeffa44e-a9e6-43dd-b47d-00670299e0f2
+#=╠═╡
+let
 
-# Arguments
-- `data::DataFrame`: The raw experimental data containing participants' trial outcomes and responses, including debrief information.
+	for r in eachrow(filter(x -> !ismissing(x.finished), p_sum))
+		println("$(r.prolific_pid), $(round(r.total_bonus, digits = 2))")
+	end
 
-# Returns
-- A DataFrame with participants' debrief responses. The debrief Likert and text responses are parsed from JSON and expanded into separate columns.
-"""
-function extract_debrief_responses(data::DataFrame)
-	# Select trials
-	debrief = filter(x -> !ismissing(x.trialphase) && 
-		occursin(r"(acceptability|debrief)", x.trialphase) &&
-		!(occursin("pre", x.trialphase)), data)
-
-
-	# Select variables
-	select!(debrief, [:prolific_pid, :exp_start_time, :trialphase, :response])
-
-	# Long to wide
-	debrief = unstack(
-		debrief,
-		[:prolific_pid, :exp_start_time],
-		:trialphase,
-		:response
-	)
 	
-
-	# Parse JSON and make into DataFrame
-	expected_keys = dropmissing(debrief)[1, Not([:prolific_pid, :exp_start_time])]
-	expected_keys = Dict([c => collect(keys(JSON.parse(expected_keys[c]))) 
-		for c in names(expected_keys)])
-	
-	debrief_colnames = names(debrief[!, Not([:prolific_pid, :exp_start_time])])
-	
-	# Expand JSON strings with defaults for missing fields
-	expanded = [
-	    DataFrame([
-	        # Parse JSON or use empty Dict if missing
-	        let parsed = ismissing(row[col]) ? Dict() : JSON.parse(row[col])
-	            # Fill missing keys with a default value (e.g., `missing`)
-	            Dict(key => get(parsed, key, missing) for key in expected_keys[col])
-	        end
-	        for row in eachrow(debrief)
-	    ])
-	    for col in debrief_colnames
-	]
-	expanded = hcat(expanded...)
-
-	# hcat together
-	return hcat(debrief[!, Not(debrief_colnames)], expanded)
+	p_sum
 end
+  ╠═╡ =#
 
 # ╔═╡ ce27b319-d728-46f5-aaf1-051fe252bf8b
 function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::Symbol, grp_var::Union{Symbol,Nothing}=nothing)
@@ -668,6 +688,7 @@ function avg_presses_w_fn(vigour_data::DataFrame, x_var::Vector{Symbol}, y_var::
 end
 
 # ╔═╡ 9ad3f111-7b4b-45c5-bc9d-cce3bd0e0c72
+#=╠═╡
 let
 	df = @chain PIT_data begin
 		@arrange(prolific_pid, session, magnitude, ratio)
@@ -686,8 +707,10 @@ let
 	)
 	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
 end
+  ╠═╡ =#
 
 # ╔═╡ 8f6d8e98-6d73-4913-a02d-97525176549a
+#=╠═╡
 let
 	df = @chain PIT_data begin
 		@mutate(session=if_else(trial_number <= 36, "Trial: 1-36", "Trial: 37-72"))
@@ -707,6 +730,7 @@ let
 	)
 	draw(p, scales(Color = (; palette=:PRGn_7)); axis=(;xlabel="Pavlovian stimuli (coin)", ylabel="Press/sec", width=150, height=150, xticklabelrotation=pi/4))
 end
+  ╠═╡ =#
 
 # ╔═╡ e3f88292-fdb9-4628-88ee-8d935f00a761
 function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{Symbol, typeof(AlgebraOfGraphics.nonnumeric)}}=:reward_per_press, y_var::Symbol=:trial_presses, grp_var::Union{Symbol,Nothing}=nothing, xlab::Union{String,Missing}=missing, ylab::Union{String,Missing}=missing, grplab::Union{String,Missing}=missing, combine::Bool=false)
@@ -777,9 +801,11 @@ function plot_presses_vs_var(vigour_data::DataFrame; x_var::Union{Symbol, Pair{S
 end
 
 # ╔═╡ 814aec54-eb08-4627-9022-19f41bcdac9f
+#=╠═╡
 let
 	plot_presses_vs_var(@filter(vigour_data, trial_number > 0); x_var=:reward_per_press, y_var=:press_per_sec, xlab="Reward/press", ylab = "Press/sec", combine=false)
 end
+  ╠═╡ =#
 
 # ╔═╡ a6794b95-fe5e-4010-b08b-f124bff94f9f
 #=╠═╡
