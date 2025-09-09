@@ -13,6 +13,7 @@ relmed_analysis_behaviour-haoyang_dev.code-workspace
 .local/
 .cache/
 .ssh/
+.codex/
 
 # System files
 .DS_Store
