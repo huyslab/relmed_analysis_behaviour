@@ -62,6 +62,8 @@ explore_choice_df = @chain control_task_data begin
   subset(:prolific_pid => ByRow(x -> x !==("670cf1a20d1fa15c58a175f7")))
 end
 
+@save "data/explore_choice_df.jld2" explore_choice_df
+
 # Summarize choices by the number of occurrence
 explore_by_occur = @chain explore_choice_df begin
   groupby([:prolific_pid, :session])
