@@ -41,31 +41,35 @@ begin
     )
   )
     N = length(choice) # Number of trials
-    n_options = n_options === nothing ? maximum(options) : n_options # Number of options in the task
-    alpha = alpha === nothing ? ones(n_options) : alpha
-
-    beliefs = Vector{Beta}(undef, n_options)
-    for i in 1:n_options
-      beliefs[i] = Beta(alpha[i], beta)
-    end
+    K_total = something(n_options, maximum(options))  # total unique options (e.g., 4),
+    α0 = alpha === nothing ? ones(K_total) : collect(float.(alpha))
 
     # Priors
     γ ~ priors[:γ]
 
+    Tγ = typeof(γ)
+    α = Vector{Tγ}(undef, K_total)
+    β = convert(Tγ, beta)
+    for k in 1:K_total
+      α[k] = convert(Tγ, α0[k])
+    end
+
     for n in 1:N
-      choice[n] ~ Categorical(softmax(entropy.(beliefs[options[n,:]])))
+      u = entropy.([Beta(α[k], β) for k in options[n,:]])
+      p = softmax(u)
+      choice[n] ~ Categorical(p)
 
       # Update beliefs
       if controlled[n] == 1
         chosen_a = options[n, choice[n]]
-        unchosen_a = setdiff(1:n_options, chosen_a)
-        beliefs[chosen_a] = Beta(beliefs[chosen_a].α + 1, beliefs[chosen_a].β)
-        for a in unchosen_a
-          beliefs[a] = Beta(beliefs[a].α + (1 - beliefs[a].α) * γ, beliefs[a].β)
+        α[chosen_a] += 1.0
+        for a in 1:K_total
+          a == chosen_a && continue
+          α[a] += (1.0 - α[a]) * γ
         end
       else
-        for a in 1:n_options
-          beliefs[a] = Beta(beliefs[a].α + (1 - beliefs[a].α) * γ, beliefs[a].β)
+        for a in 1:K_total
+          α[a] += (1.0 - α[a]) * γ
         end
       end
       
