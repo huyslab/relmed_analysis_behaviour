@@ -106,7 +106,7 @@ begin
   # Fit model to a single participant for testing
   fit = optimize(
     unpack_control_model_beta(
-      explore_choice_df[explore_choice_df.prolific_pid .== "5d0827ec51969e001989475c", :]);
+      explore_choice_df[explore_choice_df.prolific_pid .== "5d0827ec51969e001989475c" .&& explore_choice_df.session .== "1" , :]);
       model = control_model_beta,
       priors = Dict(:γ => Beta(1, 1))
       )
@@ -115,11 +115,28 @@ begin
 end
 
 begin
+  # Fit model to multiple participants, session 1 only
   fit_mult = optimize_multiple(
     filter(x -> x.session .== "1", explore_choice_df);
     model = control_model_beta,
     unpack_function = unpack_control_model_beta,
     priors = Dict(:γ => Beta(1, 1)),
     grouping_col = :prolific_pid
+  )
+end
+
+begin
+  # Fit model to multiple participants by sessions
+  fit_mult = optimize_multiple_by_factor(
+    explore_choice_df;
+    model = control_model_beta,
+    unpack_function = unpack_control_model_beta,
+    priors = Dict(:γ => Beta(1, 1)),
+    factor = :session,
+    remap_columns = Dict(
+        "choice" => :response,
+        "control" => :control_rule_used,
+        "options" => [:left, :right]
+      )
   )
 end
