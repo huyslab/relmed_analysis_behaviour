@@ -37,7 +37,7 @@ relmed_analysis_behaviour/
 │   └── CHANGELOG.md               # Track breaking changes
 ├── projects/                      # Individual project folders
 │   ├── manuscript_1_pilot_analysis/
-│   │   ├── config.jl             # Project-specific configuration
+│   │   ├── config.jl             # Project-specific configuration. e.g.: plotting specification for journal
 │   │   ├── notebooks/
 │   │   ├── scripts/
 │   │   ├── figures/
