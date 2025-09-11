@@ -27,22 +27,12 @@ We recommend starting with a structured single repository that can evolve into m
 ```
 relmed_analysis_behaviour/
 ├── core/                           # Shared core functions
-│   ├── data/
-│   │   ├── fetch_preprocess_data.jl
-│   │   ├── osf_utils.jl
-│   │   └── sample_utils.jl
-│   ├── models/
-│   │   ├── PILT_models.jl
-│   │   ├── model_utils.jl
-│   │   ├── llmodls.jl
-│   │   └── wm_q.jl
-│   ├── analysis/
-│   │   ├── stats_utils.jl
-│   │   ├── questionnaire_utils.jl
-│   │   └── vigour_utils.jl
-│   ├── plotting/
-│   │   └── plotting_utils.jl
-���   ├── config/
+│   ├── data_handling/ # Open and load data, preprocessing
+│   ├── model_utils/ # Functions to work with models
+│   ├── models/ # Model library, each model follows specific template for naming function signatures
+│   ├── analysis_utils/ # Non model-related functions
+│   ├── plot_utils/ # Plotting functions
+│   ├── config/
 │   │   └── defaults.jl
 │   └── CHANGELOG.md               # Track breaking changes
 ├── projects/                      # Individual project folders
@@ -86,10 +76,13 @@ relmed_analysis_behaviour/
     └── integration_tests.jl
 ```
 
+## Minimal core
+We must keep core functions lean and general. If in doubt, don't add to core.
+
 ## Anti-Breaking-Change Strategies
 
 ### 1. Function Namespacing
-
+The purpose of this is to prevent naming clashes between modules.
 **Before (Global Functions - Prone to Conflicts):**
 ```julia
 # plotting_utils.jl
@@ -119,6 +112,8 @@ plot = create_plot(my_data, plot_type="scatter")
 ```
 
 ### 2. Configuration-Driven Behavior
+
+Rather than rely on function arguments, with changing signatures everytime you add an argument, pass a config object. This way we avoid breaking older uses of a function.
 
 **Global Configuration:**
 ```julia
@@ -183,6 +178,7 @@ end
 ```
 
 ### 4. Version Management
+We will use semantic versioning for each core module separately.
 
 ```julia
 # Track versions in modules
@@ -287,13 +283,4 @@ Once manuscripts are ready for submission:
 - **Project-specific help**: Tag project maintainers in issue
 - **Breaking changes**: Open issue with `breaking-change` label
 
-## Maintainers
-
-- **Core Functions**: [List core maintainers]
-- **Repository Structure**: [List structure maintainers]
-- **Project 1**: [List project 1 maintainers]
-- **Project 2**: [List project 2 maintainers]
-
 ---
-
-*This guide is a living document. Please suggest improvements via issues or pull requests.*
