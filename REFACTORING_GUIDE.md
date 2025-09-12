@@ -81,6 +81,18 @@ We must keep core functions lean and general. If in doubt, don't add to core.
 
 ## Anti-Breaking-Change Strategies
 
+### 0. Use issues, issue-branches, and PRs
+Workflow should always be:
+1. Create an issue.
+2. Create a branch for the issue.
+3. Work on branch.
+4. Create tests along with your work.
+5. Use a PR to merge into main.
+
+If you need to change core functionality, then the following steps should be added before merging:
+1. Make sure tests pass for all projects.
+2. Ask for review by another human + Copilot.
+
 ### 1. Function Namespacing
 The purpose of this is to prevent naming clashes between modules.
 **Before (Global Functions - Prone to Conflicts):**
