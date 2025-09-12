@@ -79,9 +79,9 @@ relmed_analysis_behaviour/
 ## Minimal core
 We must keep core functions lean and general. If in doubt, don't add to core.
 
-## Anti-Breaking-Change Strategies
+## Collaboration Workflow
 
-### 0. Use issues, issue-branches, and PRs
+### General workflow.
 Workflow should always be:
 1. Create an issue.
 2. Create a branch for the issue.
@@ -89,9 +89,30 @@ Workflow should always be:
 4. Create tests along with your work.
 5. Use a PR to merge into main.
 
-If you need to change core functionality, then the following steps should be added before merging:
-1. Make sure tests pass for all projects.
-2. Ask for review by another human + Copilot.
+### Starting New Projects
+
+1. Copy template structure from `templates/project_template/`
+2. Create project-specific configuration in `config.jl`
+3. Set up project README with goals, timeline, and collaborators
+4. Create initial notebook/script structure
+
+### Updating Core Functions
+
+1. **Create Feature Branch**: `git checkout -b core/update-function-name`
+2. **Implement with Backwards Compatibility**: Add deprecation warnings for breaking changes
+3. **Test Against Projects**: Run integration tests
+4. **Document Changes**: Update `core/CHANGELOG.md`
+5. **Get Approval**: Ask for review by human + Copilot.
+6. **Grace Period**: Wait 1-2 weeks before removing deprecated functions
+
+### Project-Specific Work
+
+- Full autonomy within project folders
+- Import shared functions from `core/`. If really needed, you can freeze a version of core locally within your project.
+- Document project-specific requirements in README
+- Set up project-specific tests
+
+## Anti-Breaking-Change Strategies
 
 ### 1. Function Namespacing
 The purpose of this is to prevent naming clashes between modules.
@@ -199,31 +220,6 @@ module DataUtils
     # ... functions
 end
 ```
-
-## Collaboration Workflow
-
-### Starting New Projects
-
-1. Copy template structure from `templates/project_template/`
-2. Create project-specific configuration in `config.jl`
-3. Set up project README with goals, timeline, and collaborators
-4. Create initial notebook/script structure
-
-### Updating Core Functions
-
-1. **Create Feature Branch**: `git checkout -b core/update-function-name`
-2. **Implement with Backwards Compatibility**: Add deprecation warnings for breaking changes
-3. **Test Against Projects**: Run integration tests
-4. **Document Changes**: Update `core/CHANGELOG.md`
-5. **Get Approval**: Tag relevant project maintainers in PR
-6. **Grace Period**: Wait 1-2 weeks before removing deprecated functions
-
-### Project-Specific Work
-
-- Full autonomy within project folders
-- Import shared functions from `core/`
-- Document project-specific requirements in README
-- Set up project-specific tests
 
 ## Migration Strategy
 
