@@ -1,5 +1,6 @@
 # Development environments
 .vscode/
+.vscode-R/
 *.vscode
 .vscode-server/
 *.code-workspace
