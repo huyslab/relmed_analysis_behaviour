@@ -27,11 +27,7 @@ We recommend starting with a structured single repository that can evolve into m
 ```
 relmed_analysis_behaviour/
 ├── core/                           # Shared core functions
-│   ├── data_handling/ # Open and load data, preprocessing
-│   ├── model_utils/ # Functions to work with models
 │   ├── models/ # Model library, each model follows specific template for naming function signatures
-│   ├── analysis_utils/ # Non model-related functions
-│   ├── plot_utils/ # Plotting functions
 │   ├── config/
 │   │   └── defaults.jl
 │   └── CHANGELOG.md               # Track breaking changes
