@@ -1,6 +1,23 @@
 # This file contains general functions to work with models
 
 ## Sample from prior ----------------------------------------------------------------------------
+"""
+    prior_sample(task::NamedTuple; model::Function, n::Int64=1, priors::Dict, outcome_name::Symbol, rng::AbstractRNG, kwargs...)
+
+Generate samples from the prior distribution of a model using NamedTuple task data.
+
+# Arguments
+- `task::NamedTuple`: All needed task variables including outcome measure as array of missing values
+- `model::Function`: The model function to sample from
+- `n::Int64`: Number of samples to generate (default: 1)
+- `priors::Dict`: Prior distributions for model parameters
+- `outcome_name::Symbol`: Name of the outcome variable
+- `rng::AbstractRNG`: Random number generator
+- `kwargs...`: Additional keyword arguments passed to model
+
+# Returns
+- Array or vector of prior samples for the outcome variable
+"""
 function prior_sample(
 	task::NamedTuple; # Should contain the outocme measure as an array of missing values
 	model::Function,
@@ -37,6 +54,24 @@ function prior_sample(
 	return result
 end
 
+"""
+    prior_sample(task::AbstractDataFrame; model::Function, unpack_function::Function, n::Int64=1, priors::Dict, outcome_name::Symbol, rng::AbstractRNG, kwargs...)
+
+Generate samples from the prior distribution of a model using DataFrame task data that needs to be unpacked.
+
+# Arguments
+- `task::AbstractDataFrame`: Task data that will be unpacked using `unpack_function`
+- `model::Function`: The model function to sample from
+- `unpack_function::Function`: Function to convert DataFrame to NamedTuple
+- `n::Int64`: Number of samples to generate (default: 1)
+- `priors::Dict`: Prior distributions for model parameters
+- `outcome_name::Symbol`: Name of the outcome variable
+- `rng::AbstractRNG`: Random number generator
+- `kwargs...`: Additional keyword arguments passed to model
+
+# Returns
+- Array or vector of prior samples for the outcome variable
+"""
 function prior_sample(
 	task::AbstractDataFrame;
 	model::Function,
@@ -66,19 +101,17 @@ end
 
 ## MLE / MAP estimation -------------------------------------------------------------------------
 """
-    multistart_mode_estimator(model::Turing.Model; estimator::Union{MLE, MAP}, n_starts::Int64 = 5) -> OptimizationResult
+    multistart_mode_estimator(model::Turing.Model; estimator::Union{MLE, MAP}, n_starts::Int64=5) -> OptimizationResult
 
-Estimates the mode of a Turing model using a multistart approach. 
-
-This function runs the specified estimator (`MLE` or `MAP`) multiple times (`n_starts`) to find the optimal mode, aiming to avoid local optima. It returns the result with the highest log-probability among the runs.
+Estimates the mode of a Turing model using a multistart approach to avoid local optima.
 
 # Arguments
-- `model`: A `Turing.Model` to be optimized.
-- `estimator`: The mode estimation method, either `MLE` or `MAP`.
-- `n_starts`: The number of optimization starts, defaulting to 5.
+- `model::Turing.Model`: A Turing model to be optimized
+- `estimator::Union{MLE, MAP}`: The mode estimation method (MLE or MAP)
+- `n_starts::Int64`: Number of optimization starts (default: 5)
 
 # Returns
-- `best_result`: The optimization result with the highest log-probability.
+- OptimizationResult with the highest log-probability among all starts
 """
 function multistart_mode_estimator(
 	model::Turing.Model;
@@ -107,20 +140,20 @@ function multistart_mode_estimator(
 end
 
 """
-    optimize(data::NamedTuple; initial::Union{Float64, Nothing} = nothing, model::Function, estimate::String = "MAP", initial_params::Union{AbstractVector, Nothing} = nothing, priors::Dict) -> OptimizationResult
+    optimize(data::NamedTuple; model::Function, estimate::String="MAP", priors::Dict, n_starts::Int64=5, kwargs...)
 
-Fits a probabilistic model to the provided data using the specified mode estimation method.
-
-This function takes a data set (formatted as NamedTuple) and a model and estimates the mode using either Maximum Likelihood Estimation (MLE) or Maximum A Posteriori (MAP) estimation. It returns the optimization result with the highest log-probability.
+Fits a probabilistic model to NamedTuple data using mode estimation.
 
 # Arguments
-- `data`: A `NamedTuple` containing the data for the model. `dv` Should be present with the dependent variable for the model.
-- `model`: A function representing the model to be optimized.
-- `estimate`: A string specifying the estimation method (`"MLE"` or `"MAP"`), defaulting to `"MAP"`.
-- `priors`: A dictionary of prior distributions for model parameters.
+- `data::NamedTuple`: Data containing variables needed by the model
+- `model::Function`: The model function to optimize
+- `estimate::String`: Estimation method ("MLE" or "MAP", default: "MAP")
+- `priors::Dict`: Prior distributions for model parameters
+- `n_starts::Int64`: Number of optimization starts (default: 5)
+- `kwargs...`: Additional keyword arguments passed to model
 
 # Returns
-- `fit`: The result of the mode estimation with the highest log-probability.
+- OptimizationResult with the highest log-probability
 """
 function optimize(
 	data::NamedTuple;
@@ -147,6 +180,24 @@ function optimize(
 	return fit
 end
 
+"""
+    optimize_multiple(data::AbstractDataFrame; model::Function, unpack_function::Function, initial=nothing, estimate::String="MAP", priors::Dict, grouping_col::Symbol=:PID, n_starts::Int64=5) -> DataFrame
+
+Optimizes a model for each group in a DataFrame using multistart mode estimation.
+
+# Arguments
+- `data::AbstractDataFrame`: DataFrame containing data that will be unpacked per group
+- `model::Function`: The model function to optimize
+- `unpack_function::Function`: Function to convert DataFrame to NamedTuple
+- `initial::Union{Float64, Nothing}`: Initial parameter value (default: nothing)
+- `estimate::String`: Estimation method ("MLE" or "MAP", default: "MAP")
+- `priors::Dict`: Prior distributions for model parameters
+- `grouping_col::Symbol`: Column to group data by (default: :PID)
+- `n_starts::Int64`: Number of optimization starts (default: 5)
+
+# Returns
+- DataFrame with parameter estimates and log-probabilities for each group
+"""
 # Find MLE / MAP multiple times
 function optimize_multiple(
 	data::AbstractDataFrame;
@@ -196,34 +247,24 @@ function optimize_multiple(
 end
 
 """
-    optimize_multiple_by_factor(
-        df::DataFrame;
-        model::Function,
-        factor::Union{Symbol, Vector{Symbol}},
-        priors::Dict,
-        unpack_function::Function,
-        remap_columns::Dict
-    ) -> DataFrame
+    optimize_multiple_by_factor(df::DataFrame; model::Function, factor::Union{Symbol, Vector{Symbol}}, priors::Dict, unpack_function::Function, remap_columns::Dict) -> DataFrame
 
-Estimate the posterior mode or maximum likelihood estimate (MLE) for a dataset, after splitting 
-by one or more factors. The function fits a specified model to each subset of data grouped by 
-levels of the specified factor(s), allowing for tailored analyses across groups within the data.
+Estimate the posterior mode or MLE for a dataset, after splitting by one or more factors.
 
 # Arguments
-- `df::DataFrame`: The data to be analyzed.
-- `model::Function`: The model function to fit to each subset of the data.
-- `factor::Union{Symbol, Vector{Symbol}}`: A single column or list of columns to split the data by.
-- `priors::Dict`: A dictionary of prior values to pass to the model function.
-- `unpack_function::Function`: A function to prepare the data for the model, accepting `df` and `columns` arguments.
-- `remap_columns::Dict`: A dictionary to map column names for the unpack function.
+- `df::DataFrame`: The dataset to be analyzed (DataFrame that needs unpacking)
+- `model::Function`: The model function to fit to each subset of the data
+- `factor::Union{Symbol, Vector{Symbol}}`: Column(s) to split the data by
+- `priors::Dict`: Prior distributions for model parameters
+- `unpack_function::Function`: Function to prepare the data for the model
+- `remap_columns::Dict`: Dictionary to map column names for the unpack function
 
 # Returns
-- A `DataFrame` containing the fit results for each factor level combination, with factor levels 
-  and grouping information added to the output.
+- DataFrame containing fit results for each factor level combination
 
-# Notes
-Each subset of `df` (split by factor levels) is optimized separately using `optimize_multiple`.
-The results are combined and sorted by the specified factor(s) and `:prolific_pid`.
+# Details
+The function fits a specified model to each subset of data grouped by levels of the 
+specified factor(s), allowing for tailored analyses across groups within the data.
 """
 function optimize_multiple_by_factor(
 	df::AbstractDataFrame;
@@ -289,6 +330,23 @@ end
 """
     FI(model::DynamicPPL.Model, params::NamedTuple; summary_method::Function = tr)
 
+Compute the Fisher Information Matrix for a Turing model at given parameter values.
+
+# Arguments
+- `model::DynamicPPL.Model`: The Turing model with data included
+- `params::NamedTuple`: Parameter names and their current values
+- `summary_method::Function`: Function to summarize the FIM (default: tr for trace)
+
+# Returns
+- Summary of the Fisher Information Matrix (default: trace)
+
+# Details
+Computes the negative Hessian of the log-likelihood function with respect to parameters.
+"""
+
+"""
+    FI(model::DynamicPPL.Model, params::NamedTuple; summary_method::Function = tr)
+
 Compute the Fisher Information Matrix for a Turing model and dataset at given parameter values.
 
 # Arguments
@@ -323,20 +381,21 @@ function FI(
 end
 
 """
-    FI(data::DataFrame, model::Function, map_data_to_model::Function, param_names::Vector{Symbol}, id_col::Symbol = :PID, kwargs...)
+    FI(; data::DataFrame, model::Function, map_data_to_model::Function, param_names::Vector{Symbol}, id_col::Symbol=:PID, summary_method::Function=tr, kwargs...)
 
 Compute the Fisher Information for multiple simulated datasets at the true parameter values used to generate the data.
 
-### Arguments
-- `data::DataFrame`: A DataFrame containing the simulated datasets. Each group (split by `id_col`) is treated as an individual dataset.
-- `model::Function`: A Turing model.
-- `map_data_to_model::Function`: A function that maps an AbstractDataFrame to a NamedTuple of arguments to be passed to `model`.
-- `param_names::Vector{Symbol}`: A vector of symbols representing the names of the parameters for which Fisher Information is computed.
-- `id_col::Symbol`: The column name used to split the dataset into different groups. Default is `:PID`.
-- `kwargs...`: Additional keyword arguments passed to the `model` function.
+# Arguments
+- `data::DataFrame`: DataFrame containing the simulated datasets (grouped by `id_col`)
+- `model::Function`: A Turing model
+- `map_data_to_model::Function`: Function that maps DataFrame to NamedTuple for model
+- `param_names::Vector{Symbol}`: Names of parameters for Fisher Information computation
+- `id_col::Symbol`: Column name to split dataset into groups (default: `:PID`)
+- `summary_method::Function`: Function to summarize the FIM (default: tr for trace)
+- `kwargs...`: Additional keyword arguments passed to model
 
-### Returns
-- Returns the sum of Fisher Information computed for each group in the dataset.
+# Returns
+- Sum of Fisher Information computed for each group in the dataset
 """
 function FI(;
 	data::DataFrame,
