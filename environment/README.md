@@ -57,7 +57,7 @@ The environment includes comprehensive Julia packages for:
 docker buildx build --push --platform linux/arm64/v8,linux/amd64 -t yanivabir/relmed:v1.12ma --progress=plain . 2>&1 | tee build.log
 
 # Run the container with Jupyter Lab
-ocker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12ma
+docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12ma
 ```
 
 ### Environment Features
