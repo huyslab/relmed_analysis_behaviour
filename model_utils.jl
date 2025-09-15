@@ -37,6 +37,132 @@ function prior_sample(
 	return result
 end
 
+"""
+    posterior_predictive(
+        data::NamedTuple;
+        model::Function,
+        fit,
+        outcome_name::Symbol,
+        n::Int64 = 1,
+        rng::AbstractRNG = Random.default_rng(),
+        kwargs...
+    ) -> NamedTuple
+
+Posterior predictive simulation using point-estimated parameters.
+
+Builds Dirac priors at the supplied parameter values (from `fit` or a mapping),
+simulates `outcome_name` via `Prior()` sampling, and computes the log-likelihood
+of the observed outcomes under those parameters.
+
+# Arguments
+- `data::NamedTuple`: Data mapped for the Turing model (e.g., from an unpack function).
+- `model::Function`: Turing model function.
+- `fit`: Either a Turing optimization result with `.values`, or a `NamedTuple`/`Dict`
+  of parameter values keyed by parameter `Symbol`s.
+- `outcome_name::Symbol`: The dependent variable name to simulate (e.g., `:choice`).
+- `n::Int64`: Number of posterior predictive draws (replicates). Defaults to 1.
+- `rng::AbstractRNG`: Random number generator.
+- `kwargs...`: Any extra keyword args passed to `model` (e.g., `initV`).
+
+# Returns
+- `(; predicted, loglike)`: `predicted` is a vector (if `n==1`) or a matrix of simulated
+  outcomes (N x n). `loglike` is the log-likelihood of the observed outcomes under the
+  provided parameter values (or `missing` if not computable).
+"""
+function posterior_predictive(
+    data::NamedTuple;
+    model::Function,
+    fit,
+    outcome_name::Symbol,
+    n::Int64 = 1,
+    rng::AbstractRNG = Random.default_rng(),
+    kwargs...
+)
+
+    # Extract parameter values from `fit`
+    pars = if hasproperty(fit, :values)
+        fit.values
+    else
+        fit
+    end
+
+    # Build Dirac priors at fitted values
+    priors_fitted = Dict{Symbol, Distributions.Distribution}()
+    for (k, v) in pairs(pars)
+        ksym = k isa Symbol ? k : Symbol(k)
+        priors_fitted[ksym] = Distributions.Dirac(v)
+    end
+
+    # Prepare data for simulation: replace outcome with missings
+    keys_vec = collect(keys(data))
+    data_for_sim = (; (
+        k == outcome_name ? (k => fill(missing, length(getproperty(data, k)))) : (k => getproperty(data, k))
+        for k in keys_vec
+    )...)
+
+    # Simulate outcomes with Dirac priors
+    predicted = prior_sample(
+        data_for_sim;
+        model = model,
+        n = n,
+        priors = priors_fitted,
+        outcome_name = outcome_name,
+        rng = rng,
+        kwargs...
+    )
+
+    # Compute log-likelihood of observed outcomes under fitted params
+    # Using the original data (with observed outcome present)
+    try
+        m_obs = model(; data..., priors = priors_fitted, kwargs...)
+        # Build NamedTuple of parameter values for loglikelihood
+        pnames = collect(keys(priors_fitted))
+        pvals = [mean(priors_fitted[p]) for p in pnames]
+        params_nt = (; zip(pnames, pvals)...)
+        ll = loglikelihood(m_obs, params_nt)
+        return (; predicted, loglike = ll)
+    catch
+        return (; predicted, loglike = missing)
+    end
+end
+
+"""
+    posterior_predictive(
+        df::AbstractDataFrame;
+        model::Function,
+        unpack_function::Function,
+        fit,
+        outcome_name::Symbol,
+        n::Int64 = 1,
+        rng::AbstractRNG = Random.default_rng(),
+        kwargs...
+    ) -> NamedTuple
+
+Convenience wrapper for DataFrame inputs. Uses `unpack_function(df)` to map data
+to the model, then calls `posterior_predictive(::NamedTuple, ...)`.
+"""
+function posterior_predictive(
+    df::AbstractDataFrame;
+    model::Function,
+    unpack_function::Function,
+    fit,
+    outcome_name::Symbol,
+    n::Int64 = 1,
+    rng::AbstractRNG = Random.default_rng(),
+    kwargs...
+)
+    data_nt = unpack_function(df)
+    return posterior_predictive(
+        data_nt;
+        model = model,
+        fit = fit,
+        outcome_name = outcome_name,
+        n = n,
+        rng = rng,
+        kwargs...
+    )
+end
+
 function prior_sample(
 	task::AbstractDataFrame;
 	model::Function,
