@@ -262,4 +262,48 @@ begin
   end
   f
 end
+
+begin
+  # Prior predictive checking
+  # - Simulate choices from the prior for a single participant/session
+  # - Compare simulated left-choice rate distribution to observed
+
+  # Select one participant and session (same PID used above for consistency)
+  ppc_df = explore_choice_df[
+    explore_choice_df.prolific_pid .== "681106ac93d01f1615c6f003" .&&
+    explore_choice_df.session .== "1",
+    :
+  ]
+
+  # Prepare model data and replace outcome with missings for prior simulation
+  data_nt = unpack_control_model_beta(ppc_df)
+  task_nt = (; data_nt..., choice = fill(missing, length(data_nt.choice)))
+
+  # Draw prior predictive simulations (replicates)
+  n_sims = 400
+  preds = prior_sample(
+    task_nt;
+    model = control_model_beta,
+    n = n_sims,
+    priors = control_beta_prior,
+    outcome_name = :choice,
+  )
+
+  # Summaries: proportion of left choices in each simulated replicate
+  p_right_sim = vec(mean(preds .== 1; dims = 1))
+  p_right_obs = mean(data_nt.choice .== 1)
+
+  # Plot histogram of simulated left-choice rate with observed marked
+  f = Figure(size = (16, 9) .* 72 ./ 2.54)
+  gp = f[1, 1]
+  mp = AlgebraOfGraphics.data(DataFrame(p_left = p_right_sim)) *
+       mapping(:p_left) *
+       visual(Hist)
+  draw!(gp, mp; axis = (; xlabel = "P(choose right)", ylabel = "Count", subtitle = "Prior predictive"))
+  ax = extract_axis(gp)
+  vlines!(ax, [p_right_obs]; color = :red, linewidth = 3)
+  vlines!(ax, [mean(p_right_sim)]; color = :gray80, linewidth = 3)
+  display(f)
+end
+
 end
