@@ -160,15 +160,20 @@ begin
 end
 
 begin
+  control_beta_prior = Dict(
+      :γ_pr => Normal(0., 2.),
+      :β_0 => Normal(0., 2.),
+      :β_H => Normal(0., 2.)
+    )
   # Fit model to a single participant for testing
   fit = optimize(
     unpack_control_model_beta(
-      explore_choice_df[explore_choice_df.prolific_pid .== "5d0827ec51969e001989475c" .&& explore_choice_df.session .== "1" , :]);
+      explore_choice_df[explore_choice_df.prolific_pid .== "681106ac93d01f1615c6f003" .&& explore_choice_df.session .== "1" , :]);
       model = control_model_beta,
-      priors = Dict(:γ => Beta(1, 1))
+      priors = control_beta_prior
       )
 
-  γ_est = fit.values[:γ]
+  fit.values
 end
 
 begin
@@ -177,18 +182,19 @@ begin
     filter(x -> x.session .== "1", explore_choice_df);
     model = control_model_beta,
     unpack_function = unpack_control_model_beta,
-    priors = Dict(:γ => Beta(1, 1)),
+    priors = control_beta_prior,
     grouping_col = :prolific_pid
   )
+  DataFrames.transform!(fit_mult, :γ_pr => ByRow(a2α) => :γ)
 end
 
 begin
   # Fit model to multiple participants by sessions
-  fit_mult = optimize_multiple_by_factor(
+  fit_mult_by_f = optimize_multiple_by_factor(
     explore_choice_df;
     model = control_model_beta,
     unpack_function = unpack_control_model_beta,
-    priors = Dict(:γ => Beta(1, 1)),
+    priors = control_beta_prior,
     factor = :session,
     remap_columns = Dict(
         "choice" => :response,
@@ -196,4 +202,7 @@ begin
         "options" => [:left, :right]
       )
   )
+  DataFrames.transform!(fit_mult_by_f, :γ_pr => ByRow(a2α) => :γ)
+end
+
 end
