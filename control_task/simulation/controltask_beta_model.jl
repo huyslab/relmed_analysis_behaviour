@@ -59,7 +59,9 @@ begin
     alpha::Union{Nothing, AbstractVector{<:Real}} = nothing, # initial α per option
     beta::Real = 1.0, # fixed β per option
     priors::Dict = Dict(
-      :γ => Beta(1, 1)
+      :γ_pr => Normal(0., 1.),
+      :β_0 => Normal(0., 1.),
+      :β_H => Normal(0., 1.)
     )
   )
     N = length(choice) # Number of trials
@@ -67,7 +69,10 @@ begin
     α0 = alpha === nothing ? ones(K_total) : collect(float.(alpha))
 
     # Priors
-    γ ~ priors[:γ]
+    γ_pr ~ priors[:γ_pr]
+    γ := a2α(γ_pr)  # decay parameter between 0 and 1
+    β_0 ~ priors[:β_0]
+    β_H ~ priors[:β_H]
 
     Tγ = typeof(γ)
     α = Vector{Tγ}(undef, K_total)
@@ -78,12 +83,11 @@ begin
 
     for n in 1:N
       u = entropy.([Beta(α[k], β) for k in options[n,:]])
-      p = softmax(u)
-      choice[n] ~ Categorical(p)
+      choice[n] ~ BernoulliLogit(β_0 + β_H * (u[2] - u[1]))
 
       # Update beliefs
       if controlled[n] == 1
-        chosen_a = options[n, choice[n]]
+        chosen_a = options[n, Int(choice[n] + 1)]  # choice is 0/1, index is 1/2 => [:left, :right]
         α[chosen_a] += 1.0
         for a in 1:K_total
           a == chosen_a && continue
