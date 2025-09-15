@@ -144,7 +144,7 @@ begin
       )
     )
     data = dropmissing(df, columns["choice"])
-    choice = ifelse.(data[:, columns["choice"]] .== "left", 1, 2)
+    choice = ifelse.(data[:, columns["choice"]] .== "right", 1, 0)
     controlled = ifelse.(data[:, columns["control"]] .== "control", 1, 0)
     options = Matrix{Int64}(
         select(data, columns["options"] .=> 
