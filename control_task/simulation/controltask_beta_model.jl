@@ -238,4 +238,28 @@ begin
   (layer_off + layer_diag) |> draw(facet = (; linkxaxes = :none, linkyaxes = :none))
 end
 
+begin
+  # Test-retest reliability
+  retest_pars = @chain fit_mult_by_f begin
+    stack([:γ, :β_0, :β_H], variable_name = :parameter, value_name = :value)
+    unstack([:prolific_pid, :parameter], :session, :value, renamecols=x->Symbol(:sess_, x))
+  end
+
+  f = Figure(size = (19.5 * 3, 19.5) .* 72 ./ 2.54 ./ 2)
+	
+  for (i, v) in enumerate([:γ, :β_0, :β_H])
+    workshop_reliability_scatter!(
+      f[1, i];
+      df = dropmissing!(retest_pars) |> filter(x -> x.parameter .== string(v)),
+      xcol = :sess_1,
+      ycol = :sess_2,
+      xlabel = "Session 1",
+      ylabel = "Session 2",
+      subtitle = string(v),
+      correct_r = false,
+      markersize = 6
+    )
+  end
+  f
+end
 end
