@@ -205,4 +205,37 @@ begin
   DataFrames.transform!(fit_mult_by_f, :γ_pr => ByRow(a2α) => :γ)
 end
 
+
+begin
+  vars = [:γ, :β_0, :β_H]
+  panels = DataFrame[]
+  for y in vars, x in vars
+    if x == y
+      df = select(fit_mult_by_f, x, :session)
+      rename!(df, x => :x)
+      df.y = df.x
+      df.xvar .= string(x); df.yvar .= string(y); df.kind .= "diag"
+      panels = [panels; df]
+    else
+      df = select(fit_mult_by_f, x, y, :session)
+      rename!(df, x => :x, y => :y)
+      df.xvar .= string(x); df.yvar .= string(y); df.kind .= "off"
+      panels = [panels; df]
+    end
+  end
+  pg = vcat(panels...)
+  off_df = pg[pg.kind .== "off", :]
+  diag_df = pg[pg.kind .== "diag", :]
+
+  layer_off = AlgebraOfGraphics.data(off_df) *
+  mapping(:x, :y, col = :xvar, row = :yvar, color = :session) *
+  visual(Scatter)
+
+  layer_diag = AlgebraOfGraphics.data(diag_df) *
+  mapping(:x, col = :xvar, row = :yvar, color = :session) *
+  visual(Hist)
+
+  (layer_off + layer_diag) |> draw(facet = (; linkxaxes = :none, linkyaxes = :none))
+end
+
 end
