@@ -361,4 +361,120 @@ begin
 
 end
 
+begin
+  # Parameter recovery for control_model_beta
+  # - Simulate datasets with known parameters using real task structure
+  # - Fit the model to each simulated dataset
+  # - Compare recovered parameters to ground truth
+
+  # Use a single participant's task structure for speed/consistency
+  pr_pid = "681106ac93d01f1615c6f003"
+  pr_sess = "1"
+  pr_df = explore_choice_df[
+    explore_choice_df.prolific_pid .== pr_pid .&&
+    explore_choice_df.session .== pr_sess,
+    :
+  ]
+
+  data_pr = unpack_control_model_beta(pr_df)
+  Ntr = length(data_pr.choice)
+  if Ntr == 0
+    @warn "No trials found for selected PID/session; skipping parameter recovery."
+  else
+    # Simulation settings (keep modest for speed; increase if needed)
+    n_reps = 1000
+    rng = Random.default_rng()
+
+    # Containers
+    recs = Vector{NamedTuple}(undef, n_reps)
+
+    # Pre-allocate outcome placeholder
+    task_missing = (; data_pr..., choice = fill(missing, Ntr))
+
+    for i in 1:n_reps
+      # Sample ground-truth parameters from prior
+      par_recover_prior = Dict(
+        :γ_pr => Normal(0., 2.),
+        :β_0 => Normal(0., 2.),
+        :β_H => Normal(0., 2.)
+      )
+      true_γ_pr = rand(rng, par_recover_prior[:γ_pr])
+      true_β_0  = rand(rng, par_recover_prior[:β_0])
+      true_β_H  = rand(rng, par_recover_prior[:β_H])
+
+      # Dirac priors at true values for simulation
+      priors_true = Dict(
+        :γ_pr => Distributions.Dirac(true_γ_pr),
+        :β_0  => Distributions.Dirac(true_β_0),
+        :β_H  => Distributions.Dirac(true_β_H),
+      )
+
+      # Simulate choices
+      sim_choice = prior_sample(
+        task_missing;
+        model = control_model_beta,
+        n = 1,
+        priors = priors_true,
+        outcome_name = :choice,
+        rng = rng,
+      )
+
+      # Fit model to simulated data (MAP, few starts for speed)
+      fit_i = optimize(
+        (; data_pr..., choice = sim_choice);
+        model = control_model_beta,
+        priors = par_recover_prior,
+        estimate = "MAP",
+        n_starts = 3,
+      )
+
+      # Store true and recovered (also transformed γ)
+      recs[i] = (
+        true_γ_pr = true_γ_pr,
+        true_γ    = a2α(true_γ_pr),
+        true_β_0  = true_β_0,
+        true_β_H  = true_β_H,
+        est_γ_pr  = fit_i.values[:γ_pr],
+        est_γ     = a2α(fit_i.values[:γ_pr]),
+        est_β_0   = fit_i.values[:β_0],
+        est_β_H   = fit_i.values[:β_H],
+        lp        = fit_i.lp,
+      )
+    end
+
+    recovery_df = DataFrame(recs)
+
+    # Quick numeric summaries (Pearson r)
+    corr_γ_pr = cor(recovery_df.true_γ_pr, recovery_df.est_γ_pr)
+    corr_γ    = cor(recovery_df.true_γ,   recovery_df.est_γ)
+    corr_β0   = cor(recovery_df.true_β_0, recovery_df.est_β_0)
+    corr_βH   = cor(recovery_df.true_β_H, recovery_df.est_β_H)
+    @info "Recovery correlations" γ_pr = corr_γ_pr γ=corr_γ β0=corr_β0 βH=corr_βH
+
+    # Scatter plots: estimated vs true
+    f = Figure(size = (21, 7) .* 72 ./ 2.54)
+
+    # γ (transformed)
+    ax1 = Axis(f[1, 1], xlabel = "True γ", ylabel = "Estimated γ", subtitle = @sprintf("γ (r = %.2f)", corr_γ))
+    scatter!(ax1, recovery_df.true_γ, recovery_df.est_γ; markersize = 6, color = :dodgerblue, alpha = 0.2)
+    par_lims = extrema(vcat(recovery_df.true_γ, recovery_df.est_γ))
+    lines!(ax1, [par_lims...], [par_lims...]; color = :gray50, linestyle = :dash)
+
+    # β_0
+    ax2 = Axis(f[1, 2], xlabel = "True β_0", ylabel = "Estimated β_0", subtitle = @sprintf("β_0 (r = %.2f)", corr_β0))
+    scatter!(ax2, recovery_df.true_β_0, recovery_df.est_β_0; markersize = 6, color = :seagreen, alpha = 0.2)
+    par_lims2 = extrema(vcat(recovery_df.true_β_0, recovery_df.est_β_0))
+    lines!(ax2, [par_lims2...], [par_lims2...]; color = :gray50, linestyle = :dash)
+
+    # β_H
+    ax3 = Axis(f[1, 3], xlabel = "True β_H", ylabel = "Estimated β_H", subtitle = @sprintf("β_H (r = %.2f)", corr_βH))
+    scatter!(ax3, recovery_df.true_β_H, recovery_df.est_β_H; markersize = 6, color = :tomato, alpha = 0.2)
+    par_lims3 = extrema(vcat(recovery_df.true_β_H, recovery_df.est_β_H))
+    lines!(ax3, [par_lims3...], [par_lims3...]; color = :gray50, linestyle = :dash)
+
+    display(f)
+
+    recovery_df
+  end
+end
 end
