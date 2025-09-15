@@ -103,6 +103,37 @@ begin
 
   end
 
+  @model function control_model_interval(;
+    choice,
+    controlled::AbstractVector{<:Integer},
+    options::AbstractMatrix{<:Integer},
+    n_options::Union{Nothing, Int} = nothing, # Number of options in the task
+    alpha::Union{Nothing, AbstractVector{<:Real}} = nothing, # initial α per option
+    priors::Dict = Dict(
+      :β_0 => Normal(0., 1.),
+      :β_H => Normal(0., 1.)
+    )
+  )
+    N = length(choice) # Number of trials
+    K_total = something(n_options, maximum(options))  # total unique options (e.g., 4),
+    α = alpha === nothing ? fill(72, K_total) : collect(float.(alpha))
+
+    # Priors
+    β_0 ~ priors[:β_0]
+    β_H ~ priors[:β_H]
+
+    for n in 1:N
+      u = [α[k] for k in options[n,:]]
+      choice[n] ~ BernoulliLogit(β_0 + β_H * (u[2] - u[1]))
+
+      # Update interval
+      α[options[n, :]] .= 1.
+      α[setdiff(1:K_total, options[n, :])] .= α[setdiff(1:K_total, options[n, :])] .+ 1.
+      
+    end
+
+  end
+
   # Unpack function
   function unpack_control_model_beta(
     df::AbstractDataFrame;
