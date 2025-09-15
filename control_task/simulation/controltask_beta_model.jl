@@ -3,13 +3,13 @@ begin
 	import Pkg
 	
 	# activate the shared project environment
-    Pkg.activate("$(pwd())/relmed_environment")
-    # instantiate, i.e. make sure that all packages are downloaded
-    Pkg.instantiate()
-	using Random, DataFrames, Distributions, StatsBase,
-		CSV, Turing
+  Pkg.activate("$(pwd())/relmed_environment")
+  # instantiate, i.e. make sure that all packages are downloaded
+  Pkg.instantiate()
+  using Random, DataFrames, Distributions, StatsBase,
+  CSV, Turing
+  using Tidier, JLD2, AlgebraOfGraphics, CairoMakie, Printf, Statistics
 	using LogExpFunctions: logistic, logit, softmax
-  using Tidier, JLD2
 
 	# include("$(pwd())/controltask_models.jl")
 	include("$(pwd())/sample_utils.jl")
@@ -17,7 +17,7 @@ begin
 	include("$(pwd())/model_utils.jl")
 
   include(joinpath(pwd(), "fetch_preprocess_data.jl"))
-	# include(joinpath(pwd(), "plotting_utils.jl"))
+	include(joinpath(pwd(), "plotting_utils.jl"))
   include(joinpath(pwd(), "data_analysis", "control_exploration_fn.jl"))
 	Turing.setprogress!(false)
 end
