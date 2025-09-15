@@ -306,4 +306,59 @@ begin
   display(f)
 end
 
+begin
+  # Aggregate prior predictive across participants, by session
+  sessions = unique(explore_choice_df.session) |> collect
+  n_sims_agg = 400
+  f2 = Figure(size = (24 * length(sessions), 16) .* 72 ./ 2.54 ./ 2)
+  for (i, s) in enumerate(sessions)
+    sess_df = explore_choice_df[explore_choice_df.session .== s, :]
+    pids = unique(sess_df.prolific_pid)
+
+    sim_list = Vector{Vector{Float64}}()
+    obs_list = Float64[]
+
+    for pid in pids
+      pid_df = sess_df[sess_df.prolific_pid .== pid, :]
+      data_pid = unpack_control_model_beta(pid_df)
+      if length(data_pid.choice) == 0
+        continue
+      end
+      task_pid = (; data_pid..., choice = fill(missing, length(data_pid.choice)))
+      preds_pid = prior_sample(
+        task_pid;
+        model = control_model_beta,
+        n = n_sims_agg,
+        priors = control_beta_prior,
+        outcome_name = :choice,
+      )
+      push!(sim_list, vec(mean(preds_pid .== 1; dims = 1)))
+      push!(obs_list, mean(data_pid.choice .== 1))
+    end
+
+    if isempty(sim_list)
+      continue
+    end
+
+    P = reduce(hcat, sim_list)  # (n_sims_agg, n_pids) or Vector if single pid
+    if ndims(P) == 1
+      P = reshape(P, :, 1)
+    end
+    sess_sim_mean = vec(mean(P; dims = 2))
+    obs_mean = mean(obs_list)
+
+    gp2 = f2[1, i]
+    mp2 = AlgebraOfGraphics.data(DataFrame(p_right_mean = sess_sim_mean)) *
+          mapping(:p_right_mean) *
+          visual(Hist)
+    draw!(gp2, mp2; axis = (; xlabel = "Mean P(choose right)", ylabel = "Count", subtitle = "Session $(s)"))
+    ax2 = extract_axis(gp2)
+    vlines!(ax2, [obs_mean]; color = :red, linewidth = 3)
+    vlines!(ax2, [mean(sess_sim_mean)]; color = :grey80, linewidth = 3)
+  end
+
+  f2
+
+end
+
 end
