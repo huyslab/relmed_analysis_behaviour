@@ -31,7 +31,7 @@ This repository contains code for running simulations and analyzing behavioural 
 
 The code runs in a Docker container that provides a complete data science environment with Julia, R, Python, and Jupyter Lab. 
 
-1. **Create local environment file**: First, create a local `env.list` file (not tracked by git) with machine-specific settings:
+**Create local environment file**: First, create a local `env.list` file (not tracked by git) with machine-specific settings:
 
 ```bash
 # Copy the example and edit with your settings
@@ -45,15 +45,34 @@ The `env.list` file should contain:
 
 *Note: REDCap credentials are only needed if downloading raw data. Preprocessed data is available on OSF.*
 
-2. **Launch Docker container**:
+*Currently, only a Mac Silicone docker image is available. If you require an amd64 image, please let Yaniv or Haoyang know.*
 
-Currently, only a Mac Silicone docker image is available. If you require an amd64 image, please Yaniv or Haoyang know.
+### Option 1: Using Jupyter Lab
+
+1. **Launch Docker container**:
 
 ```bash
 docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12
 ```
 
-3. **Access Jupyter Lab**: Copy the URL from the Docker output and navigate to it in your browser. You can launch Pluto.jl notebooks from within Jupyter Lab for interactive analysis.
+2. **Access Jupyter Lab**: Copy the URL from the Docker output and navigate to it in your browser. You can launch Pluto.jl notebooks from within Jupyter Lab for interactive analysis.
+
+### Option 2: Using VS Code
+
+1. **Launch container with bash**:
+
+```bash
+docker run -it --rm --name relmed -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12 /bin/bash
+```
+
+2. **Attach VS Code to container**: 
+   - Install the "Dev Containers" extension in VS Code
+   - Open VS Code and use `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
+   - Run "Dev Containers: Attach to Running Container..."
+   - Select the `relmed` container from the list
+   - VS Code will open a new window connected to the container
+
+3. **Open workspace**: Navigate to `/home/jovyan` in the VS Code file explorer to access your project files
 
 ## Development Environment
 
