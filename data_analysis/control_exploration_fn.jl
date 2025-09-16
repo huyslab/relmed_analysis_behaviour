@@ -94,6 +94,20 @@ function calc_trial_interval(trial_index, occurrence)
   return interval
 end
 
+function calc_choice_interval(trial_index, occurrence, resp)
+  interval = Vector{Union{AbstractFloat,Missing}}(missing, length(trial_index))
+  idx = findall(skipmissing(occurrence .== 1))
+  prev_trial = 0
+  if !isempty(idx)
+    for i in eachindex(idx)
+      curr_trial = trial_index[idx[i]]
+      interval[idx[i]] = curr_trial - prev_trial
+      prev_trial = !ismissing(resp[idx[i]]) && resp[idx[i]] == 1 ? curr_trial : prev_trial
+    end
+  end
+  return interval
+end
+
 function add_explorative_response(df; metric::String="occurrence")
   if metric == "occurrence"
     return transform(df,
