@@ -6,7 +6,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using Test, Random, DataFrames, Distributions, StatsBase, LinearAlgebra, ForwardDiff, Turing
+    using Test, Random, DataFrames, Distributions, StatsBase, LinearAlgebra, ForwardDiff, Turing, DynamicPPL
     Turing.setprogress!(false)
     include("$(pwd())/core/model_utils.jl")
 end
