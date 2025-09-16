@@ -34,7 +34,7 @@ end
     dat = DataFrame(
         PID = [1], 
         x = [1],
-        p = [1-eps()]
+        p = [1-eps()] # Avoid p = 1 exactly, since Bernoulli support is now 0 < p < 1
     )
     
     @test FI(
@@ -49,7 +49,7 @@ end
     dat = DataFrame(
         PID = [1, 2],
         x = [1, 0],
-        p = [1. - eps(), 0.]
+        p = [1. - eps(), 0.] # Avoid p = 1 exactly, since Bernoulli support is now 0 < p < 1
     )
 
     @test FI(
