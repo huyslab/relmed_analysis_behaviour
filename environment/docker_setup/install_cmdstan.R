@@ -2,8 +2,7 @@
 options(Ncpus = 12)
 install.packages("remotes")
 remotes::install_version("cmdstanr", version="0.9.0", 
-                         repos = c("https://mc-stan.org/r-packages/", 
-                                   getOption("repos")))
+                         repos = c("https://stan-dev.r-universe.dev"))
 library(cmdstanr)
 
 dir.create(file.path("/home/jovyan/", ".cmdstanr"), recursive = TRUE)
