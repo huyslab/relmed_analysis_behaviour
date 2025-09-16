@@ -477,4 +477,108 @@ begin
     recovery_df
   end
 end
+
+begin
+  # Posterior predictive checking: per-trial match rate between predicted and observed
+  # Uses fitted parameters (MAP) per participant/session and simulates choices repeatedly.
+  # Computes, for each trial, the probability the model reproduces the observed choice.
+
+  # Number of posterior predictive replicates (balance stability vs. speed)
+  n_ppc = 300
+
+  # Container for per-trial PPC results
+  ppc_rows = Vector{NamedTuple}()
+
+  # Ensure fitted parameters by session are available
+  @assert @isdefined(fit_mult_by_f) "Expected fit_mult_by_f to be defined (fit results by session)."
+
+  # Iterate over participant-session fits
+  for r in eachrow(fit_mult_by_f)
+    pid = r.prolific_pid
+    sess = r.session
+
+    # Subset data for this participant and session
+    df_ps = explore_choice_df[(explore_choice_df.prolific_pid .== pid) .&& (explore_choice_df.session .== sess), :]
+    isempty(df_ps) && continue
+
+    # Prepare ground-truth choices in numeric form (0/1) consistent with model mapping
+    data_nt = unpack_control_model_beta(df_ps)
+    N = length(data_nt.choice)
+    N == 0 && continue
+
+    # Build fitted parameter dict (Dirac priors at MAP)
+    fit_vals = Dict(:γ_pr => r[:γ_pr], :β_0 => r[:β_0], :β_H => r[:β_H])
+
+    # Posterior predictive simulations
+    ppc = posterior_predictive(
+      df_ps;
+      model = control_model_beta,
+      unpack_function = unpack_control_model_beta,
+      fit = fit_vals,
+      outcome_name = :choice,
+      n = n_ppc
+    )
+
+    # Predicted matrix: N_trials x n_ppc (0/1 choices)
+    preds = ppc.predicted
+
+    # Per-trial match probability and predicted right-choice probability
+    # p_match[t] = mean(preds[t, :] == observed[t])
+    obs = data_nt.choice
+    p_match = Vector{Float64}(undef, N)
+    p_right = Vector{Float64}(undef, N)
+    @inbounds for t in 1:N
+      pt = view(preds, t, :)
+      o = obs[t]
+      # mean of Bool fast-path
+      m = 0.0
+      pr = 0.0
+      @inbounds @simd for j in 1:size(preds, 2)
+        v = pt[j]
+        pr += v
+        m += (v == o)
+      end
+      p_right[t] = pr / size(preds, 2)
+      p_match[t] = m / size(preds, 2)
+    end
+
+    # Emit rows (use sequential trial index within participant-session)
+    @inbounds for t in 1:N
+      push!(ppc_rows, (
+        prolific_pid = pid,
+        session = sess,
+        trial_index = t,
+        obs_choice = obs[t],
+        p_right_pred = p_right[t],
+        p_match = p_match[t],
+      ))
+    end
+  end
+
+  # Assemble PPC DataFrame with per-trial match probabilities
+  ppc_trials = DataFrame(ppc_rows)
+
+  # Quick aggregate: mean match by session (sanity check; light-weight)
+  if !isempty(ppc_trials)
+    agg_ppc = @chain ppc_trials begin
+      groupby(:session)
+      @summarize(mean_match = mean(p_match), n = n())
+    end
+    display(agg_ppc)
+  end
+
+  if !isempty(ppc_trials)
+    agg_sub_ppc = @chain ppc_trials begin
+      groupby([:session, :prolific_pid])
+      @summarize(p_match = mean(p_match))
+      @summarize(mean_match = mean(p_match), sd_match = std(p_match), n = n())
+      @mutate(se = sd_match / sqrt(n))
+      @mutate(ci_lower = mean_match .- 1.96 * se, ci_upper = mean_match .+ 1.96 * se)
+    end
+    display(agg_sub_ppc)
+  end
+
+  ppc_trials
+end
+
 end
