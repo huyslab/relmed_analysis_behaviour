@@ -581,4 +581,31 @@ begin
   ppc_trials
 end
 
+begin
+  # Participant-level PPC summaries and a small plot
+  if @isdefined(ppc_trials) && !isempty(ppc_trials)
+    ppc_participants = @chain ppc_trials begin
+      groupby([:prolific_pid, :session])
+      @summarize(
+        mean_match = mean(p_match),
+        median_match = median(p_match),
+        mean_p_right = mean(p_right_pred),
+        n_trials = n(),
+        obs_right_rate = mean(obs_choice),
+      )
+      @ungroup
+    end
+
+    display(ppc_participants)
+
+    # Small plot: distribution of participant mean match per session
+    ppc_fig = AlgebraOfGraphics.data(ppc_participants) *
+              mapping(:mean_match, col = :session) *
+              visual(Hist) |> draw
+    ppc_fig
+  end
+end
+
+begin
+  
 end
