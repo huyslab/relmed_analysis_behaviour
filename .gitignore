@@ -22,6 +22,7 @@ Icon
 .viminfo
 .gitconfig
 .Rhistory
+.lesshst
 
 # Temporary files
 :w

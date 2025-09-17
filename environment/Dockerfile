@@ -59,7 +59,7 @@ RUN /opt/setup-scripts/install-julia-environment.bash && \
     fix-permissions "/home/${NB_USER}"
 
 # Set CRAN date
-RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024-05-03"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
+RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024-09-16"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
 
 # Run script installing R packages
 COPY docker_setup/install_r.R install_r.R

@@ -101,12 +101,12 @@ end
 
 ## MLE / MAP estimation -------------------------------------------------------------------------
 """
-    multistart_mode_estimator(model::Turing.Model; estimator::Union{MLE, MAP}, n_starts::Int64=5) -> OptimizationResult
+    multistart_mode_estimator(model::DynamicPPL.Model; estimator::Union{MLE, MAP}, n_starts::Int64=5) -> OptimizationResult
 
 Estimates the mode of a Turing model using a multistart approach to avoid local optima.
 
 # Arguments
-- `model::Turing.Model`: A Turing model to be optimized
+- `model::DynamicPPL.Model`: A Turing model to be optimized
 - `estimator::Union{MLE, MAP}`: The mode estimation method (MLE or MAP)
 - `n_starts::Int64`: Number of optimization starts (default: 5)
 
@@ -114,7 +114,7 @@ Estimates the mode of a Turing model using a multistart approach to avoid local 
 - OptimizationResult with the highest log-probability among all starts
 """
 function multistart_mode_estimator(
-	model::Turing.Model;
+	model::DynamicPPL.Model;
 	estimator::Union{MLE, MAP},
 	n_starts::Int64 = 5
 )

@@ -6,7 +6,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using Test, Random, DataFrames, Distributions, StatsBase, LinearAlgebra, ForwardDiff, Turing
+    using Test, Random, DataFrames, Distributions, StatsBase, LinearAlgebra, ForwardDiff, Turing, DynamicPPL
     Turing.setprogress!(false)
     include("$(pwd())/core/model_utils.jl")
 end
@@ -34,7 +34,7 @@ end
     dat = DataFrame(
         PID = [1], 
         x = [1],
-        p = [1]
+        p = [1-eps()] # Avoid p = 1 exactly, since Bernoulli support is now 0 < p < 1
     )
     
     @test FI(
@@ -43,13 +43,13 @@ end
         map_data_to_model = map_data_to_model,
         param_names = [:p],
         id_col = :PID
-    ) == 1.0 # Expected FI value, since for x = 1 FI = 1 / p^2 for Bernoulli ll.
+    ) ≈ 1.0 # Expected FI value, since for x = 1 FI = 1 / p^2 for Bernoulli ll.
 
     # Test grouping
     dat = DataFrame(
         PID = [1, 2],
         x = [1, 0],
-        p = [1., 0.]
+        p = [1. - eps(), 0.] # Avoid p = 1 exactly, since Bernoulli support is now 0 < p < 1
     )
 
     @test FI(
@@ -58,7 +58,7 @@ end
         map_data_to_model = map_data_to_model,
         param_names = [:p],
         id_col = :PID
-    ) == 2.0 # Expected FI value, given independent handling of participants
+    ) ≈ 2.0 # Expected FI value, given independent handling of participants
 
     # Test insufficient data columns
     @test_throws ArgumentError FI(
