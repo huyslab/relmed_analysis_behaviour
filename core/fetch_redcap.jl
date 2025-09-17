@@ -136,14 +136,14 @@ function redcap_data_to_df(file_data::AbstractDict)
 		cols=:union
 	)
 
-	# Convert interaction data to DataFrame
-	interaction_data = vcat(DataFrame.(interaction_data)...)
-
-	# Handle case where there's no interaction data
+    # Handle case where there's no interaction data
 	if isempty(interaction_data)
 		insertcols!(jspsych_data, :browser_interactions => missing, :browser_interaction_times => missing)
 		return jspsych_data
 	end
+
+	# Convert interaction data to DataFrame
+	interaction_data = vcat(DataFrame.(interaction_data)...)
 
 	# Group interaction events by trial and collect into arrays
 	interaction_data_colated = combine(groupby(interaction_data, :trial), 
