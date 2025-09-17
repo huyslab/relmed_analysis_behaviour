@@ -18,6 +18,15 @@ function get_redcap_records(;
 		project::String = "trial1"
 	)
 
+	# Check required environment variables
+	token_var = "REDCAP_TOKEN_$(uppercase(project))"
+	if !haskey(ENV, token_var)
+		error("Environment variable $token_var not found. Please add it to env.list")
+	end
+	if !haskey(ENV, "REDCAP_URL")
+		error("Environment variable REDCAP_URL not found. Please add it to env.list")
+	end
+
 	# Get the records --------
 	# Create the payload for getting the record details
 	rec_payload = Dict(
@@ -61,6 +70,15 @@ function get_redcap_file(
 	field::String = "data",
 	project::String = "trial1" 
 )
+	# Check required environment variables
+	token_var = "REDCAP_TOKEN_$(uppercase(project))"
+	if !haskey(ENV, token_var)
+		error("Environment variable $token_var not found. Please add it to env.list")
+	end
+	if !haskey(ENV, "REDCAP_URL")
+		error("Environment variable REDCAP_URL not found. Please add it to env.list")
+	end
+
 	# Create the payload for getting the file
 	file_payload = Dict(
 		"token" => ENV["REDCAP_TOKEN_$(uppercase(project))"],
