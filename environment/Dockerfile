@@ -61,6 +61,12 @@ RUN /opt/setup-scripts/install-julia-environment.bash && \
 # Set CRAN date
 RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024-09-16"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
 
+# lme4 pre-requisites
+RUN apt-get update --yes && \
+    apt-get install --yes --no-install-recommends \
+    cmake && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Run script installing R packages
 COPY docker_setup/install_r.R install_r.R
 RUN ["Rscript", "install_r.R"]
