@@ -6,7 +6,7 @@ Represents metadata for a single experiment.
 struct ExperimentInfo
     project::String
     tasks_included::Vector{String}
-    participant_id_field::Symbol
+    participant_id_column::Symbol
     date_collected::Union{Date, Nothing}
     notes::Union{String, Nothing}
 end
