@@ -28,7 +28,7 @@ function prepare_card_choosing_data(
 	task_data = remove_empty_columns(task_data)
 
 	# Filter practice
-	filter!(x -> typeof(x.block) == Int64, task_data)
+	filter!(x -> isa(x.block, Int64), task_data)
 
 	# Sort
 	sort!(task_data, [participant_id_column, :session, :block, :trial])
