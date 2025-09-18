@@ -1,4 +1,6 @@
 # Function to fetch data from REDCap
+using HTTP, JSON, DataFrames
+
 """
     get_redcap_records(; project="trial1") -> Vector{Any}
 
@@ -12,7 +14,7 @@ Fetches and returns all records from the REDCap API as a JSON-parsed vector.
 
 # Notes
 - Requires `REDCAP_TOKEN_<PROJECT>` and `REDCAP_URL` to be set in the environment variables.
-- The token environment variable is constructed as `REDCAP_TOKEN_$(uppercase(project))`.
+- The token environment variable is constructed as `REDCAP_TOKEN_\$(uppercase(project))`.
 """
 function get_redcap_records(;
 		project::String = "trial1"
@@ -104,15 +106,19 @@ function get_redcap_file(
 		if !haskey(parsed_string, "jspsych_data") || !haskey(parsed_string, "interaction_data")
 			@warn "Required keys 'jspsych_data' or 'interaction_data' not found for record $record_id. This is probably old format data."
             return Dict(
-                "jspsych_data" => parsed_string,
+                "jspsych_data" => isa(parsed_string, Dict) ? [parsed_string] : [],
                 "interaction_data" => []
             )
 		end
 
-		# Parse nested JSON strings and return structured data
+		# Parse nested JSON strings
+		jspsych_data = JSON.parse(parsed_string["jspsych_data"])
+		interaction_data = JSON.parse(parsed_string["interaction_data"])
+
+		# Return structured data as vector of objects
 		return Dict(
-			"jspsych_data" => JSON.parse(parsed_string["jspsych_data"]),
-			"interaction_data" => JSON.parse(parsed_string["interaction_data"])
+			"jspsych_data" => isa(jspsych_data, Dict) ? [jspsych_data] : jspsych_data,
+			"interaction_data" => isa(interaction_data, Dict) ? [interaction_data] : interaction_data
 		)
 	catch e
 		@warn "No file could be downloaded for record_id: $record_id. Error: $e"
@@ -176,4 +182,35 @@ function redcap_data_to_df(file_data::AbstractDict)
 	)
 
 	return jspsych_data
+end
+
+function fetch_project_data(; 
+	project::String = "trial1",
+	filter_func::Function = (x -> true)
+)
+
+	# Fetch records
+	records = get_redcap_records(project = project)
+
+    # Select records
+    filter!(filter_func, records)
+
+    # Get record_id
+    record_ids = [record["record_id"] for record in records]
+
+    # Fetch the file for the given record_id. Direct to the correct REDCap project
+	file_data = (x -> get_redcap_file(x; project = project)).(record_ids)
+
+	# Filter out empty file_data
+	file_data = filter(x -> !isempty(x), file_data)
+
+	if isempty(file_data)
+		return nothing
+	end
+
+	# Convert to DataFrame
+    jspsych_data = redcap_data_to_df.(file_data)
+
+    return vcat(jspsych_data..., cols=:union)
+
 end
