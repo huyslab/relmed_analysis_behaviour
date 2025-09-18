@@ -6,15 +6,15 @@ Represents metadata for a single experiment.
 struct ExperimentInfo
     project::String
     tasks_included::Vector{String}
-    participant_id_field::String
+    participant_id_field::Symbol
     date_collected::Union{Date, Nothing}
     notes::Union{String, Nothing}
 end
 
-trial1 = ExperimentInfo(
+const TRIAL1 = ExperimentInfo(
     "trial1",
     ["reversal", "max_press", "PILT", "vigour", "PIT", "vigour_test", "post_PILT_test", "control", "WM", "delay_discounting", "open_text"],
-    "participant_id",
+    :participant_id,
     Date(2025, 6, 4),
-    "First RELMED trial with participants."
+    "First RELMED trial with participants.",
 )
