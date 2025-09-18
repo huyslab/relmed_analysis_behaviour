@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "c6ecd0eb88114f521d20ad226c74cb91a68fa99a"
+project_hash = "f4b0a7a44f949cf120bbd1de797cd3b05c29eb77"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -1034,6 +1034,17 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "e3290f2d49e661fbd94046d7e3726ffcb2d41053"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.4+0"
+
+[[deps.Effects]]
+deps = ["Combinatorics", "DataFrames", "Distributions", "ForwardDiff", "LinearAlgebra", "Statistics", "StatsAPI", "StatsBase", "StatsModels", "Tables"]
+git-tree-sha1 = "6988b6464ebdc79750e8cbec511dd6802dcca93f"
+uuid = "8f03c58b-bd97-4933-a826-f71b64d2cca2"
+version = "1.6.0"
+weakdeps = ["GLM", "MixedModels"]
+
+    [deps.Effects.extensions]
+    EffectsGLMExt = "GLM"
+    EffectsMixedModelsExt = ["GLM", "MixedModels"]
 
 [[deps.EllipticalSliceSampling]]
 deps = ["AbstractMCMC", "ArrayInterface", "Distributions", "Random", "Statistics"]
@@ -2371,6 +2382,12 @@ git-tree-sha1 = "ac0036e4f1829db000db46aad4cd5a207bba8465"
 uuid = "7e9fb7ac-9f67-43bf-b2c8-96ba0796cbb6"
 version = "0.1.2"
 
+[[deps.MixedModelsExtras]]
+deps = ["GLM", "LinearAlgebra", "MixedModels", "Statistics", "StatsBase", "StatsModels", "Tables"]
+git-tree-sha1 = "ae24b6b950ec9e63e1324e21d9112c041bd184cf"
+uuid = "781a26e1-49f4-409a-8f4c-c3159d78c17e"
+version = "2.3.0"
+
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
@@ -3453,6 +3470,12 @@ version = "7.10.1"
     InferenceObjects = "b5cf5a8d-e756-4ee3-b014-01d49d192c00"
     MCMCChains = "c7f686f2-ff18-58e9-bc7b-31028e88f75d"
     MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
+
+[[deps.StandardizedPredictors]]
+deps = ["Statistics", "StatsBase", "StatsModels"]
+git-tree-sha1 = "f3063c966d3285158aeb4cf2a9bfe786b838482b"
+uuid = "5064a6a7-f8c2-40e2-8bdc-797ec6f1ae18"
+version = "1.0.1"
 
 [[deps.Static]]
 deps = ["CommonWorldInvalidations", "IfElse", "PrecompileTools"]
