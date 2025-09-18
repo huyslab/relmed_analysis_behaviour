@@ -109,7 +109,7 @@ TASK_PREPROC_FUNCS = Dict(
     "WM" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "wm", kwargs...),
     "WM_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "wm_test", kwargs...),
     "reversal" => prepare_reversal_data,
-    "delay_discounting" => prepare_delay_disounting_data,
+    "delay_discounting" => prepare_delay_discounting_data,
     # "vigour" => prepare_vigour_data,
     # "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
