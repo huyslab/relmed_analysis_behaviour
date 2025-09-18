@@ -1,4 +1,6 @@
 # Function to fetch data from REDCap
+using HTTP, JSON, DataFrames
+
 """
     get_redcap_records(; project="trial1") -> Vector{Any}
 
