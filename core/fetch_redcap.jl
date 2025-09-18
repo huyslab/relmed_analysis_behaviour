@@ -12,7 +12,7 @@ Fetches and returns all records from the REDCap API as a JSON-parsed vector.
 
 # Notes
 - Requires `REDCAP_TOKEN_<PROJECT>` and `REDCAP_URL` to be set in the environment variables.
-- The token environment variable is constructed as `REDCAP_TOKEN_$(uppercase(project))`.
+- The token environment variable is constructed as `REDCAP_TOKEN_\$(uppercase(project))`.
 """
 function get_redcap_records(;
 		project::String = "trial1"
