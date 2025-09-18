@@ -1,12 +1,12 @@
 # Preprocess data from REDCap, dividing into tasks and preparing various variables
 
-remove_testing!(data::DataFrame; participant_id_field::Symbol = :participant_id) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|demo|simulate|debug", x[participant_id_field])) && (length(x[participant_id_field]) > 10), data)
+remove_testing!(data::DataFrame; participant_id_column::Symbol = :participant_id) = filter!(x -> (!occursin(r"haoyang|yaniv|tore|demo|simulate|debug", x[participant_id_column])) && (length(x[participant_id_column]) > 10), data)
 
 remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, col), eachcol(data)))]
 
 function prepare_PILT_data(
     df::DataFrame;
-    participant_id_field::Symbol = :participant_id,
+    participant_id_column::Symbol = :participant_id,
     filter_func::Function = (x -> !ismissing(x.trialphase) && x.trialphase == "pilt"),
     )
 
@@ -20,7 +20,7 @@ function prepare_PILT_data(
 	filter!(x -> typeof(x.block) == Int64, PILT_data)
 
 	# Sort
-	sort!(PILT_data, [participant_id_field, :session, :block, :trial])
+	sort!(PILT_data, [participant_id_column, :session, :block, :trial])
 
 	return PILT_data
 
@@ -66,22 +66,22 @@ function preprocess_project(
     # Remove testing data
     jspsych_data = remove_testing!(jspsych_data)
 
-    # # Split and preprocess data by task
-    # task_data = []
-    # task_names = Symbol[]
-    # for task in experiment.tasks_included
-    #     if haskey(TASK_PREPROC_FUNCS, task)
-    #         @info "Preprocessing task: $task"
-    #         task_df = TASK_PREPROC_FUNCS[task](jspsych_data; participant_id_field = experiment.participant_id_field)
-    #         push!(task_data, task_df)
-    #         push!(task_names, Symbol(task))
-    #     else
-    #         @warn "No preprocessing function defined for task: $task"
-    #     end
-    # end
+    # Split and preprocess data by task
+    task_data = []
+    task_names = Symbol[]
+    for task in experiment.tasks_included
+        if haskey(TASK_PREPROC_FUNCS, task)
+            @info "Preprocessing task: $task"
+            task_df = TASK_PREPROC_FUNCS[task](jspsych_data; participant_id_column = experiment.participant_id_column)
+            push!(task_data, task_df)
+            push!(task_names, Symbol(task))
+        else
+            @warn "No preprocessing function defined for task: $task"
+        end
+    end
 
-    # task_dfs = NamedTuple{Tuple(task_names)}(task_data)
-    # return task_dfs
+    task_dfs = NamedTuple{Tuple(task_names)}(task_data)
+    return task_dfs
 end
 
 
