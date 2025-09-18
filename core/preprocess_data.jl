@@ -45,7 +45,7 @@ function prepare_reversal_data(
 	return reversal_data
 end
 
-function prepare_delay_disounting_data(
+function prepare_delay_discounting_data(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id
     )
