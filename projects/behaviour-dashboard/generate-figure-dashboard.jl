@@ -8,7 +8,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using DataFrames, Makie
+    using DataFrames, CairoMakie
 
     # Include data scripts
     include("$(pwd())/core/experiment-registry.jl")
@@ -20,7 +20,7 @@ begin
     include(joinpath(script_dir, "config.jl"))
 
     # Include task-specific scripts
-    include(joinpath(script_dir, "generate-figures-PILT.jl"))
+    include(joinpath(script_dir, "generate-figures-card-choosing.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -38,7 +38,7 @@ begin
     (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press) = preprocess_project(TRIAL1)
 end
 
-# Generate PILT figures
+# Generate PILT learning curve by session
 let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     
     f = Figure(size = (800, 600))
@@ -46,3 +46,18 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
 
     save_fig("PILT_learning_curves_by_session", f)
 end
+
+# Generate WM learning curve by session
+let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_data;
+
+    f = Figure(size = (800, 600))
+    plot_learning_curves_by_factor!(
+        f, 
+        WM_main_sessions; 
+        factor = :session, 
+        xcol = :appearance,
+        early_stopping_at = nothing)
+
+    save_fig("WM_learning_curves_by_session", f)
+end
+
