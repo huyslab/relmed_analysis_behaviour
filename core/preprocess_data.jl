@@ -72,7 +72,7 @@ function prepare_max_press_data(
     participant_id_column::Symbol = :participant_id
     )
 	# Define required columns for max press data
-	required_columns = [participant_id_column, :record_id, :version, :exp_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
+	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
 
 	# Check and add missing columns
 	for col in required_columns
