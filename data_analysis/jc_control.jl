@@ -413,4 +413,77 @@ let
   ) |>
   draw(scales(Color = (; palette = ["lightskyblue1", "deepskyblue3", "midnightblue"])); axis=(; ylabel="P[Left]"))
 end
+
+# ### Color preference during exploration, over time
+begin
+  color_choice_df = @chain explore_choice_df begin
+    dropmissing(:choice)
+    transform(
+      [
+        ([:choice, :control_rule_used, Symbol(color)] =>
+          ByRow((choice, rule, val) -> (!ismissing(choice) && choice == color) ? val : missing) => Symbol(color))
+        for color in ("blue", "green", "yellow", "red")
+      ]
+    )
+    select([:prolific_pid, :session, :trial_number, :blue, :green, :yellow, :red])
+    stack([:blue, :green, :yellow, :red], variable_name=:color, value_name=:count)
+    groupby([:session, :trial_number, :color])
+    combine(:count => (x -> sum(skipmissing(x))) => :count)
+    groupby([:session, :trial_number])
+    transform(:count => (x -> x ./ sum(skipmissing(x))) => :prop)
+    filter(x -> x.prop .> 0, _)
+  end
+
+  data(color_choice_df) *
+  mapping(:trial_number, :prop, color=:color, group=:color, row=:session) *
+  (visual(Scatter; alpha = 0.3) + linear()) |> 
+  draw(scales(Color = (; palette = ["blue" => "royalblue", "green" => "forestgreen", "yellow" => "goldenrod1", "red" => "salmon3"])))
+end
+
+## Is there a color preference during exploration?
+begin
+  color_choice_count = @chain explore_choice_df begin
+    dropmissing(:choice)
+    @count(prolific_pid, session, choice)
+    groupby([:prolific_pid, :session])
+    transform(:n => (x -> x ./ sum(x)) => :prop)
+    filter(row -> row.session == "1", _)
+  end
+  
+  m_full = lmm(@formula(prop ~ choice + (choice | prolific_pid)),
+              color_choice_count,
+              contrasts=Dict(:choice => DummyCoding(base="blue")))
+
+  m_null = lmm(@formula(prop ~ 1 + (choice | prolific_pid)),
+              color_choice_count,
+              contrasts=Dict(:choice => DummyCoding(base="blue")))
+
+  lrt = lrtest(m_null, m_full)
+  println(lrt)
+end
+
+let
+  data(color_choice_count) *
+  mapping(:choice => "Color", :prop => "Proportion", color=:choice=>"Color") *
+  visual(RainClouds) |>
+  draw(scales(Color = (; palette = ["blue" => "royalblue", "green" => "forestgreen", "yellow" => "goldenrod1", "red" => "firebrick3"])))
+end
+
+# ### What about blue ship where they have known it in advance?
+begin
+  blue_choice_df = @chain explore_choice_df begin
+    filter(row -> row.left == "blue" || row.right == "blue", _)
+    transform(:choice => ByRow(x -> !ismissing(x) && x == "blue" ? 1 : 0) => :blue_choice)
+    filter(row -> row.session == "1", _)
+  end
+
+  glmm(@formula(blue_choice ~ trial_number + (trial_number | prolific_pid)), blue_choice_df, Bernoulli(), contrasts=Dict(:trial_number => StandardizedPredictors.ZScore()), fast=false, progress=false)
+end
+
+let
+  data(blue_choice_df) *
+  mapping(:trial_number, :blue_choice) *
+  (mapping(group=:prolific_pid) * visual(Lines; alpha = 0.01) + linear()) |>
+  draw(axis=(; ylabel="P[Blue]", xlabel="Trial number"))
+end
 end
