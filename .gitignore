@@ -39,7 +39,6 @@ generate_experimental_sequences/THINGS/
 generate_experimental_sequences/pilot7_stims/
 generate_experimental_sequences/pilot7_stims_OLD/
 generate_experimental_sequences/trial1_stimuli/
-projects/behaviour-dashboard/results/*.svg
 
 # Julia specific
 *.jl.cov
