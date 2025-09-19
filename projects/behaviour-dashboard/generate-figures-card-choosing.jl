@@ -152,28 +152,28 @@ function plot_learning_curve_by_delay_bins!(
     if variability == :se
         mp = (data(app_curve_sum) * (
             mapping(
-                :appearance => "Appearance #",
+                :appearance,
                 :lb,
                 :ub,
                 color = :delay_bin  => "Delay",
                 layout = facet
         ) * visual(Band, alpha = 0.5) +
             mapping(
-                :appearance => "Appearance #",
+                :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
         ) * visual(Lines; linewidth = lw))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
-                :appearance  => "Appearance #",
+                :appearance ,
                 :acc,
                 :se,
                 color = :delay_bin => "Delay",
                 col = facet
             ) * visual(Errorbars, linewidth = lw) +
             mapping(
-                :appearance  => "Appearance #",
+                :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
@@ -197,14 +197,14 @@ function plot_learning_curve_by_delay_bins!(
             ) * visual(Scatter, markersize = sms) +
         data(filter(x -> x.delay_bin != "0", app_curve_sum)) *
         mapping(
-                :appearance => "Apperance #",
+                :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
         ) * visual(Lines; linewidth = lw) +
         data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
         mapping(
-                :appearance  => "Apperance #",
+                :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
@@ -213,7 +213,7 @@ function plot_learning_curve_by_delay_bins!(
 
 	plt = draw!(f[1,1], mp; 
 		axis=(; 
-            xlabel = "Apperance #",
+            xlabel = "Appearance #",
 			ylabel = "Prop. optimal choice ±SE"
 		)
 	)
