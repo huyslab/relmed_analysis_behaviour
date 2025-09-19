@@ -17,7 +17,7 @@ function preprocess_reversal_data(
 	# Exclude no response trials
 	filter!(x -> !isnothing(x.response_optimal), out_df)
 
-	# Auxillary variables --------------------------		
+	# Auxiliary variables --------------------------		
 	# Number trials leading to reversal
 	DataFrames.transform!(
 		groupby(out_df, [participant_id_column, :session, :block]),
