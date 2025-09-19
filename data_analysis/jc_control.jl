@@ -81,8 +81,9 @@ begin
   ## Preprocess control task data to choice data
   explore_choice_df = @chain control_task_data begin
     filter(x -> x.trialphase .== "control_explore", _)
-    select([:prolific_pid, :session, :trial, :left, :right, :response, :control_rule_used])
+    select([:prolific_pid, :session, :trial, :left, :right, :response, :control_rule_used, :current, :trial_presses])
     transform([:left, :right, :response] => ByRow((left, right, resp) -> ismissing(resp) ? missing : ifelse(resp == "left", left, right)) => :choice)
+    transform(:current => (x -> categorical(x; levels=[1,2,3], ordered=true)) => :current)
     groupby([:prolific_pid, :session])
     DataFrames.transform(
       :trial => (x -> 1:length(x)) => :trial_number
