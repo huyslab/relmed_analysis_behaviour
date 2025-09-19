@@ -486,4 +486,39 @@ let
   (mapping(group=:prolific_pid) * visual(Lines; alpha = 0.01) + linear()) |>
   draw(axis=(; ylabel="P[Blue]", xlabel="Trial number"))
 end
+
+# ### When people choose the known choice, how much effort do they choose to exert?
+begin
+  @chain explore_choice_df begin
+    transform(:choice => ByRow(x -> !ismissing(x) && x == "blue" ? 1 : 0) => :blue_choice)
+    transform(:control_rule_used => ByRow(x -> !ismissing(x) && x == "control" ? 1 : 0) => :control_choice)
+    groupby([:prolific_pid, :session, :current, :blue_choice])
+    combine(:control_choice => mean => :prop_control)
+    groupby([:session, :current, :blue_choice])
+    combine(:prop_control => mean => :prop_control)
+    sort([:session, :current, :blue_choice])
+  end
+
+  control_blue_df = @chain explore_choice_df begin
+    filter(row -> row.session == "1", _)
+    filter(row -> row.left == "blue" || row.right == "blue", _)
+    transform(:choice => ByRow(x -> !ismissing(x) && x == "blue" ? "blue" : "other") => :blue_choice)
+    transform(:control_rule_used => ByRow(x -> !ismissing(x) && x == "control" ? 1 : 0) => :control_choice)
+  end
+
+  m_blue_control = glmm(@formula(control_choice ~ blue_choice * current + (blue_choice * current | prolific_pid)), control_blue_df, Bernoulli(), contrasts=Dict(:current => EffectsCoding(), :blue_choice => EffectsCoding(base="other")), fast=false, progress=false)
+end
+
+let
+  eff_blue_control = effects(Dict(:current => unique(df.current), 
+              :blue_choice => ["blue", "other"]), 
+          m_blue_control; invlink=logistic)
+  eff_blue_control.current = categorical(eff_blue_control.current; levels=[1,2,3], ordered=true)
+  data(eff_blue_control) * 
+  (
+    mapping(:current, :control_choice, color=:blue_choice => "Choice", group=:blue_choice => "Choice") * (visual(Scatter) + mapping(:err) * visual(Errorbars)
+    )) |>
+  draw(axis=(; xlabel="Current", ylabel="P[Control]"))
+end
+
 end
