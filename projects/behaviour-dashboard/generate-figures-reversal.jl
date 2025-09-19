@@ -1,10 +1,12 @@
+using DataFrames, CairoMakie, AlgebraOfGraphics
+
 function preprocess_reversal_data(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id
     )
 
 	# Sort
-	out_df = sort(out_df, [participant_id_column, :session, :block, :trial])
+	out_df = sort(df, [participant_id_column, :session, :block, :trial])
 
 	# Cumulative trial number
 	DataFrames.transform!(
@@ -95,8 +97,8 @@ function plot_reversal_accuracy_curve!(
 	# Create group variable to break line plot
 	sum_sum_pre_post.group = sign.(sum_sum_pre_post.trial)
 	sum_pre_post.group = sign.(sum_pre_post.trial) .* 
-		map(val -> findfirst(==(val), unique(sum_pre_post.prolific_pid)), 
-			sum_pre_post.prolific_pid)
+		map(val -> findfirst(==(val), unique(sum_pre_post[!, participant_id_column])), 
+			sum_pre_post[!, participant_id_column])
 
 	# Color by accuracy on trial - 3
 	DataFrames.transform!(
