@@ -12,4 +12,6 @@ begin
 end
 
 # Load and preprocess data
-(; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press) = preprocess_project(TRIAL1)
+begin 
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press) = preprocess_project(TRIAL1)
+end
