@@ -521,4 +521,37 @@ let
   draw(axis=(; xlabel="Current", ylabel="P[Control]"))
 end
 
+# ### How close participants are to the required threshold to achieve control?
+let
+  effort_to_cutfoff_df = @chain explore_choice_df begin
+    transform(:current => ByRow(function case_match(x)
+            x == 1 && return 6
+            x == 2 && return 12
+            x == 3 && return 18
+          end) => :control_cutoff)
+    transform([:trial_presses, :control_cutoff] => ((x, y) -> x .- y) => :effort_to_cutoff)
+  end
+
+  p_effort_to_cutoff = Figure(size = (800, 600))
+
+  p_ind = data(effort_to_cutfoff_df) *
+  mapping(:trial_number, :effort_to_cutoff, group=:prolific_pid, col=:session, row=:current) *
+  visual(Lines; alpha = 0.05)
+
+  p_avg = @chain effort_to_cutfoff_df begin
+    groupby([:session, :current, :trial_number])
+    combine(:effort_to_cutoff => mean => :mean_effort_to_cutoff)
+    data(_) *
+    mapping(:trial_number, :mean_effort_to_cutoff, col=:session, row=:current) *
+    (visual(Lines; color = :darkorange, linewidth=2, linestyle=:dash))
+  end
+
+  reflines = mapping([0]) * visual(HLines; color=:purple, linestyle=:dot, linewidth=2)
+
+  draw!(p_effort_to_cutoff, p_ind + p_avg + reflines, scales(Col = (;categories=["1" => "Session 1", "2" => "Session 2"])); axis = (; ylabel = "Actual effort - Required", xlabel = "Trial number"))
+
+  p_effort_to_cutoff
+end
+
+
 end
