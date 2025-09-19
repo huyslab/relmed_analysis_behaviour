@@ -27,6 +27,12 @@ begin
     isdir(result_dir) || mkpath(result_dir)
 end
 
+# Save figure function
+function save_fig(filename::String, f::Figure)
+    save(joinpath(result_dir, filename * ".svg"), f)
+    return f
+end
+
 # Load and preprocess data
 begin 
     (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press) = preprocess_project(TRIAL1)
@@ -38,5 +44,5 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     f = Figure(size = (800, 600))
     plot_learning_curves_by_factor!(f, PILT_main_sessions; factor = :session)
 
-    save(joinpath(result_dir, "PILT_learning_curve.svg"), f)
+    save_fig("PILT_learning_curves_by_session", f)
 end
