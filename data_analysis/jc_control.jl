@@ -21,6 +21,7 @@ begin
   Pkg.instantiate()
   using Random, DataFrames, JSON, CSV, StatsBase, JLD2, HTTP, CairoMakie, Printf, Distributions, CategoricalArrays, AlgebraOfGraphics, Dates, SHA
 	using Tidier, GLM, MixedModels, PlutoUI, LaTeXStrings, ColorSchemes, HypothesisTests, ShiftedArrays
+	using StandardizedPredictors, Effects
 	using LogExpFunctions: logistic, logit
   include(joinpath(pwd(), "fetch_preprocess_data.jl"))
 	include(joinpath(pwd(), "plotting_utils.jl"))
