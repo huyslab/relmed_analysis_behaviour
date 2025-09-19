@@ -279,4 +279,105 @@ let
 
 end
 
+begin
+  ## Only interval from last chosen
+  m1 = glmm(@formula(response_left ~ diff_choice_interval_scaled + (diff_choice_interval_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+
+  ## Only interval from last seen
+  m2 = glmm(@formula(response_left ~ diff_interval_scaled + (diff_interval_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+
+  ## Both intervals from last seen and last chosen
+  m3 = glmm(@formula(response_left ~ diff_choice_interval_scaled + diff_interval_scaled + (diff_choice_interval_scaled + diff_interval_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+
+  m3_1 = glmm(@formula(response_left ~ diff_choice_occurrence_scaled + diff_occurrence_scaled + (diff_choice_occurrence_scaled + diff_occurrence_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+end
+
+let
+  ## Compare m1 and m2 on information criteria, matching probability, and cross-validated accuracy
+  matching_accuracy(truth_vals, probs) = mean(truth_vals .* probs .+ (1 .- truth_vals) .* (1 .- probs))
+  threshold_accuracy(truth_vals, probs; threshold=0.5) = mean((probs .>= threshold) .== truth_vals)
+
+  truth = df.response_left
+  predictions = [fitted(m1), fitted(m2)]
+  matching_probs = map(predictions) do probs
+    matching_accuracy(truth, probs)
+  end
+  accuracy = map(predictions) do probs
+    threshold_accuracy(truth, probs)
+  end
+
+  model_comparison_df = DataFrame(
+    model = ["m1", "m2"],
+    aic = [aic(m1), aic(m2)],
+    bic = [bic(m1), bic(m2)],
+    loglikelihood = [loglikelihood(m1), loglikelihood(m2)],
+    matching_probability = matching_probs,
+    accuracy = accuracy
+  )
+
+  ## Participant-level K-fold cross-validation using matching probability
+  participants = unique(df.prolific_pid)
+  nfolds = min(10, length(participants))
+  cv_rows = DataFrame(fold=Int[], model=String[], matching_probability=Float64[], accuracy=Float64[])
+
+  if nfolds > 1
+    Random.seed!(1234)
+    shuffled_ids = Random.shuffle(participants)
+    fold_sets = [shuffled_ids[i:nfolds:end] for i in 1:nfolds]
+
+    for (fold_idx, test_ids) in enumerate(fold_sets)
+      train = subset(df, :prolific_pid => pid -> .!(pid .∈ Ref(test_ids)))
+      test = subset(df, :prolific_pid => pid -> pid .∈ Ref(test_ids))
+      if isempty(train) || isempty(test)
+        continue
+      end
+
+      m1_cv = glmm(formula(m1), train, Bernoulli(), fast=false, progress=false)
+      m2_cv = glmm(formula(m2), train, Bernoulli(), fast=false, progress=false)
+
+      preds_m1 = predict(m1_cv, test; new_re_levels=:population)
+      preds_m2 = predict(m2_cv, test; new_re_levels=:population)
+      truth_test = test.response_left
+
+      push!(cv_rows, (fold=fold_idx, model="m1", matching_probability=matching_accuracy(truth_test, preds_m1), accuracy=threshold_accuracy(truth_test, preds_m1)))
+      push!(cv_rows, (fold=fold_idx, model="m2", matching_probability=matching_accuracy(truth_test, preds_m2), accuracy=threshold_accuracy(truth_test, preds_m2)))
+    end
+
+    if !isempty(cv_rows)
+      cv_summary = combine(groupby(cv_rows, :model), [:matching_probability, :accuracy] .=> mean .=> [:cv_matching_probability, :cv_accuracy])
+      cv_se = combine(groupby(cv_rows, :model), [:matching_probability, :accuracy] .=> (x -> std(x) ./ sqrt(length(x))) .=> [:cv_matching_probability_se, :cv_accuracy_se])
+      leftjoin!(model_comparison_df, cv_summary, on=:model)
+      leftjoin!(model_comparison_df, cv_se, on=:model)
+    end
+  end
+
+  model_comparison_df.model = ["Cumulative seen", "Last seen interval"]
+  println(model_comparison_df)
+
+  mod_cv_fig = Figure(size = (400, 600), figure_padding = (10, 60, 10, 10))
+  p_match_prob = data(model_comparison_df) *
+  mapping(:model => nonnumeric => "Model", :cv_matching_probability => "10-Fold matching probability") *
+  (
+    visual(Scatter) + 
+    mapping(:cv_matching_probability_se) * visual(Errorbars)
+  ) 
+  draw!(mod_cv_fig[1,1], p_match_prob)
+
+  p_accuracy = data(model_comparison_df) *
+  mapping(:model => nonnumeric  => "Model", :cv_accuracy => "10-Fold accuracy") *
+  (
+    visual(Scatter) + 
+    mapping(:cv_accuracy_se) * visual(Errorbars)
+  ) 
+  draw!(mod_cv_fig[2,1], p_accuracy)
+
+  mod_cv_fig
+
+  ## Display cross-validation results if desired
+  ## if !isempty(cv_rows)
+  ##   println(cv_rows)
+  ## end
+
+
+end
 end
