@@ -102,7 +102,7 @@ function prepare_WM_data(
             data_clean,
             [participant_id_column, :stimulus_group]
         ),
-        :response_optimal => (x -> vcat([missing], x[1:end-1])) => :previous_optimal,
+        :response_optimal => (x -> length(x) == 0 ? eltype(x)[] : vcat([missing], x[1:end-1])) => :previous_optimal,
     )
 
     return data_clean
