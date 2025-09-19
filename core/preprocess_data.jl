@@ -109,6 +109,39 @@ function prepare_max_press_data(
 	return max_press_data
 end
 
+function prepare_vigour_data(df::DataFrame;
+    participant_id_column::Symbol = :participant_id
+    )
+    # Define required columns for vigour data
+	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
+	required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(df))
+            insertcols!(df, col => missing)
+        end
+    end
+
+	# Prepare vigour data
+	vigour_data = df |>
+		x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+		x -> subset(x, 
+            [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
+        ) |>
+        x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
+		# vigour_data = exclude_double_takers(vigour_data)
+	return vigour_data
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
