@@ -78,7 +78,7 @@ function prepare_WM_data(
         [participant_id_column, :session, :block, :trial]
     )
 
-    # Apperance number
+    # Appearance number
     transform!(
         groupby(data_clean, [participant_id_column, :session, :block, :stimulus_group]),
         :trial => (x -> 1:length(x)) => :appearance
