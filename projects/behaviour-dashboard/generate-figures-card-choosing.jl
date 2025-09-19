@@ -123,7 +123,7 @@ function plot_learning_curve_by_delay_bins!(
 )
 	
     # Recode delay into bins
-    recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
+    recoder = (x, edges, labels) -> ([let idx = findfirst(v ≤ edge for edge in edges); idx === nothing ? labels[end] : labels[idx] end for v in x])
 	
     df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
 	
