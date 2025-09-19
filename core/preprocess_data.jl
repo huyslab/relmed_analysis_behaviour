@@ -142,6 +142,40 @@ function prepare_vigour_data(df::DataFrame;
 	return vigour_data
 end
 
+function prepare_PIT_data(df::DataFrame;
+    participant_id_column::Symbol = :participant_id
+    )
+    # Define required columns for PIT data
+    required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
+    required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
+
+    # Check and add missing columns
+    for col in required_columns
+        if !(string(col) in names(df))
+            insertcols!(df, col => missing)
+        end
+    end
+
+    # Prepare PIT data
+    pit_data = df |>
+        x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+        x -> rename(x, [:pit_trial_number => :trial_number, :pit_coin => :coin]) |>
+        x -> subset(x, 
+            :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
+        ) |>
+        x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
+		# pit_data = exclude_double_takers(pit_data)
+    return pit_data
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
