@@ -21,6 +21,7 @@ begin
 
     # Include task-specific scripts
     include(joinpath(script_dir, "generate-figures-card-choosing.jl"))
+    include(joinpath(script_dir, "generate-figures-reversal.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -70,3 +71,10 @@ let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_d
 
 end
 
+# Generate reversal accuracy curve
+let preproc_df = preprocess_reversal_data(reversal)
+
+    f = Figure(size = (800, 600))
+
+    plot_reversal_accuracy_curve!(f, preproc_df)
+end
