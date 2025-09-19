@@ -6,7 +6,7 @@ include("$(pwd())/core/experiment-registry.jl")
 # Remove rows where participant_id matches known test/demo patterns or is too short
 function remove_testing!(data::DataFrame; participant_id_column::Symbol = :participant_id)
     # Exclude participant IDs matching test/demo patterns
-    filter!(x -> !occursin(r"haoyang|yaniv|tore|demo|simulate|debug", x[participant_id_column]), data)
+    filter!(x -> !occursin(r"haoyang|yaniv|tore|demo|simulate|debug|REL-LON-000", x[participant_id_column]), data)
     # Exclude participant IDs with length <= 10
     filter!(x -> length(x[participant_id_column]) > 10, data)
     return data
