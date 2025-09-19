@@ -95,6 +95,16 @@ let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_d
 end
 
 # Generate markdown dashboard
+"""
+    Generates a markdown dashboard file (`dashboard.md`) containing all registered figures.
+
+    Side effects:
+        - Writes the markdown file to the path `dashboard.md` in the results directory (`result_dir`).
+    Return value:
+        - Returns nothing.
+    Dependency:
+        - The order of figures in the dashboard matches the order of entries in `figure_registry`.
+"""
 function generate_markdown_dashboard()
     # Create the markdown content
     markdown_content = """
