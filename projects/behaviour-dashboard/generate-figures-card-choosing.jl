@@ -1,7 +1,7 @@
 # Generate dashboard figures for PILT, WM, tests
 
 # Setup 
-using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase, Tidier
+using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase
 
 function plot_learning_curves_by_factor!(
     f::Figure,
@@ -102,7 +102,7 @@ function prepare_WM_data(
             data_clean,
             [participant_id_column, :stimulus_group]
         ),
-        :response_optimal => lag => :previous_optimal,
+        :response_optimal => (x -> length(x) == 0 ? eltype(x)[] : vcat([missing], x[1:end-1])) => :previous_optimal,
     )
 
     return data_clean
