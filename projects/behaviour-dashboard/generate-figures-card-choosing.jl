@@ -108,3 +108,117 @@ function prepare_WM_data(
     return data_clean
 
 end
+
+# Plot learning curve with delay bins
+function plot_learning_curve_by_delay_bins!(
+    f::Figure,
+    df::DataFrame;
+    participant_id_column::Symbol = :participant_id,
+    facet::Symbol = :session,
+    variability::Symbol = :se, # :se or :individuals
+    lw::Real = 4,
+    tlw::Real = 1,
+    ms::Real = 20,
+    sms::Real = 4
+)
+	
+    # Recode delay into bins
+    recoder = (x, edges, labels) -> ([findfirst(v ≤ edge for edge in edges) === nothing ? labels[end] : labels[findfirst(v ≤ edge for edge in edges)] for v in x])
+	
+    df.delay_bin = recoder(df.delay, [0, 1, 5, 10], ["0", "1", "2-5", "6-10"])
+	
+	# Summarize by participant
+	app_curve = combine(
+		groupby(df, [participant_id_column, facet, :delay_bin, :appearance]),
+		:response_optimal => mean => :acc
+	)
+
+	# Summarize across participants
+	app_curve_sum = combine(
+		groupby(app_curve, [facet, :delay_bin, :appearance]),
+		:acc => mean => :acc,
+		:acc => sem => :se
+	)
+
+	# Compute bounds
+	app_curve_sum.lb = app_curve_sum.acc .- app_curve_sum.se
+	app_curve_sum.ub = app_curve_sum.acc .+ app_curve_sum.se
+
+	# Sort
+	sort!(app_curve_sum, [facet, :delay_bin, :appearance])
+    sort!(app_curve, [facet, participant_id_column, :delay_bin, :appearance])
+
+	# Create mapping
+    if variability == :se
+        mp = (data(app_curve_sum) * (
+            mapping(
+                :appearance => "Apperance #",
+                :lb,
+                :ub,
+                color = :delay_bin  => "Delay",
+                layout = facet
+        ) * visual(Band, alpha = 0.5) +
+            mapping(
+                :appearance => "Apperance #",
+                :acc => "Prop. optimal choice",
+                color = :delay_bin  => "Delay",
+                col = facet
+        ) * visual(Lines; linewidth = lw))) + (
+            data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
+            (mapping(
+                :appearance  => "Apperance #",
+                :acc,
+                :se,
+                color = :delay_bin => "Delay",
+                col = facet
+            ) * visual(Errorbars, linewidth = lw) +
+            mapping(
+                :appearance  => "Apperance #",
+                :acc,
+                color = :delay_bin  => "Delay",
+                col = facet
+            ) * visual(Scatter, markersize = ms))
+        )
+    elseif variability == :individuals
+        mp = data(filter(x -> x.delay_bin != "0", app_curve)) *
+        mapping(
+                :appearance,
+                :acc,
+                color = :delay_bin  => "Delay",
+                group = participant_id_column,
+                col = facet
+        ) * visual(Lines; linewidth = tlw, linestyle = :dash) +
+        data(filter(x -> x.delay_bin == "0", app_curve)) *
+        mapping(
+                :appearance,
+                :acc,
+                color = :delay_bin  => "Delay",
+                col = facet
+            ) * visual(Scatter, markersize = sms) +
+        data(filter(x -> x.delay_bin != "0", app_curve_sum)) *
+        mapping(
+                :appearance => "Apperance #",
+                :acc => "Prop. optimal choice",
+                color = :delay_bin  => "Delay",
+                col = facet
+        ) * visual(Lines; linewidth = lw) +
+        data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
+        mapping(
+                :appearance  => "Apperance #",
+                :acc,
+                color = :delay_bin  => "Delay",
+                col = facet
+            ) * visual(Scatter, markersize = ms)
+    end
+
+	plt = draw!(f[1,1], mp; 
+		axis=(; 
+            xlabel = "Apperance #",
+			ylabel = "Prop. optimal choice ±SE"
+		)
+	)
+
+	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
+
+	f
+end

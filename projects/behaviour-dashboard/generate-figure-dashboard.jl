@@ -50,14 +50,23 @@ end
 # Generate WM learning curve by session
 let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_data;
 
-    f = Figure(size = (800, 600))
+    f1 = Figure(size = (800, 600))
     plot_learning_curves_by_factor!(
-        f, 
-        WM_main_sessions; 
-        factor = :session, 
+        f1,
+        WM_main_sessions;
+        factor = :session,
         xcol = :appearance,
         early_stopping_at = nothing)
 
-    save_fig("WM_learning_curves_by_session", f)
+    save_fig("WM_learning_curves_by_session", f1)
+
+    f2 = Figure(size = (800, 600))
+    plot_learning_curve_by_delay_bins!(f2, WM_main_sessions; facet = :session, variability = :individuals)
+    save_fig("WM_learning_curves_by_delay_bins_and_session_individuals", f2)
+
+    f3 = Figure(size = (800, 600))
+    plot_learning_curve_by_delay_bins!(f3, WM_main_sessions; facet = :session)
+    save_fig("WM_learning_curves_by_delay_bins_and_session_group", f3)
+
 end
 
