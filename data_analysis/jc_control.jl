@@ -185,6 +185,98 @@ begin
   m0 = glmm(@formula(response_left ~ diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled + (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
 end
 
-  ## GLMM for exploration choices (excluding blue ship trials)
-  glmm(@formula(response_left ~ diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled + (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled | prolific_pid)), df, Bernoulli(), contrasts=Dict(:session => EffectsCoding()), fast=false, progress=false)
+let
+  ## Visualize fixed-effect estimates and marginal predictions
+  coef_tbl = DataFrame(coeftable(m0))
+  rename!(coef_tbl, Symbol("Coef.") => :coef, Symbol("Std. Error") => :se)
+  coef_tbl.term = string.(coefnames(m0))
+  coef_tbl.lower = coef_tbl.coef .- 1.96 .* coef_tbl.se
+  coef_tbl.upper = coef_tbl.coef .+ 1.96 .* coef_tbl.se
+
+  term_order = reverse(coef_tbl.term)
+  order_idx = reverse(1:nrow(coef_tbl))
+
+  predictor_labels = Dict(
+    "diff_interval_scaled" => "Last seen interval (z)",
+    "diff_choice_interval_scaled" => "Last controlled interval (z)",
+    "diff_occurrence_scaled" => "Cumulative seen (z)",
+    "diff_choice_occurrence_scaled" => "Cumulative controlled (z)",
+    "(Intercept)" => "Intercept"
+  )
+
+  coef_ax_ticks = (1:length(term_order), [predictor_labels[i] for i in term_order])
+
+  vc = Matrix(vcov(m0))
+  coef_names = string.(coefnames(m0))
+  fixefs = collect(fixef(m0))
+  intercept_idx = findfirst(==("(Intercept)"), coef_names)
+  intercept = fixefs[intercept_idx]
+  x_vals = range(-2.5, 2.5; length=200)
+
+  function prediction_curve(var_name::String)
+    idx = findfirst(==(var_name), coef_names)
+    β = fixefs[idx]
+    η = intercept .+ β .* x_vals
+    η_se = sqrt.(vc[intercept_idx, intercept_idx] .+ x_vals.^2 .* vc[idx, idx] .+ 2 .* x_vals .* vc[intercept_idx, idx])
+    mean = logistic.(η)
+    lower = logistic.(η .- 1.96 .* η_se)
+    upper = logistic.(η .+ 1.96 .* η_se)
+    return (; x_vals, mean, lower, upper, β)
+  end
+
+  line_colors = Dict(
+    "diff_interval_scaled" => :royalblue3,
+    "diff_choice_interval_scaled" => :darkorange2,
+    "diff_occurrence_scaled" => :seagreen3,
+    "diff_choice_occurrence_scaled" => :mediumpurple3,
+  )
+
+  m0_effect_fig = Figure(size = (1200, 300))
+
+  ax_coef = Axis(m0_effect_fig[1, 1];
+    title = "Fixed-effects (log-odds)",
+    xlabel = "Estimate",
+    yticks = coef_ax_ticks,
+    yreversed = true)
+
+  vlines!(ax_coef, [0]; color = :black, linestyle = :dash)
+  xerr_lower = coef_tbl.coef[order_idx] .- coef_tbl.lower[order_idx]
+  xerr_upper = coef_tbl.upper[order_idx] .- coef_tbl.coef[order_idx]
+  errorbars!(ax_coef, coef_tbl.coef[order_idx], 1:length(term_order), xerr_lower, xerr_upper; direction = :x, color = :black)
+  scatter!(ax_coef, coef_tbl.coef[order_idx], 1:length(term_order); color = :black)
+
+  ax_interval = Axis(m0_effect_fig[1, 3]; ylabelvisible = false)
+  vlines!(ax_interval, [0]; color = (:black, 0.4), linestyle = :dash)
+  ylims!(ax_interval, 0, 1)
+  ax_interval.xlabel = "Predictor (z)"
+  ax_interval.title = "Interval predictors"
+
+  for var_name in ["diff_interval_scaled", "diff_choice_interval_scaled"]
+    curve = prediction_curve(var_name)
+    color = line_colors[var_name]
+    band!(ax_interval, curve.x_vals, curve.lower, curve.upper; color = (color, 0.2))
+    lines!(ax_interval, curve.x_vals, curve.mean; color = color, linewidth = 3, label = "$(predictor_labels[var_name]) (β=$(round(curve.β, digits=3)))")
+  end
+
+  axislegend(ax_interval, position = :rb)
+
+  ax_occurrence = Axis(m0_effect_fig[1, 2]; ylabelvisible = false)
+  vlines!(ax_occurrence, [0]; color = (:black, 0.4), linestyle = :dash)
+  ylims!(ax_occurrence, 0, 1)
+  ax_occurrence.xlabel = "Predictor (z)"
+  ax_occurrence.title = "Occurrence predictors"
+
+  for var_name in ["diff_occurrence_scaled", "diff_choice_occurrence_scaled"]
+    curve = prediction_curve(var_name)
+    color = line_colors[var_name]
+    band!(ax_occurrence, curve.x_vals, curve.lower, curve.upper; color = (color, 0.2))
+    lines!(ax_occurrence, curve.x_vals, curve.mean; color = color, linewidth = 3, label = "$(predictor_labels[var_name]) (β=$(round(curve.β, digits=3)))")
+  end
+
+  axislegend(ax_occurrence, position = :rb)
+
+  m0_effect_fig
+
+end
+
 end
