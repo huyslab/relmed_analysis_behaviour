@@ -8,7 +8,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using DataFrames, CairoMakie
+    using DataFrames, CairoMakie, Dates
 
     # Include data scripts
     include("$(pwd())/core/experiment-registry.jl")
@@ -27,10 +27,18 @@ begin
     isdir(result_dir) || mkpath(result_dir)
 end
 
+# Figure registry for markdown generation
+figure_registry = Vector{NamedTuple{(:filename, :title), Tuple{String, String}}}()
+
 # Save figure function
 function save_fig(filename::String, f::Figure)
     save(joinpath(result_dir, filename * ".svg"), f)
     return f
+end
+
+# Register figure function
+function register_figure(filename::String, title::String)
+    push!(figure_registry, (filename = filename, title = title))
 end
 
 # Load and preprocess data
@@ -44,7 +52,9 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     f = Figure(size = (800, 600))
     plot_learning_curves_by_factor!(f, PILT_main_sessions; factor = :session)
 
-    save_fig("PILT_learning_curves_by_session", f)
+    filename = "PILT_learning_curves_by_session"
+    save_fig(filename, f)
+    register_figure(filename, "PILT Learning Curves by Session")
 end
 
 # Generate WM learning curve by session
@@ -58,15 +68,67 @@ let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_d
         xcol = :appearance,
         early_stopping_at = nothing)
 
-    save_fig("WM_learning_curves_by_session", f1)
+    filename1 = "WM_learning_curves_by_session"
+    save_fig(filename1, f1)
+    register_figure(filename1, "Working Memory Learning Curves by Session")
 
     f2 = Figure(size = (800, 600))
     plot_learning_curve_by_delay_bins!(f2, WM_main_sessions; facet = :session, variability = :individuals)
-    save_fig("WM_learning_curves_by_delay_bins_and_session_individuals", f2)
+    filename2 = "WM_learning_curves_by_delay_bins_and_session_individuals"
+    save_fig(filename2, f2)
+    register_figure(filename2, "Working Memory Learning Curves by Delay Bins and Session (Individual Participants)")
 
     f3 = Figure(size = (800, 600))
     plot_learning_curve_by_delay_bins!(f3, WM_main_sessions; facet = :session)
-    save_fig("WM_learning_curves_by_delay_bins_and_session_group", f3)
+    filename3 = "WM_learning_curves_by_delay_bins_and_session_group"
+    save_fig(filename3, f3)
+    register_figure(filename3, "Working Memory Learning Curves by Delay Bins and Session (Group Average)")
 
 end
 
+# Generate markdown dashboard
+function generate_markdown_dashboard()
+    # Create the markdown content
+    markdown_content = """
+# Behaviour Analysis Dashboard
+
+Generated on: $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))
+
+This dashboard contains all the generated figures from the behaviour analysis.
+
+"""
+
+    # Add each figure to the markdown
+    for (i, fig) in enumerate(figure_registry)
+        markdown_content *= """
+## $(i). $(fig.title)
+
+![$(fig.title)]($(fig.filename).svg)
+
+"""
+    end
+
+    # Add summary information
+    markdown_content *= """
+
+---
+
+**Summary**: Generated $(length(figure_registry)) figures from the behaviour analysis pipeline.
+
+**Figure files**: All figures are saved as SVG files in the `results/` directory.
+"""
+
+    # Write to markdown file
+    markdown_file = joinpath(result_dir, "dashboard.md")
+    open(markdown_file, "w") do file
+        write(file, markdown_content)
+    end
+    
+    println("✅ Dashboard markdown file generated: $markdown_file")
+    println("📊 Included $(length(figure_registry)) figures")
+    
+    return markdown_file
+end
+
+# Generate the dashboard
+generate_markdown_dashboard()
