@@ -51,9 +51,10 @@ function preprocess_reversal_data(
 	return out_df
 end
 
-function plot_reversal_accuracy_curve!(
+function plot_reversal_accuracy_curve_by_factor!(
     f::Figure,
     df::DataFrame;
+    factor::Symbol = :session,
     participant_id_column::Symbol = :participant_id
     )
     
@@ -62,7 +63,7 @@ function plot_reversal_accuracy_curve!(
 		groupby(
 			filter(x -> (x.trial_pre_reversal > -4) && 
 				(x.block < x.n_blocks) && (x.trial < 48), df), 
-			[participant_id_column, :trial_pre_reversal]
+			[participant_id_column, factor, :trial_pre_reversal]
 		),
 		:response_optimal => mean => :acc
 	)
@@ -70,7 +71,7 @@ function plot_reversal_accuracy_curve!(
 	rename!(sum_pre, :trial_pre_reversal => :trial)
 
 	sum_sum_pre = combine(
-		groupby(sum_pre, :trial),
+		groupby(sum_pre, [factor, :trial]),
 		:acc => mean => :acc,
 		:acc => sem => :se
 	)
@@ -79,13 +80,13 @@ function plot_reversal_accuracy_curve!(
 	sum_post = combine(
 		groupby(
 			filter(x -> x.trial < 6, df),
-			[participant_id_column, :trial]
+			[participant_id_column, factor, :trial]
 		),
 		:response_optimal => mean => :acc
 	)
 
 	sum_sum_post = combine(
-		groupby(sum_post, :trial),
+		groupby(sum_post, [factor, :trial]),
 		:acc => mean => :acc,
 		:acc => sem => :se
 	)
@@ -107,7 +108,7 @@ function plot_reversal_accuracy_curve!(
 	)
 
 	# Sort for plotting
-	sort!(sum_pre_post, [participant_id_column, :trial])
+	sort!(sum_pre_post, [participant_id_column, factor, :trial])
 
 	# Plot
 	mp = data(sum_pre_post) *
@@ -115,7 +116,8 @@ function plot_reversal_accuracy_curve!(
 			:trial => "Trial relative to reversal",
 			:acc => "Prop. optimal choice",
 			group = :group => nonnumeric,
-			color = :color
+			color = :color,
+			layout = factor
 		) * visual(Lines, linewidth = 1) +
 		
 	data(sum_sum_pre_post) *
@@ -123,17 +125,20 @@ function plot_reversal_accuracy_curve!(
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc  => "Prop. optimal choice",
-				:se
+				:se,
+				layout = factor
 			) * visual(Errorbars) +
 			mapping(
 				:trial => "Trial relative to reversal",
-				:acc => "Prop. optimal choice"
+				:acc => "Prop. optimal choice",
+				layout = factor
 			) * 
 			visual(Scatter) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
-				group = :group => nonnumeric 
+				group = :group => nonnumeric ,
+				layout = factor
 			) * 
 			visual(Lines)
 		) +
