@@ -554,4 +554,121 @@ let
 end
 
 
+#=
+## How can exposure history predict participants' accuracy during prediction?
+
+- Do cumulative counts of seeing and controlling a ship predict prediction accuracy?
+- Do the same features explain confidence ratings, after accounting for experiment progress?
+=#
+
+# ### Do ship exposure counts forecast prediction accuracy?
+begin
+  colors = ["blue", "green", "red", "yellow"]
+
+  function compute_prediction_features(task_df)
+    feature_rows = NamedTuple{(:prolific_pid, :session, :trial_index, :ship, :seen_count, :controlled_count, :prediction_idx),
+      Tuple{String, String, Int64, String, Int64, Int64, Int64}}[]
+
+    for group_df in groupby(task_df, [:prolific_pid, :session])
+      sdf = sort(group_df, :trial_index)
+      pid = String(sdf.prolific_pid[1])
+      sess = String(sdf.session[1])
+
+      seen_counts = Dict{String, Int}(color => 0 for color in colors)
+      control_counts = Dict{String, Int}(color => 0 for color in colors)
+      prediction_counter = 0
+
+      for row in eachrow(sdf)
+        trial_idx = row.trial_index
+        if ismissing(trial_idx)
+          continue
+        end
+        trial_idx = Int(trial_idx)
+        phase = row.trialphase
+
+        if phase == "control_predict_homebase"
+          ship_color = row.ship
+          if !ismissing(ship_color)
+            ship_str = String(ship_color)
+            prediction_counter += 1
+            push!(feature_rows, (prolific_pid=pid, session=sess, trial_index=trial_idx, ship=ship_str,
+              seen_count=seen_counts[ship_str], controlled_count=control_counts[ship_str], prediction_idx=prediction_counter))
+          end
+        elseif phase == "control_explore"
+          left_color = row.left
+          right_color = row.right
+          if !ismissing(left_color)
+            seen_counts[String(left_color)] += 1
+          end
+          if !ismissing(right_color)
+            seen_counts[String(right_color)] += 1
+          end
+          resp = row.response
+          if resp isa String && (resp == "left" || resp == "right")
+            chosen_color = row[Symbol(resp)]
+            if !ismissing(chosen_color)
+              chosen_str = String(chosen_color)
+              if row.control_rule_used == "control"
+                control_counts[chosen_str] += 1
+              end
+            end
+          end
+        end
+      end
+    end
+
+    return DataFrame(feature_rows)
+  end
+
+  prediction_trials = @chain control_task_data begin
+    filter(row -> row.trialphase == "control_predict_homebase", _)
+    subset(:response => ByRow(x -> !ismissing(x)))
+    select(:prolific_pid, :session, :trial_index, :trial, :ship, :correct)
+    transform(:correct => ByRow(x -> x ? 1 : 0) => :correct_int)
+  end
+
+  relevant_task_rows = filter(row -> row.trialphase in ("control_explore", "control_predict_homebase"), control_task_data)
+  prediction_features = compute_prediction_features(relevant_task_rows)
+
+  prediction_trials = leftjoin(prediction_trials, prediction_features, on=[:prolific_pid, :session, :trial_index, :ship])
+
+  confidence_df = @chain control_report_data begin
+    filter(row -> row.trialphase == "control_confidence", _)
+    select(:prolific_pid, :session, :trial, :response)
+    rename(:response => :confidence)
+  end
+
+  prediction_trials = leftjoin(prediction_trials, confidence_df, on=[:prolific_pid, :session, :trial])
+
+  function zscore_with_missing(vec)
+    values = collect(skipmissing(vec))
+    if isempty(values)
+      return fill(missing, length(vec))
+    end
+    μ = mean(values)
+    σ = std(values)
+    if σ == 0
+      return map(v -> ismissing(v) ? missing : 0.0, vec)
+    end
+    return map(v -> ismissing(v) ? missing : (v - μ) / σ, vec)
+  end
+
+  transform!(prediction_trials,
+    [:seen_count, :controlled_count, :prediction_idx] .=> zscore_with_missing .=>
+      [:seen_count_z, :controlled_count_z, :prediction_idx_z], renamecols=false)
+
+  prediction_accuracy_df = dropmissing(prediction_trials, [:seen_count_z, :controlled_count_z, :prediction_idx_z])
+  println("Prediction accuracy sample size: ", nrow(prediction_accuracy_df))
+  m_accuracy = glmm(@formula(correct_int ~ seen_count_z + controlled_count_z + prediction_idx_z + (seen_count_z + controlled_count_z + prediction_idx_z | prolific_pid)), prediction_accuracy_df, Bernoulli(), fast=false, progress=false)
+  println("Prediction accuracy model coefficients:")
+  println(coeftable(m_accuracy))
+
+  prediction_confidence_df = dropmissing(prediction_trials, [:seen_count_z, :controlled_count_z, :prediction_idx_z, :confidence])
+  if !isempty(prediction_confidence_df)
+    println("Prediction confidence sample size: ", nrow(prediction_confidence_df))
+    transform!(prediction_confidence_df, :confidence => ByRow(Float64) => :confidence_float)
+    m_confidence = lmm(@formula(confidence_float ~ seen_count_z + controlled_count_z + prediction_idx_z + (seen_count_z + controlled_count_z + prediction_idx_z | prolific_pid)), prediction_confidence_df)
+    println("Prediction confidence model coefficients:")
+    println(coeftable(m_confidence))
+  end
 end
