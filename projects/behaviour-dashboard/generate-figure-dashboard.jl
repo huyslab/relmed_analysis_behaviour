@@ -37,6 +37,14 @@ function save_fig(filename::String, f::Figure)
 end
 
 # Register figure function
+"""
+    register_figure(filename::String, title::String)
+
+Registers a figure for inclusion in the markdown dashboard.
+
+- `filename`: The base filename for the figure (without extension). The function expects the filename without the `.svg` extension; the extension is added automatically when saving and referencing the figure.
+- `title`: The display title for the figure, which will be used as the section heading and image alt text in the generated markdown dashboard.
+"""
 function register_figure(filename::String, title::String)
     push!(figure_registry, (filename = filename, title = title))
 end
