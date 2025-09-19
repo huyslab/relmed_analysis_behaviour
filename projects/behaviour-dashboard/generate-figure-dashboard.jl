@@ -100,10 +100,20 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
     # Add each figure to the markdown
     for (i, fig) in enumerate(figure_registry)
+        # Read the SVG content
+        svg_file = joinpath(result_dir, fig.filename * ".svg")
+        svg_content = ""
+        
+        if isfile(svg_file)
+            svg_content = read(svg_file, String)
+        else
+            svg_content = "<p><em>Figure file not found: $(fig.filename).svg</em></p>"
+        end
+        
         markdown_content *= """
 ## $(i). $(fig.title)
 
-![$(fig.title)]($(fig.filename).svg)
+$(svg_content)
 
 """
     end
