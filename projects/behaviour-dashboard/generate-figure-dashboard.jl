@@ -38,5 +38,5 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     f = Figure(size = (800, 600))
     plot_learning_curves_by_factor!(f, PILT_main_sessions; factor = :session)
 
-    # save(joinpath(result_dir, "PILT_learning_curve.png"), f)
+    save(joinpath(result_dir, "PILT_learning_curve.svg"), f)
 end
