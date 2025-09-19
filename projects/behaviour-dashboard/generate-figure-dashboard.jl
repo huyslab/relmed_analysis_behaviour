@@ -88,7 +88,7 @@ let preproc_df = preprocess_reversal_data(reversal)
 
     f = Figure(size = (800, 600))
 
-    plot_reversal_accuracy_curve!(f, preproc_df)
+    plot_reversal_accuracy_curve_by_factor!(f, preproc_df)
 
     filename = "reversal_accuracy_curve"
     register_save_figure(filename, f, "Reversal Learning Accuracy Curve")
