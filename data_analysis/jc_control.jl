@@ -167,17 +167,23 @@ end
 #+
 
 # ### How do these features predict choices?
-let
+begin
   ## Preprocess data for statistical modeling
   dropmissing!(explore_features_df, :response)
   transform!(explore_features_df, :response => ByRow(x -> x == "left" ? 1 : 0) => :response_left)
-  transform!(explore_features_df, [:diff_interval, :diff_choice_interval, :diff_occurrence, :diff_choice_occurrence] .=> (x -> (x .- mean(x))./std(x)) .=> (n -> Symbol(string(n), "_scaled")), renamecols=false)
 
   ## Filter: 1. only the first session
   df = filter(row -> row.session == "1", explore_features_df)
 
   ## Filter: 2. only non-blue ship trials
-  df = filter(row -> !(row.left == "blue" || row.right == "blue"), df)
+  filter!(row -> !(row.left == "blue" || row.right == "blue"), df)
+
+  ## Standardize features
+  transform!(df, [:diff_interval, :diff_choice_interval, :diff_occurrence, :diff_choice_occurrence, :trial_number] .=> (x -> (x .- mean(x))./std(x)) .=> (n -> Symbol(string(n), "_scaled")), renamecols=false)
+
+  ## GLMM for exploration choices (excluding blue ship trials), full model
+  m0 = glmm(@formula(response_left ~ diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled + (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+end
 
   ## GLMM for exploration choices (excluding blue ship trials)
   glmm(@formula(response_left ~ diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled + (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled | prolific_pid)), df, Bernoulli(), contrasts=Dict(:session => EffectsCoding()), fast=false, progress=false)
