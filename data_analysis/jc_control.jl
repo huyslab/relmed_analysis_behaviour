@@ -380,4 +380,37 @@ let
 
 
 end
+
+# ### Does the effect of these features change over time?
+begin
+  transform!(df, :trial_number => (x -> (x .- mean(x))./std(x)) => :trial_number_scaled)
+
+  glmm(@formula(response_left ~ trial_number_scaled * (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled) + (trial_number_scaled * (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled) | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+
+  glmm(@formula(response_left ~ trial_number_scaled * diff_interval_scaled + (trial_number_scaled * diff_interval_scaled | prolific_pid)), df, Bernoulli(), fast=false, progress=false)
+end
+
+# ### Does the effect of these features differ between required efforts?
+begin
+  m5 = glmm(@formula(response_left ~ current * diff_interval_scaled + (current * diff_interval_scaled | prolific_pid)), df, Bernoulli(), contrasts = Dict(:current => EffectsCoding()), fast=false, progress=false)
+end
+
+let
+  eff = effects(Dict(:current => unique(df.current), 
+                    :diff_interval_scaled => range(extrema(df.diff_interval_scaled)..., length=50)), 
+                m5; invlink=logistic)
+  data(eff) *
+  (
+    mapping(
+    :diff_interval_scaled => "zInterval[Left] - zInterval[Right]",
+    :lower,
+    :upper,
+    color=:current => nonnumeric => "Required effort level", 
+    group=:current => nonnumeric => "Required effort level") *
+    visual(Band; alpha = 0.05) + 
+    mapping(:diff_interval_scaled => "zInterval[Left] - zInterval[Right]", :response_left => "P[Left]", color=:current => nonnumeric => "Required effort level", group=:current => nonnumeric) *
+    visual(Lines)
+  ) |>
+  draw(scales(Color = (; palette = ["lightskyblue1", "deepskyblue3", "midnightblue"])); axis=(; ylabel="P[Left]"))
+end
 end
