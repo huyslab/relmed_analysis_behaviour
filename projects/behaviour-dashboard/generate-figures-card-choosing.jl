@@ -152,28 +152,28 @@ function plot_learning_curve_by_delay_bins!(
     if variability == :se
         mp = (data(app_curve_sum) * (
             mapping(
-                :appearance => "Apperance #",
+                :appearance => "Appearance #",
                 :lb,
                 :ub,
                 color = :delay_bin  => "Delay",
                 layout = facet
         ) * visual(Band, alpha = 0.5) +
             mapping(
-                :appearance => "Apperance #",
+                :appearance => "Appearance #",
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
         ) * visual(Lines; linewidth = lw))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
-                :appearance  => "Apperance #",
+                :appearance  => "Appearance #",
                 :acc,
                 :se,
                 color = :delay_bin => "Delay",
                 col = facet
             ) * visual(Errorbars, linewidth = lw) +
             mapping(
-                :appearance  => "Apperance #",
+                :appearance  => "Appearance #",
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
