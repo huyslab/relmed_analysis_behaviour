@@ -40,8 +40,8 @@ cp env.list.example env.list
 
 The `env.list` file should contain:
 - `JULIA_NUM_THREADS=8`: Number of CPU cores available (adjust based on your machine and Docker settings)
-- `REDCap_url=https://redcap.slms.ucl.ac.uk/api/`: REDCap database URL (if accessing data)
-- `REDCap_token=YOURTOKEN`: Your REDCap access token (if accessing pilot data)
+- `REDCAP_URL=https://redcap.slms.ucl.ac.uk/api/`: REDCap database URL (if accessing data)
+- `REDCAP_TOKEN_{PROJECT}=YOURTOKEN`: Your REDCap access token to a given project (if accessing pilot data; replacing {PROJECT} with project name, e.g. pilot1 or trial1)
 
 *Note: REDCap credentials are only needed if downloading raw data. Preprocessed data is available on OSF.*
 
