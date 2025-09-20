@@ -1,5 +1,7 @@
 using ForwardDiff, LinearAlgebra, LogExpFunctions, Random, Plots, Optim, Statistics, NaNStatistics
 
+truemodel=1
+
 function runsim(llrw,llrwdb,llrwda,D,nExp,deltatrue,nSubj,nDelta)
 
     ll= zeros(3,nDelta,nExp,nSubj)
@@ -17,8 +19,11 @@ function runsim(llrw,llrwdb,llrwda,D,nExp,deltatrue,nSubj,nDelta)
              xsim = xtrue[:,ns] 
              xsim[2] = deltatrue[di] 
 
-             #a,r = llrwdb(xsim,D)
-             a,r = llrwda(xsim,D)
+              if truemodel==1
+                 a,r = llrwdb(xsim,D)
+              else
+                 a,r = llrwda(xsim,D)
+              end
 				 
              Da = Dict([("acorr",acorr),("stim",stim),("actions",a),("rewards",r)])
              A[:,di,ne,ns] = a;
@@ -35,25 +40,28 @@ function runsim(llrw,llrwdb,llrwda,D,nExp,deltatrue,nSubj,nDelta)
              end
              #xest[:,ns] = est.minimizer;
 
-				 fdb(x) = llrwdb(x,Da)
-             while true 
-                 est = optimize(fdb,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
-                 if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
-                     xest[:,ns,di,ne,2] = est.minimizer;
-                     ll[2,di,ne,ns] = est.minimum;
-                     break;
-                 end
-             end
+				if truemodel==1
+					 fdb(x) = llrwdb(x,Da)
+					 while true 
+						  est = optimize(fdb,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
+						  if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
+								xest[:,ns,di,ne,2] = est.minimizer;
+								ll[2,di,ne,ns] = est.minimum;
+								break;
+						  end
+					 end
+				else
 
 				 fda(x) = llrwda(x,Da)
-             while true 
-                 est = optimize(fda,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
-                 if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
-                     xest[:,ns,di,ne,3] = est.minimizer;
-                     ll[3,di,ne,ns] = est.minimum;
-                     break;
-                 end
-             end
+					 while true 
+						  est = optimize(fda,randn(3,1)[:],NewtonTrustRegion(),autodiff=:forward);
+						  if ~isnan.(est.minimum) & (est.minimum < -1.1*T*nStim*log(.5))
+								xest[:,ns,di,ne,3] = est.minimizer;
+								ll[3,di,ne,ns] = est.minimum;
+								break;
+						  end
+					 end
+				end
           end
           print("delta=",di," nexp=",ne,"\n")
        end
@@ -104,11 +112,13 @@ bic[1,:,:,:] = 2*ll[1,:,:,:] .+ 2*log(T*nStim)
 bic[2,:,:,:] = 2*ll[2,:,:,:] .+ 3*log(T*nStim)
 bic[3,:,:,:] = 2*ll[3,:,:,:] .+ 3*log(T*nStim)
 
-#dll  = mean( ll[2,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
-#dbic = mean(bic[2,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
-
-dll  = mean( ll[3,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
-dbic = mean(bic[3,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
+if truemodel==1
+    dll  = mean( ll[2,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
+    dbic = mean(bic[2,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
+else
+    dll  = mean( ll[3,:,:,:] .-  ll[1,:,:,:],dims=4)[:,1,:]; 
+    dbic = mean(bic[3,:,:,:] .- bic[1,:,:,:],dims=4)[:,1,:]; 
+end
 
 
 #------------------------------------------
@@ -131,20 +141,12 @@ p1 = plot(mean(mean(A,dims=4),dims=3)[:,:,1,1].-1,label=deltatrue,legend=:outerr
 	xlabel!("Trial")
 	ylabel!("Action")
 
-#p2 = plot(deltatrue',mean(mean(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
-#	  scatter!(deltatrue',mean(xest[2,:,:,:,2],dims=1)[1,:,:],label="",mc=:black)
-#     plot!(deltatrue',mean(median(xest[2,:,:,:,2],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
-#	  scatter!(deltatrue',median(xest[2,:,:,:,2],dims=1)[1,:,:],label="",mc=:blue)
-#	  plot!(deltatrue',deltatrue',lc=:red,label="true")
-#	xlabel!("True change")
-#	ylabel!("Inferred change")
-
-p2 = plot(deltatrue',mean(mean(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
-	  scatter!(deltatrue',mean(xest[2,:,:,:,3],dims=1)[1,:,:],label="",mc=:black)
-     plot!(deltatrue',mean(median(xest[2,:,:,:,3],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
-	  scatter!(deltatrue',median(xest[2,:,:,:,3],dims=1)[1,:,:],label="",mc=:blue)
+mi = truemodel + 1
+p2 = plot(deltatrue',mean(mean(xest[2,:,:,:,mi],dims=1)[1,:,:],dims=2);yerror=mean(std(xest[2,:,:,:,mi],dims=1)[1,:,:],dims=2),lc=:black,label="mean")
+	  scatter!(deltatrue',mean(xest[2,:,:,:,mi],dims=1)[1,:,:],label="",mc=:black)
+     plot!(deltatrue',mean(median(xest[2,:,:,:,mi],dims=1)[1,:,:],dims=2),lc=:blue,label="median")
+	  scatter!(deltatrue',median(xest[2,:,:,:,mi],dims=1)[1,:,:],label="",mc=:blue)
 	  plot!(deltatrue',deltatrue',lc=:red,label="true")
-	ylims!(4*minimum(deltatrue),4*maximum(deltatrue))
 	xlabel!("True change")
 	ylabel!("Inferred change")
 
@@ -165,11 +167,15 @@ p5 = plot( pbic[d0,:],label=deltatrue[d0],legend=false,lc=:black,lw=2)
 	xlabel!("# participants")
 	title!("Increases")
 
-l = @layout [a b; c d e]
+   l = @layout [a b; c [d e]]
 plot(p1,p2,p3,p4,p5,layout = l)
 
 meanbeta = @sprintf("%.2g",1/(1+exp(-mean(xtruei[1,:,:,:])))) 
 meanalpha = @sprintf("%.2g",1/(1+exp(-mean(xtruei[3,:,:,:])))) 
-savefig(string("AlphaChanges_MeanAlpha_",meanalpha,"-MeanBeta_",meanbeta,".pdf"))
+if truemodel==1
+    savefig(string("BetaChanges_MeanAlpha_",meanalpha,"-MeanBeta_",meanbeta,".pdf"))
+else
+    savefig(string("AlphaChanges_MeanAlpha_",meanalpha,"-MeanBeta_",meanbeta,".pdf"))
+end
 
 
