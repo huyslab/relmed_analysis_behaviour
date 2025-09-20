@@ -1,0 +1,929 @@
+image_nr,image_name,file_path,cr,concept,category_label,CR,CR_pcntile,cr_rank,filename
+22,abacus_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/abacus/abacus_08s.jpg,0.756097561,abacus,home decor,0.798484733,63.32863187588153,2,abacus_2.jpg
+28,abacus_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/abacus/abacus_14s.jpg,0.756097561,abacus,home decor,0.798484733,63.32863187588153,1,abacus_1.jpg
+69,air_conditioner_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/air_conditioner/air_conditioner_11s.jpg,0.926829268,air_conditioner,electronic device,0.794466206,58.53314527503526,2,air_conditioner_2.jpg
+71,air_conditioner_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/air_conditioner/air_conditioner_13s.jpg,0.8,air_conditioner,electronic device,0.794466206,58.53314527503526,1,air_conditioner_1.jpg
+332,anklet_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/anklet/anklet_01b.jpg,0.95,anklet,NA,0.863744355,99.36530324400564,1,anklet_2.jpg
+340,anklet_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/anklet/anklet_09s.jpg,0.868421053,anklet,NA,0.863744355,99.36530324400564,2,anklet_1.jpg
+434,apple_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/apple/apple_01b.jpg,0.952380952,apple,food,0.826558595,87.02397743300423,1,apple_2.jpg
+438,apple_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/apple/apple_05s.jpg,0.769230769,apple,food,0.826558595,87.02397743300423,2,apple_1.jpg
+627,awning_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/awning/awning_08s.jpg,0.926829268,awning,NA,0.795033026,59.37940761636107,1,awning_1.jpg
+632,awning_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/awning/awning_13s.jpg,0.736842105,awning,NA,0.795033026,59.37940761636107,2,awning_2.jpg
+745,bacon_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bacon/bacon_04s.jpg,0.906976744,bacon,food,0.838679079,93.58251057827927,2,bacon_2.jpg
+755,bacon_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bacon/bacon_14s.jpg,0.815789474,bacon,food,0.838679079,93.58251057827927,1,bacon_1.jpg
+805,bag_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bag/bag_10s.jpg,0.95,bag,container,0.789145696,52.60930888575458,2,bag_1.jpg
+810,bag_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bag/bag_15s.jpg,0.769230769,bag,container,0.789145696,52.60930888575458,1,bag_2.jpg
+937,bamboo_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bamboo/bamboo_06s.jpg,0.840909091,bamboo,plant,0.773110742,36.741889985895625,2,bamboo_1.jpg
+945,bamboo_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bamboo/bamboo_14s.jpg,0.80952381,bamboo,plant,0.773110742,36.741889985895625,1,bamboo_2.jpg
+963,banana_peel_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/banana_peel/banana_peel_03s.jpg,0.951219512,banana_peel,NA,0.833119488,91.04372355430183,2,banana_peel_2.jpg
+965,banana_peel_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/banana_peel/banana_peel_05s.jpg,0.846153846,banana_peel,NA,0.833119488,91.04372355430183,1,banana_peel_1.jpg
+1174,baseball_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/baseball/baseball_08s.jpg,0.85,baseball,sports equipment,0.806290623,71.29760225669958,2,baseball_1.jpg
+1180,baseball_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/baseball/baseball_14s.jpg,0.87804878,baseball,sports equipment,0.806290623,71.29760225669958,1,baseball_2.jpg
+1194,baseball_bat_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/baseball_bat/baseball_bat_10s.jpg,0.871794872,baseball_bat,sports equipment,0.807170963,72.28490832157969,1,baseball_bat_1.jpg
+1195,baseball_bat_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/baseball_bat/baseball_bat_11s.jpg,0.804878049,baseball_bat,sports equipment,0.807170963,72.28490832157969,2,baseball_bat_2.jpg
+1247,basketball_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/basketball/basketball_06s.jpg,0.8,basketball,sports equipment,0.808626786,73.4132581100141,1,basketball_1.jpg
+1248,basketball_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/basketball/basketball_07s.jpg,0.829268293,basketball,sports equipment,0.808626786,73.4132581100141,2,basketball_2.jpg
+1375,bathtub_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bathtub/bathtub_07s.jpg,0.857142857,bathtub,container,0.786890699,50.423131170662906,1,bathtub_2.jpg
+1388,bathtub_20s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bathtub/bathtub_20s.jpg,0.769230769,bathtub,container,0.786890699,50.423131170662906,2,bathtub_1.jpg
+1469,battery_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/battery/battery_01b.jpg,0.860465116,battery,NA,0.815216489,78.84344146685473,1,battery_1.jpg
+1473,battery_05n.jpg,/home/jovyan/projects/generate-sequences/THINGS/battery/battery_05n.jpg,0.825609756,battery,NA,0.815216489,78.84344146685473,2,battery_2.jpg
+1520,bead_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bead/bead_07s.jpg,0.853658537,bead,NA,0.800544983,65.0916784203103,1,bead_1.jpg
+1522,bead_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bead/bead_09s.jpg,0.7,bead,NA,0.800544983,65.0916784203103,2,bead_2.jpg
+1557,beanbag_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/beanbag/beanbag_01b.jpg,0.945945946,beanbag,furniture,0.829357711,88.99858956276445,1,beanbag_2.jpg
+1560,beanbag_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/beanbag/beanbag_04s.jpg,0.842105263,beanbag,furniture,0.829357711,88.99858956276445,2,beanbag_1.jpg
+1843,bench_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/bench/bench_01b.jpg,0.8,bench,furniture,0.813025719,77.08039492242595,2,bench_1.jpg
+1850,bench_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bench/bench_08s.jpg,0.897435897,bench,furniture,0.813025719,77.08039492242595,1,bench_2.jpg
+1871,bib_01n.jpg,/home/jovyan/projects/generate-sequences/THINGS/bib/bib_01n.jpg,0.925,bib,NA,0.810135237,74.82369534555711,1,bib_2.jpg
+1882,bib_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bib/bib_12s.jpg,0.804878049,bib,NA,0.810135237,74.82369534555711,2,bib_1.jpg
+1923,bin_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bin/bin_03s.jpg,0.725,bin,container,0.805436787,70.52186177715092,2,bin_2.jpg
+1930,bin_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bin/bin_10s.jpg,0.810810811,bin,container,0.805436787,70.52186177715092,1,bin_1.jpg
+2054,biscuit_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/biscuit/biscuit_04s.jpg,0.829268293,biscuit,food,0.831313361,90.12693935119887,1,biscuit_1.jpg
+2056,biscuit_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/biscuit/biscuit_06s.jpg,0.804878049,biscuit,food,0.831313361,90.12693935119887,2,biscuit_2.jpg
+2131,blimp_03n.jpg,/home/jovyan/projects/generate-sequences/THINGS/blimp/blimp_03n.jpg,0.923076923,blimp,NA,0.822337283,84.4851904090268,2,blimp_1.jpg
+2132,blimp_04n.jpg,/home/jovyan/projects/generate-sequences/THINGS/blimp/blimp_04n.jpg,0.756097561,blimp,NA,0.822337283,84.4851904090268,1,blimp_2.jpg
+2211,block_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/block/block_14s.jpg,0.846153846,block,NA,0.818365637,81.73483779971791,1,block_1.jpg
+2212,block_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/block/block_15s.jpg,0.780487805,block,NA,0.818365637,81.73483779971791,2,block_2.jpg
+2229,blower_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/blower/blower_01b.jpg,0.928571429,blower,electronic device,0.845087539,95.55712270803949,1,blower_1.jpg
+2237,blower_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/blower/blower_09s.jpg,0.804878049,blower,electronic device,0.845087539,95.55712270803949,2,blower_2.jpg
+2516,bonsai_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bonsai/bonsai_03s.jpg,0.820512821,bonsai,home decor,0.788049911,51.69252468265162,2,bonsai_2.jpg
+2520,bonsai_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bonsai/bonsai_07s.jpg,0.775,bonsai,home decor,0.788049911,51.69252468265162,1,bonsai_1.jpg
+2577,boomerang_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/boomerang/boomerang_10s.jpg,0.833333333,boomerang,toy,0.849419947,97.03808180535967,2,boomerang_1.jpg
+2579,boomerang_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/boomerang/boomerang_12s.jpg,0.947368421,boomerang,toy,0.849419947,97.03808180535967,1,boomerang_2.jpg
+2732,bowling_ball_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bowling_ball/bowling_ball_06s.jpg,0.871794872,bowling_ball,sports equipment,0.831637578,90.19746121297602,2,bowling_ball_1.jpg
+2740,bowling_ball_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bowling_ball/bowling_ball_14s.jpg,0.707317073,bowling_ball,sports equipment,0.831637578,90.19746121297602,1,bowling_ball_2.jpg
+2785,boxing_gloves_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/boxing_gloves/boxing_gloves_02s.jpg,0.87804878,boxing_gloves,sports equipment,0.83040051,89.70380818053597,1,boxing_gloves_1.jpg
+2786,boxing_gloves_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/boxing_gloves/boxing_gloves_03s.jpg,0.871794872,boxing_gloves,sports equipment,0.83040051,89.70380818053597,2,boxing_gloves_2.jpg
+2877,bracket_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/bracket/bracket_01b.jpg,0.675,bracket,NA,0.808100435,73.1311706629055,2,bracket_1.jpg
+2890,bracket_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bracket/bracket_14s.jpg,0.829268293,bracket,NA,0.808100435,73.1311706629055,1,bracket_2.jpg
+2982,breadstick_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/breadstick/breadstick_03s.jpg,0.875,breadstick,food,0.837891197,93.01833568406207,1,breadstick_2.jpg
+2993,breadstick_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/breadstick/breadstick_14s.jpg,0.756097561,breadstick,food,0.837891197,93.01833568406207,2,breadstick_1.jpg
+3025,brick_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brick/brick_05s.jpg,0.853658537,brick,NA,0.846260646,96.12129760225669,2,brick_1.jpg
+3030,brick_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brick/brick_10s.jpg,0.902439024,brick,NA,0.846260646,96.12129760225669,1,brick_2.jpg
+3038,briefcase_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/briefcase/briefcase_04s.jpg,0.860465116,briefcase,container,0.798868747,63.75176304654443,2,briefcase_2.jpg
+3041,briefcase_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/briefcase/briefcase_07s.jpg,0.825,briefcase,container,0.798868747,63.75176304654443,1,briefcase_1.jpg
+3053,broccoli_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/broccoli/broccoli_06s.jpg,0.7,broccoli,food,0.851011878,97.32016925246828,1,broccoli_1.jpg
+3059,broccoli_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/broccoli/broccoli_12s.jpg,0.952380952,broccoli,food,0.851011878,97.32016925246828,2,broccoli_2.jpg
+3079,broom_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/broom/broom_06s.jpg,0.842105263,broom,tool,0.809688042,74.40056417489421,2,broom_2.jpg
+3081,broom_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/broom/broom_08s.jpg,0.8,broom,tool,0.809688042,74.40056417489421,1,broom_1.jpg
+3087,brownie_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brownie/brownie_02s.jpg,0.804878049,brownie,dessert,0.827751671,87.94076163610718,1,brownie_2.jpg
+3097,brownie_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brownie/brownie_12s.jpg,0.8,brownie,dessert,0.827751671,87.94076163610718,2,brownie_1.jpg
+3106,brush_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brush/brush_03s.jpg,0.731707317,brush,tool,0.828951932,88.787023977433,1,brush_1.jpg
+3108,brush_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/brush/brush_05s.jpg,0.87804878,brush,tool,0.828951932,88.787023977433,2,brush_2.jpg
+3141,bubble_wrap_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/bubble_wrap/bubble_wrap_01b.jpg,0.794871795,bubble_wrap,NA,0.835453468,92.03102961918195,2,bubble_wrap_2.jpg
+3149,bubble_wrap_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bubble_wrap/bubble_wrap_09s.jpg,0.825,bubble_wrap,NA,0.835453468,92.03102961918195,1,bubble_wrap_1.jpg
+3312,bun_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bun/bun_08s.jpg,0.902439024,bun,food,0.845844129,95.9802538787024,2,bun_2.jpg
+3316,bun_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bun/bun_12s.jpg,0.857142857,bun,food,0.845844129,95.9802538787024,1,bun_1.jpg
+3333,bunkbed_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bunkbed/bunkbed_05s.jpg,0.731707317,bunkbed,furniture,0.820665555,83.56840620592384,1,bunkbed_1.jpg
+3338,bunkbed_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/bunkbed/bunkbed_10s.jpg,0.897435897,bunkbed,furniture,0.820665555,83.56840620592384,2,bunkbed_2.jpg
+3357,burner_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/burner/burner_02s.jpg,0.815789474,burner,kitchen appliance,0.784657509,48.16643159379407,1,burner_2.jpg
+3359,burner_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/burner/burner_04s.jpg,0.743589744,burner,kitchen appliance,0.784657509,48.16643159379407,2,burner_1.jpg
+3410,butter_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/butter/butter_07s.jpg,0.875,butter,food,0.832093893,90.40902679830748,1,butter_1.jpg
+3415,butter_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/butter/butter_12s.jpg,0.775,butter,food,0.832093893,90.40902679830748,2,butter_2.jpg
+3456,button2_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/button2/button2_02s.jpg,0.925,button2,NA,0.80669131,71.65021156558534,2,button2_2.jpg
+3459,button2_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/button2/button2_05s.jpg,0.804878049,button2,NA,0.80669131,71.65021156558534,1,button2_1.jpg
+3477,cabbage_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cabbage/cabbage_11s.jpg,0.904761905,cabbage,food,0.847882455,96.61495063469675,2,cabbage_2.jpg
+3479,cabbage_13n.jpg,/home/jovyan/projects/generate-sequences/THINGS/cabbage/cabbage_13n.jpg,0.857142857,cabbage,food,0.847882455,96.61495063469675,1,cabbage_1.jpg
+3497,cable_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cable/cable_04s.jpg,0.8,cable,NA,0.795453679,60.08462623413258,2,cable_1.jpg
+3502,cable_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cable/cable_09s.jpg,0.825,cable,NA,0.795453679,60.08462623413258,1,cable_2.jpg
+3511,cactus_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cactus/cactus_06s.jpg,0.692307692,cactus,plant,0.777630167,40.55007052186178,1,cactus_2.jpg
+3515,cactus_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cactus/cactus_10s.jpg,0.634146341,cactus,plant,0.777630167,40.55007052186178,2,cactus_1.jpg
+3580,calculator_10n.jpg,/home/jovyan/projects/generate-sequences/THINGS/calculator/calculator_10n.jpg,0.853658537,calculator,NA,0.807444647,72.70803949224259,1,calculator_2.jpg
+3584,calculator_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/calculator/calculator_14s.jpg,0.85,calculator,NA,0.807444647,72.70803949224259,2,calculator_1.jpg
+3641,camel_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/camel/camel_03s.jpg,0.780487805,camel,animal,0.834515237,91.67842031029619,2,camel_2.jpg
+3645,camel_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/camel/camel_07s.jpg,0.926829268,camel,animal,0.834515237,91.67842031029619,1,camel_1.jpg
+3704,can_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/can/can_03s.jpg,0.756097561,can,container,0.786063903,49.576868829337094,2,can_2.jpg
+3709,can_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/can/can_08s.jpg,0.842105263,can,container,0.786063903,49.576868829337094,1,can_1.jpg
+3749,candle_07n.jpg,/home/jovyan/projects/generate-sequences/THINGS/candle/candle_07n.jpg,0.825,candle,home decor,0.783228863,47.179125528913964,2,candle_2.jpg
+3753,candle_11n.jpg,/home/jovyan/projects/generate-sequences/THINGS/candle/candle_11n.jpg,0.75,candle,home decor,0.783228863,47.179125528913964,1,candle_1.jpg
+3780,candy_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy/candy_12s.jpg,0.833333333,candy,food,0.825694197,86.53032440056417,2,candy_1.jpg
+3781,candy_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy/candy_13s.jpg,0.902439024,candy,food,0.825694197,86.53032440056417,1,candy_2.jpg
+3789,candy_bar_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy_bar/candy_bar_08s.jpg,0.9,candy_bar,food,0.872834398,99.92947813822285,2,candy_bar_1.jpg
+3793,candy_bar_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy_bar/candy_bar_12s.jpg,0.871794872,candy_bar,food,0.872834398,99.92947813822285,1,candy_bar_2.jpg
+3799,candy_cane_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy_cane/candy_cane_06s.jpg,0.8,candy_cane,food,0.827452348,87.72919605077574,2,candy_cane_2.jpg
+3804,candy_cane_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/candy_cane/candy_cane_11s.jpg,0.87804878,candy_cane,food,0.827452348,87.72919605077574,1,candy_cane_1.jpg
+3825,canister_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/canister/canister_08s.jpg,0.871794872,canister,container,0.797568335,62.27080394922426,2,canister_1.jpg
+3827,canister_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/canister/canister_10s.jpg,0.780487805,canister,container,0.797568335,62.27080394922426,1,canister_2.jpg
+3863,canoe_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/canoe/canoe_03s.jpg,0.853658537,canoe,vehicle,0.809629295,74.33004231311706,2,canoe_1.jpg
+3865,canoe_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/canoe/canoe_05s.jpg,0.906976744,canoe,vehicle,0.809629295,74.33004231311706,1,canoe_2.jpg
+3920,cap_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cap/cap_10s.jpg,0.75,cap,NA,0.814747111,78.34978843441466,2,cap_2.jpg
+3924,cap_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cap/cap_14s.jpg,0.85,cap,NA,0.814747111,78.34978843441466,1,cap_1.jpg
+3986,caramel_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/caramel/caramel_10s.jpg,0.95,caramel,dessert,0.84554464,95.90973201692525,2,caramel_2.jpg
+3988,caramel_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/caramel/caramel_12s.jpg,0.857142857,caramel,dessert,0.84554464,95.90973201692525,1,caramel_1.jpg
+4001,card_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/card/card_12s.jpg,0.85,card,NA,0.82342586,85.049365303244,2,card_1.jpg
+4004,card_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/card/card_15s.jpg,0.897435897,card,NA,0.82342586,85.049365303244,1,card_2.jpg
+4010,cardboard_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cardboard/cardboard_06s.jpg,0.911111111,cardboard,NA,0.817927127,81.31170662905501,1,cardboard_2.jpg
+4013,cardboard_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cardboard/cardboard_09s.jpg,0.75,cardboard,NA,0.817927127,81.31170662905501,2,cardboard_1.jpg
+4075,carrot_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/carrot/carrot_01b.jpg,0.947368421,carrot,food,0.854378795,97.95486600846263,1,carrot_1.jpg
+4081,carrot_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/carrot/carrot_07s.jpg,0.914893617,carrot,food,0.854378795,97.95486600846263,2,carrot_2.jpg
+4131,cashew_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cashew/cashew_09s.jpg,0.658536585,cashew,food,0.832492115,90.76163610719323,1,cashew_1.jpg
+4134,cashew_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cashew/cashew_12s.jpg,0.894736842,cashew,food,0.832492115,90.76163610719323,2,cashew_2.jpg
+4155,cassette_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cassette/cassette_06s.jpg,0.825,cassette,NA,0.819102796,82.36953455571228,2,cassette_2.jpg
+4159,cassette_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cassette/cassette_10s.jpg,0.682926829,cassette,NA,0.819102796,82.36953455571228,1,cassette_1.jpg
+4164,cat_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cat/cat_03s.jpg,0.710526316,cat,animal,0.840384402,93.93511988716502,2,cat_2.jpg
+4172,cat_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cat/cat_11s.jpg,0.904761905,cat,animal,0.840384402,93.93511988716502,1,cat_1.jpg
+4227,cauliflower_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cauliflower/cauliflower_09s.jpg,0.853658537,cauliflower,food,0.841513309,94.49929478138223,1,cauliflower_2.jpg
+4233,cauliflower_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cauliflower/cauliflower_15s.jpg,0.789473684,cauliflower,food,0.841513309,94.49929478138223,2,cauliflower_1.jpg
+4244,caviar_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/caviar/caviar_10s.jpg,0.842105263,caviar,food,0.825503944,86.24823695345557,1,caviar_2.jpg
+4247,caviar_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/caviar/caviar_13s.jpg,0.744186047,caviar,food,0.825503944,86.24823695345557,2,caviar_1.jpg
+4253,cd_player_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cd_player/cd_player_06s.jpg,0.829268293,cd_player,electronic device,0.799412098,64.17489421720734,2,cd_player_1.jpg
+4259,cd_player_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cd_player/cd_player_12s.jpg,0.789473684,cd_player,electronic device,0.799412098,64.17489421720734,1,cd_player_2.jpg
+4266,celery_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/celery/celery_07s.jpg,0.95,celery,food,0.836983308,92.6657263751763,2,celery_2.jpg
+4270,celery_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/celery/celery_11s.jpg,0.756097561,celery,food,0.836983308,92.6657263751763,1,celery_1.jpg
+4276,cello_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cello/cello_05s.jpg,0.853658537,cello,musical instrument,0.787658762,51.410437235543014,1,cello_2.jpg
+4281,cello_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cello/cello_10s.jpg,0.684210526,cello,musical instrument,0.787658762,51.410437235543014,2,cello_1.jpg
+4295,cellphone_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cellphone/cellphone_10s.jpg,0.634146341,cellphone,electronic device,0.803484468,68.33568406205924,1,cellphone_1.jpg
+4296,cellphone_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cellphone/cellphone_11s.jpg,0.763157895,cellphone,electronic device,0.803484468,68.33568406205924,2,cellphone_2.jpg
+4414,chalk_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chalk/chalk_04s.jpg,0.688888889,chalk,NA,0.832143108,90.47954866008463,1,chalk_2.jpg
+4421,chalk_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chalk/chalk_11s.jpg,0.795454545,chalk,NA,0.832143108,90.47954866008463,2,chalk_1.jpg
+4426,chalkboard_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chalkboard/chalkboard_03s.jpg,0.794871795,chalkboard,NA,0.795014927,59.30888575458392,2,chalkboard_2.jpg
+4429,chalkboard_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chalkboard/chalkboard_06s.jpg,0.825,chalkboard,NA,0.795014927,59.30888575458392,1,chalkboard_1.jpg
+4539,checkers_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/checkers/checkers_03s.jpg,0.951219512,checkers,NA,0.819701275,82.93370944992948,1,checkers_1.jpg
+4542,checkers_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/checkers/checkers_06s.jpg,0.794871795,checkers,NA,0.819701275,82.93370944992948,2,checkers_2.jpg
+4567,cheeseburger_04n.jpg,/home/jovyan/projects/generate-sequences/THINGS/cheeseburger/cheeseburger_04n.jpg,0.804878049,cheeseburger,food,0.843930766,95.41607898448518,2,cheeseburger_2.jpg
+4573,cheeseburger_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cheeseburger/cheeseburger_10s.jpg,0.975609756,cheeseburger,food,0.843930766,95.41607898448518,1,cheeseburger_1.jpg
+4594,cheetah_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cheetah/cheetah_04s.jpg,0.769230769,cheetah,animal,0.8235211,85.11988716502115,1,cheetah_1.jpg
+4596,cheetah_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cheetah/cheetah_06s.jpg,0.744186047,cheetah,animal,0.8235211,85.11988716502115,2,cheetah_2.jpg
+4616,chess_piece_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/chess_piece/chess_piece_01b.jpg,0.897435897,chess_piece,NA,0.795073725,59.449929478138216,1,chess_piece_1.jpg
+4622,chess_piece_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chess_piece/chess_piece_07s.jpg,0.738095238,chess_piece,NA,0.795073725,59.449929478138216,2,chess_piece_2.jpg
+4670,chick_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chick/chick_04s.jpg,0.875,chick,animal,0.817560061,80.95909732016925,2,chick_1.jpg
+4678,chick_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chick/chick_12s.jpg,0.846153846,chick,animal,0.817560061,80.95909732016925,1,chick_2.jpg
+4725,chickpea_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chickpea/chickpea_09s.jpg,0.921052632,chickpea,food,0.851021482,97.39069111424541,1,chickpea_1.jpg
+4731,chickpea_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chickpea/chickpea_15s.jpg,0.815789474,chickpea,food,0.851021482,97.39069111424541,2,chickpea_2.jpg
+4732,chihuahua_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/chihuahua/chihuahua_01b.jpg,0.923076923,chihuahua,animal,0.841489282,94.42877291960508,1,chihuahua_1.jpg
+4733,chihuahua_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chihuahua/chihuahua_02s.jpg,0.897435897,chihuahua,animal,0.841489282,94.42877291960508,2,chihuahua_2.jpg
+4826,chip_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chip/chip_03s.jpg,0.804878049,chip,NA,0.811603571,75.66995768688294,1,chip_2.jpg
+4829,chip_06n.jpg,/home/jovyan/projects/generate-sequences/THINGS/chip/chip_06n.jpg,0.731707317,chip,NA,0.811603571,75.66995768688294,2,chip_1.jpg
+4884,chive_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chive/chive_05s.jpg,0.717948718,chive,food,0.834568529,91.74894217207334,1,chive_2.jpg
+4889,chive_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chive/chive_10s.jpg,0.820512821,chive,food,0.834568529,91.74894217207334,2,chive_1.jpg
+4907,chopsticks_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chopsticks/chopsticks_02s.jpg,0.9,chopsticks,tool,0.817175215,80.4654442877292,2,chopsticks_2.jpg
+4910,chopsticks_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/chopsticks/chopsticks_05s.jpg,0.8,chopsticks,tool,0.817175215,80.4654442877292,1,chopsticks_1.jpg
+4934,christmas_tree_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/christmas_tree/christmas_tree_02s.jpg,0.842105263,christmas_tree,home decor,0.786893859,50.49365303244006,2,christmas_tree_2.jpg
+4938,christmas_tree_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/christmas_tree/christmas_tree_06s.jpg,0.804878049,christmas_tree,home decor,0.786893859,50.49365303244006,1,christmas_tree_1.jpg
+5050,cinnamon_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cinnamon/cinnamon_04s.jpg,0.953488372,cinnamon,food,0.84185183,94.56981664315937,2,cinnamon_1.jpg
+5058,cinnamon_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cinnamon/cinnamon_12s.jpg,0.761904762,cinnamon,food,0.84185183,94.56981664315937,1,cinnamon_2.jpg
+5091,clasp_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clasp/clasp_04s.jpg,0.909090909,clasp,NA,0.810030534,74.75317348377996,2,clasp_2.jpg
+5100,clasp_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clasp/clasp_13s.jpg,0.926829268,clasp,NA,0.810030534,74.75317348377996,1,clasp_1.jpg
+5109,clay_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clay/clay_09s.jpg,0.829268293,clay,NA,0.799074103,63.96332863187588,1,clay_1.jpg
+5110,clay_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clay/clay_10s.jpg,0.926829268,clay,NA,0.799074103,63.96332863187588,2,clay_2.jpg
+5170,clipper1_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clipper1/clipper1_08s.jpg,0.853658537,clipper1,tool,0.814751647,78.42031029619181,2,clipper1_1.jpg
+5173,clipper1_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clipper1/clipper1_11s.jpg,0.756097561,clipper1,tool,0.814751647,78.42031029619181,1,clipper1_2.jpg
+5181,clipper2_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clipper2/clipper2_06s.jpg,0.785714286,clipper2,NA,0.822088418,84.41466854724965,1,clipper2_2.jpg
+5182,clipper2_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clipper2/clipper2_07s.jpg,0.87804878,clipper2,NA,0.822088418,84.41466854724965,2,clipper2_1.jpg
+5258,clothespin_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clothespin/clothespin_07s.jpg,0.75,clothespin,NA,0.843673018,95.34555712270803,1,clothespin_2.jpg
+5260,clothespin_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/clothespin/clothespin_09s.jpg,0.875,clothespin,NA,0.843673018,95.34555712270803,2,clothespin_1.jpg
+5307,coal_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coal/coal_02s.jpg,0.69047619,coal,NA,0.806640835,71.50916784203103,1,coal_1.jpg
+5316,coal_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coal/coal_11s.jpg,0.95,coal,NA,0.806640835,71.50916784203103,2,coal_2.jpg
+5325,coaster_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coaster/coaster_08s.jpg,0.8,coaster,home decor,0.817419876,80.74753173483779,1,coaster_2.jpg
+5334,coaster_17s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coaster/coaster_17s.jpg,0.820512821,coaster,home decor,0.817419876,80.74753173483779,2,coaster_1.jpg
+5448,coffee_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coffee/coffee_04s.jpg,0.6,coffee,drink,0.804006478,68.8293370944993,2,coffee_1.jpg
+5453,coffee_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coffee/coffee_09s.jpg,0.815789474,coffee,drink,0.804006478,68.8293370944993,1,coffee_2.jpg
+5461,coffee_bean_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coffee_bean/coffee_bean_02s.jpg,0.804878049,coffee_bean,food,0.845331684,95.69816643159379,1,coffee_bean_2.jpg
+5468,coffee_bean_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/coffee_bean/coffee_bean_09s.jpg,0.846153846,coffee_bean,food,0.845331684,95.69816643159379,2,coffee_bean_1.jpg
+5589,collar_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/collar/collar_09s.jpg,0.820512821,collar,NA,0.795378561,60.014104372355426,2,collar_2.jpg
+5592,collar_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/collar/collar_12s.jpg,0.825,collar,NA,0.795378561,60.014104372355426,1,collar_1.jpg
+5612,comb_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/comb/comb_02s.jpg,0.871794872,comb,NA,0.797611114,62.34132581100141,2,comb_2.jpg
+5617,comb_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/comb/comb_07s.jpg,0.76744186,comb,NA,0.797611114,62.34132581100141,1,comb_1.jpg
+5640,comic_book_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/comic_book/comic_book_06s.jpg,0.65,comic_book,NA,0.802042562,66.14950634696756,1,comic_book_1.jpg
+5645,comic_book_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/comic_book/comic_book_11s.jpg,0.857142857,comic_book,NA,0.802042562,66.14950634696756,2,comic_book_2.jpg
+5680,computer_03n.jpg,/home/jovyan/projects/generate-sequences/THINGS/computer/computer_03n.jpg,0.926829268,computer,electronic device,0.793526537,57.475317348378,1,computer_1.jpg
+5681,computer_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/computer/computer_04s.jpg,0.926829268,computer,electronic device,0.793526537,57.475317348378,2,computer_2.jpg
+5697,computer_screen_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/computer_screen/computer_screen_08s.jpg,0.871794872,computer_screen,electronic device,0.818780324,82.08744710860366,2,computer_screen_1.jpg
+5699,computer_screen_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/computer_screen/computer_screen_10s.jpg,0.725,computer_screen,electronic device,0.818780324,82.08744710860366,1,computer_screen_2.jpg
+5712,confetti_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/confetti/confetti_07s.jpg,0.75,confetti,NA,0.797823005,62.693935119887165,2,confetti_1.jpg
+5716,confetti_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/confetti/confetti_11s.jpg,0.756097561,confetti,NA,0.797823005,62.693935119887165,1,confetti_2.jpg
+5744,container_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/container/container_11s.jpg,0.707317073,container,container,0.805192956,70.38081805359661,1,container_2.jpg
+5745,container_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/container/container_12s.jpg,0.80952381,container,container,0.805192956,70.38081805359661,2,container_1.jpg
+5769,cookie_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cookie/cookie_07s.jpg,0.820512821,cookie,dessert,0.819532594,82.72214386459802,1,cookie_1.jpg
+5777,cookie_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cookie/cookie_15s.jpg,0.813953488,cookie,dessert,0.819532594,82.72214386459802,2,cookie_2.jpg
+5783,cookie_cutter_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cookie_cutter/cookie_cutter_06s.jpg,0.875,cookie_cutter,NA,0.807383484,72.49647390691113,1,cookie_cutter_2.jpg
+5786,cookie_cutter_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cookie_cutter/cookie_cutter_09s.jpg,0.75,cookie_cutter,NA,0.807383484,72.49647390691113,2,cookie_cutter_1.jpg
+5831,copier_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/copier/copier_01s.jpg,0.775,copier,electronic device,0.790278368,54.23131170662906,2,copier_1.jpg
+5839,copier_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/copier/copier_09s.jpg,0.75,copier,electronic device,0.790278368,54.23131170662906,1,copier_2.jpg
+5892,cork_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cork/cork_07s.jpg,0.9,cork,NA,0.821653246,84.20310296191819,2,cork_2.jpg
+5899,cork_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cork/cork_14s.jpg,0.9,cork,NA,0.821653246,84.20310296191819,1,cork_1.jpg
+5937,corn_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/corn/corn_11s.jpg,0.871794872,corn,food,0.83123696,89.98589562764458,1,corn_1.jpg
+5942,corn_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/corn/corn_16s.jpg,0.923076923,corn,food,0.83123696,89.98589562764458,2,corn_2.jpg
+6163,cow_14n.jpg,/home/jovyan/projects/generate-sequences/THINGS/cow/cow_14n.jpg,0.829268293,cow,animal,0.822663508,84.76727785613541,1,cow_1.jpg
+6165,cow_16n.jpg,/home/jovyan/projects/generate-sequences/THINGS/cow/cow_16n.jpg,0.9,cow,animal,0.822663508,84.76727785613541,2,cow_2.jpg
+6208,cracker_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cracker/cracker_06s.jpg,0.820512821,cracker,food,0.837845849,92.94781382228491,2,cracker_1.jpg
+6215,cracker_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cracker/cracker_13s.jpg,0.9,cracker,food,0.837845849,92.94781382228491,1,cracker_2.jpg
+6299,crayon_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/crayon/crayon_02s.jpg,0.846153846,crayon,toy,0.849686746,97.17912552891397,1,crayon_2.jpg
+6306,crayon_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/crayon/crayon_09s.jpg,0.975,crayon,toy,0.849686746,97.17912552891397,2,crayon_1.jpg
+6317,cream_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cream/cream_03s.jpg,0.772727273,cream,NA,0.799924456,64.73906911142454,2,cream_2.jpg
+6323,cream_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cream/cream_09s.jpg,0.80952381,cream,NA,0.799924456,64.73906911142454,1,cream_1.jpg
+6351,creme_brulee_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/creme_brulee/creme_brulee_01b.jpg,0.825,creme_brulee,dessert,0.815650401,79.05500705218617,2,creme_brulee_1.jpg
+6360,creme_brulee_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/creme_brulee/creme_brulee_10s.jpg,0.756097561,creme_brulee,dessert,0.815650401,79.05500705218617,1,creme_brulee_2.jpg
+6410,croissant_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/croissant/croissant_05s.jpg,0.875,croissant,food,0.834489077,91.53737658674189,2,croissant_2.jpg
+6413,croissant_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/croissant/croissant_08s.jpg,0.731707317,croissant,food,0.834489077,91.53737658674189,1,croissant_1.jpg
+6524,cruise_ship_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cruise_ship/cruise_ship_06s.jpg,0.804878049,cruise_ship,vehicle,0.783290481,47.32016925246826,2,cruise_ship_1.jpg
+6525,cruise_ship_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/cruise_ship/cruise_ship_07s.jpg,0.8,cruise_ship,vehicle,0.783290481,47.32016925246826,1,cruise_ship_2.jpg
+6571,crystal2_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/crystal2/crystal2_03s.jpg,0.85,crystal2,NA,0.798990555,63.89280677009873,1,crystal2_2.jpg
+6583,crystal2_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/crystal2/crystal2_15s.jpg,0.926829268,crystal2,NA,0.798990555,63.89280677009873,2,crystal2_1.jpg
+6838,dalmatian_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dalmatian/dalmatian_06s.jpg,0.87804878,dalmatian,animal,0.827319862,87.58815232722144,2,dalmatian_2.jpg
+6842,dalmatian_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dalmatian/dalmatian_10s.jpg,0.761904762,dalmatian,animal,0.827319862,87.58815232722144,1,dalmatian_1.jpg
+6939,deodorant_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/deodorant/deodorant_01b.jpg,0.875,deodorant,NA,0.794675275,58.74471086036671,1,deodorant_2.jpg
+6945,deodorant_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/deodorant/deodorant_07s.jpg,0.65,deodorant,NA,0.794675275,58.74471086036671,2,deodorant_1.jpg
+7012,diamond_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/diamond/diamond_02s.jpg,0.902439024,diamond,NA,0.813894482,77.85613540197461,2,diamond_2.jpg
+7013,diamond_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/diamond/diamond_03s.jpg,0.804878049,diamond,NA,0.813894482,77.85613540197461,1,diamond_1.jpg
+7041,dice_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dice/dice_03s.jpg,0.820512821,dice,NA,0.812464985,76.51622002820875,2,dice_2.jpg
+7049,dice_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dice/dice_11s.jpg,0.8,dice,NA,0.812464985,76.51622002820875,1,dice_1.jpg
+7061,dip_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dip/dip_08s.jpg,0.928571429,dip,food,0.863979627,99.50634696755995,1,dip_1.jpg
+7062,dip_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dip/dip_09s.jpg,0.897435897,dip,food,0.863979627,99.50634696755995,2,dip_2.jpg
+7103,dishrag_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dishrag/dishrag_03s.jpg,0.725,dishrag,NA,0.816923313,80.11283497884344,2,dishrag_2.jpg
+7112,dishrag_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dishrag/dishrag_12s.jpg,0.769230769,dishrag,NA,0.816923313,80.11283497884344,1,dishrag_1.jpg
+7131,dishwashing_liquid_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dishwashing_liquid/dishwashing_liquid_06s.jpg,0.846153846,dishwashing_liquid,NA,0.798464817,63.258110014104375,2,dishwashing_liquid_1.jpg
+7136,dishwashing_liquid_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dishwashing_liquid/dishwashing_liquid_11s.jpg,0.87804878,dishwashing_liquid,NA,0.798464817,63.258110014104375,1,dishwashing_liquid_2.jpg
+7145,diskette_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/diskette/diskette_07s.jpg,0.87804878,diskette,NA,0.838247859,93.30042313117066,2,diskette_1.jpg
+7147,diskette_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/diskette/diskette_09s.jpg,0.829268293,diskette,NA,0.838247859,93.30042313117066,1,diskette_2.jpg
+7231,doll_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doll/doll_13s.jpg,0.775,doll,toy,0.824423144,85.47249647390692,2,doll_2.jpg
+7233,doll_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doll/doll_15s.jpg,0.87804878,doll,toy,0.824423144,85.47249647390692,1,doll_1.jpg
+7234,dollhouse_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/dollhouse/dollhouse_01b.jpg,0.930232558,dollhouse,toy,0.806223947,71.01551480959097,1,dollhouse_1.jpg
+7247,dollhouse_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dollhouse/dollhouse_14s.jpg,0.736842105,dollhouse,toy,0.806223947,71.01551480959097,2,dollhouse_2.jpg
+7272,dolphin_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dolphin/dolphin_12s.jpg,0.794871795,dolphin,animal,0.817675277,81.0296191819464,2,dolphin_1.jpg
+7274,dolphin_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dolphin/dolphin_14s.jpg,0.846153846,dolphin,animal,0.817675277,81.0296191819464,1,dolphin_2.jpg
+7280,domino_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/domino/domino_06s.jpg,0.904761905,domino,NA,0.842834015,95.13399153737659,1,domino_2.jpg
+7291,domino_17s.jpg,/home/jovyan/projects/generate-sequences/THINGS/domino/domino_17s.jpg,0.9,domino,NA,0.842834015,95.13399153737659,2,domino_1.jpg
+7320,donut_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/donut/donut_11s.jpg,0.925,donut,dessert,0.841280544,94.35825105782793,2,donut_2.jpg
+7324,donut_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/donut/donut_15s.jpg,0.8,donut,dessert,0.841280544,94.35825105782793,1,donut_1.jpg
+7388,doorknocker_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doorknocker/doorknocker_02s.jpg,0.9,doorknocker,home decor,0.802492948,66.78420310296191,2,doorknocker_2.jpg
+7392,doorknocker_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doorknocker/doorknocker_06s.jpg,0.775,doorknocker,home decor,0.802492948,66.78420310296191,1,doorknocker_1.jpg
+7437,doorstop_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doorstop/doorstop_07s.jpg,0.75,doorstop,NA,0.843292849,95.27503526093088,2,doorstop_1.jpg
+7440,doorstop_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/doorstop/doorstop_10s.jpg,0.976744186,doorstop,NA,0.843292849,95.27503526093088,1,doorstop_2.jpg
+7503,drawer_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drawer/drawer_03s.jpg,0.707317073,drawer,container,0.785947822,49.29478138222849,2,drawer_1.jpg
+7507,drawer_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drawer/drawer_07s.jpg,0.75,drawer,container,0.785947822,49.29478138222849,1,drawer_2.jpg
+7561,drill_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drill/drill_03s.jpg,0.75,drill,electronic device,0.793211837,57.122708039492245,1,drill_2.jpg
+7571,drill_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drill/drill_13s.jpg,0.923076923,drill,electronic device,0.793211837,57.122708039492245,2,drill_1.jpg
+7606,drumstick_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drumstick/drumstick_04s.jpg,0.76744186,drumstick,NA,0.802818994,67.13681241184767,2,drumstick_2.jpg
+7607,drumstick_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/drumstick/drumstick_05s.jpg,0.87804878,drumstick,NA,0.802818994,67.13681241184767,1,drumstick_1.jpg
+7715,dumbbell_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dumbbell/dumbbell_13s.jpg,0.731707317,dumbbell,sports equipment,0.83341348,91.25528913963329,1,dumbbell_2.jpg
+7718,dumbbell_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dumbbell/dumbbell_16s.jpg,0.804878049,dumbbell,sports equipment,0.83341348,91.25528913963329,2,dumbbell_1.jpg
+7786,dustpan_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dustpan/dustpan_11s.jpg,0.829268293,dustpan,container,0.798579748,63.469675599435824,1,dustpan_2.jpg
+7787,dustpan_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/dustpan/dustpan_12s.jpg,0.88372093,dustpan,container,0.798579748,63.469675599435824,2,dustpan_1.jpg
+7839,earplug_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/earplug/earplug_05s.jpg,0.897435897,earplug,NA,0.830181557,89.42172073342736,2,earplug_1.jpg
+7845,earplug_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/earplug/earplug_11s.jpg,0.756097561,earplug,NA,0.830181557,89.42172073342736,1,earplug_2.jpg
+7937,egg_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/egg/egg_03s.jpg,0.875,egg,food,0.838140771,93.15937940761636,1,egg_1.jpg
+7948,egg_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/egg/egg_14s.jpg,0.85,egg,food,0.838140771,93.15937940761636,2,egg_2.jpg
+7951,egg_roll_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/egg_roll/egg_roll_02s.jpg,0.820512821,egg_roll,food,0.838583496,93.51198871650212,1,egg_roll_2.jpg
+7955,egg_roll_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/egg_roll/egg_roll_06s.jpg,0.790697674,egg_roll,food,0.838583496,93.51198871650212,2,egg_roll_1.jpg
+7986,eggnog_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggnog/eggnog_08s.jpg,0.69047619,eggnog,drink,0.810884362,74.96473906911142,1,eggnog_2.jpg
+7987,eggnog_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggnog/eggnog_09s.jpg,0.837837838,eggnog,drink,0.810884362,74.96473906911142,2,eggnog_1.jpg
+7997,eggplant_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggplant/eggplant_07s.jpg,0.921052632,eggplant,food,0.845509548,95.8392101551481,2,eggplant_2.jpg
+8000,eggplant_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggplant/eggplant_10s.jpg,0.840909091,eggplant,food,0.845509548,95.8392101551481,1,eggplant_1.jpg
+8004,eggshell_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggshell/eggshell_02s.jpg,0.904761905,eggshell,NA,0.826986489,87.30606488011283,2,eggshell_1.jpg
+8005,eggshell_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eggshell/eggshell_03s.jpg,0.925,eggshell,NA,0.826986489,87.30606488011283,1,eggshell_2.jpg
+8046,elephant_04n.jpg,/home/jovyan/projects/generate-sequences/THINGS/elephant/elephant_04n.jpg,0.88372093,elephant,animal,0.820738545,83.70944992947814,2,elephant_1.jpg
+8052,elephant_10n.jpg,/home/jovyan/projects/generate-sequences/THINGS/elephant/elephant_10n.jpg,0.717948718,elephant,animal,0.820738545,83.70944992947814,1,elephant_2.jpg
+8063,emerald_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/emerald/emerald_09s.jpg,0.853658537,emerald,NA,0.804123834,69.18194640338506,2,emerald_2.jpg
+8065,emerald_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/emerald/emerald_11s.jpg,0.682926829,emerald,NA,0.804123834,69.18194640338506,1,emerald_1.jpg
+8108,eraser_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eraser/eraser_02s.jpg,0.846153846,eraser,office supply,0.853934516,97.74330042313117,1,eraser_2.jpg
+8113,eraser_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eraser/eraser_07s.jpg,0.825,eraser,office supply,0.853934516,97.74330042313117,2,eraser_1.jpg
+8122,espresso_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/espresso/espresso_04s.jpg,0.825,espresso,drink,0.797687667,62.41184767277856,2,espresso_2.jpg
+8129,espresso_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/espresso/espresso_11s.jpg,0.869565217,espresso,drink,0.797687667,62.41184767277856,1,espresso_1.jpg
+8132,exerciser_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/exerciser/exerciser_02s.jpg,0.904761905,exerciser,sports equipment,0.805018589,70.16925246826517,2,exerciser_1.jpg
+8135,exerciser_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/exerciser/exerciser_05s.jpg,0.780487805,exerciser,sports equipment,0.805018589,70.16925246826517,1,exerciser_2.jpg
+8224,eyeliner_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eyeliner/eyeliner_05s.jpg,0.875,eyeliner,NA,0.86660351,99.71791255289139,1,eyeliner_2.jpg
+8225,eyeliner_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/eyeliner/eyeliner_06s.jpg,0.853658537,eyeliner,NA,0.86660351,99.71791255289139,2,eyeliner_1.jpg
+8300,faucet_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/faucet/faucet_07s.jpg,0.736842105,faucet,NA,0.814276598,77.92665726375176,2,faucet_1.jpg
+8305,faucet_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/faucet/faucet_12s.jpg,0.85,faucet,NA,0.814276598,77.92665726375176,1,faucet_2.jpg
+8360,fern_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/fern/fern_01b.jpg,0.875,fern,plant,0.767903303,32.933709449929474,1,fern_1.jpg
+8364,fern_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fern/fern_05s.jpg,0.829268293,fern,plant,0.767903303,32.933709449929474,2,fern_2.jpg
+8432,figurine_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/figurine/figurine_02s.jpg,0.875,figurine,home decor,0.816459134,79.54866008462623,2,figurine_1.jpg
+8433,figurine_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/figurine/figurine_03s.jpg,0.714285714,figurine,home decor,0.816459134,79.54866008462623,1,figurine_2.jpg
+8469,filing_cabinet_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/filing_cabinet/filing_cabinet_03s.jpg,0.875,filing_cabinet,container,0.861697375,98.94217207334273,2,filing_cabinet_2.jpg
+8471,filing_cabinet_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/filing_cabinet/filing_cabinet_05s.jpg,0.906976744,filing_cabinet,container,0.861697375,98.94217207334273,1,filing_cabinet_1.jpg
+8526,fingerprint_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fingerprint/fingerprint_09s.jpg,0.875,fingerprint,NA,0.824401412,85.40197461212976,2,fingerprint_2.jpg
+8528,fingerprint_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fingerprint/fingerprint_11s.jpg,0.846153846,fingerprint,NA,0.824401412,85.40197461212976,1,fingerprint_1.jpg
+8818,flan_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/flan/flan_04s.jpg,0.829268293,flan,dessert,0.834499222,91.60789844851904,1,flan_1.jpg
+8824,flan_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/flan/flan_10s.jpg,0.756097561,flan,dessert,0.834499222,91.60789844851904,2,flan_2.jpg
+8842,flashlight_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/flashlight/flashlight_04s.jpg,0.717948718,flashlight,NA,0.794961517,59.167842031029615,1,flashlight_2.jpg
+8845,flashlight_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/flashlight/flashlight_07s.jpg,0.871794872,flashlight,NA,0.794961517,59.167842031029615,2,flashlight_1.jpg
+8889,flipper_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/flipper/flipper_01b.jpg,0.948717949,flipper,sports equipment,0.832937925,90.90267983074753,1,flipper_1.jpg
+8892,flipper_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/flipper/flipper_04s.jpg,0.813953488,flipper,sports equipment,0.832937925,90.90267983074753,2,flipper_2.jpg
+8903,float_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/float/float_03s.jpg,0.717948718,float,NA,0.82988722,89.35119887165021,1,float_1.jpg
+8909,float_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/float/float_09s.jpg,0.833333333,float,NA,0.82988722,89.35119887165021,2,float_2.jpg
+9016,foam_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/foam/foam_03s.jpg,0.789473684,foam,NA,0.796721822,61.14245416078985,2,foam_1.jpg
+9021,foam_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/foam/foam_08s.jpg,0.761904762,foam,NA,0.796721822,61.14245416078985,1,foam_2.jpg
+9097,football_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/football/football_10s.jpg,0.825,football,sports equipment,0.802281069,66.57263751763047,1,football_1.jpg
+9099,football_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/football/football_12s.jpg,0.789473684,football,sports equipment,0.802281069,66.57263751763047,2,football_2.jpg
+9100,football_helmet_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/football_helmet/football_helmet_01b.jpg,0.95,football_helmet,sports equipment,0.808904458,73.76586741889986,1,football_helmet_1.jpg
+9105,football_helmet_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/football_helmet/football_helmet_06s.jpg,0.725,football_helmet,sports equipment,0.808904458,73.76586741889986,2,football_helmet_2.jpg
+9116,footbath_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/footbath/footbath_01s.jpg,0.975609756,footbath,container,0.819700393,82.86318758815233,1,footbath_1.jpg
+9124,footbath_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/footbath/footbath_09s.jpg,0.857142857,footbath,container,0.819700393,82.86318758815233,2,footbath_2.jpg
+9128,footprint_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/footprint/footprint_01b.jpg,0.976190476,footprint,NA,0.856509186,98.37799717912553,1,footprint_1.jpg
+9132,footprint_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/footprint/footprint_05s.jpg,0.87804878,footprint,NA,0.856509186,98.37799717912553,2,footprint_2.jpg
+9172,forklift_06n.jpg,/home/jovyan/projects/generate-sequences/THINGS/forklift/forklift_06n.jpg,0.904761905,forklift,vehicle,0.78288448,46.403385049365305,1,forklift_2.jpg
+9176,forklift_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/forklift/forklift_10s.jpg,0.904761905,forklift,vehicle,0.78288448,46.403385049365305,2,forklift_1.jpg
+9207,fox_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fox/fox_02s.jpg,0.925,fox,animal,0.828658988,88.43441466854725,2,fox_2.jpg
+9216,fox_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fox/fox_11s.jpg,0.780487805,fox,animal,0.828658988,88.43441466854725,1,fox_1.jpg
+9249,french_fries_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/french_fries/french_fries_04s.jpg,0.88372093,french_fries,food,0.827288925,87.51763046544428,1,french_fries_1.jpg
+9250,french_fries_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/french_fries/french_fries_05s.jpg,0.675,french_fries,food,0.827288925,87.51763046544428,2,french_fries_2.jpg
+9258,french_horn_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/french_horn/french_horn_01s.jpg,0.804878049,french_horn,musical instrument,0.836052161,92.17207334273625,2,french_horn_2.jpg
+9266,french_horn_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/french_horn/french_horn_09s.jpg,0.894736842,french_horn,musical instrument,0.836052161,92.17207334273625,1,french_horn_1.jpg
+9272,frisbee_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/frisbee/frisbee_03s.jpg,0.906976744,frisbee,sports equipment,0.81445653,78.06770098730607,1,frisbee_1.jpg
+9274,frisbee_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/frisbee/frisbee_05s.jpg,0.710526316,frisbee,sports equipment,0.81445653,78.06770098730607,2,frisbee_2.jpg
+9321,fudge_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/fudge/fudge_01b.jpg,0.789473684,fudge,dessert,0.860074806,98.80112834978844,2,fudge_1.jpg
+9333,fudge_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/fudge/fudge_13s.jpg,0.825,fudge,dessert,0.860074806,98.80112834978844,1,fudge_2.jpg
+9552,gavel_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gavel/gavel_06s.jpg,0.875,gavel,tool,0.805543897,70.66290550070522,1,gavel_1.jpg
+9556,gavel_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gavel/gavel_10s.jpg,0.85,gavel,tool,0.805543897,70.66290550070522,2,gavel_2.jpg
+9612,gem_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gem/gem_02s.jpg,0.85,gem,NA,0.793951763,58.110014104372354,1,gem_2.jpg
+9613,gem_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gem/gem_03s.jpg,0.775,gem,NA,0.793951763,58.110014104372354,2,gem_1.jpg
+9649,ginger_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ginger/ginger_03s.jpg,0.761904762,ginger,food,0.834160221,91.46685472496475,2,ginger_1.jpg
+9653,ginger_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ginger/ginger_07s.jpg,0.875,ginger,food,0.834160221,91.46685472496475,1,ginger_2.jpg
+9664,gingerbread_man_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gingerbread_man/gingerbread_man_06s.jpg,0.804878049,gingerbread_man,food,0.855210083,98.02538787023978,1,gingerbread_man_2.jpg
+9665,gingerbread_man_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gingerbread_man/gingerbread_man_07s.jpg,0.87804878,gingerbread_man,food,0.855210083,98.02538787023978,2,gingerbread_man_1.jpg
+9673,giraffe_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/giraffe/giraffe_03s.jpg,0.837837838,giraffe,animal,0.827739085,87.87023977433005,2,giraffe_2.jpg
+9680,giraffe_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/giraffe/giraffe_10s.jpg,0.710526316,giraffe,animal,0.827739085,87.87023977433005,1,giraffe_1.jpg
+9767,glue_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/glue/glue_03s.jpg,0.794871795,glue,office supply,0.812560111,76.65726375176305,2,glue_2.jpg
+9772,glue_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/glue/glue_08s.jpg,0.947368421,glue,office supply,0.812560111,76.65726375176305,1,glue_1.jpg
+9778,go-kart_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/go-kart/go-kart_02s.jpg,0.87804878,go-kart,vehicle,0.779876924,42.31311706629055,2,go-kart_2.jpg
+9781,go-kart_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/go-kart/go-kart_05s.jpg,0.880952381,go-kart,vehicle,0.779876924,42.31311706629055,1,go-kart_1.jpg
+9829,goggles_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/goggles/goggles_02s.jpg,0.863636364,goggles,sports equipment,0.811686659,75.81100141043724,1,goggles_1.jpg
+9831,goggles_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/goggles/goggles_04s.jpg,0.844444444,goggles,sports equipment,0.811686659,75.81100141043724,2,goggles_2.jpg
+9842,gold_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gold/gold_02s.jpg,0.95,gold,NA,0.840740819,94.07616361071932,2,gold_2.jpg
+9851,gold_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gold/gold_11s.jpg,0.658536585,gold,NA,0.840740819,94.07616361071932,1,gold_1.jpg
+9871,golf_cart_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/golf_cart/golf_cart_01b.jpg,0.658536585,golf_cart,vehicle,0.773296845,36.95345557122708,2,golf_cart_2.jpg
+9882,golf_cart_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/golf_cart/golf_cart_12s.jpg,0.775,golf_cart,vehicle,0.773296845,36.95345557122708,1,golf_cart_1.jpg
+9965,gorilla_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gorilla/gorilla_15s.jpg,0.951219512,gorilla,animal,0.861943427,99.08321579689704,2,gorilla_2.jpg
+9967,gorilla_17s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gorilla/gorilla_17s.jpg,0.810810811,gorilla,animal,0.861943427,99.08321579689704,1,gorilla_1.jpg
+9973,gourd_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gourd/gourd_02s.jpg,0.75,gourd,home decor,0.781679201,44.287729196050776,1,gourd_1.jpg
+9981,gourd_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gourd/gourd_10s.jpg,0.7,gourd,home decor,0.781679201,44.287729196050776,2,gourd_2.jpg
+10020,gramophone_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/gramophone/gramophone_01b.jpg,0.906976744,gramophone,NA,0.796811742,61.3540197461213,1,gramophone_1.jpg
+10031,gramophone_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gramophone/gramophone_12s.jpg,0.725,gramophone,NA,0.796811742,61.3540197461213,2,gramophone_2.jpg
+10121,grass_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/grass/grass_03s.jpg,0.731707317,grass,plant,0.772060876,35.75458392101552,1,grass_1.jpg
+10125,grass_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/grass/grass_07s.jpg,0.8,grass,plant,0.772060876,35.75458392101552,2,grass_2.jpg
+10171,grater_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/grater/grater_01b.jpg,0.825,grater,kitchen tool,0.86292565,99.15373765867419,2,grater_2.jpg
+10180,grater_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/grater/grater_10s.jpg,0.880952381,grater,kitchen tool,0.86292565,99.15373765867419,1,grater_1.jpg
+10368,guinea_pig_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/guinea_pig/guinea_pig_01b.jpg,0.829268293,guinea_pig,animal,0.826469317,86.95345557122708,2,guinea_pig_2.jpg
+10374,guinea_pig_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/guinea_pig/guinea_pig_07s.jpg,0.826219512,guinea_pig,animal,0.826469317,86.95345557122708,1,guinea_pig_1.jpg
+10408,gum_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gum/gum_10s.jpg,0.794871795,gum,food,0.849401756,96.96755994358251,1,gum_2.jpg
+10410,gum_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gum/gum_12s.jpg,0.829268293,gum,food,0.849401756,96.96755994358251,2,gum_1.jpg
+10424,gumdrop_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gumdrop/gumdrop_02s.jpg,0.951219512,gumdrop,food,0.869001774,99.8589562764457,2,gumdrop_1.jpg
+10425,gumdrop_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/gumdrop/gumdrop_03s.jpg,0.904761905,gumdrop,food,0.869001774,99.8589562764457,1,gumdrop_2.jpg
+10542,hairbrush_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairbrush/hairbrush_07s.jpg,0.871794872,hairbrush,NA,0.808942422,73.90691114245416,2,hairbrush_2.jpg
+10545,hairbrush_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairbrush/hairbrush_10s.jpg,0.820512821,hairbrush,NA,0.808942422,73.90691114245416,1,hairbrush_1.jpg
+10552,hairdryer_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairdryer/hairdryer_02s.jpg,0.625,hairdryer,electronic device,0.816305601,79.47813822284908,1,hairdryer_1.jpg
+10565,hairdryer_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairdryer/hairdryer_15s.jpg,0.928571429,hairdryer,electronic device,0.816305601,79.47813822284908,2,hairdryer_2.jpg
+10600,hairspray_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairspray/hairspray_06s.jpg,0.780487805,hairspray,NA,0.796206174,60.71932299012695,1,hairspray_2.jpg
+10605,hairspray_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hairspray/hairspray_11s.jpg,0.829268293,hairspray,NA,0.796206174,60.71932299012695,2,hairspray_1.jpg
+10659,hamster_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hamster/hamster_05s.jpg,0.804878049,hamster,animal,0.836947835,92.524682651622,1,hamster_2.jpg
+10664,hamster_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hamster/hamster_10s.jpg,0.794871795,hamster,animal,0.836947835,92.524682651622,2,hamster_1.jpg
+10746,handprint_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/handprint/handprint_01b.jpg,0.975,handprint,NA,0.826991758,87.37658674188998,1,handprint_2.jpg
+10748,handprint_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/handprint/handprint_03s.jpg,0.95,handprint,NA,0.826991758,87.37658674188998,2,handprint_1.jpg
+10760,hanger_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hanger/hanger_03s.jpg,0.829268293,hanger,NA,0.838559268,93.44146685472496,2,hanger_2.jpg
+10761,hanger_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hanger/hanger_04s.jpg,0.80952381,hanger,NA,0.838559268,93.44146685472496,1,hanger_1.jpg
+10818,harp_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/harp/harp_01b.jpg,0.921052632,harp,musical instrument,0.806704944,71.72073342736248,1,harp_1.jpg
+10821,harp_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/harp/harp_04s.jpg,0.868421053,harp,musical instrument,0.806704944,71.72073342736248,2,harp_2.jpg
+11019,headset_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/headset/headset_02s.jpg,0.731707317,headset,NA,0.823840005,85.26093088857546,1,headset_2.jpg
+11030,headset_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/headset/headset_13s.jpg,0.825,headset,NA,0.823840005,85.26093088857546,2,headset_1.jpg
+11072,hedge_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hedge/hedge_02s.jpg,0.863636364,hedge,plant,0.776317169,39.21015514809591,2,hedge_2.jpg
+11076,hedge_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hedge/hedge_06s.jpg,0.725,hedge,plant,0.776317169,39.21015514809591,1,hedge_1.jpg
+11088,hedgehog_05n.jpg,/home/jovyan/projects/generate-sequences/THINGS/hedgehog/hedgehog_05n.jpg,0.825,hedgehog,animal,0.826867842,87.16502115655854,1,hedgehog_1.jpg
+11094,hedgehog_11n.jpg,/home/jovyan/projects/generate-sequences/THINGS/hedgehog/hedgehog_11n.jpg,0.904761905,hedgehog,animal,0.826867842,87.16502115655854,2,hedgehog_2.jpg
+11148,highlighter_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/highlighter/highlighter_01b.jpg,0.95,highlighter,office supply,0.840934096,94.21720733427362,1,highlighter_1.jpg
+11153,highlighter_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/highlighter/highlighter_06s.jpg,0.925,highlighter,office supply,0.840934096,94.21720733427362,2,highlighter_2.jpg
+11160,hinge_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/hinge/hinge_01b.jpg,0.904761905,hinge,NA,0.820713272,83.63892806770099,2,hinge_1.jpg
+11161,hinge_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hinge/hinge_02s.jpg,0.923076923,hinge,NA,0.820713272,83.63892806770099,1,hinge_2.jpg
+11194,hippopotamus_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hippopotamus/hippopotamus_11s.jpg,0.743589744,hippopotamus,animal,0.82184332,84.27362482369534,1,hippopotamus_1.jpg
+11200,hippopotamus_17s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hippopotamus/hippopotamus_17s.jpg,0.829268293,hippopotamus,animal,0.82184332,84.27362482369534,2,hippopotamus_2.jpg
+11210,hobbyhorse_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hobbyhorse/hobbyhorse_09s.jpg,0.888888889,hobbyhorse,toy,0.83496351,91.88998589562765,2,hobbyhorse_2.jpg
+11212,hobbyhorse_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hobbyhorse/hobbyhorse_11s.jpg,0.738095238,hobbyhorse,toy,0.83496351,91.88998589562765,1,hobbyhorse_1.jpg
+11289,honey_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/honey/honey_10s.jpg,0.921052632,honey,food,0.825337227,86.17771509167842,2,honey_1.jpg
+11293,honey_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/honey/honey_14s.jpg,0.853658537,honey,food,0.825337227,86.17771509167842,1,honey_2.jpg
+11298,honeycomb_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/honeycomb/honeycomb_04s.jpg,0.727272727,honeycomb,NA,0.813227734,77.36248236953456,1,honeycomb_2.jpg
+11300,honeycomb_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/honeycomb/honeycomb_06s.jpg,0.7,honeycomb,NA,0.813227734,77.36248236953456,2,honeycomb_1.jpg
+11399,hopscotch_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hopscotch/hopscotch_03s.jpg,0.928571429,hopscotch,NA,0.82465162,85.61354019746122,2,hopscotch_1.jpg
+11405,hopscotch_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hopscotch/hopscotch_09s.jpg,0.829268293,hopscotch,NA,0.82465162,85.61354019746122,1,hopscotch_2.jpg
+11446,horseshoe_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/horseshoe/horseshoe_09s.jpg,0.717948718,horseshoe,NA,0.795220495,59.80253878702398,1,horseshoe_2.jpg
+11448,horseshoe_11n.jpg,/home/jovyan/projects/generate-sequences/THINGS/horseshoe/horseshoe_11n.jpg,0.85,horseshoe,NA,0.795220495,59.80253878702398,2,horseshoe_1.jpg
+11487,hot-water_bottle_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot-water_bottle/hot-water_bottle_02s.jpg,0.9,hot-water_bottle,container,0.832388369,90.62059238363894,1,hot-water_bottle_1.jpg
+11488,hot-water_bottle_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot-water_bottle/hot-water_bottle_03s.jpg,0.846153846,hot-water_bottle,container,0.832388369,90.62059238363894,2,hot-water_bottle_2.jpg
+11499,hot_chocolate_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot_chocolate/hot_chocolate_02s.jpg,0.625,hot_chocolate,vehicle,0.802793782,66.99576868829337,1,hot_chocolate_2.jpg
+11510,hot_chocolate_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot_chocolate/hot_chocolate_13s.jpg,0.846153846,hot_chocolate,vehicle,0.802793782,66.99576868829337,2,hot_chocolate_1.jpg
+11519,hot_tub_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot_tub/hot_tub_09s.jpg,0.756097561,hot_tub,container,0.81224851,76.3046544428773,2,hot_tub_2.jpg
+11523,hot_tub_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hot_tub/hot_tub_13s.jpg,0.825,hot_tub,container,0.81224851,76.3046544428773,1,hot_tub_1.jpg
+11551,hourglass_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hourglass/hourglass_03s.jpg,0.761904762,hourglass,home decor,0.786247472,49.7179125528914,2,hourglass_2.jpg
+11558,hourglass_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hourglass/hourglass_10s.jpg,0.775,hourglass,home decor,0.786247472,49.7179125528914,1,hourglass_1.jpg
+11661,hydrant_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hydrant/hydrant_07s.jpg,0.857142857,hydrant,NA,0.81679037,79.90126939351198,2,hydrant_2.jpg
+11664,hydrant_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/hydrant/hydrant_10s.jpg,0.658536585,hydrant,NA,0.81679037,79.90126939351198,1,hydrant_1.jpg
+11705,ice-cream_cone_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ice-cream_cone/ice-cream_cone_08s.jpg,0.833333333,ice-cream_cone,dessert,0.847237716,96.4033850493653,2,ice-cream_cone_1.jpg
+11712,ice-cream_cone_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ice-cream_cone/ice-cream_cone_15s.jpg,0.80952381,ice-cream_cone,dessert,0.847237716,96.4033850493653,1,ice-cream_cone_2.jpg
+11742,ice_pack_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ice_pack/ice_pack_04s.jpg,0.85,ice_pack,dessert,0.863070517,99.29478138222849,1,ice_pack_2.jpg
+11748,ice_pack_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ice_pack/ice_pack_10s.jpg,0.756097561,ice_pack,dessert,0.863070517,99.29478138222849,2,ice_pack_1.jpg
+11778,iceskate_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/iceskate/iceskate_03s.jpg,0.853658537,iceskate,sports equipment,0.804307539,69.39351198871651,2,iceskate_1.jpg
+11787,iceskate_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/iceskate/iceskate_12s.jpg,0.794871795,iceskate,sports equipment,0.804307539,69.39351198871651,1,iceskate_2.jpg
+11792,icicle_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/icicle/icicle_03s.jpg,0.743589744,icicle,NA,0.822614394,84.69675599435826,1,icicle_2.jpg
+11799,icicle_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/icicle/icicle_10s.jpg,0.820512821,icicle,NA,0.822614394,84.69675599435826,2,icicle_1.jpg
+11929,ironing_board_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ironing_board/ironing_board_09s.jpg,0.707317073,ironing_board,NA,0.804379943,69.5345557122708,1,ironing_board_2.jpg
+11934,ironing_board_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ironing_board/ironing_board_14s.jpg,0.880952381,ironing_board,NA,0.804379943,69.5345557122708,2,ironing_board_1.jpg
+11943,ivy_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ivy/ivy_08s.jpg,0.659090909,ivy,plant,0.762256318,28.138222849083217,2,ivy_1.jpg
+11948,ivy_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ivy/ivy_13s.jpg,0.756097561,ivy,plant,0.762256318,28.138222849083217,1,ivy_2.jpg
+12007,jam_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/jam/jam_03s.jpg,0.925,jam,food,0.82426295,85.33145275035261,2,jam_2.jpg
+12016,jam_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/jam/jam_12s.jpg,0.820512821,jam,food,0.82426295,85.33145275035261,1,jam_1.jpg
+12186,jigsaw_puzzle_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/jigsaw_puzzle/jigsaw_puzzle_01b.jpg,0.894736842,jigsaw_puzzle,NA,0.84447341,95.48660084626233,2,jigsaw_puzzle_2.jpg
+12189,jigsaw_puzzle_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/jigsaw_puzzle/jigsaw_puzzle_04s.jpg,0.85,jigsaw_puzzle,NA,0.84447341,95.48660084626233,1,jigsaw_puzzle_1.jpg
+12205,joystick_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/joystick/joystick_06s.jpg,0.820512821,joystick,electronic device,0.80026779,65.02115655853315,1,joystick_1.jpg
+12208,joystick_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/joystick/joystick_09s.jpg,0.952380952,joystick,electronic device,0.80026779,65.02115655853315,2,joystick_2.jpg
+12246,juicer1_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/juicer1/juicer1_06s.jpg,0.775,juicer1,kitchen tool,0.85933239,98.73060648801129,1,juicer1_2.jpg
+12248,juicer1_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/juicer1/juicer1_08s.jpg,0.880952381,juicer1,kitchen tool,0.85933239,98.73060648801129,2,juicer1_1.jpg
+12352,kayak_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kayak/kayak_05s.jpg,0.564102564,kayak,vehicle,0.782206492,45.063469675599436,2,kayak_2.jpg
+12353,kayak_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kayak/kayak_06s.jpg,0.581395349,kayak,vehicle,0.782206492,45.063469675599436,1,kayak_1.jpg
+12361,kazoo_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kazoo/kazoo_01s.jpg,0.87804878,kazoo,musical instrument,0.804407177,69.60507757404795,1,kazoo_2.jpg
+12362,kazoo_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kazoo/kazoo_02s.jpg,0.871794872,kazoo,musical instrument,0.804407177,69.60507757404795,2,kazoo_1.jpg
+12470,keyboard_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/keyboard/keyboard_11s.jpg,0.928571429,keyboard,musical instrument,0.803620001,68.4062059238364,1,keyboard_1.jpg
+12474,keyboard_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/keyboard/keyboard_15s.jpg,0.775,keyboard,musical instrument,0.803620001,68.4062059238364,2,keyboard_2.jpg
+12531,kite_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kite/kite_08s.jpg,0.731707317,kite,toy,0.820577642,83.49788434414668,1,kite_2.jpg
+12536,kite_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kite/kite_13s.jpg,0.853658537,kite,toy,0.820577642,83.49788434414668,2,kite_1.jpg
+12538,kitten_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/kitten/kitten_01b.jpg,0.829268293,kitten,animal,0.842386073,94.85190409026798,2,kitten_2.jpg
+12545,kitten_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kitten/kitten_08s.jpg,0.75,kitten,animal,0.842386073,94.85190409026798,1,kitten_1.jpg
+12582,kneepad_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kneepad/kneepad_08s.jpg,0.789473684,kneepad,sports equipment,0.85666596,98.44851904090268,1,kneepad_2.jpg
+12584,kneepad_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/kneepad/kneepad_10s.jpg,0.926829268,kneepad,sports equipment,0.85666596,98.44851904090268,2,kneepad_1.jpg
+12854,laptop_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/laptop/laptop_05s.jpg,0.853658537,laptop,electronic device,0.790187464,54.09026798307476,1,laptop_2.jpg
+12855,laptop_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/laptop/laptop_06s.jpg,0.871794872,laptop,electronic device,0.790187464,54.09026798307476,2,laptop_1.jpg
+12886,laser_pointer_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/laser_pointer/laser_pointer_07s.jpg,0.785714286,laser_pointer,NA,0.828687708,88.5049365303244,1,laser_pointer_2.jpg
+12890,laser_pointer_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/laser_pointer/laser_pointer_11s.jpg,0.9,laser_pointer,NA,0.828687708,88.5049365303244,2,laser_pointer_1.jpg
+12911,latte_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/latte/latte_04s.jpg,0.926829268,latte,drink,0.861775465,99.01269393511988,2,latte_2.jpg
+12919,latte_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/latte/latte_12s.jpg,0.825,latte,drink,0.861775465,99.01269393511988,1,latte_1.jpg
+12944,lavender_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/lavender/lavender_01b.jpg,0.9,lavender,plant,0.786570831,50.0,1,lavender_2.jpg
+12945,lavender_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lavender/lavender_02s.jpg,0.875,lavender,plant,0.786570831,50.0,2,lavender_1.jpg
+13023,leek_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/leek/leek_01b.jpg,0.854239257,leek,food,0.82601678,86.60084626234132,2,leek_2.jpg
+13027,leek_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/leek/leek_05s.jpg,0.65,leek,food,0.82601678,86.60084626234132,1,leek_1.jpg
+13070,lego_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lego/lego_04s.jpg,0.947368421,lego,toy,0.864197525,99.5768688293371,2,lego_2.jpg
+13071,lego_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lego/lego_05s.jpg,0.952380952,lego,toy,0.864197525,99.5768688293371,1,lego_1.jpg
+13122,leopard_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/leopard/leopard_03s.jpg,0.902439024,leopard,animal,0.824744002,85.75458392101551,1,leopard_1.jpg
+13130,leopard_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/leopard/leopard_11s.jpg,0.87804878,leopard,animal,0.824744002,85.75458392101551,2,leopard_2.jpg
+13234,light_switch_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/light_switch/light_switch_03s.jpg,0.87804878,light_switch,NA,0.81547078,78.98448519040903,1,light_switch_2.jpg
+13247,light_switch_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/light_switch/light_switch_16s.jpg,0.794871795,light_switch,NA,0.81547078,78.98448519040903,2,light_switch_1.jpg
+13305,limousine_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/limousine/limousine_01s.jpg,0.775,limousine,vehicle,0.83129675,90.05641748942172,2,limousine_1.jpg
+13318,limousine_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/limousine/limousine_14s.jpg,0.825,limousine,vehicle,0.83129675,90.05641748942172,1,limousine_2.jpg
+13343,lion_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lion/lion_12s.jpg,0.815789474,lion,animal,0.827329816,87.65867418899859,2,lion_1.jpg
+13350,lion_19s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lion/lion_19s.jpg,0.829268293,lion,animal,0.827329816,87.65867418899859,1,lion_2.jpg
+13385,lipstick_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lipstick/lipstick_05s.jpg,0.894736842,lipstick,NA,0.832940826,90.97320169252468,1,lipstick_2.jpg
+13386,lipstick_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/lipstick/lipstick_06s.jpg,0.785714286,lipstick,NA,0.832940826,90.97320169252468,2,lipstick_1.jpg
+13445,locker_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/locker/locker_04s.jpg,0.825,locker,container,0.809096764,73.9774330042313,1,locker_1.jpg
+13446,locker_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/locker/locker_05s.jpg,0.87804878,locker,container,0.809096764,73.9774330042313,2,locker_2.jpg
+13520,loveseat_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/loveseat/loveseat_01b.jpg,0.923076923,loveseat,furniture,0.799831126,64.52750352609308,1,loveseat_2.jpg
+13521,loveseat_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/loveseat/loveseat_02s.jpg,0.875,loveseat,furniture,0.799831126,64.52750352609308,2,loveseat_1.jpg
+13541,luggage_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/luggage/luggage_06s.jpg,0.825,luggage,container,0.79673675,61.212976022567,2,luggage_2.jpg
+13546,luggage_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/luggage/luggage_11s.jpg,0.630434783,luggage,container,0.79673675,61.212976022567,1,luggage_1.jpg
+13587,macaroni_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/macaroni/macaroni_02s.jpg,0.780487805,macaroni,food,0.868246821,99.78843441466854,1,macaroni_1.jpg
+13600,macaroni_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/macaroni/macaroni_15s.jpg,0.820512821,macaroni,food,0.868246821,99.78843441466854,2,macaroni_2.jpg
+13641,magnet_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/magnet/magnet_04s.jpg,0.804878049,magnet,tool,0.842098549,94.71086036671367,1,magnet_2.jpg
+13642,magnet_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/magnet/magnet_05s.jpg,0.85,magnet,tool,0.842098549,94.71086036671367,2,magnet_1.jpg
+13687,mailbox_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mailbox/mailbox_02s.jpg,0.853658537,mailbox,container,0.791658021,55.500705218617775,1,mailbox_2.jpg
+13688,mailbox_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mailbox/mailbox_03s.jpg,0.85,mailbox,container,0.791658021,55.500705218617775,2,mailbox_1.jpg
+13754,manatee_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/manatee/manatee_05s.jpg,0.904761905,manatee,animal,0.818587794,81.94640338504936,1,manatee_1.jpg
+13757,manatee_08n.jpg,/home/jovyan/projects/generate-sequences/THINGS/manatee/manatee_08n.jpg,0.743589744,manatee,animal,0.818587794,81.94640338504936,2,manatee_2.jpg
+13882,margarita_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/margarita/margarita_05s.jpg,0.829268293,margarita,drink,0.79343875,57.40479548660085,2,margarita_1.jpg
+13887,margarita_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/margarita/margarita_10s.jpg,0.714285714,margarita,drink,0.79343875,57.40479548660085,1,margarita_2.jpg
+13910,marker_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/marker/marker_02s.jpg,0.857142857,marker,tool,0.855730899,98.16643159379407,1,marker_2.jpg
+13915,marker_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/marker/marker_07s.jpg,0.894736842,marker,tool,0.855730899,98.16643159379407,2,marker_1.jpg
+14020,match_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/match/match_01b.jpg,0.926829268,match,tool,0.82889559,88.6459802538787,1,match_1.jpg
+14031,match_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/match/match_12s.jpg,0.880952381,match,tool,0.82889559,88.6459802538787,2,match_2.jpg
+14034,matchbox_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/matchbox/matchbox_02s.jpg,0.87804878,matchbox,container,0.815115164,78.63187588152327,2,matchbox_2.jpg
+14042,matchbox_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/matchbox/matchbox_10s.jpg,0.818181818,matchbox,container,0.815115164,78.63187588152327,1,matchbox_1.jpg
+14050,mattress_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mattress/mattress_06s.jpg,0.825,mattress,furniture,0.797143064,61.706629055007056,1,mattress_2.jpg
+14057,mattress_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mattress/mattress_13s.jpg,0.804878049,mattress,furniture,0.797143064,61.706629055007056,2,mattress_1.jpg
+14140,meerkat_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/meerkat/meerkat_03s.jpg,0.769230769,meerkat,animal,0.830386854,89.49224259520452,1,meerkat_1.jpg
+14150,meerkat_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/meerkat/meerkat_13s.jpg,0.880952381,meerkat,animal,0.830386854,89.49224259520452,2,meerkat_2.jpg
+14191,memory_stick_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/memory_stick/memory_stick_14s.jpg,0.857142857,memory_stick,NA,0.829358577,89.0691114245416,1,memory_stick_2.jpg
+14193,memory_stick_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/memory_stick/memory_stick_16s.jpg,0.975,memory_stick,NA,0.829358577,89.0691114245416,2,memory_stick_1.jpg
+14234,microscope_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/microscope/microscope_01b.jpg,0.825,microscope,NA,0.802687904,66.92524682651622,2,microscope_1.jpg
+14238,microscope_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/microscope/microscope_05s.jpg,0.733333333,microscope,NA,0.802687904,66.92524682651622,1,microscope_2.jpg
+14391,mixer_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mixer/mixer_02s.jpg,0.820512821,mixer,electronic device,0.80922565,74.04795486600845,1,mixer_1.jpg
+14394,mixer_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mixer/mixer_05s.jpg,0.731707317,mixer,electronic device,0.80922565,74.04795486600845,2,mixer_2.jpg
+14433,mold1_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mold1/mold1_07s.jpg,0.8,mold1,container,0.791134163,54.79548660084627,2,mold1_2.jpg
+14438,mold1_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mold1/mold1_12s.jpg,0.8,mold1,container,0.791134163,54.79548660084627,1,mold1_1.jpg
+14500,monkey_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/monkey/monkey_04s.jpg,0.897435897,monkey,animal,0.819526184,82.65162200282089,2,monkey_2.jpg
+14510,monkey_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/monkey/monkey_14s.jpg,0.820512821,monkey,animal,0.819526184,82.65162200282089,1,monkey_1.jpg
+14561,mosquito_net_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mosquito_net/mosquito_net_02s.jpg,0.769230769,mosquito_net,NA,0.827969728,88.08180535966149,1,mosquito_net_1.jpg
+14570,mosquito_net_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mosquito_net/mosquito_net_11s.jpg,0.8,mosquito_net,NA,0.827969728,88.08180535966149,2,mosquito_net_2.jpg
+14655,mouse2_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mouse2/mouse2_07s.jpg,0.87804878,mouse2,electronic device,0.811150335,75.31734837799718,1,mouse2_1.jpg
+14660,mouse2_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mouse2/mouse2_12s.jpg,0.820512821,mouse2,electronic device,0.811150335,75.31734837799718,2,mouse2_2.jpg
+14775,mug_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mug/mug_03s.jpg,0.692307692,mug,container,0.794937902,59.09732016925246,2,mug_2.jpg
+14785,mug_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mug/mug_13s.jpg,0.785714286,mug,container,0.794937902,59.09732016925246,1,mug_1.jpg
+14792,mulberry_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mulberry/mulberry_06s.jpg,0.853658537,mulberry,food,0.826301628,86.81241184767278,1,mulberry_1.jpg
+14798,mulberry_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/mulberry/mulberry_12s.jpg,0.868421053,mulberry,food,0.826301628,86.81241184767278,2,mulberry_2.jpg
+14826,mushroom_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/mushroom/mushroom_01b.jpg,0.906976744,mushroom,food,0.829109,88.85754583921015,1,mushroom_1.jpg
+14829,mushroom_04n.jpg,/home/jovyan/projects/generate-sequences/THINGS/mushroom/mushroom_04n.jpg,0.833333333,mushroom,food,0.829109,88.85754583921015,2,mushroom_2.jpg
+14908,nail_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail/nail_03s.jpg,0.804878049,nail,NA,0.803249114,68.05359661495064,2,nail_2.jpg
+14914,nail_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail/nail_09s.jpg,0.731707317,nail,NA,0.803249114,68.05359661495064,1,nail_1.jpg
+14923,nail_clippers_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_clippers/nail_clippers_05s.jpg,0.780487805,nail_clippers,tool,0.839851048,93.72355430183357,2,nail_clippers_2.jpg
+14925,nail_clippers_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_clippers/nail_clippers_07s.jpg,0.857142857,nail_clippers,tool,0.839851048,93.72355430183357,1,nail_clippers_1.jpg
+14935,nail_file_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_file/nail_file_04s.jpg,0.926829268,nail_file,tool,0.828927277,88.71650211565584,2,nail_file_1.jpg
+14945,nail_file_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_file/nail_file_14s.jpg,0.634146341,nail_file,tool,0.828927277,88.71650211565584,1,nail_file_2.jpg
+14947,nail_polish_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_polish/nail_polish_01b.jpg,0.952380952,nail_polish,NA,0.848347905,96.6854724964739,1,nail_polish_2.jpg
+14953,nail_polish_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nail_polish/nail_polish_07s.jpg,0.733333333,nail_polish,NA,0.848347905,96.6854724964739,2,nail_polish_1.jpg
+15050,nest_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nest/nest_10s.jpg,0.813953488,nest,NA,0.834718083,91.8194640338505,1,nest_2.jpg
+15053,nest_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nest/nest_13s.jpg,0.804878049,nest,NA,0.834718083,91.8194640338505,2,nest_1.jpg
+15111,noodle_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/noodle/noodle_06s.jpg,0.80952381,noodle,food,0.83394579,91.3963328631876,2,noodle_1.jpg
+15115,noodle_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/noodle/noodle_10s.jpg,0.868421053,noodle,food,0.83394579,91.3963328631876,1,noodle_2.jpg
+15184,nutcracker_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nutcracker/nutcracker_02s.jpg,0.880952381,nutcracker,kitchen tool,0.822017622,84.3441466854725,2,nutcracker_2.jpg
+15185,nutcracker_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/nutcracker/nutcracker_03s.jpg,0.769230769,nutcracker,kitchen tool,0.822017622,84.3441466854725,1,nutcracker_1.jpg
+15368,orange_rind_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/orange_rind/orange_rind_15s.jpg,0.775,orange_rind,NA,0.804417305,69.6755994358251,2,orange_rind_2.jpg
+15369,orange_rind_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/orange_rind/orange_rind_16s.jpg,0.756756757,orange_rind,NA,0.804417305,69.6755994358251,1,orange_rind_1.jpg
+15371,orangutan_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/orangutan/orangutan_02s.jpg,0.860465116,orangutan,animal,0.837279059,92.80677009873061,1,orangutan_2.jpg
+15375,orangutan_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/orangutan/orangutan_06s.jpg,0.897435897,orangutan,animal,0.837279059,92.80677009873061,2,orangutan_1.jpg
+15419,origami_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/origami/origami_03s.jpg,0.794871795,origami,NA,0.813072273,77.1509167842031,2,origami_2.jpg
+15433,origami_17s.jpg,/home/jovyan/projects/generate-sequences/THINGS/origami/origami_17s.jpg,0.857142857,origami,NA,0.813072273,77.1509167842031,1,origami_1.jpg
+15453,otter_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/otter/otter_01b.jpg,0.948717949,otter,animal,0.837929466,93.0888575458392,1,otter_2.jpg
+15464,otter_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/otter/otter_12s.jpg,0.75,otter,animal,0.837929466,93.0888575458392,2,otter_1.jpg
+15499,outlet_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/outlet/outlet_06s.jpg,0.871794872,outlet,NA,0.82472395,85.68406205923836,1,outlet_2.jpg
+15504,outlet_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/outlet/outlet_11s.jpg,0.720930233,outlet,NA,0.82472395,85.68406205923836,2,outlet_1.jpg
+15539,owl_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/owl/owl_07s.jpg,0.871794872,owl,animal,0.82528281,86.10719322990127,1,owl_1.jpg
+15541,owl_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/owl/owl_09s.jpg,0.820512821,owl,animal,0.82528281,86.10719322990127,2,owl_2.jpg
+15573,pacifier_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pacifier/pacifier_01s.jpg,0.804878049,pacifier,NA,0.823742426,85.1904090267983,2,pacifier_2.jpg
+15582,pacifier_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pacifier/pacifier_10s.jpg,0.864864865,pacifier,NA,0.823742426,85.1904090267983,1,pacifier_1.jpg
+15621,paint_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paint/paint_07s.jpg,0.857142857,paint,NA,0.805497799,70.59238363892807,2,paint_2.jpg
+15624,paint_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paint/paint_10s.jpg,0.769230769,paint,NA,0.805497799,70.59238363892807,1,paint_1.jpg
+15636,paintbrush_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paintbrush/paintbrush_09s.jpg,0.707317073,paintbrush,tool,0.806776445,71.79125528913963,2,paintbrush_1.jpg
+15638,paintbrush_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paintbrush/paintbrush_11s.jpg,0.837209302,paintbrush,tool,0.806776445,71.79125528913963,1,paintbrush_2.jpg
+15682,pallet_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pallet/pallet_05s.jpg,0.829268293,pallet,NA,0.805925281,70.87447108603668,2,pallet_2.jpg
+15688,pallet_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pallet/pallet_11s.jpg,0.785714286,pallet,NA,0.805925281,70.87447108603668,1,pallet_1.jpg
+15706,pan_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pan/pan_02s.jpg,0.87804878,pan,container,0.801612157,65.72637517630466,2,pan_2.jpg
+15719,pan_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pan/pan_15s.jpg,0.785714286,pan,container,0.801612157,65.72637517630466,1,pan_1.jpg
+15724,pancake_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pancake/pancake_03s.jpg,0.902439024,pancake,food,0.841149339,94.28772919605078,2,pancake_2.jpg
+15731,pancake_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pancake/pancake_10s.jpg,0.744186047,pancake,food,0.841149339,94.28772919605078,1,pancake_1.jpg
+15752,panther_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/panther/panther_01b.jpg,0.975,panther,animal,0.860598462,98.8716502115656,1,panther_2.jpg
+15765,panther_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/panther/panther_14s.jpg,0.904761905,panther,animal,0.860598462,98.8716502115656,2,panther_1.jpg
+15884,paperclip_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paperclip/paperclip_02s.jpg,0.857142857,paperclip,office supply,0.837102426,92.73624823695346,1,paperclip_2.jpg
+15888,paperclip_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/paperclip/paperclip_06s.jpg,0.857142857,paperclip,office supply,0.837102426,92.73624823695346,2,paperclip_1.jpg
+15934,parfait_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/parfait/parfait_14s.jpg,0.829268293,parfait,dessert,0.829767861,89.28067700987306,2,parfait_2.jpg
+15939,parfait_19s.jpg,/home/jovyan/projects/generate-sequences/THINGS/parfait/parfait_19s.jpg,0.775,parfait,dessert,0.829767861,89.28067700987306,1,parfait_1.jpg
+16006,pasta_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pasta/pasta_02s.jpg,0.9,pasta,food,0.836270627,92.31311706629054,1,pasta_2.jpg
+16007,pasta_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pasta/pasta_03s.jpg,0.790697674,pasta,food,0.836270627,92.31311706629054,2,pasta_1.jpg
+16119,peanut_06n.jpg,/home/jovyan/projects/generate-sequences/THINGS/peanut/peanut_06n.jpg,0.837209302,peanut,food,0.824772239,85.82510578279266,1,peanut_2.jpg
+16127,peanut_14n.jpg,/home/jovyan/projects/generate-sequences/THINGS/peanut/peanut_14n.jpg,0.842105263,peanut,food,0.824772239,85.82510578279266,2,peanut_1.jpg
+16129,peanut_butter_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peanut_butter/peanut_butter_02s.jpg,0.769230769,peanut_butter,food,0.828893311,88.57545839210155,1,peanut_butter_2.jpg
+16138,peanut_butter_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peanut_butter/peanut_butter_11s.jpg,0.868421053,peanut_butter,food,0.828893311,88.57545839210155,2,peanut_butter_1.jpg
+16157,pearl_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pearl/pearl_04s.jpg,0.775,pearl,NA,0.794519248,58.60366713681241,2,pearl_1.jpg
+16163,pearl_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pearl/pearl_10s.jpg,0.756097561,pearl,NA,0.794519248,58.60366713681241,1,pearl_2.jpg
+16214,peeler_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peeler/peeler_10s.jpg,0.928571429,peeler,kitchen tool,0.799868809,64.59802538787024,1,peeler_2.jpg
+16216,peeler_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peeler/peeler_12s.jpg,0.76744186,peeler,kitchen tool,0.799868809,64.59802538787024,2,peeler_1.jpg
+16221,peg_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peg/peg_04s.jpg,0.825,peg,NA,0.808671206,73.48377997179125,1,peg_2.jpg
+16223,peg_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peg/peg_06s.jpg,0.75,peg,NA,0.808671206,73.48377997179125,2,peg_1.jpg
+16261,pencil_05n.jpg,/home/jovyan/projects/generate-sequences/THINGS/pencil/pencil_05n.jpg,0.707317073,pencil,office supply,0.809354563,74.1184767277856,1,pencil_2.jpg
+16264,pencil_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pencil/pencil_08s.jpg,0.871794872,pencil,office supply,0.809354563,74.1184767277856,2,pencil_1.jpg
+16286,pendulum_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pendulum/pendulum_06s.jpg,0.780487805,pendulum,NA,0.797710333,62.482369534555716,1,pendulum_1.jpg
+16291,pendulum_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pendulum/pendulum_11s.jpg,0.853658537,pendulum,NA,0.797710333,62.482369534555716,2,pendulum_2.jpg
+16379,pepper2_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pepper2/pepper2_09s.jpg,0.820512821,pepper2,food,0.825691236,86.45980253878702,2,pepper2_1.jpg
+16390,pepper2_20s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pepper2/pepper2_20s.jpg,0.8,pepper2,food,0.825691236,86.45980253878702,1,pepper2_2.jpg
+16416,peppermint_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peppermint/peppermint_10s.jpg,0.775,peppermint,food,0.863024501,99.22425952045134,1,peppermint_2.jpg
+16418,peppermint_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/peppermint/peppermint_12s.jpg,0.875,peppermint,food,0.863024501,99.22425952045134,2,peppermint_1.jpg
+16422,pepperoni_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pepperoni/pepperoni_04s.jpg,0.825,pepperoni,food,0.829231812,88.9280677009873,1,pepperoni_1.jpg
+16430,pepperoni_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pepperoni/pepperoni_12s.jpg,0.875,pepperoni,food,0.829231812,88.9280677009873,2,pepperoni_2.jpg
+16458,pesto_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pesto/pesto_03s.jpg,0.87804878,pesto,food,0.830806875,89.84485190409028,1,pesto_1.jpg
+16459,pesto_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pesto/pesto_04s.jpg,0.818181818,pesto,food,0.830806875,89.84485190409028,2,pesto_2.jpg
+16478,pet_food_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pet_food/pet_food_06s.jpg,0.85,pet_food,NA,0.813406275,77.64456981664316,1,pet_food_2.jpg
+16480,pet_food_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pet_food/pet_food_08s.jpg,0.80952381,pet_food,NA,0.813406275,77.64456981664316,2,pet_food_1.jpg
+16491,petal_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/petal/petal_06s.jpg,0.776219512,petal,NA,0.79513163,59.52045133991537,1,petal_2.jpg
+16497,petal_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/petal/petal_12s.jpg,0.714285714,petal,NA,0.79513163,59.52045133991537,2,petal_1.jpg
+16550,phone_booth_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/phone_booth/phone_booth_06s.jpg,0.756097561,phone_booth,NA,0.812039304,76.09308885754584,1,phone_booth_1.jpg
+16553,phone_booth_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/phone_booth/phone_booth_09s.jpg,0.780487805,phone_booth,NA,0.812039304,76.09308885754584,2,phone_booth_2.jpg
+16624,pickle_14n.jpg,/home/jovyan/projects/generate-sequences/THINGS/pickle/pickle_14n.jpg,0.951219512,pickle,food,0.825537649,86.38928067700988,1,pickle_2.jpg
+16625,pickle_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pickle/pickle_15s.jpg,0.829268293,pickle,food,0.825537649,86.38928067700988,2,pickle_1.jpg
+16642,pie_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pie/pie_16s.jpg,0.743589744,pie,dessert,0.827054984,87.44710860366713,2,pie_1.jpg
+16644,pie_18s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pie/pie_18s.jpg,0.904761905,pie,dessert,0.827054984,87.44710860366713,1,pie_2.jpg
+16653,piecrust_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/piecrust/piecrust_08s.jpg,0.853658537,piecrust,food,0.832900599,90.83215796897038,1,piecrust_2.jpg
+16658,piecrust_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/piecrust/piecrust_13s.jpg,0.794871795,piecrust,food,0.832900599,90.83215796897038,2,piecrust_1.jpg
+16665,pig_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pig/pig_05s.jpg,0.829268293,pig,animal,0.85396565,97.81382228490833,1,pig_1.jpg
+16667,pig_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pig/pig_07s.jpg,0.825,pig,animal,0.85396565,97.81382228490833,2,pig_2.jpg
+16702,piglet_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/piglet/piglet_01b.jpg,0.820512821,piglet,animal,0.83208311,90.33850493653033,2,piglet_1.jpg
+16709,piglet_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/piglet/piglet_08s.jpg,0.87804878,piglet,animal,0.83208311,90.33850493653033,1,piglet_2.jpg
+16764,pin_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pin/pin_11s.jpg,0.825,pin,tool,0.849513385,97.10860366713682,1,pin_2.jpg
+16769,pin_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pin/pin_16s.jpg,0.923076923,pin,tool,0.849513385,97.10860366713682,2,pin_1.jpg
+16776,pinball_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pinball/pinball_06s.jpg,0.820512821,pinball,electronic device,0.805411825,70.45133991537377,1,pinball_2.jpg
+16784,pinball_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pinball/pinball_14s.jpg,0.825,pinball,electronic device,0.805411825,70.45133991537377,2,pinball_1.jpg
+16791,pincushion_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pincushion/pincushion_05s.jpg,0.8,pincushion,NA,0.797790155,62.55289139633287,1,pincushion_1.jpg
+16794,pincushion_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pincushion/pincushion_08s.jpg,0.871794872,pincushion,NA,0.797790155,62.55289139633287,2,pincushion_2.jpg
+16869,pinwheel_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pinwheel/pinwheel_04s.jpg,0.87804878,pinwheel,home decor,0.783048677,46.82651622002821,2,pinwheel_1.jpg
+16873,pinwheel_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pinwheel/pinwheel_08s.jpg,0.80952381,pinwheel,home decor,0.783048677,46.82651622002821,1,pinwheel_2.jpg
+16963,pizza_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pizza/pizza_04s.jpg,0.886363636,pizza,food,0.839978001,93.79407616361071,1,pizza_2.jpg
+16971,pizza_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pizza/pizza_12s.jpg,0.853658537,pizza,food,0.839978001,93.79407616361071,2,pizza_1.jpg
+17057,playing_card_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/playing_card/playing_card_07s.jpg,0.926829268,playing_card,NA,0.85388874,97.67277856135402,2,playing_card_2.jpg
+17059,playing_card_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/playing_card/playing_card_09s.jpg,0.88372093,playing_card,NA,0.85388874,97.67277856135402,1,playing_card_1.jpg
+17066,playpen_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/playpen/playpen_04s.jpg,0.75,playpen,NA,0.802342974,66.6431593794076,1,playpen_2.jpg
+17075,playpen_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/playpen/playpen_13s.jpg,0.794871795,playpen,NA,0.802342974,66.6431593794076,2,playpen_1.jpg
+17079,pliers_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pliers/pliers_03s.jpg,0.815789474,pliers,tool,0.833209106,91.11424541607899,2,pliers_2.jpg
+17086,pliers_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pliers/pliers_10s.jpg,0.75,pliers,tool,0.833209106,91.11424541607899,1,pliers_1.jpg
+17095,plug_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/plug/plug_04s.jpg,0.75,plug,NA,0.796324019,60.78984485190409,1,plug_2.jpg
+17097,plug_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/plug/plug_06s.jpg,0.714285714,plug,NA,0.796324019,60.78984485190409,2,plug_1.jpg
+17141,pocket_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pocket/pocket_11s.jpg,0.794871795,pocket,container,0.808193203,73.20169252468264,1,pocket_1.jpg
+17144,pocket_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pocket/pocket_14s.jpg,0.886363636,pocket,container,0.808193203,73.20169252468264,2,pocket_2.jpg
+17357,pomegranate_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pomegranate/pomegranate_05s.jpg,0.80952381,pomegranate,food,0.836615124,92.45416078984485,2,pomegranate_2.jpg
+17358,pomegranate_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pomegranate/pomegranate_06s.jpg,0.897435897,pomegranate,food,0.836615124,92.45416078984485,1,pomegranate_1.jpg
+17388,poodle_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/poodle/poodle_11s.jpg,0.682926829,poodle,animal,0.82510912,85.96614950634697,1,poodle_2.jpg
+17395,poodle_18s.jpg,/home/jovyan/projects/generate-sequences/THINGS/poodle/poodle_18s.jpg,0.789473684,poodle,animal,0.82510912,85.96614950634697,2,poodle_1.jpg
+17441,popsicle_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/popsicle/popsicle_01b.jpg,0.76744186,popsicle,dessert,0.847645599,96.54442877291962,2,popsicle_2.jpg
+17452,popsicle_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/popsicle/popsicle_12s.jpg,0.925,popsicle,dessert,0.847645599,96.54442877291962,1,popsicle_1.jpg
+17486,possum_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/possum/possum_09s.jpg,0.842105263,possum,animal,0.829748671,89.21015514809591,2,possum_2.jpg
+17487,possum_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/possum/possum_10s.jpg,0.902439024,possum,animal,0.829748671,89.21015514809591,1,possum_1.jpg
+17522,potato_05n.jpg,/home/jovyan/projects/generate-sequences/THINGS/potato/potato_05n.jpg,0.825,potato,food,0.855930326,98.23695345557122,2,potato_2.jpg
+17528,potato_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/potato/potato_11s.jpg,0.80952381,potato,food,0.855930326,98.23695345557122,1,potato_1.jpg
+17645,pretzel_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pretzel/pretzel_10s.jpg,0.825,pretzel,food,0.836975231,92.59520451339915,1,pretzel_1.jpg
+17646,pretzel_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pretzel/pretzel_11s.jpg,0.857142857,pretzel,food,0.836975231,92.59520451339915,2,pretzel_2.jpg
+17789,pug_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pug/pug_03s.jpg,0.857142857,pug,animal,0.852872401,97.60225669957687,2,pug_1.jpg
+17797,pug_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/pug/pug_11s.jpg,0.825,pug,animal,0.852872401,97.60225669957687,1,pug_2.jpg
+17892,punch2_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/punch2/punch2_05s.jpg,0.825,punch2,office supply,0.806629815,71.43864598025388,2,punch2_2.jpg
+17899,punch2_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/punch2/punch2_12s.jpg,0.825,punch2,office supply,0.806629815,71.43864598025388,1,punch2_1.jpg
+17903,punching_bag_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/punching_bag/punching_bag_02s.jpg,0.825,punching_bag,sports equipment,0.826332279,86.88293370944993,1,punching_bag_2.jpg
+17908,punching_bag_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/punching_bag/punching_bag_07s.jpg,0.744186047,punching_bag,sports equipment,0.826332279,86.88293370944993,2,punching_bag_1.jpg
+17932,puppy_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/puppy/puppy_05s.jpg,0.794871795,puppy,animal,0.826195404,86.74188998589563,1,puppy_1.jpg
+17933,puppy_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/puppy/puppy_06s.jpg,0.76744186,puppy,animal,0.826195404,86.74188998589563,2,puppy_2.jpg
+18053,raccoon_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/raccoon/raccoon_03s.jpg,0.775609756,raccoon,animal,0.818888831,82.22849083215797,2,raccoon_2.jpg
+18059,raccoon_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/raccoon/raccoon_09s.jpg,0.825,raccoon,animal,0.818888831,82.22849083215797,1,raccoon_1.jpg
+18078,rack1_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rack1/rack1_02s.jpg,0.857142857,rack1,furniture,0.79363241,57.68688293370945,2,rack1_2.jpg
+18085,rack1_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rack1/rack1_09s.jpg,0.756097561,rack1,furniture,0.79363241,57.68688293370945,1,rack1_1.jpg
+18174,raft_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/raft/raft_03s.jpg,0.725,raft,vehicle,0.793974642,58.180535966149506,2,raft_1.jpg
+18175,raft_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/raft/raft_04s.jpg,0.818181818,raft,vehicle,0.793974642,58.180535966149506,1,raft_2.jpg
+18280,ramp_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ramp/ramp_04s.jpg,0.820512821,ramp,NA,0.803995434,68.68829337094499,1,ramp_1.jpg
+18283,ramp_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ramp/ramp_07s.jpg,0.631578947,ramp,NA,0.803995434,68.68829337094499,2,ramp_2.jpg
+18361,ravioli_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ravioli/ravioli_09s.jpg,0.880952381,ravioli,food,0.825514457,86.31875881523273,2,ravioli_2.jpg
+18364,ravioli_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ravioli/ravioli_12s.jpg,0.743589744,ravioli,food,0.825514457,86.31875881523273,1,ravioli_1.jpg
+18373,razor_04n.jpg,/home/jovyan/projects/generate-sequences/THINGS/razor/razor_04n.jpg,0.904761905,razor,tool,0.820527269,83.42736248236953,1,razor_2.jpg
+18380,razor_11n.jpg,/home/jovyan/projects/generate-sequences/THINGS/razor/razor_11n.jpg,0.736842105,razor,tool,0.820527269,83.42736248236953,2,razor_1.jpg
+18495,red_carpet_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/red_carpet/red_carpet_08s.jpg,0.675,red_carpet,NA,0.798105234,62.90550070521862,1,red_carpet_2.jpg
+18501,red_carpet_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/red_carpet/red_carpet_14s.jpg,0.875,red_carpet,NA,0.798105234,62.90550070521862,2,red_carpet_1.jpg
+18522,refrigerator_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/refrigerator/refrigerator_06s.jpg,0.829268293,refrigerator,electronic device,0.819333087,82.51057827926658,2,refrigerator_2.jpg
+18526,refrigerator_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/refrigerator/refrigerator_10s.jpg,0.8,refrigerator,electronic device,0.819333087,82.51057827926658,1,refrigerator_1.jpg
+18550,remote_control_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/remote_control/remote_control_02s.jpg,0.790697674,remote_control,electronic device,0.798864392,63.68124118476728,1,remote_control_2.jpg
+18555,remote_control_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/remote_control/remote_control_07s.jpg,0.714285714,remote_control,electronic device,0.798864392,63.68124118476728,2,remote_control_1.jpg
+18607,rhinoceros_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rhinoceros/rhinoceros_02s.jpg,0.804878049,rhinoceros,animal,0.855465656,98.09590973201693,1,rhinoceros_1.jpg
+18616,rhinoceros_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rhinoceros/rhinoceros_11s.jpg,0.87804878,rhinoceros,animal,0.855465656,98.09590973201693,2,rhinoceros_2.jpg
+18646,rice_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/rice/rice_01b.jpg,0.906976744,rice,food,0.828631362,88.3638928067701,1,rice_2.jpg
+18650,rice_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rice/rice_05s.jpg,0.860465116,rice,food,0.828631362,88.3638928067701,2,rice_1.jpg
+18764,robot_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/robot/robot_01b.jpg,0.756097561,robot,toy,0.813734478,77.78561354019746,2,robot_1.jpg
+18776,robot_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/robot/robot_13s.jpg,0.875,robot,toy,0.813734478,77.78561354019746,1,robot_2.jpg
+18861,roller_coaster_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/roller_coaster/roller_coaster_03s.jpg,0.775,roller_coaster,NA,0.800584496,65.16220028208744,2,roller_coaster_2.jpg
+18874,roller_coaster_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/roller_coaster/roller_coaster_16s.jpg,0.825,roller_coaster,NA,0.800584496,65.16220028208744,1,roller_coaster_1.jpg
+18889,rollerskate_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/rollerskate/rollerskate_01b.jpg,0.930232558,rollerskate,sports equipment,0.819986711,83.00423131170663,1,rollerskate_2.jpg
+18891,rollerskate_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rollerskate/rollerskate_03s.jpg,0.853658537,rollerskate,sports equipment,0.819986711,83.00423131170663,2,rollerskate_1.jpg
+18933,rooster_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rooster/rooster_08s.jpg,0.7,rooster,animal,0.826774788,87.09449929478139,1,rooster_2.jpg
+18935,rooster_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rooster/rooster_10s.jpg,0.833333333,rooster,animal,0.826774788,87.09449929478139,2,rooster_1.jpg
+18941,root_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/root/root_02s.jpg,0.875,root,NA,0.805741241,70.80394922425953,1,root_1.jpg
+18944,root_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/root/root_05s.jpg,0.564102564,root,NA,0.805741241,70.80394922425953,2,root_2.jpg
+19044,ruby_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ruby/ruby_05s.jpg,0.897435897,ruby,NA,0.805032811,70.23977433004231,2,ruby_1.jpg
+19052,ruby_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ruby/ruby_13s.jpg,0.756097561,ruby,NA,0.805032811,70.23977433004231,1,ruby_2.jpg
+19072,rug_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rug/rug_05s.jpg,0.871794872,rug,home decor,0.794796723,58.956276445698165,2,rug_2.jpg
+19080,rug_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/rug/rug_13s.jpg,0.720930233,rug,home decor,0.794796723,58.956276445698165,1,rug_1.jpg
+19122,safety_pin_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/safety_pin/safety_pin_02s.jpg,0.815789474,safety_pin,NA,0.803727063,68.47672778561355,1,safety_pin_1.jpg
+19127,safety_pin_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/safety_pin/safety_pin_07s.jpg,0.857142857,safety_pin,NA,0.803727063,68.47672778561355,2,safety_pin_2.jpg
+19192,salami_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/salami/salami_02s.jpg,0.921052632,salami,food,0.859278179,98.66008462623414,1,salami_1.jpg
+19193,salami_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/salami/salami_03s.jpg,0.804878049,salami,food,0.859278179,98.66008462623414,2,salami_2.jpg
+19205,saltshaker_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/saltshaker/saltshaker_01b.jpg,0.925,saltshaker,container,0.814859513,78.56135401974612,1,saltshaker_1.jpg
+19211,saltshaker_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/saltshaker/saltshaker_07s.jpg,0.8,saltshaker,container,0.814859513,78.56135401974612,2,saltshaker_2.jpg
+19277,sandbox_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sandbox/sandbox_07s.jpg,0.85,sandbox,NA,0.813109555,77.29196050775741,2,sandbox_1.jpg
+19279,sandbox_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sandbox/sandbox_09s.jpg,0.804878049,sandbox,NA,0.813109555,77.29196050775741,1,sandbox_2.jpg
+19329,sarcophagus_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sarcophagus/sarcophagus_06s.jpg,0.846153846,sarcophagus,container,0.806871668,72.00282087447108,2,sarcophagus_2.jpg
+19334,sarcophagus_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sarcophagus/sarcophagus_11s.jpg,0.538461538,sarcophagus,container,0.806871668,72.00282087447108,1,sarcophagus_1.jpg
+19397,sauerkraut_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sauerkraut/sauerkraut_02s.jpg,0.8,sauerkraut,food,0.852633447,97.53173483779972,1,sauerkraut_1.jpg
+19405,sauerkraut_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sauerkraut/sauerkraut_10s.jpg,0.926829268,sauerkraut,food,0.852633447,97.53173483779972,2,sauerkraut_2.jpg
+19450,saxophone_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/saxophone/saxophone_01s.jpg,0.925,saxophone,musical instrument,0.848866777,96.82651622002821,1,saxophone_1.jpg
+19453,saxophone_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/saxophone/saxophone_04s.jpg,0.853658537,saxophone,musical instrument,0.848866777,96.82651622002821,2,saxophone_2.jpg
+19489,scale_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scale/scale_03s.jpg,0.846153846,scale,NA,0.802452994,66.71368124118476,2,scale_2.jpg
+19495,scale_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scale/scale_09s.jpg,0.829268293,scale,NA,0.802452994,66.71368124118476,1,scale_1.jpg
+19507,scallion_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scallion/scallion_09s.jpg,0.926829268,scallion,food,0.846159182,96.05077574047954,1,scallion_2.jpg
+19508,scallion_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scallion/scallion_10s.jpg,0.868421053,scallion,food,0.846159182,96.05077574047954,2,scallion_1.jpg
+19516,scallop_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scallop/scallop_03s.jpg,0.891891892,scallop,animal,0.833485374,91.32581100141044,1,scallop_2.jpg
+19518,scallop_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scallop/scallop_05s.jpg,0.948717949,scallop,animal,0.833485374,91.32581100141044,2,scallop_1.jpg
+19556,scarecrow_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scarecrow/scarecrow_03s.jpg,0.8,scarecrow,home decor,0.826970462,87.23554301833568,1,scarecrow_2.jpg
+19564,scarecrow_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scarecrow/scarecrow_11s.jpg,0.794871795,scarecrow,home decor,0.826970462,87.23554301833568,2,scarecrow_1.jpg
+19585,school_bus_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/school_bus/school_bus_04s.jpg,0.666666667,school_bus,vehicle,0.796010656,60.507757404795484,1,school_bus_1.jpg
+19590,school_bus_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/school_bus/school_bus_09s.jpg,0.8,school_bus,vehicle,0.796010656,60.507757404795484,2,school_bus_2.jpg
+19628,scoop_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scoop/scoop_06s.jpg,0.725609756,scoop,kitchen tool,0.808364292,73.2722143864598,2,scoop_1.jpg
+19633,scoop_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scoop/scoop_11s.jpg,0.761904762,scoop,kitchen tool,0.808364292,73.2722143864598,1,scoop_2.jpg
+19681,scrabble_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scrabble/scrabble_05s.jpg,0.820512821,scrabble,NA,0.863925556,99.4358251057828,2,scrabble_2.jpg
+19688,scrabble_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scrabble/scrabble_12s.jpg,0.875,scrabble,NA,0.863925556,99.4358251057828,1,scrabble_1.jpg
+19701,scraper_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/scraper/scraper_01b.jpg,0.926829268,scraper,tool,0.808728159,73.5543018335684,1,scraper_2.jpg
+19712,scraper_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/scraper/scraper_12s.jpg,0.825,scraper,tool,0.808728159,73.5543018335684,2,scraper_1.jpg
+19746,screw_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/screw/screw_06s.jpg,0.804878049,screw,tool,0.812382646,76.4456981664316,1,screw_2.jpg
+19748,screw_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/screw/screw_08s.jpg,0.923076923,screw,tool,0.812382646,76.4456981664316,2,screw_1.jpg
+19836,seahorse_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seahorse/seahorse_02s.jpg,0.87804878,seahorse,animal,0.823013435,84.9083215796897,1,seahorse_1.jpg
+19838,seahorse_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seahorse/seahorse_04s.jpg,0.842105263,seahorse,animal,0.823013435,84.9083215796897,2,seahorse_2.jpg
+19852,seal_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seal/seal_03s.jpg,0.813953488,seal,animal,0.827917978,88.01128349788434,2,seal_1.jpg
+19860,seal_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seal/seal_11s.jpg,0.743589744,seal,animal,0.827917978,88.01128349788434,1,seal_2.jpg
+19864,seaplane_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/seaplane/seaplane_01b.jpg,0.775,seaplane,vehicle,0.791510964,55.289139633286325,2,seaplane_1.jpg
+19872,seaplane_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seaplane/seaplane_09s.jpg,0.842105263,seaplane,vehicle,0.791510964,55.289139633286325,1,seaplane_2.jpg
+19920,seesaw_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seesaw/seesaw_04s.jpg,0.775,seesaw,NA,0.816532826,79.76022566995769,2,seesaw_2.jpg
+19924,seesaw_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seesaw/seesaw_08s.jpg,0.794871795,seesaw,NA,0.816532826,79.76022566995769,1,seesaw_1.jpg
+19932,seismograph_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seismograph/seismograph_03s.jpg,0.902439024,seismograph,NA,0.822505012,84.6262341325811,1,seismograph_2.jpg
+19935,seismograph_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/seismograph/seismograph_06s.jpg,0.775,seismograph,NA,0.822505012,84.6262341325811,2,seismograph_1.jpg
+19945,sequin_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sequin/sequin_04s.jpg,0.897435897,sequin,NA,0.804334978,69.46403385049365,2,sequin_1.jpg
+19952,sequin_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sequin/sequin_11s.jpg,0.674418605,sequin,NA,0.804334978,69.46403385049365,1,sequin_2.jpg
+19988,sewing_machine_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sewing_machine/sewing_machine_06s.jpg,0.875,sewing_machine,electronic device,0.795142177,59.59097320169252,1,sewing_machine_1.jpg
+19990,sewing_machine_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sewing_machine/sewing_machine_08s.jpg,0.837209302,sewing_machine,electronic device,0.795142177,59.59097320169252,2,sewing_machine_2.jpg
+20029,shaving_cream_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shaving_cream/shaving_cream_06s.jpg,0.825,shaving_cream,NA,0.837717479,92.87729196050776,2,shaving_cream_1.jpg
+20032,shaving_cream_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shaving_cream/shaving_cream_09s.jpg,0.871794872,shaving_cream,NA,0.837717479,92.87729196050776,1,shaving_cream_2.jpg
+20058,shears_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shears/shears_10s.jpg,0.846153846,shears,tool,0.825136733,86.03667136812412,1,shears_1.jpg
+20059,shears_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shears/shears_11s.jpg,0.833333333,shears,tool,0.825136733,86.03667136812412,2,shears_2.jpg
+20102,shelf_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shelf/shelf_02s.jpg,0.952380952,shelf,furniture,0.802513985,66.85472496473906,2,shelf_1.jpg
+20105,shelf_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shelf/shelf_05s.jpg,0.80952381,shelf,furniture,0.802513985,66.85472496473906,1,shelf_2.jpg
+20238,shoelace_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shoelace/shoelace_05s.jpg,0.820512821,shoelace,NA,0.821055516,83.99153737658675,1,shoelace_2.jpg
+20245,shoelace_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shoelace/shoelace_12s.jpg,0.902439024,shoelace,NA,0.821055516,83.99153737658675,2,shoelace_1.jpg
+20255,shopping_basket_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shopping_basket/shopping_basket_09s.jpg,0.872435897,shopping_basket,container,0.826046498,86.67136812411847,1,shopping_basket_2.jpg
+20258,shopping_basket_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shopping_basket/shopping_basket_12s.jpg,0.853658537,shopping_basket,container,0.826046498,86.67136812411847,2,shopping_basket_1.jpg
+20260,shopping_cart_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shopping_cart/shopping_cart_02s.jpg,0.85,shopping_cart,container,0.794110713,58.25105782792666,1,shopping_cart_2.jpg
+20262,shopping_cart_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shopping_cart/shopping_cart_04s.jpg,0.780487805,shopping_cart,container,0.794110713,58.25105782792666,2,shopping_cart_1.jpg
+20382,showerhead_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/showerhead/showerhead_12s.jpg,0.853658537,showerhead,NA,0.799277826,64.03385049365303,2,showerhead_2.jpg
+20385,showerhead_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/showerhead/showerhead_15s.jpg,0.871794872,showerhead,NA,0.799277826,64.03385049365303,1,showerhead_1.jpg
+20402,shrimp_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/shrimp/shrimp_02s.jpg,0.902439024,shrimp,animal,0.840124749,93.86459802538786,2,shrimp_1.jpg
+20406,shrimp_06n.jpg,/home/jovyan/projects/generate-sequences/THINGS/shrimp/shrimp_06n.jpg,0.780487805,shrimp,animal,0.840124749,93.86459802538786,1,shrimp_2.jpg
+20519,sim_card_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sim_card/sim_card_04s.jpg,0.756097561,sim_card,NA,0.845378025,95.76868829337094,1,sim_card_2.jpg
+20521,sim_card_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sim_card/sim_card_06s.jpg,0.897435897,sim_card,NA,0.845378025,95.76868829337094,2,sim_card_1.jpg
+20536,sink_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sink/sink_08s.jpg,0.829268293,sink,NA,0.802795529,67.06629055007052,1,sink_1.jpg
+20542,sink_14n.jpg,/home/jovyan/projects/generate-sequences/THINGS/sink/sink_14n.jpg,0.825,sink,NA,0.802795529,67.06629055007052,2,sink_2.jpg
+20587,skewer_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/skewer/skewer_01b.jpg,0.8,skewer,kitchen tool,0.806817274,71.93229901269393,2,skewer_2.jpg
+20593,skewer_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/skewer/skewer_07s.jpg,0.692307692,skewer,kitchen tool,0.806817274,71.93229901269393,1,skewer_1.jpg
+20695,skunk_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/skunk/skunk_02s.jpg,0.9,skunk,animal,0.83039586,89.63328631875882,2,skunk_1.jpg
+20701,skunk_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/skunk/skunk_08s.jpg,0.880952381,skunk,animal,0.83039586,89.63328631875882,1,skunk_2.jpg
+20738,sleeping_bag_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sleeping_bag/sleeping_bag_06s.jpg,0.842105263,sleeping_bag,NA,0.819054058,82.29901269393513,1,sleeping_bag_1.jpg
+20742,sleeping_bag_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sleeping_bag/sleeping_bag_10s.jpg,0.897435897,sleeping_bag,NA,0.819054058,82.29901269393513,2,sleeping_bag_2.jpg
+20760,slide_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/slide/slide_02s.jpg,0.675675676,slide,NA,0.798380259,63.11706629055007,1,slide_1.jpg
+20774,slide_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/slide/slide_16s.jpg,0.857142857,slide,NA,0.798380259,63.11706629055007,2,slide_2.jpg
+20858,sloth_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sloth/sloth_08s.jpg,0.948717949,sloth,animal,0.840887906,94.14668547249647,1,sloth_1.jpg
+20860,sloth_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sloth/sloth_10s.jpg,0.853658537,sloth,animal,0.840887906,94.14668547249647,2,sloth_2.jpg
+20879,smoke_alarm_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/smoke_alarm/smoke_alarm_03s.jpg,0.8,smoke_alarm,electronic device,0.791577247,55.35966149506347,2,smoke_alarm_1.jpg
+20883,smoke_alarm_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/smoke_alarm/smoke_alarm_07s.jpg,0.692307692,smoke_alarm,electronic device,0.791577247,55.35966149506347,1,smoke_alarm_2.jpg
+20891,smoothie_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/smoothie/smoothie_03s.jpg,0.75,smoothie,drink,0.794924827,59.02679830747532,2,smoothie_2.jpg
+20898,smoothie_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/smoothie/smoothie_10s.jpg,0.871794872,smoothie,drink,0.794924827,59.02679830747532,1,smoothie_1.jpg
+20957,snorkel_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snorkel/snorkel_06s.jpg,0.651219512,snorkel,sports equipment,0.812602718,76.7277856135402,1,snorkel_1.jpg
+20960,snorkel_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snorkel/snorkel_09s.jpg,0.756097561,snorkel,sports equipment,0.812602718,76.7277856135402,2,snorkel_2.jpg
+20984,snowball_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowball/snowball_07s.jpg,0.954545455,snowball,NA,0.831188036,89.91537376586743,2,snowball_1.jpg
+20985,snowball_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowball/snowball_08s.jpg,0.976190476,snowball,NA,0.831188036,89.91537376586743,1,snowball_2.jpg
+21004,snowman_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowman/snowman_03s.jpg,0.794871795,snowman,NA,0.824972295,85.89562764456981,1,snowman_1.jpg
+21006,snowman_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowman/snowman_05s.jpg,0.820512821,snowman,NA,0.824972295,85.89562764456981,2,snowman_2.jpg
+21035,snowplow_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowplow/snowplow_10s.jpg,0.780487805,snowplow,vehicle,0.777787456,40.62059238363893,1,snowplow_2.jpg
+21037,snowplow_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/snowplow/snowplow_12s.jpg,0.761904762,snowplow,vehicle,0.777787456,40.62059238363893,2,snowplow_1.jpg
+21067,soap_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/soap/soap_05s.jpg,0.820512821,soap,NA,0.813096236,77.22143864598026,2,soap_1.jpg
+21071,soap_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/soap/soap_09s.jpg,0.75,soap,NA,0.813096236,77.22143864598026,1,soap_2.jpg
+21114,soda_fountain_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/soda_fountain/soda_fountain_02s.jpg,0.9,soda_fountain,NA,0.84223896,94.78138222849083,2,soda_fountain_2.jpg
+21119,soda_fountain_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/soda_fountain/soda_fountain_07s.jpg,0.85,soda_fountain,NA,0.84223896,94.78138222849083,1,soda_fountain_1.jpg
+21131,sofa_bed_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sofa_bed/sofa_bed_06s.jpg,0.697674419,sofa_bed,furniture,0.803444325,68.19464033850494,1,sofa_bed_2.jpg
+21135,sofa_bed_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sofa_bed/sofa_bed_10s.jpg,0.692307692,sofa_bed,furniture,0.803444325,68.19464033850494,2,sofa_bed_1.jpg
+21142,solar_panel_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/solar_panel/solar_panel_04s.jpg,0.783783784,solar_panel,NA,0.842670673,94.92242595204513,1,solar_panel_1.jpg
+21144,solar_panel_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/solar_panel/solar_panel_06s.jpg,0.75,solar_panel,NA,0.842670673,94.92242595204513,2,solar_panel_2.jpg
+21195,sorbet_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sorbet/sorbet_05s.jpg,0.761904762,sorbet,dessert,0.818655269,82.01692524682652,2,sorbet_1.jpg
+21197,sorbet_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sorbet/sorbet_07s.jpg,0.772727273,sorbet,dessert,0.818655269,82.01692524682652,1,sorbet_2.jpg
+21251,space_shuttle_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/space_shuttle/space_shuttle_06s.jpg,0.875,space_shuttle,vehicle,0.775368541,38.5049365303244,2,space_shuttle_2.jpg
+21254,space_shuttle_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/space_shuttle/space_shuttle_09s.jpg,0.794871795,space_shuttle,vehicle,0.775368541,38.5049365303244,1,space_shuttle_1.jpg
+21275,spaghetti_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spaghetti/spaghetti_05s.jpg,0.902439024,spaghetti,food,0.846495911,96.262341325811,2,spaghetti_2.jpg
+21281,spaghetti_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spaghetti/spaghetti_11s.jpg,0.9,spaghetti,food,0.846495911,96.262341325811,1,spaghetti_1.jpg
+21301,spareribs_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spareribs/spareribs_05s.jpg,0.948717949,spareribs,food,0.841960697,94.64033850493652,1,spareribs_1.jpg
+21303,spareribs_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spareribs/spareribs_07s.jpg,0.780487805,spareribs,food,0.841960697,94.64033850493652,2,spareribs_2.jpg
+21418,spider_web_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spider_web/spider_web_02s.jpg,0.744186047,spider_web,NA,0.838317464,93.37094499294781,1,spider_web_2.jpg
+21431,spider_web_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spider_web/spider_web_15s.jpg,0.87804878,spider_web,NA,0.838317464,93.37094499294781,2,spider_web_1.jpg
+21468,sponge_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sponge/sponge_12s.jpg,0.904761905,sponge,NA,0.817010472,80.25387870239774,2,sponge_2.jpg
+21469,sponge_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sponge/sponge_13s.jpg,0.925,sponge,NA,0.817010472,80.25387870239774,1,sponge_1.jpg
+21488,spoon_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spoon/spoon_04s.jpg,0.725,spoon,kitchen tool,0.799433968,64.24541607898449,2,spoon_1.jpg
+21491,spoon_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spoon/spoon_07s.jpg,0.756097561,spoon,kitchen tool,0.799433968,64.24541607898449,1,spoon_2.jpg
+21519,spring_roll_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spring_roll/spring_roll_08s.jpg,0.743589744,spring_roll,food,0.832461869,90.69111424541609,2,spring_roll_2.jpg
+21520,spring_roll_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spring_roll/spring_roll_09s.jpg,0.820512821,spring_roll,food,0.832461869,90.69111424541609,1,spring_roll_1.jpg
+21558,sprouts_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sprouts/sprouts_03s.jpg,0.925,sprouts,food,0.847566099,96.47390691114246,1,sprouts_2.jpg
+21561,sprouts_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sprouts/sprouts_06s.jpg,0.875,sprouts,food,0.847566099,96.47390691114246,2,sprouts_1.jpg
+21572,spur_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spur/spur_05s.jpg,0.804878049,spur,NA,0.801205252,65.6558533145275,2,spur_2.jpg
+21573,spur_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/spur/spur_06s.jpg,0.675,spur,NA,0.801205252,65.6558533145275,1,spur_1.jpg
+21598,squeegee_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/squeegee/squeegee_05s.jpg,0.75,squeegee,tool,0.815189337,78.70239774330042,2,squeegee_1.jpg
+21599,squeegee_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/squeegee/squeegee_06s.jpg,0.875,squeegee,tool,0.815189337,78.70239774330042,1,squeegee_2.jpg
+21670,stair_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stair/stair_11s.jpg,0.825,stair,NA,0.815680671,79.12552891396332,1,stair_1.jpg
+21671,stair_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stair/stair_12s.jpg,0.846153846,stair,NA,0.815680671,79.12552891396332,2,stair_2.jpg
+21707,stamp1_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stamp1/stamp1_03s.jpg,0.902439024,stamp1,NA,0.820766585,83.77997179125529,1,stamp1_1.jpg
+21711,stamp1_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stamp1/stamp1_07s.jpg,0.820512821,stamp1,NA,0.820766585,83.77997179125529,2,stamp1_2.jpg
+21735,staple_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/staple/staple_06s.jpg,0.756756757,staple,office supply,0.810980615,75.03526093088858,1,staple_2.jpg
+21736,staple_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/staple/staple_07s.jpg,0.775,staple,office supply,0.810980615,75.03526093088858,2,staple_1.jpg
+21800,station_wagon_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/station_wagon/station_wagon_07s.jpg,0.837209302,station_wagon,vehicle,0.776456573,39.421720733427364,1,station_wagon_2.jpg
+21804,station_wagon_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/station_wagon/station_wagon_11s.jpg,0.756097561,station_wagon,vehicle,0.776456573,39.421720733427364,2,station_wagon_1.jpg
+21884,step_stool_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/step_stool/step_stool_06s.jpg,0.775,step_stool,furniture,0.817481272,80.81805359661494,2,step_stool_2.jpg
+21890,step_stool_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/step_stool/step_stool_12s.jpg,0.897435897,step_stool,furniture,0.817481272,80.81805359661494,1,step_stool_1.jpg
+21958,sticker_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sticker/sticker_12s.jpg,0.825,sticker,NA,0.795475966,60.15514809590973,1,sticker_1.jpg
+21959,sticker_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sticker/sticker_13s.jpg,0.769230769,sticker,NA,0.795475966,60.15514809590973,2,sticker_2.jpg
+21991,stingray_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stingray/stingray_03s.jpg,0.666666667,stingray,animal,0.818491609,81.87588152327221,1,stingray_2.jpg
+21996,stingray_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/stingray/stingray_08s.jpg,0.725,stingray,animal,0.818491609,81.87588152327221,2,stingray_1.jpg
+22169,straw2_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/straw2/straw2_05s.jpg,0.925,straw2,NA,0.836098362,92.2425952045134,2,straw2_1.jpg
+22174,straw2_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/straw2/straw2_10s.jpg,0.925,straw2,NA,0.836098362,92.2425952045134,1,straw2_2.jpg
+22299,subway_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/subway/subway_06s.jpg,0.842105263,subway,vehicle,0.850232523,97.24964739069112,2,subway_2.jpg
+22300,subway_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/subway/subway_07s.jpg,0.846153846,subway,vehicle,0.850232523,97.24964739069112,1,subway_1.jpg
+22308,sugar_cube_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sugar_cube/sugar_cube_02s.jpg,0.902439024,sugar_cube,food,0.846276386,96.19181946403384,2,sugar_cube_2.jpg
+22311,sugar_cube_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sugar_cube/sugar_cube_05s.jpg,0.743589744,sugar_cube,food,0.846276386,96.19181946403384,1,sugar_cube_1.jpg
+22337,suitcase_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/suitcase/suitcase_04s.jpg,0.8,suitcase,container,0.814455037,77.99717912552892,2,suitcase_1.jpg
+22347,suitcase_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/suitcase/suitcase_14s.jpg,0.829268293,suitcase,container,0.814455037,77.99717912552892,1,suitcase_2.jpg
+22437,sushi_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sushi/sushi_02s.jpg,0.875,sushi,food,0.822439274,84.55571227080395,1,sushi_1.jpg
+22440,sushi_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sushi/sushi_05s.jpg,0.833333333,sushi,food,0.822439274,84.55571227080395,2,sushi_2.jpg
+22541,sweeper_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sweeper/sweeper_11s.jpg,0.829268293,sweeper,tool,0.834970794,91.9605077574048,1,sweeper_2.jpg
+22544,sweeper_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/sweeper/sweeper_14s.jpg,0.853658537,sweeper,tool,0.834970794,91.9605077574048,2,sweeper_1.jpg
+22711,tab_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/tab/tab_01b.jpg,0.825,tab,NA,0.84273299,95.06346967559944,2,tab_1.jpg
+22720,tab_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tab/tab_10s.jpg,0.833333333,tab,NA,0.84273299,95.06346967559944,1,tab_2.jpg
+22763,tack_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tack/tack_02s.jpg,0.925,tack,office supply,0.845266184,95.62764456981664,2,tack_2.jpg
+22771,tack_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tack/tack_10s.jpg,0.894736842,tack,office supply,0.845266184,95.62764456981664,1,tack_1.jpg
+22792,taco_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/taco/taco_05s.jpg,0.769230769,taco,food,0.829663287,89.13963328631876,2,taco_2.jpg
+22799,taco_12n.jpg,/home/jovyan/projects/generate-sequences/THINGS/taco/taco_12n.jpg,0.80952381,taco,food,0.829663287,89.13963328631876,1,taco_1.jpg
+22833,tag_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tag/tag_08s.jpg,0.875,tag,NA,0.865683684,99.64739069111424,2,tag_1.jpg
+22834,tag_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tag/tag_09s.jpg,0.921052632,tag,NA,0.865683684,99.64739069111424,1,tag_2.jpg
+22859,tamale_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tamale/tamale_05s.jpg,0.880952381,tamale,food,0.854030849,97.88434414668548,2,tamale_2.jpg
+22870,tamale_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tamale/tamale_16s.jpg,0.8,tamale,food,0.854030849,97.88434414668548,1,tamale_1.jpg
+22931,tape_measure_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tape_measure/tape_measure_05s.jpg,0.7,tape_measure,tool,0.815264439,78.91396332863188,1,tape_measure_1.jpg
+22936,tape_measure_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tape_measure/tape_measure_10s.jpg,0.897435897,tape_measure,tool,0.815264439,78.91396332863188,2,tape_measure_2.jpg
+23064,teabag_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/teabag/teabag_03s.jpg,0.804878049,teabag,NA,0.82458094,85.54301833568407,1,teabag_2.jpg
+23072,teabag_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/teabag/teabag_11s.jpg,0.902439024,teabag,NA,0.82458094,85.54301833568407,2,teabag_1.jpg
+23091,teapot_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/teapot/teapot_03s.jpg,0.794871795,teapot,container,0.798116531,62.97602256699577,1,teapot_1.jpg
+23093,teapot_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/teapot/teapot_05s.jpg,0.825,teapot,container,0.798116531,62.97602256699577,2,teapot_2.jpg
+23121,tee_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tee/tee_08s.jpg,0.813953488,tee,sports equipment,0.808869614,73.6953455571227,1,tee_1.jpg
+23123,tee_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tee/tee_10s.jpg,0.837209302,tee,sports equipment,0.808869614,73.6953455571227,2,tee_2.jpg
+23208,tent_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tent/tent_02s.jpg,0.725,tent,container,0.807419191,72.56699576868829,1,tent_1.jpg
+23220,tent_14n.jpg,/home/jovyan/projects/generate-sequences/THINGS/tent/tent_14n.jpg,0.875,tent,container,0.807419191,72.56699576868829,2,tent_2.jpg
+23236,test_tube_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/test_tube/test_tube_01b.jpg,0.973684211,test_tube,container,0.833246277,91.18476727785614,1,test_tube_1.jpg
+23240,test_tube_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/test_tube/test_tube_05s.jpg,0.744186047,test_tube,container,0.833246277,91.18476727785614,2,test_tube_2.jpg
+23288,thermostat_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/thermostat/thermostat_07s.jpg,0.902439024,thermostat,NA,0.856391643,98.30747531734838,1,thermostat_1.jpg
+23297,thermostat_16s.jpg,/home/jovyan/projects/generate-sequences/THINGS/thermostat/thermostat_16s.jpg,0.840909091,thermostat,NA,0.856391643,98.30747531734838,2,thermostat_2.jpg
+23342,throne_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/throne/throne_04s.jpg,0.880952381,throne,furniture,0.836585837,92.3836389280677,1,throne_2.jpg
+23348,throne_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/throne/throne_10s.jpg,0.825,throne,furniture,0.836585837,92.3836389280677,2,throne_1.jpg
+23366,thumbtack_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/thumbtack/thumbtack_04s.jpg,0.789473684,thumbtack,office supply,0.811045059,75.17630465444289,2,thumbtack_1.jpg
+23371,thumbtack_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/thumbtack/thumbtack_09s.jpg,0.675,thumbtack,office supply,0.811045059,75.17630465444289,1,thumbtack_2.jpg
+23406,ticktacktoe_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ticktacktoe/ticktacktoe_05s.jpg,0.948717949,ticktacktoe,NA,0.85672544,98.51904090267983,1,ticktacktoe_2.jpg
+23413,ticktacktoe_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ticktacktoe/ticktacktoe_12s.jpg,0.9,ticktacktoe,NA,0.85672544,98.51904090267983,2,ticktacktoe_1.jpg
+23432,tiger_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tiger/tiger_06s.jpg,0.785714286,tiger,animal,0.828087317,88.15232722143864,2,tiger_1.jpg
+23436,tiger_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tiger/tiger_10s.jpg,0.902439024,tiger,animal,0.828087317,88.15232722143864,1,tiger_2.jpg
+23521,toast_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toast/toast_09s.jpg,0.829268293,toast,food,0.846746904,96.33286318758815,1,toast_2.jpg
+23523,toast_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toast/toast_11s.jpg,0.860465116,toast,food,0.846746904,96.33286318758815,2,toast_1.jpg
+23666,tool_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/tool/tool_01b.jpg,0.804878049,tool,tool,0.822721283,84.83779971791256,2,tool_2.jpg
+23673,tool_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tool/tool_08s.jpg,0.820512821,tool,tool,0.822721283,84.83779971791256,1,tool_1.jpg
+23712,toothbrush_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothbrush/toothbrush_07s.jpg,0.871794872,toothbrush,NA,0.809731062,74.47108603667137,2,toothbrush_1.jpg
+23715,toothbrush_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothbrush/toothbrush_10s.jpg,0.9,toothbrush,NA,0.809731062,74.47108603667137,1,toothbrush_2.jpg
+23720,toothpaste_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothpaste/toothpaste_03s.jpg,0.926829268,toothpaste,NA,0.884135311,100.0,1,toothpaste_1.jpg
+23725,toothpaste_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothpaste/toothpaste_08s.jpg,0.902439024,toothpaste,NA,0.884135311,100.0,2,toothpaste_2.jpg
+23740,toothpick_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothpick/toothpick_09s.jpg,0.8,toothpick,NA,0.832291916,90.55007052186178,1,toothpick_2.jpg
+23742,toothpick_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toothpick/toothpick_11s.jpg,0.974358974,toothpick,NA,0.832291916,90.55007052186178,2,toothpick_1.jpg
+23822,tortilla_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tortilla/tortilla_09s.jpg,0.928571429,tortilla,food,0.848421123,96.75599435825106,1,tortilla_1.jpg
+23824,tortilla_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tortilla/tortilla_11s.jpg,0.707317073,tortilla,food,0.848421123,96.75599435825106,2,tortilla_2.jpg
+23859,toucan_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toucan/toucan_06s.jpg,0.904761905,toucan,animal,0.830393005,89.56276445698167,1,toucan_2.jpg
+23868,toucan_15s.jpg,/home/jovyan/projects/generate-sequences/THINGS/toucan/toucan_15s.jpg,0.80952381,toucan,animal,0.830393005,89.56276445698167,2,toucan_1.jpg
+23875,touchpad_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/touchpad/touchpad_06s.jpg,0.9,touchpad,NA,0.812232075,76.23413258110014,2,touchpad_2.jpg
+23879,touchpad_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/touchpad/touchpad_10s.jpg,0.738095238,touchpad,NA,0.812232075,76.23413258110014,1,touchpad_1.jpg
+23884,towel_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/towel/towel_03s.jpg,0.756097561,towel,NA,0.811002831,75.10578279266574,2,towel_1.jpg
+23889,towel_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/towel/towel_08s.jpg,0.785714286,towel,NA,0.811002831,75.10578279266574,1,towel_2.jpg
+23971,train_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/train/train_04s.jpg,0.707317073,train,vehicle,0.802250048,66.43159379407616,1,train_2.jpg
+23973,train_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/train/train_06s.jpg,0.9,train,vehicle,0.802250048,66.43159379407616,2,train_1.jpg
+24007,trampoline_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trampoline/trampoline_03s.jpg,0.864864865,trampoline,sports equipment,0.817873176,81.24118476727786,2,trampoline_2.jpg
+24014,trampoline_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trampoline/trampoline_10s.jpg,0.7,trampoline,sports equipment,0.817873176,81.24118476727786,1,trampoline_1.jpg
+24199,trolley_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trolley/trolley_12s.jpg,0.736842105,trolley,vehicle,0.797931743,62.76445698166432,2,trolley_2.jpg
+24200,trolley_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trolley/trolley_13s.jpg,0.875,trolley,vehicle,0.797931743,62.76445698166432,1,trolley_1.jpg
+24206,trombone_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trombone/trombone_05s.jpg,0.804878049,trombone,musical instrument,0.802916152,67.41889985895627,2,trombone_1.jpg
+24208,trombone_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trombone/trombone_07s.jpg,0.756097561,trombone,musical instrument,0.802916152,67.41889985895627,1,trombone_2.jpg
+24272,trumpet_01s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trumpet/trumpet_01s.jpg,0.756097561,trumpet,musical instrument,0.797525827,62.12976022566996,2,trumpet_1.jpg
+24279,trumpet_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/trumpet/trumpet_08s.jpg,0.902439024,trumpet,musical instrument,0.797525827,62.12976022566996,1,trumpet_2.jpg
+24338,tulip_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tulip/tulip_02s.jpg,0.813953488,tulip,plant,0.758137256,24.47108603667137,2,tulip_2.jpg
+24350,tulip_14s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tulip/tulip_14s.jpg,0.804878049,tulip,plant,0.758137256,24.47108603667137,1,tulip_1.jpg
+24353,tumbleweed_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/tumbleweed/tumbleweed_01b.jpg,0.880952381,tumbleweed,plant,0.776667938,39.492242595204516,1,tumbleweed_1.jpg
+24359,tumbleweed_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tumbleweed/tumbleweed_07s.jpg,0.8,tumbleweed,plant,0.776667938,39.492242595204516,2,tumbleweed_2.jpg
+24380,tupperware_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tupperware/tupperware_02s.jpg,0.829268293,tupperware,container,0.794567868,58.67418899858956,1,tupperware_1.jpg
+24384,tupperware_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/tupperware/tupperware_06s.jpg,0.763157895,tupperware,container,0.794567868,58.67418899858956,2,tupperware_2.jpg
+24430,turf_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/turf/turf_10s.jpg,0.804878049,turf,NA,0.840460356,94.00564174894217,1,turf_1.jpg
+24432,turf_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/turf/turf_12s.jpg,0.948717949,turf,NA,0.840460356,94.00564174894217,2,turf_2.jpg
+24562,ukulele_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/ukulele/ukulele_01b.jpg,0.875,ukulele,musical instrument,0.807553267,72.8490832157969,1,ukulele_2.jpg
+24565,ukulele_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/ukulele/ukulele_04s.jpg,0.829268293,ukulele,musical instrument,0.807553267,72.8490832157969,2,ukulele_1.jpg
+24621,unicycle_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/unicycle/unicycle_05s.jpg,0.697674419,unicycle,vehicle,0.802856251,67.27785613540198,2,unicycle_2.jpg
+24626,unicycle_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/unicycle/unicycle_10s.jpg,0.928571429,unicycle,vehicle,0.802856251,67.27785613540198,1,unicycle_1.jpg
+24678,vacuum_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/vacuum/vacuum_07s.jpg,0.875,vacuum,electronic device,0.804967667,70.02820874471087,1,vacuum_2.jpg
+24682,vacuum_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/vacuum/vacuum_11s.jpg,0.775,vacuum,electronic device,0.804967667,70.02820874471087,2,vacuum_1.jpg
+24776,vending_machine_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/vending_machine/vending_machine_02s.jpg,0.871794872,vending_machine,electronic device,0.830769731,89.77433004231312,2,vending_machine_1.jpg
+24784,vending_machine_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/vending_machine/vending_machine_10s.jpg,0.926829268,vending_machine,electronic device,0.830769731,89.77433004231312,1,vending_machine_2.jpg
+24839,videocassette_07n.jpg,/home/jovyan/projects/generate-sequences/THINGS/videocassette/videocassette_07n.jpg,0.75,videocassette,NA,0.838152358,93.22990126939351,2,videocassette_1.jpg
+24842,videocassette_10n.jpg,/home/jovyan/projects/generate-sequences/THINGS/videocassette/videocassette_10n.jpg,0.860465116,videocassette,NA,0.838152358,93.22990126939351,1,videocassette_2.jpg
+24872,violin_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/violin/violin_01b.jpg,0.947368421,violin,musical instrument,0.787614781,51.33991537376586,1,violin_1.jpg
+24874,violin_03n.jpg,/home/jovyan/projects/generate-sequences/THINGS/violin/violin_03n.jpg,0.813953488,violin,musical instrument,0.787614781,51.33991537376586,2,violin_2.jpg
+24950,wafer_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wafer/wafer_02s.jpg,0.825,wafer,food,0.852205256,97.46121297602257,1,wafer_2.jpg
+24958,wafer_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wafer/wafer_10s.jpg,0.85,wafer,food,0.852205256,97.46121297602257,2,wafer_1.jpg
+24965,waffle_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/waffle/waffle_05s.jpg,0.85,waffle,food,0.849246572,96.89703808180536,1,waffle_2.jpg
+24978,waffle_18s.jpg,/home/jovyan/projects/generate-sequences/THINGS/waffle/waffle_18s.jpg,0.85,waffle,food,0.849246572,96.89703808180536,2,waffle_1.jpg
+24980,waffle_iron_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/waffle_iron/waffle_iron_02s.jpg,0.804878049,waffle_iron,electronic device,0.857519973,98.58956276445699,1,waffle_iron_1.jpg
+24990,waffle_iron_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/waffle_iron/waffle_iron_12s.jpg,0.833333333,waffle_iron,electronic device,0.857519973,98.58956276445699,2,waffle_iron_2.jpg
+25100,walrus_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/walrus/walrus_11s.jpg,0.842105263,walrus,animal,0.835534545,92.1015514809591,1,walrus_2.jpg
+25102,walrus_13s.jpg,/home/jovyan/projects/generate-sequences/THINGS/walrus/walrus_13s.jpg,0.58974359,walrus,animal,0.835534545,92.1015514809591,2,walrus_1.jpg
+25152,washcloth_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/washcloth/washcloth_09s.jpg,0.725,washcloth,NA,0.796901986,61.49506346967561,2,washcloth_2.jpg
+25155,washcloth_12s.jpg,/home/jovyan/projects/generate-sequences/THINGS/washcloth/washcloth_12s.jpg,0.880952381,washcloth,NA,0.796901986,61.49506346967561,1,washcloth_1.jpg
+25156,washing_machine_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/washing_machine/washing_machine_01b.jpg,0.813953488,washing_machine,electronic device,0.800745505,65.23272214386459,2,washing_machine_2.jpg
+25161,washing_machine_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/washing_machine/washing_machine_06s.jpg,0.8,washing_machine,electronic device,0.800745505,65.23272214386459,1,washing_machine_1.jpg
+25277,watermelon_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/watermelon/watermelon_04s.jpg,0.780487805,watermelon,food,0.842677514,94.99294781382228,2,watermelon_1.jpg
+25283,watermelon_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/watermelon/watermelon_10s.jpg,0.925,watermelon,food,0.842677514,94.99294781382228,1,watermelon_2.jpg
+25522,whisk_08s.jpg,/home/jovyan/projects/generate-sequences/THINGS/whisk/whisk_08s.jpg,0.85,whisk,kitchen tool,0.827655121,87.7997179125529,2,whisk_2.jpg
+25525,whisk_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/whisk/whisk_11s.jpg,0.857142857,whisk,kitchen tool,0.827655121,87.7997179125529,1,whisk_1.jpg
+25662,windsock_02s.jpg,/home/jovyan/projects/generate-sequences/THINGS/windsock/windsock_02s.jpg,0.875,windsock,NA,0.820502165,83.3568406205924,2,windsock_1.jpg
+25666,windsock_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/windsock/windsock_06s.jpg,0.952380952,windsock,NA,0.820502165,83.3568406205924,1,windsock_2.jpg
+25741,wing_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/wing/wing_01b.jpg,0.853658537,wing,NA,0.82860222,88.29337094499294,2,wing_2.jpg
+25747,wing_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wing/wing_07s.jpg,0.833333333,wing,NA,0.82860222,88.29337094499294,1,wing_1.jpg
+25758,wire_03s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wire/wire_03s.jpg,0.875,wire,NA,0.797091679,61.636107193229904,1,wire_1.jpg
+25765,wire_10s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wire/wire_10s.jpg,0.815789474,wire,NA,0.797091679,61.636107193229904,2,wire_2.jpg
+25819,wood_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/wood/wood_01b.jpg,0.853658537,wood,NA,0.801669092,65.9379407616361,2,wood_2.jpg
+25822,wood_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wood/wood_04s.jpg,0.825,wood,NA,0.801669092,65.9379407616361,1,wood_1.jpg
+25876,wrap_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wrap/wrap_06s.jpg,0.75,wrap,food,0.828481634,88.22284908321579,2,wrap_1.jpg
+25881,wrap_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wrap/wrap_11s.jpg,0.8,wrap,food,0.828481634,88.22284908321579,1,wrap_2.jpg
+25932,wrench_05s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wrench/wrench_05s.jpg,0.951219512,wrench,tool,0.831694474,90.26798307475318,1,wrench_2.jpg
+25933,wrench_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/wrench/wrench_06s.jpg,0.725,wrench,tool,0.831694474,90.26798307475318,2,wrench_1.jpg
+25957,xylophone_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/xylophone/xylophone_06s.jpg,0.756097561,xylophone,musical instrument,0.799299032,64.10437235543019,2,xylophone_2.jpg
+25962,xylophone_11s.jpg,/home/jovyan/projects/generate-sequences/THINGS/xylophone/xylophone_11s.jpg,0.928571429,xylophone,musical instrument,0.799299032,64.10437235543019,1,xylophone_1.jpg
+25996,yarn_06s.jpg,/home/jovyan/projects/generate-sequences/THINGS/yarn/yarn_06s.jpg,0.846153846,yarn,NA,0.83923667,93.65303244005642,2,yarn_2.jpg
+25997,yarn_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/yarn/yarn_07s.jpg,0.829268293,yarn,NA,0.83923667,93.65303244005642,1,yarn_1.jpg
+26045,yolk_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/yolk/yolk_01b.jpg,0.727272727,yolk,food,0.843158118,95.20451339915374,2,yolk_1.jpg
+26062,yolk_18s.jpg,/home/jovyan/projects/generate-sequences/THINGS/yolk/yolk_18s.jpg,0.85,yolk,food,0.843158118,95.20451339915374,1,yolk_2.jpg
+26083,zipper_01b.jpg,/home/jovyan/projects/generate-sequences/THINGS/zipper/zipper_01b.jpg,0.781649245,zipper,NA,0.797467587,61.918194640338506,2,zipper_2.jpg
+26091,zipper_09s.jpg,/home/jovyan/projects/generate-sequences/THINGS/zipper/zipper_09s.jpg,0.85,zipper,NA,0.797467587,61.918194640338506,1,zipper_1.jpg
+26098,zucchini_04s.jpg,/home/jovyan/projects/generate-sequences/THINGS/zucchini/zucchini_04s.jpg,0.902439024,zucchini,food,0.823237029,84.97884344146685,2,zucchini_2.jpg
+26101,zucchini_07s.jpg,/home/jovyan/projects/generate-sequences/THINGS/zucchini/zucchini_07s.jpg,0.857142857,zucchini,food,0.823237029,84.97884344146685,1,zucchini_1.jpg
