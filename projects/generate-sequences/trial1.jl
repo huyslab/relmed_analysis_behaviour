@@ -27,11 +27,6 @@ begin
 	stim_dir = "$(script_dir)/trial1_stimuli"
 	result_dir = "$(script_dir)/results"
 
-	# include("$(pwd())/PILT_models.jl")
-	# include("$(pwd())/sample_utils.jl")
-	# include("$(pwd())/model_utils.jl")
-	# include("$(pwd())/plotting_utils.jl")
-	# include("$(pwd())/fetch_preprocess_data.jl")
 	include("$(script_dir)/sequence_utils.jl")
 	nothing
 end
