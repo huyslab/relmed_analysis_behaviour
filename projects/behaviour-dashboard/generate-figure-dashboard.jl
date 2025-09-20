@@ -20,11 +20,12 @@ begin
     include(joinpath(script_dir, "config.jl"))
 
     # Markdown generation
-    include(joinpath(script_dir, "markdown.jl"))
+    include(joinpath(script_dir, "utils/markdown.jl"))
 
     # Include task-specific scripts
-    include(joinpath(script_dir, "generate-figures-card-choosing.jl"))
-    include(joinpath(script_dir, "generate-figures-reversal.jl"))
+    task_dir = joinpath(script_dir, "task-scripts")
+    include(joinpath(task_dir, "generate-figures-card-choosing.jl"))
+    include(joinpath(task_dir, "generate-figures-reversal.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
