@@ -18,11 +18,14 @@ begin
 	# using LogExpFunctions: logistic, logit
 	# using IterTools: product
 
-	using CairoMakie
+	using CairoMakie, CSV, DataFrames, Combinatorics, StatsBase, Random, CategoricalArrays, AlgebraOfGraphics
+	using IterTools: product
 
 	# Turing.setprogress!(false)
 
 	script_dir = dirname(@__FILE__)
+	stim_dir = "$(script_dir)/trial1_stimuli"
+	result_dir = "$(script_dir)/results"
 
 	# include("$(pwd())/PILT_models.jl")
 	# include("$(pwd())/sample_utils.jl")
@@ -64,7 +67,7 @@ begin
 	]
 
 	for s in sessions
-		open("$script_dir/results/trial1_$(s)_sequences.js", "w") do file
+		open("$(result_dir)/trial1_$(s)_sequences.js", "w") do file
 		end
 	end
 
@@ -73,7 +76,7 @@ end
 # ╔═╡ de74293f-a452-4292-b5e5-b4419fb70feb
 categories = let
 
-	categories = DataFrame(CSV.File("generate_experimental_sequences/trial1_stimuli/stimuli.csv")).concept |> unique
+	categories = DataFrame(CSV.File("$(stim_dir)/stimuli.csv")).concept |> unique
 
 	@info "Found $(length(categories)) categories"
 
@@ -543,7 +546,7 @@ end
 
 
 # ╔═╡ af5c2af1-2a59-42ef-99c7-96958df12d93
-# Visualize PILT seuqnce
+# Visualize PILT sequence
 let task = PILT
 
 	f = Figure(size = (700, 300))
@@ -595,7 +598,7 @@ let task = PILT
 	
 
 
-	save("results/trial1_pilt_trial_plan.png", f, pt_per_unit = 1)
+	save("$(result_dir)/trial1_pilt_trial_plan.png", f, pt_per_unit = 1)
 
 	f
 
@@ -979,7 +982,7 @@ end
 # ╔═╡ 9f300301-b018-4bea-8fc4-4bc889b11afd
 triplet_order = let
 	triplet_order = DataFrame(CSV.File(
-		"generate_experimental_sequences/pilot8_wm_stimulus_sequence.csv"))
+		"$(script_dir)/data/wm_stimulus_sequence.csv"))
 
 	select!(
 		triplet_order, 
@@ -1063,8 +1066,8 @@ end
 # ╔═╡ 47bfbee6-eaf4-4290-90f4-7b40a11bf27b
 let
 	# Save to file
-	save_to_JSON(PILT_test, s -> "results/trial1_$(s)_sequences.js", "PILT_test_json")
-	CSV.write("results/trial1_PILT_test.csv", PILT_test)
+	save_to_JSON(PILT_test, s -> "$(result_dir)/trial1_$(s)_sequences.js", "PILT_test_json")
+	CSV.write("$(result_dir)/trial1_PILT_test.csv", PILT_test)
 end
 
 # ╔═╡ 4899facf-6759-49c3-9905-8a418c9ebe7c
@@ -1141,7 +1144,7 @@ rev_feedback_optimal, rev_timeline = let random_seed = 1
 	) for t in 1:rev_n_trials] for bl in 1:rev_n_blocks] for s in Symbol.(sessions))
 	
 	for (k, v) in timeline
-		save_json_to_js(v, "reversal_json", "results/trial1_$(string(k))_sequences.js")
+		save_json_to_js(v, "reversal_json", "$(result_dir)/trial1_$(string(k))_sequences.js")
 	end
 
 	feedback_optimal, timeline
@@ -1219,7 +1222,7 @@ let
 		subtitle = "Reversal criterion")
 	)
 
-	save("results/trial1_reversal_sequence.png", f, pt_per_unit = 1)
+	save("$(result_dir)/trial1_reversal_sequence.png", f, pt_per_unit = 1)
 
 	f
 
@@ -1380,8 +1383,8 @@ let
 	all_PILT = vcat(scr_PILT, PILT, cols = :union)
 	
 	# Save to file
-	save_to_JSON(all_PILT, s -> "results/trial1_$(s)_sequences.js", "PILT_json")
-	CSV.write("results/trial1_PILT.csv", all_PILT)
+	save_to_JSON(all_PILT, s -> "$(result_dir)/trial1_$(s)_sequences.js", "PILT_json")
+	CSV.write("$(result_dir)/trial1_PILT.csv", all_PILT)
 
 end
 
@@ -1552,8 +1555,8 @@ end
 # ╔═╡ efdfdeb0-2b56-415e-acf7-d6236ee7b199
 let
 	# Save to file
-	save_to_JSON(RLWM, s -> "results/trial1_$(s)_sequences.js", "WM_json")
-	CSV.write("results/trial1_WM.csv", RLWM)
+	save_to_JSON(RLWM, s -> "$(result_dir)/trial1_$(s)_sequences.js", "WM_json")
+	CSV.write("$(result_dir)/trial1_WM.csv", RLWM)
 end
 
 # ╔═╡ 1491f0f9-0c40-41ca-b7a9-055259f66eb3
@@ -1629,8 +1632,8 @@ end
 # ╔═╡ b28f57a2-8aab-45e9-9d16-4c3b9fcf3828
 let
 	# Save to file
-	save_to_JSON(RLWM_test, s -> "results/trial1_$(s)_sequences.js", "WM_test_json")
-	CSV.write("results/trial1_WM_test.csv", RLWM_test)
+	save_to_JSON(RLWM_test, s -> "$(result_dir)/trial1_$(s)_sequences.js", "WM_test_json")
+	CSV.write("$(result_dir)/trial1_WM_test.csv", RLWM_test)
 end
 
 # ╔═╡ 1a6d525f-5317-4b2b-a631-ea646ee20c9f
