@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-19 10:49:08
+Generated on: 2025-09-20 12:13:03
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -20,9 +20,13 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Working Memory Learning Curves by Delay Bins and Session (Group Average)](WM_learning_curves_by_delay_bins_and_session_group.svg)
 
+## 5. Reversal Learning Accuracy Curve
+
+![Reversal Learning Accuracy Curve](reversal_accuracy_curve.svg)
+
 
 ---
 
-**Summary**: Generated 4 figures from the behaviour analysis pipeline.
+**Summary**: Generated 5 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
