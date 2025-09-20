@@ -26,6 +26,7 @@ begin
     task_dir = joinpath(script_dir, "task-scripts")
     include(joinpath(task_dir, "generate-figures-card-choosing.jl"))
     include(joinpath(task_dir, "generate-figures-reversal.jl"))
+    include(joinpath(task_dir, "generate-figures-delay-discounting.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -93,6 +94,12 @@ let preproc_df = preprocess_reversal_data(reversal)
 
     filename = "reversal_accuracy_curve"
     register_save_figure(filename, f, "Reversal Learning Accuracy Curve")
+end
+
+# Generate delay discounting curves
+let preproc_df = preprocess_delay_discounting_data(delay_discounting)
+
+    describe(preproc_df)
 end
 
 # Generate the dashboard
