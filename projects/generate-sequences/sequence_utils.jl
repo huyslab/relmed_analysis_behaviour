@@ -37,7 +37,7 @@ function assign_stimuli_and_optimality(;
 	n_pairs::Vector{Int64}, # Number of pairs in each block. Assume same for all phases
 	categories::AbstractVector = [('A':'Z')[div(i - 1, 26) + 1] * ('a':'z')[rem(i - 1, 26)+1] 
 		for i in 1:(sum(n_pairs) * 2 * n_phases + n_phases)],
-	rng::AbstractRNG = Xhoshiro(0),
+	rng::AbstractRNG = Xoshiro(0),
 	ext::String = "jpg"
 	)
 
