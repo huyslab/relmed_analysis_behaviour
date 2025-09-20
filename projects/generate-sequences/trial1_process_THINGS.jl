@@ -185,7 +185,7 @@ selected_images = let rng = Xoshiro(0)
 	# Filter manually removed images
 	filter!(x -> x.image_name ∉ manual_removed_images, mem_image)
 
-	# Exctract concept from image name
+	# Extract concept from image name
 	mem_image.concept = (s -> s[1:last(findlast('_', s))-1]).(mem_image.image_name)
 
 	# Join concepts with images
