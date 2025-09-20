@@ -911,12 +911,6 @@ PILT_test = let PILT_test_template = copy(PILT_test_template)
 		on = :stimulus_right
 	)
 
-	function find_stim(e, s)
-		println(e)
-		println(s)
-		
-
-	end
 
 
 	# Create multisession
