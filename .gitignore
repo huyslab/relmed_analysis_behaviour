@@ -35,10 +35,11 @@ env.list
 /data_analysis/workshop/*.html
 results/*
 saved_models/*
-generate_experimental_sequences/THINGS/
+projects/generate-sequences/results/
+projects/generate-sequences/THINGS/
 generate_experimental_sequences/pilot7_stims/
 generate_experimental_sequences/pilot7_stims_OLD/
-generate_experimental_sequences/trial1_stimuli/
+projects/generate-sequences/trial1_stimuli/*.jpg
 
 # Julia specific
 *.jl.cov
