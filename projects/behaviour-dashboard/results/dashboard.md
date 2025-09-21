@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-20 12:13:03
+Generated on: 2025-09-21 20:46:55
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -24,9 +24,13 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Reversal Learning Accuracy Curve](reversal_accuracy_curve.svg)
 
+## 6. Delay Discounting Curve
+
+![Delay Discounting Curve](delay_discounting_curve.svg)
+
 
 ---
 
-**Summary**: Generated 5 figures from the behaviour analysis pipeline.
+**Summary**: Generated 6 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
