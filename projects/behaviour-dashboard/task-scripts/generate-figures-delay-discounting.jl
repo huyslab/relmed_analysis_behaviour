@@ -228,7 +228,7 @@ function plot_value_ratio_as_function_of_delay!(
 )
 
     # Ensure facet column is in both dataframes or neither
-    if ((facet ∉ names(df)) || (facet ∉ names(coef_draws))) && ! (((facet ∉ names(df)) && (facet ∉ names(coef_draws))))
+    if (facet ∈ names(df)) ⊻ (facet ∈ names(coef_draws))
         error("Facet column $facet found in one dataframe, but not the other.")
     end
 
