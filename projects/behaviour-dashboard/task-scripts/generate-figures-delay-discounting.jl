@@ -332,7 +332,6 @@ function plot_value_ratio_as_function_of_delay!(
 
         # Calculate angle in radians for text rotation
         angle = atan((y2 - y1) / (point_diff / n_points))
-        println("Angle (radians): ", angle)
         
         # Add k value annotation
         ax = current_axis()
