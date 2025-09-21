@@ -99,7 +99,9 @@ end
 # Generate delay discounting curves
 let preproc_df = preprocess_delay_discounting_data(delay_discounting)
 
-    describe(preproc_df)
+    coefs = fit_dd_logistic_regression(preproc_df)
+
+    post_process_dd_logistic_regression(coefs)
 end
 
 # Generate the dashboard
