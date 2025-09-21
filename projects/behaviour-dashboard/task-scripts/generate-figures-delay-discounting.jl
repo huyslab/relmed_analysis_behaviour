@@ -32,7 +32,7 @@ function fit_dd_logistic_regression(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id,
     force::Bool = false,
-    output_file::String = "tmp/delay_discounting_model_coefs.csv"
+    output_file::String = "tmp/delay_discounting_model"
 )
 
     # Save to temporary CSV file for R processing
@@ -64,8 +64,10 @@ function fit_dd_logistic_regression(
         backend = "cmdstanr",
         threads = threading(2),
         chains = 4, cores = 4, iter = 4000, warmup = 2000,
+        control = list(adapt_delta = 0.9),
         seed = 2025
     ))
+    write.csv(as.data.frame(fit), file = "$output_file.csv")
 
     # Save coefficients and draws
     coefs <- coef(
@@ -73,23 +75,25 @@ function fit_dd_logistic_regression(
         summary = FALSE
     )\$$participant_id_column
 
-    write.csv(coefs, file = "tmp/delay_discounting_model_coefs.csv")
+    write.csv(coefs, file = "$(output_file)_coefs.csv")
     """
 
     # Run R script
-    if !isfile(output_file) || force
+    if !isfile("$(output_file).csv") || !isfile("$(output_file)_coefs.csv") || force
         write("tmp/run_delay_discounting_model.R", r_script)
         run(`Rscript tmp/run_delay_discounting_model.R`)
     end
 
     # Load model coefficients
-    coefs = DataFrame(CSV.File(output_file))
+    draws = DataFrame(CSV.File("$(output_file).csv"))
+    coefs = DataFrame(CSV.File("$(output_file)_coefs.csv"))
 
-    return coefs
+    return draws, coefs
 
 end
 
 function post_process_dd_logistic_regression(
+    draws::DataFrame,
     coefs::DataFrame;
     participant_id_column::Symbol = :participant_id,
     summarize::Bool = true
@@ -118,6 +122,13 @@ function post_process_dd_logistic_regression(
     # Compute discount factor k from delay coefficient
     coef_draws.k = coef_draws.delay ./ coef_draws.ip1
 
+    # Compute group level k
+    draws.k = draws.b_delay ./ draws.b_ip1
+    draws[!, participant_id_column] .= "group"
+
+    # Join
+    coef_draws = vcat(select(coef_draws, :Column1, participant_id_column, :k), select(draws, [:Column1, participant_id_column, :k]))
+
     if summarize
         return combine(
             groupby(coef_draws, participant_id_column),
@@ -125,6 +136,6 @@ function post_process_dd_logistic_regression(
             :k => std => :k_sd
         )
     else
-        return select(coef_draws, :Column1, participant_id_column, :k)
+        return coef_draws
     end
 end
