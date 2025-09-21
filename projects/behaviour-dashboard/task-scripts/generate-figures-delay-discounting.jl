@@ -4,6 +4,19 @@
 
 using DataFrames, CairoMakie, AlgebraOfGraphics, CSV
 
+"""
+    preprocess_delay_discounting_data(df; participant_id_column=:participant_id)
+
+Preprocess delay discounting data for logistic regression analysis.
+Calculates the transformed ratio (1 - 1/R) where R = immediate_value / delayed_value.
+
+# Arguments
+- `df::DataFrame`: Raw delay discounting data
+- `participant_id_column::Symbol`: Column name for participant IDs
+
+# Returns
+- `DataFrame`: Preprocessed data with transformed ratio column
+"""
 function preprocess_delay_discounting_data(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id
@@ -28,6 +41,21 @@ function preprocess_delay_discounting_data(
     return forfit
 end
 
+"""
+    fit_dd_logistic_regression(df; participant_id_column=:participant_id, force=false, output_file="tmp/delay_discounting_model")
+
+Fit a Bayesian logistic regression model to delay discounting data using R/brms.
+Uses a hierarchical model with group-varying slopes for transformed ratio and delay.
+
+# Arguments
+- `df::DataFrame`: Preprocessed delay discounting data
+- `participant_id_column::Symbol`: Column name for participant IDs
+- `force::Bool`: Whether to refit model even if output files exist
+- `output_file::String`: Base filename for model output (without extension)
+
+# Returns
+- `Tuple{DataFrame, DataFrame}`: Model draws and coefficient draws
+"""
 function fit_dd_logistic_regression(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id,
@@ -39,6 +67,7 @@ function fit_dd_logistic_regression(
     isdir("tmp") || mkpath("tmp")
     CSV.write("tmp/delay_discounting_for_fit.csv", df)
 
+    # R script for Bayesian logistic regression using brms
     r_script = """
     library(cmdstanr)
     library(brms)
@@ -46,17 +75,17 @@ function fit_dd_logistic_regression(
     # Load data
     dat <- read.csv("tmp/delay_discounting_for_fit.csv")
 
-    # formula: no intercept, group-varying slopes for ip1 and time
+    # Formula: no intercept, group-varying slopes for ip1 and delay
     bf_model <- bf(response ~ 0 + ip1 + delay + (0 + ip1 + delay | $participant_id_column),
                 family = bernoulli(link = "logit"))
 
-    # sensible weakly-informative priors; 
+    # Sensible weakly-informative priors
     priors <- c(
         prior(normal(0, 2), class = "b"),   # fixed-effect priors
         prior(student_t(3, 0, 2), class = "sd")           # group sd priors
     )
 
-    # fit
+    # Fit the model
     (fit <- brm(
         formula = bf_model,
         data = dat,
@@ -78,7 +107,7 @@ function fit_dd_logistic_regression(
     write.csv(coefs, file = "$(output_file)_coefs.csv")
     """
 
-    # Run R script
+    # Run R script only if output files don't exist or if forced
     if !isfile("$(output_file).csv") || !isfile("$(output_file)_coefs.csv") || force
         write("tmp/run_delay_discounting_model.R", r_script)
         run(`Rscript tmp/run_delay_discounting_model.R`)
@@ -92,6 +121,21 @@ function fit_dd_logistic_regression(
 
 end
 
+"""
+    post_process_dd_logistic_regression(draws, coefs; participant_id_column=:participant_id, summarize=true)
+
+Post-process the outputs from the delay discounting logistic regression model.
+Extracts coefficients, computes discount factor k, and optionally summarizes results.
+
+# Arguments
+- `draws::DataFrame`: Model draws from brms fit
+- `coefs::DataFrame`: Coefficient draws from brms fit
+- `participant_id_column::Symbol`: Column name for participant IDs
+- `summarize::Bool`: Whether to return summary statistics or full draws
+
+# Returns
+- `DataFrame`: Either summary statistics (mean, sd) or full coefficient draws
+"""
 function post_process_dd_logistic_regression(
     draws::DataFrame,
     coefs::DataFrame;
@@ -99,49 +143,82 @@ function post_process_dd_logistic_regression(
     summarize::Bool = true
 )
 
-    # Separate coefficient draws and melt
+    # Separate coefficient draws and melt to long format
     function shape_coefs(
         coefs::DataFrame;
         col::String,
     )
+        # Select columns ending with the coefficient name
         cols = filter(x -> endswith(x, ".$col") || x == "Column1", names(coefs))
         out = select(coefs, cols)
+        # Reshape from wide to long format
         out = stack(out, Not("Column1"), variable_name = participant_id_column, value_name = Symbol(col))
+        # Clean participant IDs by removing coefficient suffix
         out[!, participant_id_column] = replace.(out[!, participant_id_column], ".$col" => "")
         out[!, participant_id_column] = replace.(out[!, participant_id_column], "." => "-")
 
         return out
     end
 
+    # Extract ip1 and delay coefficients
     ip1 = shape_coefs(coefs; col = "ip1")
     delay = shape_coefs(coefs; col = "delay")
 
-    # Join
+    # Join coefficient draws by participant and draw number
     coef_draws = innerjoin(ip1, delay, on = [participant_id_column, :Column1])
 
-    # Compute discount factor k from delay coefficient
+    # Compute discount factor k from coefficients (k = delay coefficient / ip1 coefficient)
     coef_draws.k = coef_draws.delay ./ coef_draws.ip1
 
-    # Compute group level k
+    # Compute group-level k from fixed effects
     draws.k = draws.b_delay ./ draws.b_ip1
     draws[!, participant_id_column] .= "group"
 
-    # Join
+    # Combine individual and group-level draws
     coef_draws = vcat(select(coef_draws, :Column1, participant_id_column, :k), select(draws, [:Column1, participant_id_column, :k]))
 
     if summarize
+        # Return summary statistics
         return combine(
             groupby(coef_draws, participant_id_column),
             :k => mean => :k_mean,
             :k => std => :k_sd
         )
     else
+        # Return full draws
         return coef_draws
     end
 end
 
+"""
+    hyperbolic_discount_function(k, delay)
+
+Calculate the hyperbolic discount function: 1 / (1 + k * delay).
+
+# Arguments
+- `k`: Discount rate parameter
+- `delay`: Time delay
+
+# Returns
+- Discounted value
+"""
 hyperbolic_discount_function(k, delay) = 1 ./ (1 .+ k .* delay)
 
+"""
+    plot_value_ratio_as_function_of_delay!(f, coef_draws, df; participant_id_column=:participant_id, facet=:session)
+
+Create a plot showing value ratio as a function of delay with model predictions and observed data.
+
+# Arguments
+- `f::Figure`: Makie figure to plot into
+- `coef_draws::DataFrame`: Model coefficient draws with k values
+- `df::DataFrame`: Original data with responses
+- `participant_id_column::Symbol`: Column name for participant IDs
+- `facet::Symbol`: Column to facet by (optional)
+
+# Returns
+- `Figure`: Updated figure with plot
+"""
 function plot_value_ratio_as_function_of_delay!(
     f::Figure,
     coef_draws::DataFrame,
@@ -150,45 +227,48 @@ function plot_value_ratio_as_function_of_delay!(
     facet::Symbol = :session
 )
 
-    # Whether facet is used or not, it must be in both dataframes or neither 
+    # Ensure facet column is in both dataframes or neither
     if ((facet ∉ names(df)) || (facet ∉ names(coef_draws))) && ! (((facet ∉ names(df)) && (facet ∉ names(coef_draws))))
         error("Facet column $facet found in one dataframe, but not the other.")
     end
 
+    # Add facet column if not present in both dataframes
     if facet ∉ names(df)
         df[!, facet] .= "all"
         coef_draws[!, facet] .= "all"
     end
 
-    # Create plots
+    # Create prediction range for x-axis
     xrange = range(0, stop = maximum(df.delay), length = 100)
 
-    # Predicted value
+    # Generate predicted values using hyperbolic discount function
     ys = combine(
         groupby(coef_draws, [participant_id_column, facet]),
         :k_mean => (x -> xrange) => :x,
         :k_mean => (k -> hyperbolic_discount_function.(k, xrange)) => :m
     )
 
+    # Set line width (group line is thicker)
     ys.lw = ifelse.(ys[!, participant_id_column] .== "group", 4, 1)
 
-    # Proportion chosen later
+    # Calculate proportion chosen later for observed data
     df.ratio = df.sum_today ./ df.sum_later
     chosen_later = combine(
         groupby(df, [participant_id_column, facet, :delay, :ratio]),
         :response => mean => :response
     )
 
+    # Aggregate across participants
     chosen_later = combine(
         groupby(chosen_later, [facet, :delay, :ratio]),
         :response => mean => :response
     )
 
-    # Check if facet has only one unique value
+    # Check if facet should be used (has multiple levels)
     facet_levels = unique(ys[!, facet])
     use_facet = length(facet_levels) > 1
 
-
+    # Create mapping for predicted lines
     mp1 = data(ys) *
     mapping(
         :x,
@@ -204,6 +284,7 @@ function plot_value_ratio_as_function_of_delay!(
 
     mp1 = mp1 * visual(Lines)
     
+    # Create mapping for observed data points
     mp2 = data(chosen_later) *
     mapping(
         :delay,
@@ -223,8 +304,10 @@ function plot_value_ratio_as_function_of_delay!(
             strokewidth = 0.5
         )
 
+    # Set color palette
     colors =  ["group" => :black, Makie.wong_colors()...]
 
+    # Create the plot
     plt = draw!(f[1,1], mp1+mp2, scales(color_lines = (; palette = colors), color_scatter = (; colormap = :greys)); 
         axis = (; 
             xlabel = "Delay (days)",
@@ -238,7 +321,7 @@ function plot_value_ratio_as_function_of_delay!(
         # Get the k value for the group
         group_k = filter(row -> row[participant_id_column] == "group", coef_draws).k_mean[1]
         
-        # Find the last two points to calculate slope
+        # Find the last two points to calculate slope for text rotation
         sorted_data = sort(group_data, :x)
         n_points = nrow(sorted_data)
         
@@ -247,10 +330,11 @@ function plot_value_ratio_as_function_of_delay!(
         x2, y2 = sorted_data[n_points, :x], sorted_data[n_points, :m]
         x1, y1 = sorted_data[n_points-point_diff, :x], sorted_data[n_points-point_diff, :m]
 
-        # Calculate angle in radians
+        # Calculate angle in radians for text rotation
         angle = atan((y2 - y1) / (point_diff / n_points))
         println("Angle (radians): ", angle)
-        # Get the axis from the figure and add text annotation
+        
+        # Add k value annotation
         ax = current_axis()
         text!(ax, x2, y2; 
             text = "k = $(round(group_k, digits=3))",
@@ -262,6 +346,7 @@ function plot_value_ratio_as_function_of_delay!(
         )
     end
 
+    # Add colorbar for observed data
     colorbar!(f[1,2], plt; label = "Prop. chosen later")
 
     return f
