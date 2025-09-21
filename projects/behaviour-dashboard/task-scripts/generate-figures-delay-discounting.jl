@@ -139,3 +139,130 @@ function post_process_dd_logistic_regression(
         return coef_draws
     end
 end
+
+hyperbolic_discount_function(k, delay) = 1 ./ (1 .+ k .* delay)
+
+function plot_value_ratio_as_function_of_delay!(
+    f::Figure,
+    coef_draws::DataFrame,
+    df::DataFrame;
+    participant_id_column::Symbol = :participant_id,
+    facet::Symbol = :session
+)
+
+    # Whether facet is used or not, it must be in both dataframes or neither 
+    if ((facet ∉ names(df)) || (facet ∉ names(coef_draws))) && ! (((facet ∉ names(df)) && (facet ∉ names(coef_draws))))
+        error("Facet column $facet found in one dataframe, but not the other.")
+    end
+
+    if facet ∉ names(df)
+        df[!, facet] .= "all"
+        coef_draws[!, facet] .= "all"
+    end
+
+    # Create plots
+    xrange = range(0, stop = maximum(df.delay), length = 100)
+
+    # Predicted value
+    ys = combine(
+        groupby(coef_draws, [participant_id_column, facet]),
+        :k_mean => (x -> xrange) => :x,
+        :k_mean => (k -> hyperbolic_discount_function.(k, xrange)) => :m
+    )
+
+    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", 4, 1)
+
+    # Proportion chosen later
+    df.ratio = df.sum_today ./ df.sum_later
+    chosen_later = combine(
+        groupby(df, [participant_id_column, facet, :delay, :ratio]),
+        :response => mean => :response
+    )
+
+    chosen_later = combine(
+        groupby(chosen_later, [facet, :delay, :ratio]),
+        :response => mean => :response
+    )
+
+    # Check if facet has only one unique value
+    facet_levels = unique(ys[!, facet])
+    use_facet = length(facet_levels) > 1
+
+
+    mp1 = data(ys) *
+    mapping(
+        :x,
+        :m,
+        group = participant_id_column,
+        linewidth = :lw => verbatim,
+        color = participant_id_column => scale(:color_lines)
+    ) 
+
+    if use_facet
+        mp1 = mp1 * mapping(layout = facet)
+    end
+
+    mp1 = mp1 * visual(Lines)
+    
+    mp2 = data(chosen_later) *
+    mapping(
+        :delay,
+        :ratio,
+        color = :response => scale(:color_scatter),
+    ) 
+
+    if use_facet
+        mp2 = mp2 * mapping(layout = facet)
+    end
+
+    mp2 = mp2 * visual(
+            Scatter; 
+            strokecolor = :black, 
+            marker = :circle,
+            markersize = 10,
+            strokewidth = 0.5
+        )
+
+    colors =  ["group" => :black, Makie.wong_colors()...]
+
+    plt = draw!(f[1,1], mp1+mp2, scales(color_lines = (; palette = colors), color_scatter = (; colormap = :greys)); 
+        axis = (; 
+            xlabel = "Delay (days)",
+            ylabel = "Value ratio (immediate / later)",
+            xautolimitmargin = (0., 0.05),)
+    )
+
+     # Add k value annotation at the end of the group line
+    group_data = filter(row -> row[participant_id_column] == "group", ys)
+    if !isempty(group_data)
+        # Get the k value for the group
+        group_k = filter(row -> row[participant_id_column] == "group", coef_draws).k_mean[1]
+        
+        # Find the last two points to calculate slope
+        sorted_data = sort(group_data, :x)
+        n_points = nrow(sorted_data)
+        
+        # Get last two points for slope calculation
+        point_diff = 1
+        x2, y2 = sorted_data[n_points, :x], sorted_data[n_points, :m]
+        x1, y1 = sorted_data[n_points-point_diff, :x], sorted_data[n_points-point_diff, :m]
+
+        # Calculate angle in radians
+        angle = atan((y2 - y1) / (point_diff / n_points))
+        println("Angle (radians): ", angle)
+        # Get the axis from the figure and add text annotation
+        ax = current_axis()
+        text!(ax, x2, y2; 
+            text = "k = $(round(group_k, digits=3))",
+            align = (:right, :bottom),
+            offset = (0, 10),  # offset in pixels
+            fontsize = 16,
+            color = :black,
+            rotation = angle
+        )
+    end
+
+    colorbar!(f[1,2], plt; label = "Prop. chosen later")
+
+    return f
+end

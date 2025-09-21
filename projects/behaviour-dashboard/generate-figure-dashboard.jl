@@ -101,7 +101,10 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
 
     draws, coefs = fit_dd_logistic_regression(preproc_df)
 
-    post_process_dd_logistic_regression(draws, coefs)
+    coef_draws = post_process_dd_logistic_regression(draws, coefs)
+
+    f = Figure(size = (800, 600))
+    plot_value_ratio_as_function_of_delay!(f, coef_draws, preproc_df)
 end
 
 # Generate the dashboard
