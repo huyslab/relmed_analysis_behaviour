@@ -105,6 +105,9 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
 
     f = Figure(size = (800, 600))
     plot_value_ratio_as_function_of_delay!(f, coef_draws, preproc_df)
+
+    filename = "delay_discounting_curve"
+    register_save_figure(filename, f, "Delay Discounting Curve")
 end
 
 # Generate the dashboard
