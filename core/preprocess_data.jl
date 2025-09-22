@@ -190,6 +190,7 @@ function prepare_control_data(df::DataFrame;
                     @warn "Failed to parse JSON in timeline_variables" exception=(e, catch_backtrace()) value=str
                     Dict()
                 end
+            end, eachrow(df))
         
         for key in unique(Iterators.flatten(keys.(parsed)))
                 df[!, key] = [get(p, key, missing) for p in parsed]
