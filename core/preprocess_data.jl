@@ -225,6 +225,8 @@ function prepare_control_data(df::DataFrame;
 	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
 	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
 
+	sort!(control_task_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
+	sort!(control_feedback_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
 	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:module_start_time, participant_id_column, :session, :task, :version, :trial], source=:source, makeunique=true, order=:left)
 	if "correct_1" in names(merged_control)
 		transform!(merged_control, [:correct, :correct_1] => ((x, y) -> coalesce.(x, y)) => :correct)
