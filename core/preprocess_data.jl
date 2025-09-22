@@ -184,8 +184,12 @@ function prepare_control_data(df::DataFrame;
         parsed = map(row -> begin
                 ismissing(row.timeline_variables) && return Dict()
                 str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
-                try JSON.parse(str) catch; Dict() end
-        end, eachrow(df))
+                try
+                    JSON.parse(str)
+                catch e
+                    @warn "Failed to parse JSON in timeline_variables" exception=(e, catch_backtrace()) value=str
+                    Dict()
+                end
         
         for key in unique(Iterators.flatten(keys.(parsed)))
                 df[!, key] = [get(p, key, missing) for p in parsed]
