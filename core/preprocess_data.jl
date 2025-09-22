@@ -176,6 +176,68 @@ function prepare_PIT_data(df::DataFrame;
     return pit_data
 end
 
+function prepare_control_data(df::DataFrame;
+    participant_id_column::Symbol = :participant_id
+    )
+
+    function extract_timeline_variables!(df::DataFrame)
+        parsed = map(row -> begin
+                ismissing(row.timeline_variables) && return Dict()
+                str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
+                try JSON.parse(str) catch; Dict() end
+        end, eachrow(df))
+        
+        for key in unique(Iterators.flatten(keys.(parsed)))
+                df[!, key] = [get(p, key, missing) for p in parsed]
+        end
+
+        select!(df, Not(:timeline_variables))
+        
+        return df
+    end
+
+    control_data = filter(x -> !ismissing(x.trialphase) && contains(x.trialphase, r"control_.*"), df)
+	# control_data = exclude_double_takers(control_data)
+	
+	for col in names(control_data)
+		control_data[!, col] = [val === nothing ? missing : val for val in control_data[!, col]]
+	end
+	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
+    # Filter out unnecessary columns: _n_warnings, and n_instruction_fail
+    select!(control_data, Not(Cols(endswith("_n_warnings"), "n_instruction_fail")))
+
+	DataFrames.transform!(control_data,
+		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
+	# sort!(control_data, [participant_id_column, :trial_index])
+	DataFrames.transform!(groupby(control_data, [participant_id_column, :session]),
+		:trial_ptype => cumsum => :trial
+	)
+	select!(control_data, Not(Cols(:n_warnings, :plugin_version, :pre_kick_out_warned, :trial_type, :trial_ptype)))
+
+	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
+	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
+	
+	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
+	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
+
+	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:module_start_time, participant_id_column, :session, :task, :version, :trial], source=:source, makeunique=true, order=:left)
+	if "correct_1" in names(merged_control)
+		transform!(merged_control, [:correct, :correct_1] => ((x, y) -> coalesce.(x, y)) => :correct)
+	end
+	select!(merged_control, Not(Cols(r".*_1", :source)))
+
+	extract_timeline_variables!(merged_control)
+	transform!(merged_control, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(merged_control, Not(:responseTime))
+	
+	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
+	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
+	select!(control_report_data, [:module_start_time, participant_id_column, :session, :version, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
+
+	return (; control_task = merged_control, control_report = control_report_data)
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
@@ -184,10 +246,10 @@ TASK_PREPROC_FUNCS = Dict(
     "WM_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "wm_test", kwargs...),
     "reversal" => prepare_reversal_data,
     "delay_discounting" => prepare_delay_discounting_data,
-    # "vigour" => prepare_vigour_data,
-    # "PIT" => prepare_PIT_data,
+    "vigour" => prepare_vigour_data,
+    "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
-    # "control" => prepare_control_data
+    "control" => prepare_control_data
 )
 
 function preprocess_project(
