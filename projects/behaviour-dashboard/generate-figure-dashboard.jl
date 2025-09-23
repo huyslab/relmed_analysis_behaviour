@@ -27,6 +27,7 @@ begin
     include(joinpath(task_dir, "generate-figures-card-choosing.jl"))
     include(joinpath(task_dir, "generate-figures-reversal.jl"))
     include(joinpath(task_dir, "generate-figures-delay-discounting.jl"))
+    include(joinpath(task_dir, "generate-figures-vigour.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -46,7 +47,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press) = preprocess_project(TRIAL1)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press, vigour, PIT, control) = preprocess_project(TRIAL1)
 end
 
 # Generate PILT learning curve by session
