@@ -33,6 +33,23 @@ function prepare_card_choosing_data(
 	# Sort
 	sort!(task_data, [participant_id_column, :session, :block, :trial])
 
+    # Fix valence coding for PILT
+    if task_name == "pilt"
+        transform!(
+            task_data,
+            [:feedback_right, :feedback_left] =>
+                ((x, y) -> ifelse.(
+                    (x .> 0) .&& (y .> 0),
+                    "reward",
+                    ifelse.(
+                        (x .< 0) .&& (y .< 0),
+                        "punishment",
+                        "mixed"
+                    )
+                )) => :valence
+        )
+    end
+
 	return task_data
 
 end
