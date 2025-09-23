@@ -52,6 +52,57 @@ function plot_learning_curves_by_facet!(
     return f
 end
 
+function plot_learning_curves_by_color_facet!(
+    f::Figure,
+    df::DataFrame;
+    facet::Symbol = :session,
+    xcol::Symbol = :trial,
+    color::Symbol = :valence,
+    color_label::String = "Valence",
+    early_stopping_at::Union{Int, Nothing} = 5,
+    participant_id_column::Symbol = :participant_id
+)
+
+    # Remove non-response trials
+    filter!(x -> x.response != "noresp", df)
+
+    # Summarize by participant and trial
+    acc_curve = combine(
+        groupby(df, [participant_id_column, facet, color, xcol]),
+        :response_optimal => mean => :acc
+    )
+
+    sort!(acc_curve, [participant_id_column, facet, color, xcol])
+
+    # Summarize by trial
+    acc_curve_sum = combine(
+        groupby(acc_curve, [facet, xcol]),
+        :acc => mean => :acc
+    )
+
+    # Plot
+    mp = ((data(acc_curve) * mapping(
+        xcol => "Trial #",
+        :acc => "Prop. optimal choice",
+        group = participant_id_column,
+        color = participant_id_column,
+    ) * visual(Lines, linewidth = 1, alpha = 0.7)) +
+    (data(acc_curve_sum) * 
+    mapping(
+        xcol => "Trial #",
+        :acc => "Prop. optimal choice",
+    ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
+
+    if early_stopping_at !== nothing
+        mp = mp + mapping([early_stopping_at]) * visual(VLines, color = :grey, linestyle = :dash)
+    end
+
+
+    draw!(f, mp; axis = (; yticks = 0.:0.25:1.))
+
+    return f
+end
+
 function compute_delays(vec::AbstractVector)
     last_seen = Dict{Any, Int}()
     delays = zeros(Int, length(vec))

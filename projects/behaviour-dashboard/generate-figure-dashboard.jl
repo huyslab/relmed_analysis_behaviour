@@ -52,18 +52,24 @@ end
 # Generate PILT learning curve by session
 let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     
-    f = Figure(size = (800, 600))
-    plot_learning_curves_by_factor!(f, PILT_main_sessions; factor = :session)
+    # Plot by session
+    f1 = Figure(size = (800, 600))
+    plot_learning_curves_by_facet!(f1, PILT_main_sessions; facet = :session)
 
     filename = "PILT_learning_curves_by_session"
-    register_save_figure(filename, f, "PILT Learning Curves by Session")
+    register_save_figure(filename, f1, "PILT Learning Curves by Session")
+
+    # Plot by session and valence
+    f2 = Figure(size = (800, 600))
+    plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence")
+
 end
 
 # Generate WM learning curve by session
 let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_data;
 
     f1 = Figure(size = (800, 600))
-    plot_learning_curves_by_factor!(
+    plot_learning_curves_by_facet!(
         f1,
         WM_main_sessions;
         factor = :session,
