@@ -87,7 +87,7 @@ function prepare_max_press_data(
 		x -> select(x, 
 			participant_id_column,
 			:version,
-			:exp_start_time,
+			:module_start_time,
 			:session,
 			:trialphase,
 			:trial_number,
