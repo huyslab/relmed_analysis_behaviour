@@ -3,10 +3,10 @@
 # Setup 
 using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase
 
-function plot_learning_curves_by_factor!(
+function plot_learning_curves_by_facet!(
     f::Figure,
     df::DataFrame;
-    factor::Symbol = :session,
+    facet::Symbol = :session,
     xcol::Symbol = :trial,
     early_stopping_at::Union{Int, Nothing} = 5,
     participant_id_column::Symbol = :participant_id
@@ -17,15 +17,15 @@ function plot_learning_curves_by_factor!(
 
     # Summarize by participant and trial
     acc_curve = combine(
-        groupby(df, [participant_id_column, factor, xcol]),
+        groupby(df, [participant_id_column, facet, xcol]),
         :response_optimal => mean => :acc
     )
 
-    sort!(acc_curve, [participant_id_column, factor, xcol])
+    sort!(acc_curve, [participant_id_column, facet, xcol])
 
     # Summarize by trial
     acc_curve_sum = combine(
-        groupby(acc_curve, [factor, xcol]),
+        groupby(acc_curve, [facet, xcol]),
         :acc => mean => :acc
     )
 
@@ -40,7 +40,7 @@ function plot_learning_curves_by_factor!(
     mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
-    ) * visual(Lines, linewidth = 4))) * mapping(layout = factor)
+    ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
 
     if early_stopping_at !== nothing
         mp = mp + mapping([early_stopping_at]) * visual(VLines, color = :grey, linestyle = :dash)
