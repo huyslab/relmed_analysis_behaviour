@@ -105,6 +105,7 @@ function prepare_max_press_data(
 			participant_id_column,
 			:version,
 			:session,
+            :module_start_time,
 			:trialphase,
 			:trial_number,
 			:avgSpeed => :avg_speed,
