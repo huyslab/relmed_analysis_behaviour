@@ -86,7 +86,6 @@ function prepare_max_press_data(
 		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			participant_id_column,
-			:record_id,
 			:version,
 			:exp_start_time,
 			:session,
@@ -253,9 +252,9 @@ TASK_PREPROC_FUNCS = Dict(
     "WM_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "wm_test", kwargs...),
     "reversal" => prepare_reversal_data,
     "delay_discounting" => prepare_delay_discounting_data,
+    "max_press" => prepare_max_press_data,
     "vigour" => prepare_vigour_data,
     "PIT" => prepare_PIT_data,
-    "max_press" => prepare_max_press_data,
     "control" => prepare_control_data
 )
 
