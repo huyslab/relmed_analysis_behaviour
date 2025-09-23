@@ -86,10 +86,9 @@ function prepare_max_press_data(
 		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			participant_id_column,
-			:record_id,
 			:version,
-			:exp_start_time,
 			:session,
+            :module_start_time,
 			:trialphase,
 			:trial_number,
 			:avgSpeed => :avg_speed,
