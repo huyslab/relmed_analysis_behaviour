@@ -24,9 +24,9 @@ begin
 
     # Include task-specific scripts
     task_dir = joinpath(script_dir, "task-scripts")
-    include(joinpath(task_dir, "generate-figures-card-choosing.jl"))
-    include(joinpath(task_dir, "generate-figures-reversal.jl"))
-    include(joinpath(task_dir, "generate-figures-delay-discounting.jl"))
+    include(joinpath(task_dir, "card-choosing.jl"))
+    include(joinpath(task_dir, "reversal.jl"))
+    include(joinpath(task_dir, "delay-discounting.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
