@@ -136,7 +136,7 @@ function plot_learning_curves_by_color_facet!(
     # Create plot mapping based on variability display option
     if variability == :individuals
         mp = (data(acc_curve) * mapping(
-            xcolfacet,
+            xcol,
             :acc,
             group = :group,
             linestyle = participant_id_column,
