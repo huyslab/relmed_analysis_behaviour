@@ -60,6 +60,7 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     register_save_figure(filename, f1, "PILT Learning Curves by Session")
 
     # Plot by session and valence
+    PILT_main_sessions.valence = CategoricalArray(PILT_main_sessions.valence; ordered = true, levels = ["Reward", "Mixed", "Punishment"])
     f2 = Figure(size = (800, 600))
     plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence")
 

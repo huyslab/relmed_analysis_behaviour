@@ -74,9 +74,11 @@ function plot_learning_curves_by_color_facet!(
 
     sort!(acc_curve, [participant_id_column, facet, color, xcol])
 
+    acc_curve.group = acc_curve.participant_id .* "_" .* string.(acc_curve[!, color])
+
     # Summarize by trial
     acc_curve_sum = combine(
-        groupby(acc_curve, [facet, xcol]),
+        groupby(acc_curve, [facet, color, xcol]),
         :acc => mean => :acc
     )
 
@@ -84,13 +86,15 @@ function plot_learning_curves_by_color_facet!(
     mp = ((data(acc_curve) * mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
-        group = participant_id_column,
-        color = participant_id_column,
+        group = :group,
+        linestyle = participant_id_column,
+        color = color => color_label
     ) * visual(Lines, linewidth = 1, alpha = 0.7)) +
     (data(acc_curve_sum) * 
     mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
+        color = color => color_label
     ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
 
     if early_stopping_at !== nothing
@@ -98,7 +102,15 @@ function plot_learning_curves_by_color_facet!(
     end
 
 
-    draw!(f, mp; axis = (; yticks = 0.:0.25:1.))
+    plt = draw!(f[1,1], mp, scales(LineStyle = (; legend = false)); axis = (; yticks = 0.:0.25:1.))
+
+    legend!(
+        f[0,1], 
+        plt, 
+        tellwidth = false, 
+        halign = 0.5, 
+        orientation = :horizontal, 
+        framevisible = false)
 
     return f
 end
