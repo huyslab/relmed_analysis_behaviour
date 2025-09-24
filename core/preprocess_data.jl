@@ -270,16 +270,22 @@ function prepare_questionnaire_data(
 
 	questionnaire_data = DataFrame()
 	for row in eachrow(raw_questionnaire_data)
-		 response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
-		 for (key, value) in response
-			  push!(questionnaire_data,
-				   (participant_id_column => row[participant_id_column],
-					 module_start_time = row.module_start_time,
-					 session = row.session,
-					 trialphase = row.trialphase,
-					 question = key,
-					 response = value); promote=true)
-		 end
+		response = nothing
+		try
+			response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
+		catch e
+			@warn "Failed to parse JSON in questionnaire data" participant_id=row[participant_id_column] trialphase=row.trialphase error=e
+			continue
+		end
+		for (key, value) in response
+			push!(questionnaire_data,
+				(participant_id_column => row[participant_id_column],
+				 module_start_time = row.module_start_time,
+				 session = row.session,
+				 trialphase = row.trialphase,
+				 question = key,
+				 response = value); promote=true)
+		end
 	end
 
 	# Add question_id
