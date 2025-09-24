@@ -16,10 +16,12 @@ remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, co
 
 function prepare_card_choosing_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     task_name::String = "pilt",
     filter_func::Function = (x -> !ismissing(x.trialphase) && x.trialphase == task_name),
     )
+
+    participant_id_column = experiment.participant_id_column
 
 	# Select rows
 	task_data = filter(filter_func, df)
@@ -54,10 +56,15 @@ function prepare_card_choosing_data(
 
 end
 
+
 function prepare_reversal_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
 	reversal_data = filter(x -> x.trial_type == "reversal", df)
 
 	# Select columns
@@ -71,8 +78,12 @@ end
 
 function prepare_delay_discounting_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
     delay_discounting_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "dd_task", df)
 
     # Select columns
@@ -86,8 +97,12 @@ end
 
 function prepare_max_press_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
 	# Define required columns for max press data
 	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
 
@@ -126,8 +141,12 @@ function prepare_max_press_data(
 end
 
 function prepare_vigour_data(df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
     # Define required columns for vigour data
 	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
 	required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
@@ -159,8 +178,11 @@ function prepare_vigour_data(df::DataFrame;
 end
 
 function prepare_PIT_data(df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
     # Define required columns for PIT data
     required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
     required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
@@ -193,8 +215,10 @@ function prepare_PIT_data(df::DataFrame;
 end
 
 function prepare_control_data(df::DataFrame;
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1,
     )
+
+    participant_id_column = experiment.participant_id_column
 
     function extract_timeline_variables!(df::DataFrame)
         parsed = map(row -> begin
@@ -263,10 +287,13 @@ end
 
 function prepare_questionnaire_data(
     df::AbstractDataFrame;
-    participant_id_column::Symbol = :participant_id)
+    experiment::ExperimentInfo = TRIAL1
+    )
+
+    participant_id_column = experiment.participant_id_column
 
 	raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && 
-        x.trialphase in ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"], df)
+        x.trialphase in experiment.questionnaire_names, df)
 
 	questionnaire_data = DataFrame()
 	for row in eachrow(raw_questionnaire_data)
@@ -349,7 +376,7 @@ function preprocess_project(
     for task in experiment.tasks_included
         if haskey(TASK_PREPROC_FUNCS, task)
             @info "Preprocessing task: $task"
-            task_df = TASK_PREPROC_FUNCS[task](jspsych_data; participant_id_column = experiment.participant_id_column)
+            task_df = TASK_PREPROC_FUNCS[task](jspsych_data; experiment = experiment)
             push!(task_data, task_df)
             push!(task_names, Symbol(task))
         else
