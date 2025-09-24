@@ -306,12 +306,21 @@ function prepare_questionnaire_data(
 		end
 		for (key, value) in response
 			push!(questionnaire_data,
-				(participant_id_column => row[participant_id_column],
-				 module_start_time = row.module_start_time,
-				 session = row.session,
-				 trialphase = row.trialphase,
-				 question = key,
-				 response = value); promote=true)
+				NamedTuple{(
+					participant_id_column,
+					:module_start_time,
+					:session,
+					:trialphase,
+					:question,
+					:response
+				)}((
+					row[participant_id_column],
+					row.module_start_time,
+					row.session,
+					row.trialphase,
+					key,
+					value
+				)); promote=true)
 		end
 	end
 
