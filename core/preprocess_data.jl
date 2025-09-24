@@ -261,6 +261,37 @@ function prepare_control_data(df::DataFrame;
 	return (; control_task = merged_control, control_report = control_report_data)
 end
 
+function prepare_questionnaire_data(
+    df::AbstractDataFrame;
+    participant_id_column::Symbol = :participant_id)
+
+	raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && 
+        x.trialphase in ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"], df)
+
+	questionnaire_data = DataFrame()
+	for row in eachrow(raw_questionnaire_data)
+		 response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
+		 for (key, value) in response
+			  push!(questionnaire_data,
+				   (participant_id_column => row[participant_id_column],
+					 module_start_time = row.module_start_time,
+					 session = row.session,
+					 trialphase = row.trialphase,
+					 question = key,
+					 response = value); promote=true)
+		 end
+	end
+
+	# Add question_id
+	insertcols!(
+		questionnaire_data,
+		5,
+		:question_id => ((t, q) -> "$(t)_$q").(questionnaire_data.trialphase, questionnaire_data.question)
+	)
+
+	return questionnaire_data
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
@@ -272,7 +303,8 @@ TASK_PREPROC_FUNCS = Dict(
     "vigour" => prepare_vigour_data,
     "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
-    "control" => prepare_control_data
+    "control" => prepare_control_data,
+    "questionnaire" => prepare_questionnaire_data
 )
 
 function preprocess_project(
