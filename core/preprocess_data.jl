@@ -40,11 +40,11 @@ function prepare_card_choosing_data(
             [:feedback_right, :feedback_left] =>
                 ((x, y) -> ifelse.(
                     (x .> 0) .&& (y .> 0),
-                    "reward",
+                    "Reward",
                     ifelse.(
                         (x .< 0) .&& (y .< 0),
-                        "punishment",
-                        "mixed"
+                        "Punishment",
+                        "Mixed"
                     )
                 )) => :valence
         )
