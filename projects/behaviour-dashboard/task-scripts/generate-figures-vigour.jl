@@ -74,7 +74,7 @@ function plot_vigour_press_rate_by_reward_rate!(
   final_plot = individual_plot + group_plot
 
   # Draw the plot
-  draw!(f[1, 1], final_plot;
+  draw!(f[1, 1], final_plot, scales(Color = (; palette = from_continuous(:roma)));
     axis=(xlabel="Reward per press",
       ylabel="Press rate (press/sec)"))
 
