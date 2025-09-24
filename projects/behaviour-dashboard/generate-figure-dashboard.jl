@@ -8,7 +8,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using DataFrames, CairoMakie, Dates
+    using DataFrames, CairoMakie, Dates, CategoricalArrays
 
     # Include data scripts
     include("$(pwd())/core/experiment-registry.jl")
@@ -63,7 +63,8 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     PILT_main_sessions.valence = CategoricalArray(PILT_main_sessions.valence; ordered = true, levels = ["Reward", "Mixed", "Punishment"])
     f2 = Figure(size = (800, 600))
     plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence")
-
+    filename2 = "PILT_learning_curves_by_session_and_valence"
+    register_save_figure(filename2, f2, "PILT Learning Curves by Session and Valence")
 end
 
 # Generate WM learning curve by session

@@ -60,7 +60,8 @@ function plot_learning_curves_by_color_facet!(
     color::Symbol = :valence,
     color_label::String = "Valence",
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id
+    participant_id_column::Symbol = :participant_id,
+    variability::Symbol = :se # :se or :individuals
 )
 
     # Remove non-response trials
@@ -79,30 +80,61 @@ function plot_learning_curves_by_color_facet!(
     # Summarize by trial
     acc_curve_sum = combine(
         groupby(acc_curve, [facet, color, xcol]),
-        :acc => mean => :acc
+        :acc => mean => :acc,
+        :acc => (x -> mean(x) - sem(x)) => :lb,
+        :acc => (x -> mean(x) + sem(x)) => :ub
     )
 
     # Plot
-    mp = ((data(acc_curve) * mapping(
-        xcol => "Trial #",
-        :acc => "Prop. optimal choice",
-        group = :group,
-        linestyle = participant_id_column,
-        color = color => color_label
-    ) * visual(Lines, linewidth = 1, alpha = 0.7)) +
-    (data(acc_curve_sum) * 
+    if variability == :individuals
+        mp = (data(acc_curve) * mapping(
+            xcolfacet,
+            :acc,
+            group = :group,
+            linestyle = participant_id_column,
+            color = color => color_label
+        ) * visual(Lines, linewidth = 1, alpha = 0.7))
+    elseif variability == :se
+        mp = data(acc_curve_sum) *
+        mapping(
+            xcol,
+            :lb,
+            :ub,
+            color = color => color_label
+        ) * visual(Band, alpha = 0.5)
+    end
+
+
+    mp += data(acc_curve_sum) * 
     mapping(
-        xcol => "Trial #",
-        :acc => "Prop. optimal choice",
+        xcol,
+        :acc,
         color = color => color_label
-    ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
+    ) * visual(Lines, linewidth = 4)
+
+    mp *= mapping(layout = facet)
 
     if early_stopping_at !== nothing
         mp = mp + mapping([early_stopping_at]) * visual(VLines, color = :grey, linestyle = :dash)
     end
 
-
-    plt = draw!(f[1,1], mp, scales(LineStyle = (; legend = false)); axis = (; yticks = 0.:0.25:1.))
+    if variability == :individuals
+        plt = draw!(f[1,1], mp, scales(LineStyle = (; legend = false)); 
+            axis = (; 
+                yticks = 0.:0.25:1.,
+                xlabel = "Trial #",
+                ylabel = "Prop. optimal choice"
+            )
+        )
+    else
+        plt = draw!(f[1,1], mp; 
+            axis = (; 
+                yticks = 0.:0.25:1.,
+                xlabel = "Trial #",
+                ylabel = "Prop. optimal choice ±SE"
+            )
+        )
+    end
 
     legend!(
         f[0,1], 
