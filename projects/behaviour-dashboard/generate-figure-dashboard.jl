@@ -74,7 +74,7 @@ let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_d
     plot_learning_curves_by_facet!(
         f1,
         WM_main_sessions;
-        factor = :session,
+        facet = :session,
         xcol = :appearance,
         early_stopping_at = nothing)
 
