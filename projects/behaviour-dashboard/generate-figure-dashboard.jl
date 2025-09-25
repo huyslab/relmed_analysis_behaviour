@@ -8,7 +8,7 @@ begin
     Pkg.activate("$(pwd())/environment")
     # instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-    using DataFrames, CairoMakie, Dates
+    using DataFrames, CairoMakie, Dates, CategoricalArrays
 
     # Include data scripts
     include("$(pwd())/core/experiment-registry.jl")
@@ -24,10 +24,9 @@ begin
 
     # Include task-specific scripts
     task_dir = joinpath(script_dir, "task-scripts")
-    include(joinpath(task_dir, "generate-figures-card-choosing.jl"))
-    include(joinpath(task_dir, "generate-figures-reversal.jl"))
-    include(joinpath(task_dir, "generate-figures-delay-discounting.jl"))
-    include(joinpath(task_dir, "generate-figures-vigour.jl"))
+    include(joinpath(task_dir, "card-choosing.jl"))
+    include(joinpath(task_dir, "reversal.jl"))
+    include(joinpath(task_dir, "delay-discounting.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -47,27 +46,35 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, max_press, vigour, PIT, control) = preprocess_project(TRIAL1)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, open_text, questionnaire) = preprocess_project(TRIAL1)
 end
 
 # Generate PILT learning curve by session
 let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     
-    f = Figure(size = (800, 600))
-    plot_learning_curves_by_factor!(f, PILT_main_sessions; factor = :session)
+    # Plot by session
+    f1 = Figure(size = (800, 600))
+    plot_learning_curves_by_facet!(f1, PILT_main_sessions; facet = :session)
 
     filename = "PILT_learning_curves_by_session"
-    register_save_figure(filename, f, "PILT Learning Curves by Session")
+    register_save_figure(filename, f1, "PILT Learning Curves by Session")
+
+    # Plot by session and valence
+    PILT_main_sessions.valence = CategoricalArray(PILT_main_sessions.valence; ordered = true, levels = ["Reward", "Mixed", "Punishment"])
+    f2 = Figure(size = (800, 600))
+    plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence")
+    filename2 = "PILT_learning_curves_by_session_and_valence"
+    register_save_figure(filename2, f2, "PILT Learning Curves by Session and Valence")
 end
 
 # Generate WM learning curve by session
 let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_data;
 
     f1 = Figure(size = (800, 600))
-    plot_learning_curves_by_factor!(
+    plot_learning_curves_by_facet!(
         f1,
         WM_main_sessions;
-        factor = :session,
+        facet = :session,
         xcol = :appearance,
         early_stopping_at = nothing)
 
