@@ -416,6 +416,93 @@ function plot_control_controllability_ratings!(
   return f
 end
 
+function plot_control_reward_rate_by_effort!(
+  f::Figure,
+  df::DataFrame;
+  factor::Symbol=:session,
+  participant_id_column::Symbol=:participant_id,
+  x_variable::Symbol=:current
+)
+  # Filter for reward trials and remove missing correct values
+  reward_data = filter(row -> row.trialphase == "control_reward", df)
+  dropmissing!(reward_data, :correct)
+  dropmissing!(reward_data, x_variable)
+
+  # Calculate individual participant reward rates per x_variable and factor
+  group_cols = [participant_id_column, factor, x_variable]
+  avg_group_cols = [factor, x_variable]
+
+  # Individual participant reward rates per effort requirement
+  individual_data = combine(
+    groupby(reward_data, group_cols),
+    :correct => mean => :reward_rate
+  )
+  sort!(individual_data, group_cols)
+
+  # Group averages
+  group_avg_data = combine(
+    groupby(individual_data, avg_group_cols),
+    :reward_rate => mean => :avg_reward_rate,
+    :reward_rate => (x -> std(x) / sqrt(length(x))) => :se_reward_rate
+  )
+
+  # Add confidence bands
+  transform!(group_avg_data,
+    [:avg_reward_rate, :se_reward_rate] =>
+      ByRow((avg, se) -> (avg - se, avg + se)) =>
+        [:lower_bound, :upper_bound])
+  sort!(group_avg_data, avg_group_cols)
+
+  # Create axis labels based on x_variable
+  x_label = if x_variable == :current
+    "Current strength"
+  elseif x_variable == :reward_amount
+    "Reward amount"
+  else
+    string(x_variable)
+  end
+
+  # Individual participant lines
+  individual_mapping = mapping(
+    x_variable => nonnumeric => x_label,
+    :reward_rate => "Reward rate",
+    color=participant_id_column,
+    group=participant_id_column,
+    layout=factor
+  )
+
+  individual_plot = data(individual_data) *
+                    individual_mapping *
+                    visual(Lines, linewidth=1, alpha=0.3)
+
+  # Group average with confidence bands
+  group_plot = data(group_avg_data) * (
+    mapping(
+      x_variable => nonnumeric => x_label,
+      :lower_bound, :upper_bound,
+      layout=factor
+    ) * visual(Band, alpha=0.2, color=:dodgerblue2) +
+    mapping(
+      x_variable => nonnumeric => x_label,
+      :avg_reward_rate => "Reward rate",
+      layout=factor
+    ) * visual(Lines, linewidth=3, color=:dodgerblue2)
+  )
+
+  # Combine plots
+  final_plot = individual_plot + group_plot
+
+  # Draw the plot
+  draw!(f[1, 1], final_plot, scales(Color = (; palette = from_continuous(:roma)));
+    axis=(xlabel=x_label,
+      ylabel="Reward rate",
+      limits=(nothing, (0, 1))))
+
+  Label(f[0, :], "Control: Reward Rate by $x_label", tellwidth=false)
+
+  return f
+end
+
 # Convenience functions that create new figures
 function plot_control_exploration_presses(
   df::DataFrame;
@@ -467,5 +554,17 @@ function plot_control_controllability_ratings(
 )
   fig = Figure(size=figure_size)
   plot_control_controllability_ratings!(fig, controllability_df; factor=factor, participant_id_column=participant_id_column)
+  return fig
+end
+
+function plot_control_reward_rate_by_effort(
+  df::DataFrame;
+  factor::Symbol=:session,
+  participant_id_column::Symbol=:participant_id,
+  x_variable::Symbol=:current,
+  figure_size=(800, 600)
+)
+  fig = Figure(size=figure_size)
+  plot_control_reward_rate_by_effort!(fig, df; factor=factor, participant_id_column=participant_id_column, x_variable=x_variable)
   return fig
 end
