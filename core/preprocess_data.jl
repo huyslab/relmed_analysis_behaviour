@@ -311,6 +311,7 @@ function prepare_questionnaire_data(
 					:module_start_time,
 					:session,
 					:trialphase,
+                    :trial_type,
 					:question,
 					:response
 				)}((
@@ -318,6 +319,7 @@ function prepare_questionnaire_data(
 					row.module_start_time,
 					row.session,
 					row.trialphase,
+                    row.trial_type,
 					key,
 					value
 				)); promote=true)
