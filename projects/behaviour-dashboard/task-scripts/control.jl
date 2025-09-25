@@ -258,6 +258,10 @@ function plot_control_prediction_accuracy!(
         ylabel="Prediction accuracy"))
   end
 
+  # Set row heights: screening (30%) and regular sessions (70%)
+  rowsize!(f.layout, 1, Relative(0.3))
+  rowsize!(f.layout, 2, Relative(0.7))
+
   Label(f[0, :], "Control: Home Base Prediction Accuracy", tellwidth=false)
 
   return f
@@ -406,7 +410,9 @@ function plot_control_controllability_ratings!(
 
   # Draw the plot
   draw!(f[1, 1], final_plot, scales(Color = (; palette = from_continuous(:roma)));
-    axis=(xlabel="Trial",
+    axis=(
+      xlabel="Trial",
+      xticks=sort(unique(ctrl_data.trial)),
       ylabel="Controllability rating (0-4)",
       yticks=0:4,
       limits=(nothing, (0, 4))))
@@ -526,10 +532,6 @@ function plot_control_prediction_accuracy(
   fig = Figure(size=figure_size)
 
   plot_control_prediction_accuracy!(fig, df; factor=factor, participant_id_column=participant_id_column, prediction_group_column=prediction_group_column)
-
-    # Set row heights: screening (30%) and regular sessions (70%)
-  rowsize!(fig.layout, 1, Relative(0.3))
-  rowsize!(fig.layout, 2, Relative(0.7))
 
   return fig
 end
