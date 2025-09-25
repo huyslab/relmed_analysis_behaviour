@@ -17,7 +17,7 @@ function preprocess_control_data(
   # Filter for prediction trials first
   pred_trials = filter(row -> row.trialphase == "control_predict_homebase" && row.session != "screening", task_df)
 
-  # Add prediction group variable (trials 7-10 = group 1, trials 18-21 = group 2, etc.)
+  # Add prediction group variable (trials 7-10 = group 1, trials 23-26 = group 2, etc.; after every 16 trials for the column n_control_trials)
   transform!(groupby(pred_trials, [participant_id_column, :session]),
     :n_control_trials => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 16)) => :prediction_group
   )
