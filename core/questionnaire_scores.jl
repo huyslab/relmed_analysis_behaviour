@@ -27,15 +27,18 @@ function compute_questionnaire_scores(
         questionnaire_data.question,                        # jsPsych plugin
     )
 
+    # Helper function to parse responses into Ints
+     parse_response = x -> transform(x, :response => (x -> [tryparse(Int, val) !== nothing ? parse(Int, val) : val for val in x]) => :response)
+
      # PHQ: Higher, Severer; 9 * 3
      # Catch question: "Experiencing sadness or a sense of despair" => "Feeling down, depressed, or hopeless"
-     PHQ_catch =
-          filter(x -> (x.trialphase .== "PHQ" && x.question in ["Q1", "Q8"]), questionnaire_data) |>
-          x -> transform(x, :response => (x -> parse.(Int, x)) => :response) |>
+     PHQ_catch = filter(x -> (x.trialphase .== "PHQ" && x.question in ["Q1", "Q8"]), questionnaire_data) |>
+          parse_response |>
           x -> unstack(x, [participant_id_column, :module_start_time, :session], :question, :response) |>
                x -> DataFrames.transform(x, [:Q8, :Q1] => ByRow((x, y) -> abs(x - y) > 1) => :phq_fail_catch) |>
                     x -> select(x, Not([:Q8, :Q1]))
      PHQ = filter(x -> (x.trialphase .== "PHQ" && x.question .!= "Q8"), questionnaire_data) |>
+          parse_response |>
            x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                 x -> combine(x, :response => sum => :phd_total, :response => length => :phq_n)
      leftjoin!(PHQ, PHQ_catch, on=[participant_id_column, :module_start_time, :session])
@@ -43,22 +46,27 @@ function compute_questionnaire_scores(
      # GAD: Higher, Severer; 7 * 3
      # Catch question: "Worrying about the 1974 Eurovision Song Contest"
      GAD_catch = filter(x -> (x.trialphase .== "GAD" && x.question in ["Q6"]), questionnaire_data) |>
-                 x -> unstack(x, :question, :response) |>
-                      x -> DataFrames.transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
-                           x -> select(x, Not([:trialphase, :Q6]))
+          parse_response |>
+          x -> unstack(x, [participant_id_column, :module_start_time, :session], :question, :response) |>
+          x -> DataFrames.transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
+          x -> select(x, Not([:Q6]))
      GAD = filter(x -> (x.trialphase .== "GAD" && x.question .!= "Q6"), questionnaire_data) |>
+          parse_response |>
            x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                 x -> combine(x, :response => sum => :gad_total, :response => length => :gad_n)
      leftjoin!(GAD, GAD_catch, on=[participant_id_column, :module_start_time, :session])
 
      # WSAS: Higher, more impaired; 5 * 8
-     WSAS_nojob = filter(x -> (x.trialphase .== "WSAS" && x.question in ["Q0"]), questionnaire_data) |>
-                  x -> unstack(x, :question, :response) |>
-                       x -> select(x, Not([:trialphase, :Q0]), :Q0 => ByRow(==(0)) => :WSAS_nojob)
-     WSAS = filter(x -> (x.trialphase .== "WSAS" && x.question .!= "Q0"), questionnaire_data) |>
-            x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
-                 x -> combine(x, :response => sum => :wsas_total, :response => length => :wsas_n)
+     WSAS_nojob = filter(x -> (x.trialphase .== "WSAS" && x.question == "retired_check"), questionnaire_data) |>
+          x -> select(x, participant_id_column, :module_start_time, :session, :response => :WSAS_no_job)
+     
+     WSAS = filter(x -> (x.trialphase .== "WSAS" && x.question .!= "retired_check"), questionnaire_data)
      leftjoin!(WSAS, WSAS_nojob, on=[participant_id_column, :module_start_time, :session])
+
+     WSAS = filter(x -> (x.question != "Q0") || (!x.WSAS_no_job), WSAS) |>
+          parse_response |>
+          x -> groupby(x, [participant_id_column, :module_start_time, :session, :WSAS_no_job]) |>
+          x -> combine(x, :response => (x -> mean(x) * 5) => :wsas_total, :response => length => :wsas_n)
 
      # ICECAP: Higher, better quality; 5 * Tariff
      multichoice_ICECAP = Dict(
