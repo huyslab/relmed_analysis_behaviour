@@ -30,6 +30,7 @@ begin
     include(joinpath(task_dir, "vigour.jl"))
     include(joinpath(task_dir, "PIT.jl"))
     include(joinpath(task_dir, "control.jl"))
+    include(joinpath(task_dir, "questionnaires.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
