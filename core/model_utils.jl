@@ -462,9 +462,8 @@ of the observed outcomes under those parameters. It has only been tested with Tu
 - `kwargs...`: Any extra keyword args passed to `model` (e.g., `initV`).
 
 # Returns
-- `(; predicted, loglike)`: `predicted` is a vector (if `n==1`) or a matrix of simulated
-  outcomes (N x n). `loglike` is the log-likelihood of the observed outcomes under the
-  provided parameter values (or `missing` if not computable).
+- a vector (if `n==1`) or a matrix of simulated
+  outcomes (N x n).
 """
 function posterior_predictive(
     data::NamedTuple;
@@ -508,19 +507,7 @@ function posterior_predictive(
         kwargs...
     )
 
-    # Compute log-likelihood of observed outcomes under fitted params
-    # Using the original data (with observed outcome present)
-    try
-        m_obs = model(; data..., priors = priors_fitted, kwargs...)
-        # Build NamedTuple of parameter values for loglikelihood
-        pnames = collect(keys(priors_fitted))
-        pvals = [mean(priors_fitted[p]) for p in pnames]
-        params_nt = (; zip(pnames, pvals)...)
-        ll = loglikelihood(m_obs, params_nt)
-        return (; predicted, loglike = ll)
-    catch
-        return (; predicted, loglike = missing)
-    end
+    return predicted
 end
 
 """
