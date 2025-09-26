@@ -40,7 +40,7 @@ function compute_questionnaire_scores(
      PHQ = filter(x -> (x.trialphase .== "PHQ" && x.question .!= "Q8"), questionnaire_data) |>
           parse_response |>
            x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
-                x -> combine(x, :response => sum => :phd_total, :response => length => :phq_n)
+                x -> combine(x, :response => sum => :phq_total, :response => length => :phq_n)
      leftjoin!(PHQ, PHQ_catch, on=[participant_id_column, :module_start_time, :session])
 
      # GAD: Higher, Severer; 7 * 3
