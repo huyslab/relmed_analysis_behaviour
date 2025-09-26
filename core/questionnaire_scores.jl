@@ -2,8 +2,10 @@ using DataFrames
 
 function compute_questionnaire_scores(
     df::AbstractDataFrame;
-    participant_id_column::Symbol = :prolific_pid
+    experiment::ExperimentInfo = TRIAL1
     )
+
+    participant_id_column = experiment.participant_id_column
 
     # Re-index Sam Zorrowitz's question numbering to match jsPsych question numbering
     function reindex_questions(question_string::String)
@@ -34,9 +36,9 @@ function compute_questionnaire_scores(
                x -> DataFrames.transform(x, [:Q8, :Q1] => ByRow((x, y) -> abs(x - y) > 1) => :phq_fail_catch) |>
                     x -> select(x, Not([:Q8, :Q1]))
      PHQ = filter(x -> (x.trialphase .== "PHQ" && x.question .!= "Q8"), questionnaire_data) |>
-           x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+           x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                 x -> combine(x, :response => sum => :phd_total, :response => length => :phq_n)
-     leftjoin!(PHQ, PHQ_catch, on=[:prolific_pid, :exp_start_time, :session])
+     leftjoin!(PHQ, PHQ_catch, on=[participant_id_column, :module_start_time, :session])
 
      # GAD: Higher, Severer; 7 * 3
      # Catch question: "Worrying about the 1974 Eurovision Song Contest"
@@ -45,18 +47,18 @@ function compute_questionnaire_scores(
                       x -> DataFrames.transform(x, [:Q6] => ByRow(!=(0)) => :gad_fail_catch) |>
                            x -> select(x, Not([:trialphase, :Q6]))
      GAD = filter(x -> (x.trialphase .== "GAD" && x.question .!= "Q6"), questionnaire_data) |>
-           x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+           x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                 x -> combine(x, :response => sum => :gad_total, :response => length => :gad_n)
-     leftjoin!(GAD, GAD_catch, on=[:prolific_pid, :exp_start_time, :session])
+     leftjoin!(GAD, GAD_catch, on=[participant_id_column, :module_start_time, :session])
 
      # WSAS: Higher, more impaired; 5 * 8
      WSAS_nojob = filter(x -> (x.trialphase .== "WSAS" && x.question in ["Q0"]), questionnaire_data) |>
                   x -> unstack(x, :question, :response) |>
                        x -> select(x, Not([:trialphase, :Q0]), :Q0 => ByRow(==(0)) => :WSAS_nojob)
      WSAS = filter(x -> (x.trialphase .== "WSAS" && x.question .!= "Q0"), questionnaire_data) |>
-            x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+            x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                  x -> combine(x, :response => sum => :wsas_total, :response => length => :wsas_n)
-     leftjoin!(WSAS, WSAS_nojob, on=[:prolific_pid, :exp_start_time, :session])
+     leftjoin!(WSAS, WSAS_nojob, on=[participant_id_column, :module_start_time, :session])
 
      # ICECAP: Higher, better quality; 5 * Tariff
      multichoice_ICECAP = Dict(
@@ -95,7 +97,7 @@ function compute_questionnaire_scores(
           filter(x -> (x.trialphase .== "ICECAP"), questionnaire_data) |>
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :tariff_score => sum => :icecap_total, :tariff_score => length => :icecap_n)
 
      # BFI: Big five; 5 subscales (* 2 items) * 1-5
@@ -104,7 +106,7 @@ function compute_questionnaire_scores(
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
                x ->
-                    unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
+                    unstack(x, [participant_id_column, :module_start_time, :session], :question, :score) |>
                     x -> DataFrames.transform(x,
                          [:Q0, :Q5] => (+) => :bfi_E,
                          [:Q1, :Q6] => (+) => :bfi_A,
@@ -121,7 +123,7 @@ function compute_questionnaire_scores(
           x ->
                DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x ->
-                    unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
+                    unstack(x, [participant_id_column, :module_start_time, :session], :question, :score) |>
                     x ->
                          DataFrames.transform(x,
                               [:Q19, :Q13] => ByRow((x, y) -> abs(x - y) > 2) => :pvss_fail_catch,
@@ -136,9 +138,9 @@ function compute_questionnaire_scores(
      PVSS =
           filter(x -> (x.trialphase .== "PVSS" && x.question .!= "Q19"), questionnaire_data) |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pvss_total, :score => length => :pvss_n)
-     leftjoin!(PVSS, PVSS_catch, on=[:prolific_pid, :exp_start_time, :session])
+     leftjoin!(PVSS, PVSS_catch, on=[participant_id_column, :module_start_time, :session])
 
      # BADS: Higher, better behavioral activation; 9 * 0-6
      # Catch question: "I was able to lift my coffee cup or water glass when drinking."
@@ -147,7 +149,7 @@ function compute_questionnaire_scores(
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x ->
-                    unstack(x, [:prolific_pid, :exp_start_time, :session], :question, :score) |>
+                    unstack(x, [participant_id_column, :module_start_time, :session], :question, :score) |>
                     x -> DataFrames.transform(x,
                          [:Q6] => ByRow(<(5)) => :bads_fail_catch,
                          [:Q0, :Q1, :Q2, :Q3, :Q4, :Q9] => (+) => :bads_ac,
@@ -157,39 +159,39 @@ function compute_questionnaire_scores(
      BADS =
           filter(x -> (x.trialphase .== "BADS" && x.question .!= "Q6"), questionnaire_data) |>
           x -> DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :bads_total, :score => length => :bads_n)
-     leftjoin!(BADS, BADS_subscale, on=[:prolific_pid, :exp_start_time, :session])
+     leftjoin!(BADS, BADS_subscale, on=[participant_id_column, :module_start_time, :session])
 
      # Hopelessness: Higher, more helplessness; 2 * 1-5
      Hopelessness =
           filter(x -> (x.trialphase .== "Hopelessness"), questionnaire_data) |>
           x -> DataFrames.transform(x, :response => (x -> 5 .- x) => :score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :hopeless_total, :score => length => :hopeless_n)
 
      # PERS: Higher, more negative activation; 5 * 1-5
      PERS =
           filter(x -> (x.trialphase .== "PERS_negAct"), questionnaire_data) |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pers_negact_total, :score => length => :pers_n)
 
      # RRS: Higher, more rumination - brooding; 5 * 1-4
      RRS =
           filter(x -> (x.trialphase .== "RRS_brooding"), questionnaire_data) |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
-               x -> groupby(x, [:prolific_pid, :exp_start_time, :session]) |>
+               x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :rrs_brooding_total, :score => length => :rrs_brooding_n)
 
      # Questionnaire response time in minute
      questionnaire_time_data = raw_questionnaire_data |>
-                               x -> select(x, :prolific_pid, :exp_start_time, :session, :trialphase => :questionnaire, :rt => (x -> x ./ 60000) => :response_time)
+                               x -> select(x, participant_id_column, :module_start_time, :session, :trialphase => :questionnaire, :rt => (x -> x ./ 60000) => :response_time)
 
      # Merge all questionnaire data
      questionnaire_score_data = copy(PHQ)
      for df in [GAD, WSAS, ICECAP, BFI, PVSS, BADS, Hopelessness, PERS, RRS]
-          leftjoin!(questionnaire_score_data, df, on=[:prolific_pid, :exp_start_time, :session])
+          leftjoin!(questionnaire_score_data, df, on=[participant_id_column, :module_start_time, :session])
      end
 
      return questionnaire_score_data, questionnaire_time_data
