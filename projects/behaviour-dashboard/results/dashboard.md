@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-26 10:28:35
+Generated on: 2025-09-26 10:35:26
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -32,9 +32,41 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Delay Discounting Curve](delay_discounting_curve.svg)
 
+## 8. Vigour: Press Rate by Reward Rate
+
+![Vigour: Press Rate by Reward Rate](vigour_press_rate_by_reward_rate.svg)
+
+## 9. PIT: Press Rate by Pavlovian Stimuli
+
+![PIT: Press Rate by Pavlovian Stimuli](PIT_press_rate_by_pavlovian_stimuli.svg)
+
+## 10. Control: Exploration Presses by Current Strength
+
+![Control: Exploration Presses by Current Strength](control_exploration_presses_by_current_strength.svg)
+
+## 11. Control: Prediction Accuracy Over Time
+
+![Control: Prediction Accuracy Over Time](control_prediction_accuracy_over_time.svg)
+
+## 12. Control: Confidence Ratings Over Time
+
+![Control: Confidence Ratings Over Time](control_confidence_ratings.svg)
+
+## 13. Control: Controllability Ratings Over Time
+
+![Control: Controllability Ratings Over Time](control_controllability_ratings.svg)
+
+## 14. Control: Reward Rate by Current Strength
+
+![Control: Reward Rate by Current Strength](control_reward_rate_by_current_strength.svg)
+
+## 15. Control: Reward Rate by Reward Amount
+
+![Control: Reward Rate by Reward Amount](control_reward_rate_by_reward_amount.svg)
+
 
 ---
 
-**Summary**: Generated 7 figures from the behaviour analysis pipeline.
+**Summary**: Generated 15 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
