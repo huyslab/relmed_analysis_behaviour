@@ -449,7 +449,7 @@ Posterior predictive simulation using point-estimated parameters.
 
 Builds Dirac priors at the supplied parameter values (from `fit` or a mapping),
 simulates `outcome_name` via `Prior()` sampling, and computes the log-likelihood
-of the observed outcomes under those parameters.
+of the observed outcomes under those parameters. It has only been tested with Turing optimization results, not with the `sample()` method.
 
 # Arguments
 - `data::NamedTuple`: Data mapped for the Turing model (e.g., from an unpack function). If `outcome_name` is present, it will be replaced with `missing` values for simulation/prediction.
