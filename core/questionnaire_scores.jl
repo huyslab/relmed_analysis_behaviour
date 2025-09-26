@@ -106,6 +106,7 @@ function compute_questionnaire_scores(
      )
      ICECAP =
           filter(x -> (x.trialphase .== "ICECAP"), questionnaire_data) |>
+          pasre_response |>
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
