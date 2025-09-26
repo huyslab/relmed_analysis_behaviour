@@ -182,5 +182,14 @@ let
     register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
 end
 
+# Generate questionnaire histograms
+let 
+    f = Figure(size = (1200, 800))
+    plot_questionnaire_histograms!(f, questionnaire; bins=15)
+
+    filename = "questionnaire_histograms"
+    register_save_figure(filename, f, "Questionnaire Score Distributions")
+end
+
 # Generate the dashboard
 generate_markdown_dashboard()
