@@ -28,7 +28,7 @@ function compute_questionnaire_scores(
     )
 
     # Helper function to parse responses into Ints
-     parse_response = x -> transform(x, :response => (x -> [tryparse(Int, val) !== nothing ? parse(Int, val) : val for val in x]) => :response)
+     parse_response = x -> transform(x, :response => (vals -> [tryparse(Int, val) !== nothing ? parse(Int, val) : val for val in vals]) => :response)
 
      # PHQ: Higher, Severer; 9 * 3
      # Catch question: "Experiencing sadness or a sense of despair" => "Feeling down, depressed, or hopeless"
