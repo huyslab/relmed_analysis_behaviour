@@ -26,7 +26,7 @@ function plot_questionnaire_histograms!(
     labels::Vector{String} = ["PHQ-9", "GAD-7", "WSAS", "ICECAP", 
         "BFI Extraversion", "BFI Agreeableness", "BFI Conscientiousness", "BFI Neuroticism", "BFI Openness", 
         "PVSS", "BADS", "Hopelessness", "PERS negative affect", "RRS Brooding"],
-        bins::Int = 20,
+    bins::Int = 20,
     experiment::ExperimentInfo = TRIAL1
 )
     
