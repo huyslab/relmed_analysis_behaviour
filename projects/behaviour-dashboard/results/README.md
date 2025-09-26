@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-26 10:39:16
+Generated on: 2025-09-26 21:11:41
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -64,9 +64,13 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Control: Reward Rate by Reward Amount](control_reward_rate_by_reward_amount.svg)
 
+## 16. Questionnaire Score Distributions
+
+![Questionnaire Score Distributions](questionnaire_histograms.svg)
+
 
 ---
 
-**Summary**: Generated 15 figures from the behaviour analysis pipeline.
+**Summary**: Generated 16 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
