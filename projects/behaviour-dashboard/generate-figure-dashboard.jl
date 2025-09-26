@@ -27,6 +27,9 @@ begin
     include(joinpath(task_dir, "card-choosing.jl"))
     include(joinpath(task_dir, "reversal.jl"))
     include(joinpath(task_dir, "delay-discounting.jl"))
+    include(joinpath(task_dir, "vigour.jl"))
+    include(joinpath(task_dir, "PIT.jl"))
+    include(joinpath(task_dir, "control.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -46,7 +49,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, open_text, questionnaire) = preprocess_project(TRIAL1)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire) = preprocess_project(TRIAL1; force_download = true)
 end
 
 # Generate PILT learning curve by session
@@ -116,6 +119,67 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
 
     filename = "delay_discounting_curve"
     register_save_figure(filename, f, "Delay Discounting Curve")
+end
+
+# Generate vigour plots
+let vigour_processed = preprocess_vigour_data(vigour)
+
+    f1 = Figure(size = (800, 600))
+    plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session)
+
+    filename1 = "vigour_press_rate_by_reward_rate"
+    register_save_figure(filename1, f1, "Vigour: Press Rate by Reward Rate")
+end
+
+# Generate PIT plots
+let PIT_processed = preprocess_PIT_data(PIT)
+
+    f1 = Figure(size = (800, 600))
+    plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session)
+
+    filename1 = "PIT_press_rate_by_pavlovian_stimuli"
+    register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")
+end
+
+# Generate control plots
+let 
+    task_with_groups, complete_confidence, controllability_data = preprocess_control_data(control.control_task, control.control_report)
+
+    # Exploration presses by current strength
+    f1 = Figure(size = (800, 600))
+    plot_control_exploration_presses!(f1, task_with_groups; factor=:session)
+    filename1 = "control_exploration_presses_by_current_strength"
+    register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
+
+    # Prediction accuracy over time (with screening)
+    f2 = Figure(size = (800, 800))
+    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session)
+    filename2 = "control_prediction_accuracy_over_time"
+    register_save_figure(filename2, f2, "Control: Prediction Accuracy Over Time")
+
+    # Confidence ratings
+    f3 = Figure(size = (800, 600))
+    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session)
+    filename3 = "control_confidence_ratings"
+    register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
+
+    # Controllability ratings
+    f4 = Figure(size = (800, 600))
+    plot_control_controllability_ratings!(f4, controllability_data; factor=:session)
+    filename4 = "control_controllability_ratings"
+    register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
+
+    # Reward rate by current strength (default)
+    f5 = Figure(size = (800, 600))
+    plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current)
+    filename5 = "control_reward_rate_by_current_strength"
+    register_save_figure(filename5, f5, "Control: Reward Rate by Current Strength")
+
+    # Reward rate by reward amount
+    f6 = Figure(size = (800, 600))
+    plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount)
+    filename6 = "control_reward_rate_by_reward_amount"
+    register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
 end
 
 # Generate the dashboard
