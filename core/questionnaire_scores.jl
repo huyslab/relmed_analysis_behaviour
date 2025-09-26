@@ -199,6 +199,7 @@ function compute_questionnaire_scores(
      # RRS: Higher, more rumination - brooding; 5 * 1-4
      RRS =
           filter(x -> (x.trialphase .== "RRS_brooding"), questionnaire_data) |>
+          parse_response |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :rrs_brooding_total, :score => length => :rrs_brooding_n)
