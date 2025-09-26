@@ -191,6 +191,7 @@ function compute_questionnaire_scores(
      # PERS: Higher, more negative activation; 5 * 1-5
      PERS =
           filter(x -> (x.trialphase .== "PERS_negAct"), questionnaire_data) |>
+          parse_response |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pers_negact_total, :score => length => :pers_n)
