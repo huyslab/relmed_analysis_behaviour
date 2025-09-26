@@ -30,6 +30,7 @@ begin
     include(joinpath(task_dir, "vigour.jl"))
     include(joinpath(task_dir, "PIT.jl"))
     include(joinpath(task_dir, "control.jl"))
+    include(joinpath(task_dir, "questionnaires.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -180,6 +181,15 @@ let
     plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount)
     filename6 = "control_reward_rate_by_reward_amount"
     register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
+end
+
+# Generate questionnaire histograms
+let 
+    f = Figure(size = (1200, 800))
+    plot_questionnaire_histograms!(f, questionnaire; bins=15)
+
+    filename = "questionnaire_histograms"
+    register_save_figure(filename, f, "Questionnaire Score Distributions")
 end
 
 # Generate the dashboard
