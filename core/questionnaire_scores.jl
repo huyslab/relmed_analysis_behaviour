@@ -161,6 +161,7 @@ function compute_questionnaire_scores(
      # Catch question: "I was able to lift my coffee cup or water glass when drinking."
      BADS_subscale =
           filter(x -> (x.trialphase .== "BADS"), questionnaire_data) |>
+          parse_response |>
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x ->
@@ -173,6 +174,7 @@ function compute_questionnaire_scores(
                          x -> select(x, Not(r"^Q"))
      BADS =
           filter(x -> (x.trialphase .== "BADS" && x.question .!= "Q6"), questionnaire_data) |>
+          parse_response |>
           x -> DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q5", "Q7", "Q8"], 6 - y, y)) => :score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :bads_total, :score => length => :bads_n)
