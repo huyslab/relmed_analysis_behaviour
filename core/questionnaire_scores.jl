@@ -106,7 +106,7 @@ function compute_questionnaire_scores(
      )
      ICECAP =
           filter(x -> (x.trialphase .== "ICECAP"), questionnaire_data) |>
-          pasre_response |>
+          parse_response |>
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> multichoice_ICECAP[x][y]) => :tariff_score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
@@ -115,6 +115,7 @@ function compute_questionnaire_scores(
      # BFI: Big five; 5 subscales (* 2 items) * 1-5
      BFI =
           filter(x -> (x.trialphase .== "BFI"), questionnaire_data) |>
+          parse_response |>
           x ->
                DataFrames.transform(x, [:question, :response] => ByRow((x, y) -> ifelse(x in ["Q0", "Q6", "Q2", "Q3", "Q4"], 5 - y, y + 1)) => :score) |>
                x ->
