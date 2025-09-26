@@ -56,7 +56,10 @@ function compute_questionnaire_scores(
                 x -> combine(x, :response => sum => :gad_total, :response => length => :gad_n)
      leftjoin!(GAD, GAD_catch, on=[participant_id_column, :module_start_time, :session])
 
-     # WSAS: Higher, more impaired; 5 * 8
+     # WSAS: Higher, more impaired; 5 * 8. Ignoring work item if not working - transforming to match totals. 
+     # Somewhat following the approach here Skelton, M., Catarino, A., Brown, S., Carr, E., Davies, M. R., Peel,
+     # A. J., ... & Eley, T. C. (2023). Trajectories of depression symptoms, anxiety symptoms and functional impairment
+     # during internet-enabled cognitive-behavioural therapy. Behaviour Research and Therapy, 169, 104386.
      WSAS_nojob = filter(x -> (x.trialphase .== "WSAS" && x.question == "retired_check"), questionnaire_data) |>
           x -> select(x, participant_id_column, :module_start_time, :session, :response => :WSAS_no_job)
      
