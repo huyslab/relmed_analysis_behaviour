@@ -204,15 +204,11 @@ function compute_questionnaire_scores(
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :rrs_brooding_total, :score => length => :rrs_brooding_n)
 
-     # Questionnaire response time in minute
-     questionnaire_time_data = raw_questionnaire_data |>
-                               x -> select(x, participant_id_column, :module_start_time, :session, :trialphase => :questionnaire, :rt => (x -> x ./ 60000) => :response_time)
-
      # Merge all questionnaire data
      questionnaire_score_data = copy(PHQ)
      for df in [GAD, WSAS, ICECAP, BFI, PVSS, BADS, Hopelessness, PERS, RRS]
           leftjoin!(questionnaire_score_data, df, on=[participant_id_column, :module_start_time, :session])
      end
 
-     return questionnaire_score_data, questionnaire_time_data
+     return questionnaire_score_data
 end
