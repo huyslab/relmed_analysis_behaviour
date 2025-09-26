@@ -31,7 +31,7 @@ function plot_questionnaire_histograms!(
 )
     
     # Compute total scores for all questionnaires
-    scores = compute_questionnaire_scores(df)
+    scores = compute_questionnaire_scores(df; experiment = experiment)
 
     # Reshape data from wide to long format for plotting
     long_scores = stack(scores, columns, [experiment.participant_id_column, :session]; 
