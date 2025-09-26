@@ -183,6 +183,7 @@ function compute_questionnaire_scores(
      # Hopelessness: Higher, more helplessness; 2 * 1-5
      Hopelessness =
           filter(x -> (x.trialphase .== "Hopelessness"), questionnaire_data) |>
+          parse_response |>
           x -> DataFrames.transform(x, :response => (x -> 5 .- x) => :score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :hopeless_total, :score => length => :hopeless_n)
