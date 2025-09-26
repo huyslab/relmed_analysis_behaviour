@@ -133,6 +133,7 @@ function compute_questionnaire_scores(
      # Catch question: "I wished to engage in enjoyable activities with people I'm close to" => "I <u>wanted</u> to participate in a fun activity with friends"
      PVSS_catch =
           filter(x -> (x.trialphase .== "PVSS"), questionnaire_data) |>
+          parse_response |>
           x ->
                DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x ->
@@ -150,6 +151,7 @@ function compute_questionnaire_scores(
                          x -> select(x, Not(r"^Q"))
      PVSS =
           filter(x -> (x.trialphase .== "PVSS" && x.question .!= "Q19"), questionnaire_data) |>
+          parse_response |>
           x -> DataFrames.transform(x, :response => (x -> x .+ 1) => :score) |>
                x -> groupby(x, [participant_id_column, :module_start_time, :session]) |>
                     x -> combine(x, :score => sum => :pvss_total, :score => length => :pvss_n)
