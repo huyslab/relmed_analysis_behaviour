@@ -111,8 +111,6 @@ function compute_WSAS_scores(questionnaire_data::AbstractDataFrame, participant_
 
     # Keep all rows except those where the question is "Q0" and the participant is not working (WSAS_no_job is true).
     # In other words, exclude "Q0" rows only for participants who are not working; include all other rows.
-    # Keep all rows except those where the question is "Q0" and the participant is not working (WSAS_no_job is true).
-    # In other words, exclude "Q0" rows only for participants who are not working; include all other rows.
     WSAS = filter(x -> (x.question != "Q0") || (!x.WSAS_no_job), WSAS) |>
          parse_response |>
          x -> groupby(x, [participant_id_column, :module_start_time, :session, :WSAS_no_job]) |>
