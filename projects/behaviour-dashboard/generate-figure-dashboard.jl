@@ -192,5 +192,21 @@ let
     register_save_figure(filename, f, "Questionnaire Score Distributions")
 end
 
+# Generate max press rate histogram
+let
+    f = Figure(size = (800, 600))
+
+    mp = data(max_press) *
+    mapping(
+        :avg_speed => "Average Press Rate",
+        layout = :session => "Session"
+    ) * histogram(bins=20)
+
+    plt = draw!(f[1, 1], mp; axis = (; ylabel = "# participants"))
+
+    filename = "max_press_rate_histogram"
+    register_save_figure(filename, f, "Max Press Rate Distribution by Session")
+end
+
 # Generate the dashboard
 generate_markdown_dashboard()
