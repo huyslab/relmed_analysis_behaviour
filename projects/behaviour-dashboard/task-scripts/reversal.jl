@@ -128,7 +128,7 @@ function plot_reversal_accuracy_curve_by_factor!(
 				:acc  => "Prop. optimal choice",
 				:se,
 				layout = factor
-			) * visual(Errorbars, linewidth = config[:errorbar_linewidth]) +
+			) * visual(Errorbars, linewidth = config[:thick_linewidth]) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
@@ -141,7 +141,7 @@ function plot_reversal_accuracy_curve_by_factor!(
 				group = :group => nonnumeric ,
 				layout = factor
 			) * 
-			visual(Lines, linewidth = config[:group_linewidth])
+			visual(Lines, linewidth = config[:thick_linewidth])
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 
