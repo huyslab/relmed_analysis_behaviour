@@ -27,7 +27,7 @@ function plot_questionnaire_histograms!(
         "BFI Extraversion", "BFI Agreeableness", "BFI Conscientiousness", "BFI Neuroticism", "BFI Openness", 
         "PVSS", "BADS", "Hopelessness", "PERS negative affect", "RRS Brooding"],
     experiment::ExperimentInfo = TRIAL1,
-    config::Dict = plot_config
+    bins::Int = 15
 )
     
     # Compute total scores for all questionnaires
@@ -72,7 +72,7 @@ function plot_questionnaire_histograms!(
         mapping(
             :score,
             color = :session => "Session"
-        ) * histogram(bins=config[:questionnaire_bins])
+        ) * histogram(bins=bins)
         
         # Draw to specific subplot
         draw!(f[row, col], mp, scales(Color = (; palette = color_map));

@@ -39,8 +39,5 @@ plot_config = Dict(
     # Stroke widths  
     :stroke_width => 0.5,           # Marker stroke width
     
-    # Histogram bins
-    :histogram_bins => 20,          # Default histogram bins
-    :questionnaire_bins => 15,      # Questionnaire histogram bins
 )
 
