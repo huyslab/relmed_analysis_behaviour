@@ -116,8 +116,10 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
     dfs = [filter(x -> x.session == s, preproc_df) for s in sessions]
     model_names = ["delay_discounting_model_$(s)" for s in sessions]
 
-    fits = map((df, model_name) -> post_process_dd_logistic_regression(fit_dd_logistic_regression(df; model_name = model_name)), dfs, model_names)
+    fit_and_process = post_process_dd_logistic_regression ∘ fit_dd_logistic_regression
+    fits = map((df, model_name) -> fit_and_process(df; model_name = model_name), dfs, model_names)
 
+    # Add session column to each draw DataFrame and concatenate
     coef_draws = vcat([insertcols(fit, 1, :session => sessions[i]) for (i, fit) in enumerate(fits)]...)
 
     f = Figure(size = (800, 600))
