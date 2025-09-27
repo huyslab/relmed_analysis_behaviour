@@ -47,7 +47,7 @@ function plot_pavlovian_lottery_rt!(
         :pavlovian_value => nonnumeric,
         :rt,
         :se
-    ) * visual(Errorbars, linewidth = lw, color = :black) +
+    ) * visual(Errorbars, linewidth = config[:lw], color = :black) +
     mapping(
         :pavlovian_value => nonnumeric,
         :rt,
