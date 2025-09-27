@@ -194,10 +194,10 @@ let
 end
 
 # Generate max press rate histogram
-let
+let max_press_clean = combine(groupby(max_press, [TRIAL1.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
     f = Figure(size = (800, 600))
 
-    mp = data(max_press) *
+    mp = data(max_press_clean) *
     mapping(
         :avg_speed => "Average Press Rate",
         layout = :session => "Session"
