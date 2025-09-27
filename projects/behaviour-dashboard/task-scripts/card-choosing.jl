@@ -38,7 +38,8 @@ function plot_learning_curves_by_facet!(
     facet::Symbol = :session,
     xcol::Symbol = :trial,
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id
+    participant_id_column::Symbol = :participant_id,
+    config::Dict = plot_config
 )
 
     # Remove non-response trials to focus on actual choices
@@ -64,12 +65,12 @@ function plot_learning_curves_by_facet!(
         :acc => "Prop. optimal choice",
         group = participant_id_column,
         color = participant_id_column,
-    ) * visual(Lines, linewidth = 1, alpha = 0.7)) +
+    ) * visual(Lines, linewidth = config[:individual_linewidth], alpha = config[:individual_alpha])) +
     (data(acc_curve_sum) * 
     mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
-    ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
+    ) * visual(Lines, linewidth = config[:group_linewidth]))) * mapping(layout = facet)
 
     # Add vertical line for early stopping indicator if specified
     if early_stopping_at !== nothing
@@ -108,7 +109,8 @@ function plot_learning_curves_by_color_facet!(
     color_label::String = "Valence",
     early_stopping_at::Union{Int, Nothing} = 5,
     participant_id_column::Symbol = :participant_id,
-    variability::Symbol = :se # :se or :individuals
+    variability::Symbol = :se, # :se or :individuals
+    config::Dict = plot_config
 )
 
     # Remove non-response trials
@@ -141,7 +143,7 @@ function plot_learning_curves_by_color_facet!(
             group = :group,
             linestyle = participant_id_column,
             color = color => color_label
-        ) * visual(Lines, linewidth = 1, alpha = 0.7))
+        ) * visual(Lines, linewidth = config[:individual_linewidth], alpha = config[:individual_alpha]))
     elseif variability == :se
         mp = data(acc_curve_sum) *
         mapping(
@@ -149,7 +151,7 @@ function plot_learning_curves_by_color_facet!(
             :lb,
             :ub,
             color = color => color_label
-        ) * visual(Band, alpha = 0.5)
+        ) * visual(Band, alpha = config[:band_alpha])
     end
 
 
@@ -158,7 +160,7 @@ function plot_learning_curves_by_color_facet!(
         xcol,
         :acc,
         color = color => color_label
-    ) * visual(Lines, linewidth = 4)
+    ) * visual(Lines, linewidth = config[:group_linewidth])
 
     mp *= mapping(layout = facet)
 
@@ -302,10 +304,7 @@ function plot_learning_curve_by_delay_bins!(
     participant_id_column::Symbol = :participant_id,
     facet::Symbol = :session,
     variability::Symbol = :se, # :se or :individuals
-    lw::Real = 4,
-    tlw::Real = 1,
-    ms::Real = 20,
-    sms::Real = 4
+    config::Dict = plot_config
 )
 	
     # Recode delay into meaningful bins for analysis
@@ -344,13 +343,13 @@ function plot_learning_curve_by_delay_bins!(
                 :ub,
                 color = :delay_bin  => "Delay",
                 layout = facet
-        ) * visual(Band, alpha = 0.5) +
+        ) * visual(Band, alpha = config[:band_alpha]) +
             mapping(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = lw))) + (
+        ) * visual(Lines; linewidth = config[:group_linewidth]))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
                 :appearance ,
@@ -358,13 +357,13 @@ function plot_learning_curve_by_delay_bins!(
                 :se,
                 color = :delay_bin => "Delay",
                 col = facet
-            ) * visual(Errorbars, linewidth = lw) +
+            ) * visual(Errorbars, linewidth = config[:errorbar_linewidth]) +
             mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = ms))
+            ) * visual(Scatter, markersize = config[:large_markersize]))
         )
     elseif variability == :individuals
         # Show individual participant trajectories
@@ -375,28 +374,28 @@ function plot_learning_curve_by_delay_bins!(
                 color = :delay_bin  => "Delay",
                 group = participant_id_column,
                 col = facet
-        ) * visual(Lines; linewidth = tlw, linestyle = :dash) +
+        ) * visual(Lines; linewidth = config[:thin_linewidth], linestyle = :dash) +
         data(filter(x -> x.delay_bin == "0", app_curve)) *
         mapping(
                 :appearance,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = sms) +
+            ) * visual(Scatter, markersize = config[:small_markersize]) +
         data(filter(x -> x.delay_bin != "0", app_curve_sum)) *
         mapping(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = lw) +
+        ) * visual(Lines; linewidth = config[:group_linewidth]) +
         data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
         mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = ms)
+            ) * visual(Scatter, markersize = config[:large_markersize])
     end
 
 	# Draw the plot with axis labels

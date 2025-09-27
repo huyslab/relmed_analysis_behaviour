@@ -5,12 +5,7 @@ function plot_pavlovian_lottery_rt!(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
     facet::Symbol = :session,
-    config::Dict = Dict(
-        :individual_alpha => 0.5,
-        :sms => 10,
-        :ms => 20,
-        :lw => 2
-    )
+    config::Dict = plot_config
 )
 
     # Remove missing responses
@@ -38,7 +33,7 @@ function plot_pavlovian_lottery_rt!(
     mapping(
         :pavlovian_value => nonnumeric,
         :rt,
-    ) * visual(Scatter, markersize = config[:sms], alpha = config[:individual_alpha])
+    ) * visual(Scatter, markersize = config[:small_markersize], alpha = config[:scatter_alpha])
 
     mp *= mapping(color = experiment.participant_id_column)
 
@@ -47,11 +42,11 @@ function plot_pavlovian_lottery_rt!(
         :pavlovian_value => nonnumeric,
         :rt,
         :se
-    ) * visual(Errorbars, linewidth = config[:lw], color = :black) +
+    ) * visual(Errorbars, linewidth = config[:individual_linewidth], color = :black) +
     mapping(
         :pavlovian_value => nonnumeric,
         :rt,
-    ) * visual(ScatterLines, linewidth = config[:lw], markersize = config[:ms], color = :black))
+    ) * visual(ScatterLines, linewidth = config[:individual_linewidth], markersize = config[:large_markersize], color = :black))
 
 
     mp *= mapping(layout = facet)

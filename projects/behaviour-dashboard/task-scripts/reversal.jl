@@ -55,7 +55,8 @@ function plot_reversal_accuracy_curve_by_factor!(
     f::Figure,
     df::DataFrame;
     factor::Symbol = :session,
-    participant_id_column::Symbol = :participant_id
+    participant_id_column::Symbol = :participant_id,
+    config::Dict = plot_config
     )
     
 	# Summarize accuracy pre reversal
@@ -118,7 +119,7 @@ function plot_reversal_accuracy_curve_by_factor!(
 			group = :group => nonnumeric,
 			color = :color,
 			layout = factor
-		) * visual(Lines, linewidth = 1) +
+		) * visual(Lines, linewidth = config[:individual_linewidth]) +
 		
 	data(sum_sum_pre_post) *
 		(
@@ -127,20 +128,20 @@ function plot_reversal_accuracy_curve_by_factor!(
 				:acc  => "Prop. optimal choice",
 				:se,
 				layout = factor
-			) * visual(Errorbars) +
+			) * visual(Errorbars, linewidth = config[:errorbar_linewidth]) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
 				layout = factor
 			) * 
-			visual(Scatter) +
+			visual(Scatter, markersize = config[:medium_markersize]) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
 				group = :group => nonnumeric ,
 				layout = factor
 			) * 
-			visual(Lines)
+			visual(Lines, linewidth = config[:group_linewidth])
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 

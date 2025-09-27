@@ -229,7 +229,8 @@ function plot_value_ratio_as_function_of_delay!(
     coef_draws::DataFrame,
     df::DataFrame;
     participant_id_column::Symbol = :participant_id,
-    facet::Symbol = :session
+    facet::Symbol = :session,
+    config::Dict = plot_config
 )
 
     # Ensure facet column is in both dataframes or neither
@@ -254,7 +255,7 @@ function plot_value_ratio_as_function_of_delay!(
     )
 
     # Set line width (group line is thicker)
-    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", 4, 1)
+    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", config[:group_linewidth], config[:individual_linewidth])
 
     # Calculate proportion chosen later for observed data
     df.ratio = df.sum_today ./ df.sum_later
@@ -305,8 +306,8 @@ function plot_value_ratio_as_function_of_delay!(
             Scatter; 
             strokecolor = :black, 
             marker = :circle,
-            markersize = 10,
-            strokewidth = 0.5
+            markersize = config[:medium_markersize],
+            strokewidth = config[:stroke_width]
         )
 
     # Set color palette
