@@ -193,7 +193,7 @@ let
 end
 
 # Generate max press rate histogram
-let 
+let
     f = Figure(size = (800, 600))
 
     mp = data(max_press) *
