@@ -30,7 +30,7 @@ function plot_pavlovian_lottery_rt!(
         :rt => sem => :se
     )
 
-    sort!(rt_sum_sum, [:pavlovian_value, facet]),
+    sort!(rt_sum_sum, [:pavlovian_value, facet])
     sort!(rt_sum, [:pavlovian_value, facet])
 
     # Plot    
