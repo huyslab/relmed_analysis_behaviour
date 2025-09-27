@@ -112,15 +112,21 @@ end
 # Generate delay discounting curves
 let preproc_df = preprocess_delay_discounting_data(delay_discounting)
 
-    draws, coefs = fit_dd_logistic_regression(preproc_df)
+    sessions = sort(unique(preproc_df.session))
+    dfs = [filter(x -> x.session == s, preproc_df) for s in sessions]
+    model_names = ["delay_discounting_model_$(s)" for s in sessions]
 
-    coef_draws = post_process_dd_logistic_regression(draws, coefs)
+    fit_and_process = post_process_dd_logistic_regression ∘ fit_dd_logistic_regression
+    fits = map((df, model_name) -> fit_and_process(df; model_name = model_name), dfs, model_names)
+
+    # Add session column to each draw DataFrame and concatenate
+    coef_draws = vcat([insertcols(fit, 1, :session => sessions[i]) for (i, fit) in enumerate(fits)]...)
 
     f = Figure(size = (800, 600))
     plot_value_ratio_as_function_of_delay!(f, coef_draws, preproc_df)
 
-    filename = "delay_discounting_curve"
-    register_save_figure(filename, f, "Delay Discounting Curve")
+    filename = "delay_discounting_curve_by_session"
+    register_save_figure(filename, f, "Delay Discounting Curve by Session")
 end
 
 # Generate vigour plots

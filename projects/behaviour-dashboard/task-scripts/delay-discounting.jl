@@ -26,6 +26,7 @@ function preprocess_delay_discounting_data(
     forfit = select(
         df,
         participant_id_column,
+        :session,
         :delay,
         :sum_today,
         :sum_later,
@@ -60,12 +61,15 @@ function fit_dd_logistic_regression(
     df::DataFrame;
     participant_id_column::Symbol = :participant_id,
     force::Bool = false,
-    output_file::String = "tmp/delay_discounting_model"
-)
+    output_fld::String = "tmp",
+    model_name::String = "delay_discounting_model",
+)   
+
+    output_file = "$(output_fld)/$(model_name)"
 
     # Save to temporary CSV file for R processing
-    isdir("tmp") || mkpath("tmp")
-    CSV.write("tmp/delay_discounting_for_fit.csv", df)
+    isdir(output_fld) || mkpath(output_fld)
+    CSV.write("$(output_fld)/delay_discounting_for_fit.csv", df)
 
     # R script for Bayesian logistic regression using brms
     r_script = """
@@ -137,11 +141,12 @@ Extracts coefficients, computes discount factor k, and optionally summarizes res
 - `DataFrame`: Either summary statistics (mean, sd) or full coefficient draws
 """
 function post_process_dd_logistic_regression(
-    draws::DataFrame,
-    coefs::DataFrame;
+    dfs::Tuple{DataFrame, DataFrame};
     participant_id_column::Symbol = :participant_id,
     summarize::Bool = true
-)
+)   
+
+    draws, coefs = dfs
 
     # Separate coefficient draws and melt to long format
     function shape_coefs(
@@ -228,12 +233,12 @@ function plot_value_ratio_as_function_of_delay!(
 )
 
     # Ensure facet column is in both dataframes or neither
-    if (facet ∈ names(df)) ⊻ (facet ∈ names(coef_draws))
+    if (string(facet) ∈ names(df)) ⊻ (string(facet) ∈ names(coef_draws))
         error("Facet column $facet found in one dataframe, but not the other.")
     end
 
     # Add facet column if not present in both dataframes
-    if facet ∉ names(df)
+    if string(facet) ∉ names(df)
         df[!, facet] .= "all"
         coef_draws[!, facet] .= "all"
     end
@@ -314,36 +319,6 @@ function plot_value_ratio_as_function_of_delay!(
             ylabel = "Value ratio (immediate / later)",
             xautolimitmargin = (0., 0.05),)
     )
-
-     # Add k value annotation at the end of the group line
-    group_data = filter(row -> row[participant_id_column] == "group", ys)
-    if !isempty(group_data)
-        # Get the k value for the group
-        group_k = filter(row -> row[participant_id_column] == "group", coef_draws).k_mean[1]
-        
-        # Find the last two points to calculate slope for text rotation
-        sorted_data = sort(group_data, :x)
-        n_points = nrow(sorted_data)
-        
-        # Get last two points for slope calculation
-        point_diff = 1
-        x2, y2 = sorted_data[n_points, :x], sorted_data[n_points, :m]
-        x1, y1 = sorted_data[n_points-point_diff, :x], sorted_data[n_points-point_diff, :m]
-
-        # Calculate angle in radians for text rotation
-        angle = atan((y2 - y1) / (point_diff / n_points))
-        
-        # Add k value annotation
-        ax = current_axis()
-        text!(ax, x2, y2; 
-            text = "k = $(round(group_k, digits=3))",
-            align = (:right, :bottom),
-            offset = (0, 10),  # offset in pixels
-            fontsize = 16,
-            color = :black,
-            rotation = angle
-        )
-    end
 
     # Add colorbar for observed data
     colorbar!(f[1,2], plt; label = "Prop. chosen later")
