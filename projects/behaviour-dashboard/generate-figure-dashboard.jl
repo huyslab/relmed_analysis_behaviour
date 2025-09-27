@@ -31,6 +31,7 @@ begin
     include(joinpath(task_dir, "PIT.jl"))
     include(joinpath(task_dir, "control.jl"))
     include(joinpath(task_dir, "questionnaires.jl"))
+    include(joinpath(task_dir, "pavlovian-lottery.jl"))
 
     # Create output directory if it doesn't exist
     result_dir = joinpath(script_dir, "results")
@@ -50,7 +51,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire) = preprocess_project(TRIAL1; force_download = true)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery) = preprocess_project(TRIAL1; force_download = false)
 end
 
 # Generate PILT learning curve by session
@@ -207,6 +208,14 @@ let
     filename = "max_press_rate_histogram"
     register_save_figure(filename, f, "Max Press Rate Distribution by Session")
 end
+
+# Plot pavlovian lottery reaction times
+let
+    f = Figure(size = (800, 600))
+    plot_pavlovian_lottery_rt!(f, pavlovian_lottery;)
+    filename = "pavlovian_lottery_reaction_times"
+    register_save_figure(filename, f, "Pavlovian Lottery Reaction Times by Pavlovian Value and Session")
+end 
 
 # Generate the dashboard
 generate_markdown_dashboard()

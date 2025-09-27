@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-26 21:11:41
+Generated on: 2025-09-27 12:53:27
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -68,9 +68,17 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Questionnaire Score Distributions](questionnaire_histograms.svg)
 
+## 17. Max Press Rate Distribution by Session
+
+![Max Press Rate Distribution by Session](max_press_rate_histogram.svg)
+
+## 18. Pavlovian Lottery Reaction Times by Pavlovian Value and Session
+
+![Pavlovian Lottery Reaction Times by Pavlovian Value and Session](pavlovian_lottery_reaction_times.svg)
+
 
 ---
 
-**Summary**: Generated 16 figures from the behaviour analysis pipeline.
+**Summary**: Generated 18 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
