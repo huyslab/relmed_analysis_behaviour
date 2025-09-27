@@ -50,7 +50,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire) = preprocess_project(TRIAL1; force_download = true)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery) = preprocess_project(TRIAL1; force_download = false)
 end
 
 # Generate PILT learning curve by session

@@ -336,6 +336,32 @@ function prepare_questionnaire_data(
 	return questionnaire_data
 end
 
+function prepare_pavlovian_lottery_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+) 
+
+    participant_id_column = experiment.participant_id_column
+
+    pavlovian_lottery_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "prepilt_conditioning", df)
+
+    # Select columns
+    pavlovian_lottery_data = remove_empty_columns(pavlovian_lottery_data)
+
+    # Parse timeline variables
+    transform!(
+        pavlovian_lottery_data,
+        :timeline_variables => ByRow(x -> JSON.parse(x)["pav_value"]) => :pavlovian_value,
+        :timeline_variables => ByRow(x -> JSON.parse(x)["prepilt_trial"]) => :trial
+    )
+    select!(pavlovian_lottery_data, Not(:timeline_variables))
+
+    # Sort
+    sort!(pavlovian_lottery_data, [participant_id_column, :session, :trial])
+
+    return pavlovian_lottery_data
+
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
@@ -348,7 +374,8 @@ TASK_PREPROC_FUNCS = Dict(
     "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
     "control" => prepare_control_data,
-    "questionnaire" => prepare_questionnaire_data
+    "questionnaire" => prepare_questionnaire_data,
+    "pavlovian_lottery" => prepare_pavlovian_lottery_data
 )
 
 function preprocess_project(
@@ -394,6 +421,9 @@ function preprocess_project(
             @warn "No preprocessing function defined for task: $task"
         end
     end
+
+    push!(task_names, :jspsych_data)
+    push!(task_data, jspsych_data)
 
     task_dfs = NamedTuple{Tuple(task_names)}(task_data)
     return task_dfs
