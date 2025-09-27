@@ -16,10 +16,12 @@ remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, co
 
 function prepare_card_choosing_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     task_name::String = "pilt",
     filter_func::Function = (x -> !ismissing(x.trialphase) && x.trialphase == task_name),
     )
+
+    participant_id_column = experiment.participant_id_column
 
 	# Select rows
 	task_data = filter(filter_func, df)
@@ -33,14 +35,36 @@ function prepare_card_choosing_data(
 	# Sort
 	sort!(task_data, [participant_id_column, :session, :block, :trial])
 
+    # Fix valence coding for PILT
+    if task_name == "pilt"
+        transform!(
+            task_data,
+            [:feedback_right, :feedback_left] =>
+                ((x, y) -> ifelse.(
+                    (x .> 0) .&& (y .> 0),
+                    "Reward",
+                    ifelse.(
+                        (x .< 0) .&& (y .< 0),
+                        "Punishment",
+                        "Mixed"
+                    )
+                )) => :valence
+        )
+    end
+
 	return task_data
 
 end
 
+
 function prepare_reversal_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
 	reversal_data = filter(x -> x.trial_type == "reversal", df)
 
 	# Select columns
@@ -54,8 +78,12 @@ end
 
 function prepare_delay_discounting_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
     delay_discounting_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "dd_task", df)
 
     # Select columns
@@ -69,10 +97,14 @@ end
 
 function prepare_max_press_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
-    )
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
 	# Define required columns for max press data
-	required_columns = [participant_id_column, :record_id, :version, :exp_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
+	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
 
 	# Check and add missing columns
 	for col in required_columns
@@ -86,10 +118,9 @@ function prepare_max_press_data(
 		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			participant_id_column,
-			:record_id,
 			:version,
-			:exp_start_time,
 			:session,
+            :module_start_time,
 			:trialphase,
 			:trial_number,
 			:avgSpeed => :avg_speed,
@@ -109,6 +140,252 @@ function prepare_max_press_data(
 	return max_press_data
 end
 
+function prepare_vigour_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+
+    # Define required columns for vigour data
+	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
+	required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(df))
+            insertcols!(df, col => missing)
+        end
+    end
+
+	# Prepare vigour data
+	vigour_data = df |>
+		x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+		x -> subset(x, 
+            [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
+        ) |>
+        x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
+		# vigour_data = exclude_double_takers(vigour_data)
+	return vigour_data
+end
+
+function prepare_PIT_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+    # Define required columns for PIT data
+    required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
+    required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
+
+    # Check and add missing columns
+    for col in required_columns
+        if !(string(col) in names(df))
+            insertcols!(df, col => missing)
+        end
+    end
+
+    # Prepare PIT data
+    pit_data = df |>
+        x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+        x -> rename(x, [:pit_trial_number => :trial_number, :pit_coin => :coin]) |>
+        x -> subset(x, 
+            :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
+        ) |>
+        x -> DataFrames.transform(x,
+			:response_time => ByRow(JSON.parse) => :response_times,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+		) |>
+		x -> select(x, 
+			Not([:response_time, :timeline_variables])
+		)
+		# pit_data = exclude_double_takers(pit_data)
+    return pit_data
+end
+
+function prepare_control_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1,
+    )
+
+    participant_id_column = experiment.participant_id_column
+
+    function extract_timeline_variables!(df::DataFrame)
+        parsed = map(row -> begin
+                ismissing(row.timeline_variables) && return Dict()
+                str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
+                try
+                    JSON.parse(str)
+                catch e
+                    @warn "Failed to parse JSON in timeline_variables" exception=(e, catch_backtrace()) value=str
+                    Dict()
+                end
+            end, eachrow(df))
+        
+        for key in unique(Iterators.flatten(keys.(parsed)))
+                df[!, key] = [get(p, key, missing) for p in parsed]
+        end
+
+        select!(df, Not(:timeline_variables))
+        
+        return df
+    end
+
+    control_data = filter(x -> !ismissing(x.trialphase) && contains(x.trialphase, r"control_.*"), df)
+	# control_data = exclude_double_takers(control_data)
+	
+	for col in names(control_data)
+		control_data[!, col] = [val === nothing ? missing : val for val in control_data[!, col]]
+	end
+	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
+	
+    # Filter out unnecessary columns: _n_warnings, and n_instruction_fail
+    select!(control_data, Not(Cols(endswith("_n_warnings"), "n_instruction_fail")))
+
+	DataFrames.transform!(control_data,
+		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
+	# sort!(control_data, [participant_id_column, :trial_index])
+	DataFrames.transform!(groupby(control_data, [participant_id_column, :session]),
+		:trial_ptype => cumsum => :trial
+	)
+	select!(control_data, Not(Cols(:n_warnings, :plugin_version, :pre_kick_out_warned, :trial_type, :trial_ptype)))
+
+	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
+	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
+	
+	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
+	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
+
+	sort!(control_task_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
+	sort!(control_feedback_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
+	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:module_start_time, participant_id_column, :session, :task, :version, :trial], source=:source, makeunique=true, order=:left)
+	if "correct_1" in names(merged_control)
+		transform!(merged_control, [:correct, :correct_1] => ((x, y) -> coalesce.(x, y)) => :correct)
+	end
+	select!(merged_control, Not(Cols(r".*_1", :source)))
+
+	extract_timeline_variables!(merged_control)
+	transform!(merged_control, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(merged_control, Not(:responseTime))
+	
+	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
+	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
+	select!(control_report_data, [:module_start_time, participant_id_column, :session, :version, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
+
+	return (; control_task = merged_control, control_report = control_report_data)
+end
+
+function prepare_questionnaire_data(
+    df::AbstractDataFrame;
+    experiment::ExperimentInfo = TRIAL1
+    )
+
+    participant_id_column = experiment.participant_id_column
+
+	raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && 
+        x.trialphase in experiment.questionnaire_names, df)
+
+	questionnaire_data = DataFrame()
+	for row in eachrow(raw_questionnaire_data)
+		response = nothing
+		try
+			response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
+		catch e
+			@warn "Failed to parse JSON in questionnaire data" participant_id=row[participant_id_column] trialphase=row.trialphase error=e
+			continue
+		end
+		for (key, value) in response
+			push!(questionnaire_data,
+				NamedTuple{(
+					participant_id_column,
+					:module_start_time,
+					:session,
+					:trialphase,
+                    :trial_type,
+					:question,
+					:response
+				)}((
+					row[participant_id_column],
+					row.module_start_time,
+					row.session,
+					row.trialphase,
+                    row.trial_type,
+					key,
+					value
+				)); promote=true)
+		end
+	end
+
+	# Add question_id
+	insertcols!(
+		questionnaire_data,
+		5,
+		:question_id => ((t, q) -> "$(t)_$q").(questionnaire_data.trialphase, questionnaire_data.question)
+	)
+
+	return questionnaire_data
+end
+
+function prepare_pavlovian_lottery_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+) 
+
+    participant_id_column = experiment.participant_id_column
+
+    pavlovian_lottery_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "prepilt_conditioning", df)
+
+    # Select columns
+    pavlovian_lottery_data = remove_empty_columns(pavlovian_lottery_data)
+
+    # Parse timeline variables
+    transform!(
+        pavlovian_lottery_data,
+        :timeline_variables => ByRow(x -> JSON.parse(x)["pav_value"]) => :pavlovian_value,
+        :timeline_variables => ByRow(x -> JSON.parse(x)["prepilt_trial"]) => :trial
+    )
+    select!(pavlovian_lottery_data, Not(:timeline_variables))
+
+    # Sort
+    sort!(pavlovian_lottery_data, [participant_id_column, :session, :trial])
+
+    return pavlovian_lottery_data
+
+end
+
+function prepare_open_text_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+    open_text_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "open-text", df)
+
+    # Select columns
+    open_text_data = remove_empty_columns(open_text_data)
+
+    transform!(
+        open_text_data,
+        :response => ByRow(x -> only(keys(JSON.parse(x)))) => :question,
+        :response => ByRow(x -> only(values(JSON.parse(x)))) => :response
+    )
+
+    # Sort
+    sort!(open_text_data, [participant_id_column, :session, :question])
+
+    return open_text_data
+
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
@@ -117,10 +394,13 @@ TASK_PREPROC_FUNCS = Dict(
     "WM_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "wm_test", kwargs...),
     "reversal" => prepare_reversal_data,
     "delay_discounting" => prepare_delay_discounting_data,
-    # "vigour" => prepare_vigour_data,
-    # "PIT" => prepare_PIT_data,
+    "vigour" => prepare_vigour_data,
+    "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
-    # "control" => prepare_control_data
+    "control" => prepare_control_data,
+    "questionnaire" => prepare_questionnaire_data,
+    "pavlovian_lottery" => prepare_pavlovian_lottery_data,
+    "open_text" => prepare_open_text_data
 )
 
 function preprocess_project(
@@ -159,13 +439,16 @@ function preprocess_project(
     for task in experiment.tasks_included
         if haskey(TASK_PREPROC_FUNCS, task)
             @info "Preprocessing task: $task"
-            task_df = TASK_PREPROC_FUNCS[task](jspsych_data; participant_id_column = experiment.participant_id_column)
+            task_df = TASK_PREPROC_FUNCS[task](jspsych_data; experiment = experiment)
             push!(task_data, task_df)
             push!(task_names, Symbol(task))
         else
             @warn "No preprocessing function defined for task: $task"
         end
     end
+
+    push!(task_names, :jspsych_data)
+    push!(task_data, jspsych_data)
 
     task_dfs = NamedTuple{Tuple(task_names)}(task_data)
     return task_dfs

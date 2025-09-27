@@ -2,8 +2,10 @@ using DataFrames, CairoMakie, AlgebraOfGraphics
 
 function preprocess_reversal_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1
     )
+
+	participant_id_column = experiment.participant_id_column
 
 	# Sort
 	out_df = sort(df, [participant_id_column, :session, :block, :trial])
@@ -55,8 +57,11 @@ function plot_reversal_accuracy_curve_by_factor!(
     f::Figure,
     df::DataFrame;
     factor::Symbol = :session,
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1,
+    config::Dict = plot_config
     )
+
+	participant_id_column = experiment.participant_id_column
     
 	# Summarize accuracy pre reversal
 	sum_pre = combine(
@@ -118,7 +123,7 @@ function plot_reversal_accuracy_curve_by_factor!(
 			group = :group => nonnumeric,
 			color = :color,
 			layout = factor
-		) * visual(Lines, linewidth = 1) +
+		) * visual(Lines, linewidth = config[:thin_linewidth]) +
 		
 	data(sum_sum_pre_post) *
 		(
@@ -127,20 +132,20 @@ function plot_reversal_accuracy_curve_by_factor!(
 				:acc  => "Prop. optimal choice",
 				:se,
 				layout = factor
-			) * visual(Errorbars) +
+			) * visual(Errorbars, linewidth = config[:thick_linewidth]) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
 				layout = factor
 			) * 
-			visual(Scatter) +
+			visual(Scatter, markersize = config[:medium_markersize]) +
 			mapping(
 				:trial => "Trial relative to reversal",
 				:acc => "Prop. optimal choice",
 				group = :group => nonnumeric ,
 				layout = factor
 			) * 
-			visual(Lines)
+			visual(Lines, linewidth = config[:thick_linewidth])
 		) +
 		mapping([0]) * visual(VLines, color = :grey, linestyle = :dash)
 

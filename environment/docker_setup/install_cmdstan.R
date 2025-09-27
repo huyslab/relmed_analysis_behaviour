@@ -5,9 +5,10 @@ remotes::install_version("cmdstanr", version="0.9.0",
                          repos = c("https://stan-dev.r-universe.dev"))
 library(cmdstanr)
 
-dir.create(file.path("/home/jovyan/", ".cmdstanr"), recursive = TRUE)
+# Install to /opt instead of home directory
+dir.create("/opt/cmdstan", recursive = TRUE)
 install_cmdstan(version = "2.37.0", 
     cores = 11, 
-    dir = file.path("/home/jovyan/", ".cmdstanr"),
+    dir = "/opt/cmdstan",
     cpp_options = list("CXX" = "clang++"))
 cmdstan_path()

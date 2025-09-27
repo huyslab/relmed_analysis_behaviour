@@ -41,7 +41,7 @@ This dashboard contains all the generated figures from the behaviour analysis.
 """
 
     # Write to markdown file
-    markdown_file = joinpath(result_dir, "dashboard.md")
+    markdown_file = joinpath(result_dir, "README.md")
     open(markdown_file, "w") do file
         write(file, markdown_content)
     end

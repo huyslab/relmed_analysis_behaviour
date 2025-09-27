@@ -83,4 +83,4 @@ RUN ["Rscript", "install_cmdstan.R"]
 RUN fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home
-ENV CMDSTAN_HOME=/home/jovyan/.cmdstanr/cmdstan-2.37.0
+ENV CMDSTAN=/opt/cmdstan/cmdstan-2.37.0
