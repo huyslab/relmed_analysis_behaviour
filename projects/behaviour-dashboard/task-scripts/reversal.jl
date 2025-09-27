@@ -2,8 +2,10 @@ using DataFrames, CairoMakie, AlgebraOfGraphics
 
 function preprocess_reversal_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1
     )
+
+	participant_id_column = experiment.participant_id_column
 
 	# Sort
 	out_df = sort(df, [participant_id_column, :session, :block, :trial])
@@ -55,9 +57,11 @@ function plot_reversal_accuracy_curve_by_factor!(
     f::Figure,
     df::DataFrame;
     factor::Symbol = :session,
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     config::Dict = plot_config
     )
+
+	participant_id_column = experiment.participant_id_column
     
 	# Summarize accuracy pre reversal
 	sum_pre = combine(

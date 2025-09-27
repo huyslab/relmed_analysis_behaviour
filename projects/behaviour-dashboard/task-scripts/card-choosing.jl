@@ -38,9 +38,11 @@ function plot_learning_curves_by_facet!(
     facet::Symbol = :session,
     xcol::Symbol = :trial,
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Remove non-response trials to focus on actual choices
     filter!(x -> x.response != "noresp", df)
@@ -108,11 +110,12 @@ function plot_learning_curves_by_color_facet!(
     color::Symbol = :valence,
     color_label::String = "Valence",
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     variability::Symbol = :se, # :se or :individuals
     config::Dict = plot_config
 )
 
+    participant_id_column = experiment.participant_id_column
     # Remove non-response trials
     filter!(x -> x.response != "noresp", df)
 
@@ -224,7 +227,7 @@ end
 
 # Prepare WM data for plotting
 """
-    prepare_WM_data(df::AbstractDataFrame; participant_id_column::Symbol = :participant_id)
+    prepare_WM_data(df::AbstractDataFrame; experiment::ExperimentInfo = TRIAL1)
 
 Preprocess working memory data for analysis by adding appearance numbers, 
 computing delays between stimulus presentations, and cleaning the dataset.
@@ -238,8 +241,10 @@ computing delays between stimulus presentations, and cleaning the dataset.
 """
 function prepare_WM_data(
     df::AbstractDataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
 )
+
+    participant_id_column = experiment.participant_id_column
     # Clean data
     data_clean = copy(df)
 
@@ -301,11 +306,13 @@ by stimulus appearance number, grouped by delay bins (time since stimulus last s
 function plot_learning_curve_by_delay_bins!(
     f::Figure,
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     facet::Symbol = :session,
     variability::Symbol = :se, # :se or :individuals
     config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 	
     # Recode delay into meaningful bins for analysis
     recoder = (x, edges, labels) -> ([let idx = findfirst(v ≤ edge for edge in edges); idx === nothing ? labels[end] : labels[idx] end for v in x])

@@ -19,8 +19,10 @@ Calculates the transformed ratio (1 - 1/R) where R = immediate_value / delayed_v
 """
 function preprocess_delay_discounting_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Select variables
     forfit = select(
@@ -59,11 +61,13 @@ Uses a hierarchical model with group-varying slopes for transformed ratio and de
 """
 function fit_dd_logistic_regression(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     force::Bool = false,
     output_fld::String = "tmp",
     model_name::String = "delay_discounting_model",
 )   
+
+    participant_id_column = experiment.participant_id_column
 
     output_file = "$(output_fld)/$(model_name)"
 
@@ -142,9 +146,11 @@ Extracts coefficients, computes discount factor k, and optionally summarizes res
 """
 function post_process_dd_logistic_regression(
     dfs::Tuple{DataFrame, DataFrame};
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     summarize::Bool = true
 )   
+
+    participant_id_column = experiment.participant_id_column
 
     draws, coefs = dfs
 
@@ -228,10 +234,12 @@ function plot_value_ratio_as_function_of_delay!(
     f::Figure,
     coef_draws::DataFrame,
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     facet::Symbol = :session,
     config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Ensure facet column is in both dataframes or neither
     if (string(facet) ∈ names(df)) ⊻ (string(facet) ∈ names(coef_draws))
