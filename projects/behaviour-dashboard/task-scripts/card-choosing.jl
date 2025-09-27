@@ -65,12 +65,12 @@ function plot_learning_curves_by_facet!(
         :acc => "Prop. optimal choice",
         group = participant_id_column,
         color = participant_id_column,
-    ) * visual(Lines, linewidth = config[:individual_linewidth], alpha = config[:individual_alpha])) +
+    ) * visual(Lines, linewidth = config[:thin_linewidth], alpha = config[:individual_alpha])) +
     (data(acc_curve_sum) * 
     mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
-    ) * visual(Lines, linewidth = config[:group_linewidth]))) * mapping(layout = facet)
+    ) * visual(Lines, linewidth = config[:thick_linewidth]))) * mapping(layout = facet)
 
     # Add vertical line for early stopping indicator if specified
     if early_stopping_at !== nothing
@@ -143,7 +143,7 @@ function plot_learning_curves_by_color_facet!(
             group = :group,
             linestyle = participant_id_column,
             color = color => color_label
-        ) * visual(Lines, linewidth = config[:individual_linewidth], alpha = config[:individual_alpha]))
+        ) * visual(Lines, linewidth = config[:thin_linewidth], alpha = config[:individual_alpha]))
     elseif variability == :se
         mp = data(acc_curve_sum) *
         mapping(
@@ -160,7 +160,7 @@ function plot_learning_curves_by_color_facet!(
         xcol,
         :acc,
         color = color => color_label
-    ) * visual(Lines, linewidth = config[:group_linewidth])
+    ) * visual(Lines, linewidth = config[:thick_linewidth])
 
     mp *= mapping(layout = facet)
 
@@ -349,7 +349,7 @@ function plot_learning_curve_by_delay_bins!(
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = config[:group_linewidth]))) + (
+        ) * visual(Lines; linewidth = config[:thick_linewidth]))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
                 :appearance ,
@@ -357,7 +357,7 @@ function plot_learning_curve_by_delay_bins!(
                 :se,
                 color = :delay_bin => "Delay",
                 col = facet
-            ) * visual(Errorbars, linewidth = config[:errorbar_linewidth]) +
+            ) * visual(Errorbars, linewidth = config[:thick_linewidth]) +
             mapping(
                 :appearance ,
                 :acc,
@@ -388,7 +388,7 @@ function plot_learning_curve_by_delay_bins!(
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = config[:group_linewidth]) +
+        ) * visual(Lines; linewidth = config[:thick_linewidth]) +
         data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
         mapping(
                 :appearance ,

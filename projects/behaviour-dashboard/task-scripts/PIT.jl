@@ -65,7 +65,7 @@ function plot_PIT_press_rate_by_coin!(
   # Create individual participant lines (thin, semi-transparent)
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:scatter_alpha])
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:scatter_alpha])
 
   # Create group average lines (thick) with confidence bands
   group_plot = data(group_avg_data) * (

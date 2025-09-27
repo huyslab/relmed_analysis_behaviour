@@ -118,7 +118,7 @@ function plot_control_exploration_presses!(
 
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:thin_alpha])
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
   # Group average with confidence bands
   group_plot = data(group_avg_data) * (
@@ -206,7 +206,7 @@ function plot_control_prediction_accuracy!(
 
     individual_plot = data(individual_data) *
                       individual_mapping *
-                      visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:thin_alpha])
+                      visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
     # Group average with confidence bands
     group_plot = data(group_avg_data) * (
@@ -316,7 +316,7 @@ function plot_control_confidence_ratings!(
 
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:thin_alpha])
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
   # Group average with confidence bands
   group_plot = data(group_avg_data) * (
@@ -393,7 +393,7 @@ function plot_control_controllability_ratings!(
 
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:thin_alpha])
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
   # Group average with confidence bands
   group_plot = data(group_avg_data) * (
@@ -484,7 +484,7 @@ function plot_control_reward_rate_by_effort!(
 
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=config[:individual_linewidth], alpha=config[:thin_alpha])
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
   # Group average with confidence bands
   group_plot = data(group_avg_data) * (

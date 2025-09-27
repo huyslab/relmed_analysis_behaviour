@@ -255,7 +255,7 @@ function plot_value_ratio_as_function_of_delay!(
     )
 
     # Set line width (group line is thicker)
-    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", config[:group_linewidth], config[:individual_linewidth])
+    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", config[:thick_linewidth], config[:thin_linewidth])
 
     # Calculate proportion chosen later for observed data
     df.ratio = df.sum_today ./ df.sum_later

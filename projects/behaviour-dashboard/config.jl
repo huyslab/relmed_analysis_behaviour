@@ -22,11 +22,8 @@ set_theme!(th)
 # Plotting configurations
 plot_config = Dict(
     # Line widths
-    :individual_linewidth => 1,      # Individual participant trajectories  
-    :group_linewidth => 4,           # Group average lines
     :thin_linewidth => 1,            # Thin individual lines
     :thick_linewidth => 3,           # Thick group lines
-    :errorbar_linewidth => 4,        # Error bars
     
     # Marker sizes
     :small_markersize => 4,          # Small individual markers

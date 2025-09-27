@@ -119,7 +119,7 @@ function plot_reversal_accuracy_curve_by_factor!(
 			group = :group => nonnumeric,
 			color = :color,
 			layout = factor
-		) * visual(Lines, linewidth = config[:individual_linewidth]) +
+		) * visual(Lines, linewidth = config[:thin_linewidth]) +
 		
 	data(sum_sum_pre_post) *
 		(
