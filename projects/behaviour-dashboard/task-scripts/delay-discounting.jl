@@ -19,8 +19,10 @@ Calculates the transformed ratio (1 - 1/R) where R = immediate_value / delayed_v
 """
 function preprocess_delay_discounting_data(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Select variables
     forfit = select(
@@ -59,11 +61,13 @@ Uses a hierarchical model with group-varying slopes for transformed ratio and de
 """
 function fit_dd_logistic_regression(
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     force::Bool = false,
     output_fld::String = "tmp",
     model_name::String = "delay_discounting_model",
 )   
+
+    participant_id_column = experiment.participant_id_column
 
     output_file = "$(output_fld)/$(model_name)"
 
@@ -142,9 +146,11 @@ Extracts coefficients, computes discount factor k, and optionally summarizes res
 """
 function post_process_dd_logistic_regression(
     dfs::Tuple{DataFrame, DataFrame};
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     summarize::Bool = true
 )   
+
+    participant_id_column = experiment.participant_id_column
 
     draws, coefs = dfs
 
@@ -228,9 +234,12 @@ function plot_value_ratio_as_function_of_delay!(
     f::Figure,
     coef_draws::DataFrame,
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
-    facet::Symbol = :session
+    experiment::ExperimentInfo = TRIAL1,
+    facet::Symbol = :session,
+    config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Ensure facet column is in both dataframes or neither
     if (string(facet) ∈ names(df)) ⊻ (string(facet) ∈ names(coef_draws))
@@ -254,7 +263,7 @@ function plot_value_ratio_as_function_of_delay!(
     )
 
     # Set line width (group line is thicker)
-    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", 4, 1)
+    ys.lw = ifelse.(ys[!, participant_id_column] .== "group", config[:thick_linewidth], config[:thin_linewidth])
 
     # Calculate proportion chosen later for observed data
     df.ratio = df.sum_today ./ df.sum_later
@@ -305,8 +314,8 @@ function plot_value_ratio_as_function_of_delay!(
             Scatter; 
             strokecolor = :black, 
             marker = :circle,
-            markersize = 10,
-            strokewidth = 0.5
+            markersize = config[:medium_markersize],
+            strokewidth = config[:stroke_width]
         )
 
     # Set color palette

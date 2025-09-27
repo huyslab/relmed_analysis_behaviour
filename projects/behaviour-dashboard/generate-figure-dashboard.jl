@@ -59,7 +59,7 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     
     # Plot by session
     f1 = Figure(size = (800, 600))
-    plot_learning_curves_by_facet!(f1, PILT_main_sessions; facet = :session)
+    plot_learning_curves_by_facet!(f1, PILT_main_sessions; facet = :session, config = plot_config)
 
     filename = "PILT_learning_curves_by_session"
     register_save_figure(filename, f1, "PILT Learning Curves by Session")
@@ -67,7 +67,7 @@ let PILT_main_sessions = filter(x -> x.session != "screening", PILT)
     # Plot by session and valence
     PILT_main_sessions.valence = CategoricalArray(PILT_main_sessions.valence; ordered = true, levels = ["Reward", "Mixed", "Punishment"])
     f2 = Figure(size = (800, 600))
-    plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence")
+    plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence", config = plot_config)
     filename2 = "PILT_learning_curves_by_session_and_valence"
     register_save_figure(filename2, f2, "PILT Learning Curves by Session and Valence")
 end
@@ -81,18 +81,19 @@ let WM_main_sessions = filter(x -> x.session != "screening", WM) |> prepare_WM_d
         WM_main_sessions;
         facet = :session,
         xcol = :appearance,
-        early_stopping_at = nothing)
+        early_stopping_at = nothing,
+        config = plot_config)
 
     filename1 = "WM_learning_curves_by_session"
     register_save_figure(filename1, f1, "Working Memory Learning Curves by Session")
 
     f2 = Figure(size = (800, 600))
-    plot_learning_curve_by_delay_bins!(f2, WM_main_sessions; facet = :session, variability = :individuals)
+    plot_learning_curve_by_delay_bins!(f2, WM_main_sessions; facet = :session, variability = :individuals, config = plot_config)
     filename2 = "WM_learning_curves_by_delay_bins_and_session_individuals"
     register_save_figure(filename2, f2, "Working Memory Learning Curves by Delay Bins and Session (Individual Participants)")
 
     f3 = Figure(size = (800, 600))
-    plot_learning_curve_by_delay_bins!(f3, WM_main_sessions; facet = :session)
+    plot_learning_curve_by_delay_bins!(f3, WM_main_sessions; facet = :session, config = plot_config)
     filename3 = "WM_learning_curves_by_delay_bins_and_session_group"
     register_save_figure(filename3, f3, "Working Memory Learning Curves by Delay Bins and Session (Group Average)")
 
@@ -103,7 +104,7 @@ let preproc_df = preprocess_reversal_data(reversal)
 
     f = Figure(size = (800, 600))
 
-    plot_reversal_accuracy_curve_by_factor!(f, preproc_df)
+    plot_reversal_accuracy_curve_by_factor!(f, preproc_df; config = plot_config)
 
     filename = "reversal_accuracy_curve"
     register_save_figure(filename, f, "Reversal Learning Accuracy Curve")
@@ -123,7 +124,7 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
     coef_draws = vcat([insertcols(fit, 1, :session => sessions[i]) for (i, fit) in enumerate(fits)]...)
 
     f = Figure(size = (800, 600))
-    plot_value_ratio_as_function_of_delay!(f, coef_draws, preproc_df)
+    plot_value_ratio_as_function_of_delay!(f, coef_draws, preproc_df; config = plot_config)
 
     filename = "delay_discounting_curve_by_session"
     register_save_figure(filename, f, "Delay Discounting Curve by Session")
@@ -133,7 +134,7 @@ end
 let vigour_processed = preprocess_vigour_data(vigour)
 
     f1 = Figure(size = (800, 600))
-    plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session)
+    plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session, config = plot_config)
 
     filename1 = "vigour_press_rate_by_reward_rate"
     register_save_figure(filename1, f1, "Vigour: Press Rate by Reward Rate")
@@ -143,7 +144,7 @@ end
 let PIT_processed = preprocess_PIT_data(PIT)
 
     f1 = Figure(size = (800, 600))
-    plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session)
+    plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session, config = plot_config)
 
     filename1 = "PIT_press_rate_by_pavlovian_stimuli"
     register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")
@@ -155,37 +156,37 @@ let
 
     # Exploration presses by current strength
     f1 = Figure(size = (800, 600))
-    plot_control_exploration_presses!(f1, task_with_groups; factor=:session)
+    plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config)
     filename1 = "control_exploration_presses_by_current_strength"
     register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
 
     # Prediction accuracy over time (with screening)
     f2 = Figure(size = (800, 800))
-    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session)
+    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session, config = plot_config)
     filename2 = "control_prediction_accuracy_over_time"
     register_save_figure(filename2, f2, "Control: Prediction Accuracy Over Time")
 
     # Confidence ratings
     f3 = Figure(size = (800, 600))
-    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session)
+    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config)
     filename3 = "control_confidence_ratings"
     register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
 
     # Controllability ratings
     f4 = Figure(size = (800, 600))
-    plot_control_controllability_ratings!(f4, controllability_data; factor=:session)
+    plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config)
     filename4 = "control_controllability_ratings"
     register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
 
     # Reward rate by current strength (default)
     f5 = Figure(size = (800, 600))
-    plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current)
+    plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current, config = plot_config)
     filename5 = "control_reward_rate_by_current_strength"
     register_save_figure(filename5, f5, "Control: Reward Rate by Current Strength")
 
     # Reward rate by reward amount
     f6 = Figure(size = (800, 600))
-    plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount)
+    plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount, config = plot_config)
     filename6 = "control_reward_rate_by_reward_amount"
     register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
 end
@@ -193,7 +194,7 @@ end
 # Generate questionnaire histograms
 let 
     f = Figure(size = (1200, 800))
-    plot_questionnaire_histograms!(f, questionnaire; bins=15)
+    plot_questionnaire_histograms!(f, questionnaire; config = plot_config)
 
     filename = "questionnaire_histograms"
     register_save_figure(filename, f, "Questionnaire Score Distributions")
@@ -218,7 +219,7 @@ end
 # Plot pavlovian lottery reaction times
 let
     f = Figure(size = (800, 600))
-    plot_pavlovian_lottery_rt!(f, pavlovian_lottery;)
+    plot_pavlovian_lottery_rt!(f, pavlovian_lottery; config = plot_config)
     filename = "pavlovian_lottery_reaction_times"
     register_save_figure(filename, f, "Pavlovian Lottery Reaction Times by Pavlovian Value and Session")
 end 

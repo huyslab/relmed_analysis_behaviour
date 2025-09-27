@@ -38,8 +38,11 @@ function plot_learning_curves_by_facet!(
     facet::Symbol = :session,
     xcol::Symbol = :trial,
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id
+    experiment::ExperimentInfo = TRIAL1,
+    config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 
     # Remove non-response trials to focus on actual choices
     filter!(x -> x.response != "noresp", df)
@@ -64,12 +67,12 @@ function plot_learning_curves_by_facet!(
         :acc => "Prop. optimal choice",
         group = participant_id_column,
         color = participant_id_column,
-    ) * visual(Lines, linewidth = 1, alpha = 0.7)) +
+    ) * visual(Lines, linewidth = config[:thin_linewidth], alpha = config[:individual_alpha])) +
     (data(acc_curve_sum) * 
     mapping(
         xcol => "Trial #",
         :acc => "Prop. optimal choice",
-    ) * visual(Lines, linewidth = 4))) * mapping(layout = facet)
+    ) * visual(Lines, linewidth = config[:thick_linewidth]))) * mapping(layout = facet)
 
     # Add vertical line for early stopping indicator if specified
     if early_stopping_at !== nothing
@@ -107,10 +110,12 @@ function plot_learning_curves_by_color_facet!(
     color::Symbol = :valence,
     color_label::String = "Valence",
     early_stopping_at::Union{Int, Nothing} = 5,
-    participant_id_column::Symbol = :participant_id,
-    variability::Symbol = :se # :se or :individuals
+    experiment::ExperimentInfo = TRIAL1,
+    variability::Symbol = :se, # :se or :individuals
+    config::Dict = plot_config
 )
 
+    participant_id_column = experiment.participant_id_column
     # Remove non-response trials
     filter!(x -> x.response != "noresp", df)
 
@@ -141,7 +146,7 @@ function plot_learning_curves_by_color_facet!(
             group = :group,
             linestyle = participant_id_column,
             color = color => color_label
-        ) * visual(Lines, linewidth = 1, alpha = 0.7))
+        ) * visual(Lines, linewidth = config[:thin_linewidth], alpha = config[:individual_alpha]))
     elseif variability == :se
         mp = data(acc_curve_sum) *
         mapping(
@@ -149,7 +154,7 @@ function plot_learning_curves_by_color_facet!(
             :lb,
             :ub,
             color = color => color_label
-        ) * visual(Band, alpha = 0.5)
+        ) * visual(Band, alpha = config[:band_alpha])
     end
 
 
@@ -158,7 +163,7 @@ function plot_learning_curves_by_color_facet!(
         xcol,
         :acc,
         color = color => color_label
-    ) * visual(Lines, linewidth = 4)
+    ) * visual(Lines, linewidth = config[:thick_linewidth])
 
     mp *= mapping(layout = facet)
 
@@ -222,7 +227,7 @@ end
 
 # Prepare WM data for plotting
 """
-    prepare_WM_data(df::AbstractDataFrame; participant_id_column::Symbol = :participant_id)
+    prepare_WM_data(df::AbstractDataFrame; experiment::ExperimentInfo = TRIAL1)
 
 Preprocess working memory data for analysis by adding appearance numbers, 
 computing delays between stimulus presentations, and cleaning the dataset.
@@ -236,8 +241,10 @@ computing delays between stimulus presentations, and cleaning the dataset.
 """
 function prepare_WM_data(
     df::AbstractDataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
 )
+
+    participant_id_column = experiment.participant_id_column
     # Clean data
     data_clean = copy(df)
 
@@ -299,14 +306,13 @@ by stimulus appearance number, grouped by delay bins (time since stimulus last s
 function plot_learning_curve_by_delay_bins!(
     f::Figure,
     df::DataFrame;
-    participant_id_column::Symbol = :participant_id,
+    experiment::ExperimentInfo = TRIAL1,
     facet::Symbol = :session,
     variability::Symbol = :se, # :se or :individuals
-    lw::Real = 4,
-    tlw::Real = 1,
-    ms::Real = 20,
-    sms::Real = 4
+    config::Dict = plot_config
 )
+
+    participant_id_column = experiment.participant_id_column
 	
     # Recode delay into meaningful bins for analysis
     recoder = (x, edges, labels) -> ([let idx = findfirst(v ≤ edge for edge in edges); idx === nothing ? labels[end] : labels[idx] end for v in x])
@@ -344,13 +350,13 @@ function plot_learning_curve_by_delay_bins!(
                 :ub,
                 color = :delay_bin  => "Delay",
                 layout = facet
-        ) * visual(Band, alpha = 0.5) +
+        ) * visual(Band, alpha = config[:band_alpha]) +
             mapping(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = lw))) + (
+        ) * visual(Lines; linewidth = config[:thick_linewidth]))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
                 :appearance ,
@@ -358,13 +364,13 @@ function plot_learning_curve_by_delay_bins!(
                 :se,
                 color = :delay_bin => "Delay",
                 col = facet
-            ) * visual(Errorbars, linewidth = lw) +
+            ) * visual(Errorbars, linewidth = config[:thick_linewidth]) +
             mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = ms))
+            ) * visual(Scatter, markersize = config[:large_markersize]))
         )
     elseif variability == :individuals
         # Show individual participant trajectories
@@ -375,28 +381,28 @@ function plot_learning_curve_by_delay_bins!(
                 color = :delay_bin  => "Delay",
                 group = participant_id_column,
                 col = facet
-        ) * visual(Lines; linewidth = tlw, linestyle = :dash) +
+        ) * visual(Lines; linewidth = config[:thin_linewidth], linestyle = :dash) +
         data(filter(x -> x.delay_bin == "0", app_curve)) *
         mapping(
                 :appearance,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = sms) +
+            ) * visual(Scatter, markersize = config[:small_markersize]) +
         data(filter(x -> x.delay_bin != "0", app_curve_sum)) *
         mapping(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
                 col = facet
-        ) * visual(Lines; linewidth = lw) +
+        ) * visual(Lines; linewidth = config[:thick_linewidth]) +
         data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
         mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
                 col = facet
-            ) * visual(Scatter, markersize = ms)
+            ) * visual(Scatter, markersize = config[:large_markersize])
     end
 
 	# Draw the plot with axis labels

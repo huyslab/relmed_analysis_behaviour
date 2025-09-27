@@ -15,7 +15,8 @@ function plot_vigour_press_rate_by_reward_rate!(
   factor::Symbol=:session,
   participant_id_column::Symbol=:participant_id,
   reward_column::Symbol=:reward_per_press,
-  press_rate_column::Symbol=:press_per_sec
+  press_rate_column::Symbol=:press_per_sec,
+  config::Dict = plot_config
 )
 
   # Prepare the data - calculate individual participant averages per reward rate and factor
@@ -54,7 +55,7 @@ function plot_vigour_press_rate_by_reward_rate!(
   # Create individual participant lines (thin, semi-transparent)
   individual_plot = data(individual_data) *
                     individual_mapping *
-                    visual(Lines, linewidth=1, alpha=0.5)
+                    visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:scatter_alpha])
 
   # Create group average lines (thick) with confidence bands
   group_plot = data(group_avg_data) * (
@@ -62,12 +63,12 @@ function plot_vigour_press_rate_by_reward_rate!(
       reward_column => "Reward per press",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=0.2, color=:dodgerblue2) +
+    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
     mapping(
       reward_column => "Reward per press",
       :avg_press_rate => "Press rate (press/sec)",
       layout=factor
-    ) * visual(Lines, linewidth=3, color=:dodgerblue2)
+    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
   )
 
   # Combine plots

@@ -20,7 +20,24 @@ th = Theme(
 set_theme!(th)
 
 # Plotting configurations
-configs = Dict(
+plot_config = Dict(
+    # Line widths
+    :thin_linewidth => 1,            # Thin individual lines
+    :thick_linewidth => 3,           # Thick group lines
+    
+    # Marker sizes
+    :small_markersize => 4,          # Small individual markers
+    :medium_markersize => 10,        # Medium markers
+    :large_markersize => 20,         # Large group markers
+    
+    # Alpha/transparency values
+    :individual_alpha => 0.7,        # Individual trajectory transparency
+    :band_alpha => 0.5,             # Confidence band transparency
+    :thin_alpha => 0.3,             # Thin line transparency
+    :scatter_alpha => 0.5,          # Scatter plot transparency
+    
+    # Stroke widths  
+    :stroke_width => 0.5,           # Marker stroke width
     
 )
 
