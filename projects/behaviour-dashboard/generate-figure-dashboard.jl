@@ -51,7 +51,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery) = preprocess_project(TRIAL1; force_download = false)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery, open_text) = preprocess_project(TRIAL1; force_download = false)
 end
 
 # Generate PILT learning curve by session
@@ -222,6 +222,36 @@ let
     filename = "pavlovian_lottery_reaction_times"
     register_save_figure(filename, f, "Pavlovian Lottery Reaction Times by Pavlovian Value and Session")
 end 
+
+# Plot open text response lengths
+let df = copy(open_text)
+
+    function count_words(str)
+        if ismissing(str) || isempty(str) || isnothing(str)
+            return 0
+        end
+
+        words = split(str, r"\W+")   # split on any non-word characters
+        filter!(!isempty, words)     # remove empty strings
+        return length(words)
+    end
+
+    df.response_length = count_words.(df.response)
+
+    f = Figure(size = (800, 600))
+
+    mp = data(df) *
+    mapping(
+        :response_length,
+        row = :session,
+        col = :question,
+    ) * histogram(bins=20)
+
+    plt = draw!(f[1, 1], mp; axis = (; xlabel = "Response Length (words)", ylabel = "# responses"))
+
+    filename = "open_text_response_lengths"
+    register_save_figure(filename, f, "Open Text Response Lengths by Session")
+end
 
 # Generate the dashboard
 generate_markdown_dashboard()

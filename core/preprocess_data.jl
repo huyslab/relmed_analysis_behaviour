@@ -362,6 +362,30 @@ function prepare_pavlovian_lottery_data(df::DataFrame;
 
 end
 
+function prepare_open_text_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+    open_text_data = filter(x -> !ismissing(x.trialphase) && x.trialphase == "open-text", df)
+
+    # Select columns
+    open_text_data = remove_empty_columns(open_text_data)
+
+    transform!(
+        open_text_data,
+        :response => ByRow(x -> only(keys(JSON.parse(x)))) => :question,
+        :response => ByRow(x -> only(values(JSON.parse(x)))) => :response
+    )
+
+    # Sort
+    sort!(open_text_data, [participant_id_column, :session, :question])
+
+    return open_text_data
+
+end
+
 
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
@@ -375,7 +399,8 @@ TASK_PREPROC_FUNCS = Dict(
     "max_press" => prepare_max_press_data,
     "control" => prepare_control_data,
     "questionnaire" => prepare_questionnaire_data,
-    "pavlovian_lottery" => prepare_pavlovian_lottery_data
+    "pavlovian_lottery" => prepare_pavlovian_lottery_data,
+    "open_text" => prepare_open_text_data
 )
 
 function preprocess_project(

@@ -1,6 +1,6 @@
 # Behaviour Analysis Dashboard
 
-Generated on: 2025-09-27 12:53:27
+Generated on: 2025-09-27 20:17:36
 
 This dashboard contains all the generated figures from the behaviour analysis.
 
@@ -28,9 +28,9 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Reversal Learning Accuracy Curve](reversal_accuracy_curve.svg)
 
-## 7. Delay Discounting Curve
+## 7. Delay Discounting Curve by Session
 
-![Delay Discounting Curve](delay_discounting_curve.svg)
+![Delay Discounting Curve by Session](delay_discounting_curve_by_session.svg)
 
 ## 8. Vigour: Press Rate by Reward Rate
 
@@ -76,9 +76,13 @@ This dashboard contains all the generated figures from the behaviour analysis.
 
 ![Pavlovian Lottery Reaction Times by Pavlovian Value and Session](pavlovian_lottery_reaction_times.svg)
 
+## 19. Open Text Response Lengths by Session
+
+![Open Text Response Lengths by Session](open_text_response_lengths.svg)
+
 
 ---
 
-**Summary**: Generated 18 figures from the behaviour analysis pipeline.
+**Summary**: Generated 19 figures from the behaviour analysis pipeline.
 
 **Figure files**: All figures are saved as SVG files in the `results/` directory.
