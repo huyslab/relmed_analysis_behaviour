@@ -194,7 +194,7 @@ end
 # Generate questionnaire histograms
 let 
     f = Figure(size = (1200, 800))
-    plot_questionnaire_histograms!(f, questionnaire; config = plot_config)
+    plot_questionnaire_histograms!(f, questionnaire;)
 
     filename = "questionnaire_histograms"
     register_save_figure(filename, f, "Questionnaire Score Distributions")
