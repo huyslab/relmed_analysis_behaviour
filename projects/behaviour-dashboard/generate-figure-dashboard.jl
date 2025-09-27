@@ -248,8 +248,6 @@ let df = copy(open_text)
     ) * histogram(bins=20)
 
     plt = draw!(f[1, 1], mp; axis = (; xlabel = "Response Length (words)", ylabel = "# responses"))
-    legend!(f[0, 1], plt; orientation = :horizontal, framevisible = false, tellwidth = false)
-    f
 
     filename = "open_text_response_lengths"
     register_save_figure(filename, f, "Open Text Response Lengths by Session")
