@@ -111,8 +111,12 @@ jobs:
                 # Update existing version comment
                 sed -i "s/# Version: [0-9]*\.[0-9]*\.[0-9]*/# Version: $new_version/" "$file"
               else
-                # Add version comment after the first comment line
-                sed -i '1a# Version: '"$new_version"'' "$file"
+                # Add version comment after the first comment line if the first line is a comment, otherwise insert at the top
+                if head -n 1 "$file" | grep -q '^#'; then
+                  sed -i '1a# Version: '"$new_version"'' "$file"
+                else
+                  sed -i '1i# Version: '"$new_version"'' "$file"
+                fi
               fi
               
               # Add last modified date
