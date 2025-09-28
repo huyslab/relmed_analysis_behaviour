@@ -1,0 +1,27 @@
+name: Run Tests on Core Changes
+
+on:
+  pull_request:
+    paths:
+      - 'core/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04-arm
+    container:
+      image: yanivabir/relmed:v1.21
+    
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Run tests
+      run: |
+        cd tests
+        julia --project=../environment runtests.jl
+        
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "Tests completed for changes in core directory"
+        echo "Changed files:"
+        git diff --name-only HEAD~1 HEAD | grep "^core/" || echo "No core files in this diff"
