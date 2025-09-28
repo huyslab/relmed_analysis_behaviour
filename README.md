@@ -6,7 +6,7 @@ This repository contains code for running simulations and analyzing behavioural 
 
 ```
 .
-├── core/                    # Shared core functions and utilities
+├── core/                    # Shared core functions and utilities (semantically versioned)
 │   ├── models/             # Model implementations
 │   └── model_utils.jl      # Utility functions for computational modeling
 ├── projects/               # Individual project directories (manuscripts, analyses)
@@ -16,9 +16,30 @@ This repository contains code for running simulations and analyzing behavioural 
 ├── environment/            # Docker environment and setup scripts
 ├── archive/                # Completed/published projects
 ├── OLD/                    # Legacy code (pre-refactoring)
+├── .github/workflows/      # CI/CD and semantic versioning workflows
 ├── env.list               # Environment variables (local, not tracked by git)
+├── CORE_VERSIONING.md     # Core scripts versioning guide
+├── check_versions.jl      # Version status checker script
 └── README.md              # This file
 ```
+
+## Core Scripts Semantic Versioning
+
+Each Julia script in the `core/` directory maintains its own semantic version number (MAJOR.MINOR.PATCH). This enables:
+
+- **Independent versioning**: Each script can evolve at its own pace
+- **Automatic versioning**: GitHub workflows handle version bumps based on commit messages
+- **Release tracking**: Each version gets its own Git tag and GitHub release
+- **Change documentation**: Automated release notes capture what changed
+
+### Quick Start with Versioning
+1. **Use conventional commits**: 
+   - `feat:` for new features (minor version bump)
+   - `fix:` for bug fixes (patch version bump)
+   - `feat!:` or `BREAKING CHANGE:` for breaking changes (major version bump)
+2. **View version history**: `git tag | grep "script-name-v"`
+
+📖 **See [CORE_VERSIONING.md](CORE_VERSIONING.md) for detailed guidelines**
 
 ## Getting Started
 
