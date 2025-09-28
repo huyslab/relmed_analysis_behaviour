@@ -1,0 +1,222 @@
+name: Semantic Release Core Scripts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'core/**/*.jl'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'core/**/*.jl'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed-files: ${{ steps.changes.outputs.changed-files }}
+      any-changed: ${{ steps.changes.outputs.any-changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed core files
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PRs, compare against the base branch
+            changed_files=$(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} -- 'core/*.jl' | tr '\n' ' ')
+          else
+            # For pushes, compare against the previous commit
+            changed_files=$(git diff --name-only HEAD~1 HEAD -- 'core/*.jl' | tr '\n' ' ')
+          fi
+          
+          if [ -n "$changed_files" ]; then
+            echo "changed-files=$changed_files" >> $GITHUB_OUTPUT
+            echo "any-changed=true" >> $GITHUB_OUTPUT
+            echo "Changed files: $changed_files"
+          else
+            echo "any-changed=false" >> $GITHUB_OUTPUT
+            echo "No core Julia files changed"
+          fi
+
+  version-core-scripts:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-changed == 'true' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Setup Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Process changed files and update versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get list of changed files
+          changed_files="${{ needs.detect-changes.outputs.changed-files }}"
+          
+          for file in $changed_files; do
+            if [ -f "$file" ]; then
+              echo "Processing $file..."
+              
+              # Extract filename without path and extension for version tag
+              filename=$(basename "$file" .jl)
+              
+              # Get current version from file comment or initialize
+              current_version=$(grep -o "# Version: [0-9]*\.[0-9]*\.[0-9]*" "$file" | grep -o "[0-9]*\.[0-9]*\.[0-9]*" || echo "0.0.0")
+              
+              # Determine semantic version bump based on commit message
+              commit_msg=$(git log -1 --pretty=%B)
+              
+              # Simple semantic versioning logic based on commit message
+              if echo "$commit_msg" | grep -qi "BREAKING CHANGE\|^feat!:\|^fix!:\|^refactor!:"; then
+                # Major version bump
+                new_version=$(echo $current_version | awk -F. '{print ($1+1)".0.0"}')
+                version_type="major"
+              elif echo "$commit_msg" | grep -qi "^feat:\|^feature:"; then
+                # Minor version bump
+                new_version=$(echo $current_version | awk -F. '{print $1"."($2+1)".0"}')
+                version_type="minor"
+              else
+                # Patch version bump (default for fix, docs, style, refactor, perf, test, chore)
+                new_version=$(echo $current_version | awk -F. '{print $1"."$2"."($3+1)}')
+                version_type="patch"
+              fi
+              
+              echo "Updating $file from version $current_version to $new_version ($version_type)"
+              
+              # Update or add version comment in the file
+              if grep -q "# Version:" "$file"; then
+                # Update existing version comment
+                sed -i "s/# Version: [0-9]*\.[0-9]*\.[0-9]*/# Version: $new_version/" "$file"
+              else
+                # Add version comment after the first comment line if the first line is a comment, otherwise insert at the top
+                if head -n 1 "$file" | grep -q '^#'; then
+                  sed -i '1a# Version: '"$new_version"'' "$file"
+                else
+                  sed -i '1i# Version: '"$new_version"'' "$file"
+                fi
+              fi
+              
+              # Add last modified date
+              current_date=$(date -u +"%Y-%m-%d")
+              if grep -q "# Last Modified:" "$file"; then
+                sed -i "s/# Last Modified: .*/# Last Modified: $current_date/" "$file"
+              else
+                sed -i '2a# Last Modified: '"$current_date"'' "$file"
+              fi
+              
+              # Create a git tag for this specific script version
+              tag_name="${filename}-v${new_version}"
+              git tag -a "$tag_name" -m "Release $filename version $new_version
+
+              Changes in this version:
+              - $(echo "$commit_msg" | head -1)
+              
+              Script: $file
+              Version Type: $version_type
+              Previous Version: $current_version"
+              
+              echo "Created tag: $tag_name"
+            fi
+          done
+          
+          # Commit the version updates
+          if git diff --quiet; then
+            echo "No version changes to commit"
+          else
+            git add core/*.jl
+            git commit -m "chore: update core script versions
+
+            Auto-updated versions for modified core scripts:
+            $changed_files
+            
+            [skip ci]"
+            
+            # Push commits and tags
+            git push origin main
+            git push --tags
+          fi
+
+      - name: Create GitHub releases for new versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the tags created in this run
+          recent_tags=$(git tag --sort=-creatordate | head -10)
+          
+          for tag in $recent_tags; do
+            if [[ $tag =~ ^[^-]+-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              # Extract script name and version
+              script_name=$(echo $tag | sed 's/-v[0-9]*\.[0-9]*\.[0-9]*$//')
+              version=$(echo $tag | sed 's/^.*-v//')
+              
+              # Check if this release already exists
+              if ! gh release view "$tag" > /dev/null 2>&1; then
+                echo "Creating GitHub release for $tag"
+                
+                # Get the commit message for release notes
+                commit_msg=$(git tag -l --format='%(contents)' "$tag")
+                
+                gh release create "$tag" \
+                  --title "$script_name v$version" \
+                  --notes "$commit_msg" \
+                  --target main
+              fi
+            fi
+          done
+
+  validate-versions:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate version format in core scripts
+        run: |
+          echo "Validating version format in core Julia scripts..."
+          
+          for file in core/*.jl; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              
+              # Check if version comment exists and is properly formatted
+              if grep -q "# Version: [0-9]*\.[0-9]*\.[0-9]*" "$file"; then
+                version=$(grep -o "# Version: [0-9]*\.[0-9]*\.[0-9]*" "$file" | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
+                echo "  ✓ Valid version found: $version"
+              else
+                echo "  ⚠ No valid version comment found"
+              fi
+              
+              # Check if last modified date exists
+              if grep -q "# Last Modified: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]" "$file"; then
+                modified_date=$(grep -o "# Last Modified: [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]" "$file" | cut -d' ' -f3)
+                echo "  ✓ Valid last modified date found: $modified_date"
+              else
+                echo "  ⚠ No valid last modified date found"
+              fi
+            fi
+          done
