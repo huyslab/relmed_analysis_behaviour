@@ -1,5 +1,5 @@
 # Questionnaire scoring functions for RELMED data
-# Version: 1.0.0
+# Version: 1.0.1
 # Last Modified: 2025-09-28
 using DataFrames
 
