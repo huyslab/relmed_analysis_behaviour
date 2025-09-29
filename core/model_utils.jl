@@ -45,7 +45,8 @@ function prior_sample(
 	)
 
 	# Extract result to array using regex to find all outcome columns
-	outcome_cols = filter(col -> match(Regex("^$(outcome_name)\\[\\d+\\]\$"), string(col)) !== nothing, names(prior_sample))
+	pattern = Regex("^$(outcome_name)\\[\\d+\\]\$")
+	outcome_cols = filter(col -> match(pattern, string(col)) !== nothing, names(prior_sample))
 	@assert !isempty(outcome_cols) "No columns matching outcome name '$outcome_name' found in prior sample."
 	result = prior_sample[:, outcome_cols, 1] |>
 		Array |> transpose |> collect
