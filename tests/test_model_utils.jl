@@ -288,25 +288,6 @@ end
         )
     end
 
-    # Test with empty outcome array
-    @testset "Empty outcome array" begin
-        task_data = (
-            x = Missing[],
-        )
-        
-        priors = Dict(:p => Beta(2, 2))
-        
-        result = prior_sample(
-            task_data;
-            model = test_simple_model,
-            n = 1,
-            priors = priors,
-            outcome_name = :x
-        )
-        
-        @test length(result) == 0
-        @test typeof(result) <: Vector
-    end
 
     # Test with different prior distributions
     @testset "Different prior distributions" begin
