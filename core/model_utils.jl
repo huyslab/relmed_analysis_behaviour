@@ -44,8 +44,10 @@ function prior_sample(
 		n
 	)
 
-	# Exctract result to array
-	result = prior_sample[:, [Symbol("$outcome_name[$i]") for i in 1:length(task[outcome_name])], 1] |>
+	# Extract result to array using regex to find all outcome columns
+	outcome_cols = filter(col -> match(Regex("^$(outcome_name)\\[\\d+\\]\$"), string(col)) !== nothing, names(prior_sample))
+	@assert !isempty(outcome_cols) "No columns matching outcome name '$outcome_name' found in prior sample."
+	result = prior_sample[:, outcome_cols, 1] |>
 		Array |> transpose |> collect
 
 	# Flatter to vector if possible
