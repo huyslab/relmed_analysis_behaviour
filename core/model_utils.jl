@@ -1,6 +1,6 @@
 # This file contains general functions to work with models
-# Version: 1.0.1
-# Last Modified: 2025-09-28
+# Version: 1.0.2
+# Last Modified: 2025-09-29
 
 ## Sample from prior ----------------------------------------------------------------------------
 """
