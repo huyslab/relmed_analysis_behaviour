@@ -1,14 +1,23 @@
 # Simple hierarchical regression models
 begin
-    using Turing, DynamicPPL, Distributions, Random
+    cd("/home/jovyan")
+    import Pkg
+    # activate the shared project environment
+    Pkg.activate("$(pwd())/environment")
+    # instantiate, i.e. make sure that all packages are downloaded
+    Pkg.instantiate()
+
+
+    using Turing, DynamicPPL, Distributions, Random, DataFrames
     include("$(pwd())/core/model_utils.jl")
 
     script_dir = dirname(@__FILE__)
     include(joinpath(script_dir, "..", "utils", "plotting.jl"))
+    include(joinpath(script_dir, "..", "config.jl"))
 end
 
 
-@model function normal_intercept(;
+@model function simple_hierarchical_normal(;
     y,
     participant_id::Vector{Int},
     N_participants::Int,
@@ -28,35 +37,53 @@ end
     y ~ MvNormal(μ .+ θ[participant_id], I * σ)  # Likelihood
 end
 
-chain, ground_truth = let N_participants = 50, N_obs = 200, ground_truth = Dict(
+function extract_vector_parameter(
+    chain::Chains,
+    parameter::String
+)   
+    regex = Regex("^$(parameter)\\[\\d+\\]\$")
+    param_names = filter(name -> occursin(regex, name), string.(names(chain)))
+    df = DataFrame(chain[:, Symbol.(param_names), :])
+    return stack(df, Not([:iteration, :chain]); variable_name = :parameter)
+end
+
+chain, ground_truth, theta = 
+    let N_participants = 50, N_obs = 200, ground_truth = Dict(
             :μ => Dirac(0.3),
             :σ_participant => Dirac(0.1),
             :σ => Dirac(0.05)
         )
     participant_id = repeat(1:N_participants, inner=N_obs)
 
-    y = prior_sample(
-        (;
-            y = missing,
-            participant_id = participant_id,
-            N_participants = N_participants
-        );
-        model = normal_intercept,
-        priors = ground_truth,
-        outcome_name = :y,
-        rng = Xoshiro(1)
+    missing_data_model = simple_hierarchical_normal(
+        ;
+        y = missing,
+        participant_id = participant_id,
+        N_participants = N_participants,
+        priors = ground_truth
     )
 
-    data_model = normal_intercept(
+    prior_draw = sample(
+        Xoshiro(1),
+        missing_data_model,
+        Prior(),
+        1
+    )
+
+    y = extract_vector_parameter(prior_draw, "y")
+
+    theta = extract_vector_parameter(prior_draw, "θ")
+
+    data_model = simple_hierarchical_normal(
         ;
-        y = y,
+        y = y.value,
         participant_id = participant_id,
         N_participants = N_participants
     )
 
     chain = sample(Xoshiro(0), data_model, NUTS(), MCMCThreads(), 1000, 4)
 
-    chain, ground_truth
+    chain, ground_truth, theta
 
 end
 
@@ -69,7 +96,17 @@ let
         ground_truth
     )
 
-    f
+end
+
+let 
+    f = Figure()
+
+    plot_random_effects_fitted_vs_true!(
+        f,
+        chain,
+        theta
+    )
 
 end
+
 
