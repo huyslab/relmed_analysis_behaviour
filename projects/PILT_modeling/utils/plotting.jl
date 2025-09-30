@@ -1,7 +1,7 @@
 using CairoMakie, AlgebraOfGraphics, DataFrames
 using AlgebraOfGraphics: density
 
-function plot_hyper_parameters_vs_fitted!(
+function plot_fixed_effects_recovery!(
     f::Union{Figure, GridPosition},
     chain::Chains,
     ground_truth::Dict
@@ -77,7 +77,7 @@ function plot_hyper_parameters_vs_fitted!(
 
 end
 
-function plot_random_effects_fitted_vs_true!(
+function plot_random_effects_recovery!(
     f::Union{Figure, GridPosition},
     chain::Chains,
     true_values::AbstractDataFrame

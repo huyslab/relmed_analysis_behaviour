@@ -90,7 +90,7 @@ end
 let
     f = Figure()
 
-    plot_hyper_parameters_vs_fitted!(
+    plot_fixed_effects_recovery!(
         f,
         chain,
         ground_truth
@@ -101,7 +101,7 @@ end
 let 
     f = Figure()
 
-    plot_random_effects_fitted_vs_true!(
+    plot_random_effects_recovery!(
         f,
         chain,
         theta
