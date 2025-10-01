@@ -1,12 +1,13 @@
 # Simple hierarchical regression models
+
+# Setup environment and imports
 begin
     cd("/home/jovyan")
     import Pkg
-    # activate the shared project environment
+    # Activate the shared project environment
     Pkg.activate("$(pwd())/environment")
-    # instantiate, i.e. make sure that all packages are downloaded
+    # Instantiate, i.e. make sure that all packages are downloaded
     Pkg.instantiate()
-
 
     using Turing, DynamicPPL, Distributions, Random, DataFrames
     include("$(pwd())/core/model_utils.jl")
@@ -19,15 +20,17 @@ begin
     include(joinpath(script_dir, "..", "models", "hierarchy_devel.jl"))
 end
 
-
+# Generate synthetic data and fit hierarchical model
 chain, ground_truth, theta = 
     let N_participants = 50, N_obs = 200, ground_truth = Dict(
             :μ => Dirac(0.3),
             :σ_participant => Dirac(0.1),
             :σ => Dirac(0.05)
         )
+    # Create participant index vector (50 participants, 200 obs each)
     participant_id = repeat(1:N_participants, inner=N_obs)
 
+    # Define model with missing y to sample from prior
     missing_data_model = simple_hierarchical_normal(
         ;
         y = missing,
@@ -36,6 +39,7 @@ chain, ground_truth, theta =
         priors = ground_truth
     )
 
+    # Sample synthetic data from prior
     prior_draw = sample(
         Xoshiro(1),
         missing_data_model,
@@ -43,10 +47,11 @@ chain, ground_truth, theta =
         1
     )
 
+    # Extract observed data and true random effects
     y = extract_vector_parameter(prior_draw, "y")
-
     theta = extract_vector_parameter(prior_draw, "θ")
 
+    # Fit model to synthetic data
     data_model = simple_hierarchical_normal(
         ;
         y = y.value,
@@ -54,12 +59,13 @@ chain, ground_truth, theta =
         N_participants = N_participants
     )
 
+    # Sample posterior with NUTS (4 chains, 1000 samples each)
     chain = sample(Xoshiro(0), data_model, NUTS(), MCMCThreads(), 1000, 4)
 
     chain, ground_truth, theta
-
 end
 
+# Plot fixed effects recovery
 let
     f = Figure()
 
@@ -68,9 +74,9 @@ let
         chain,
         ground_truth
     )
-
 end
 
+# Plot random effects recovery
 let 
     f = Figure()
 
@@ -79,7 +85,6 @@ let
         chain,
         theta
     )
-
 end
 
 

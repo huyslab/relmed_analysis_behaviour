@@ -1,5 +1,24 @@
+"""
+Hierarchical Bayesian models for PILT project development.
+"""
+
 using Turing, Distributions, DynamicPPL
 
+"""
+    simple_hierarchical_normal(; y, participant_id, N_participants, priors)
+
+Simple hierarchical normal model with participant-level random intercepts.
+
+# Arguments
+- `y`: Observed data vector
+- `participant_id::Vector{Int}`: Participant indices for each observation
+- `N_participants::Int`: Total number of participants
+- `priors::Dict`: Prior distributions (μ, σ_participant, σ)
+
+# Model structure
+- Group-level mean μ with participant-specific deviations θ
+- Hierarchical variance components for participants and observations
+"""
 @model function simple_hierarchical_normal(;
     y,
     participant_id::Vector{Int},
@@ -10,12 +29,14 @@ using Turing, Distributions, DynamicPPL
             :σ => truncated(Normal(0, 1), 0, Inf)
         )
 )
+    # Group-level hyperpriors
+    μ ~ priors[:μ]  # Group mean
+    σ_participant ~ priors[:σ_participant]  # Between-participant variability
+    σ ~ priors[:σ]  # Within-participant (observation) noise
 
-    μ ~ priors[:μ]  # Hyperprior for the group mean
-    σ_participant ~ priors[:σ_participant]  # Hyperprior for participant-level stddev
-    σ ~ priors[:σ]  # Prior for observation noise
+    # Participant-level random intercepts
+    θ ~ filldist(Normal(0, σ_participant), N_participants)
 
-    θ ~ filldist(Normal(0, σ_participant), N_participants) # Varying intercepts for participants
-
-    y ~ MvNormal(μ .+ θ[participant_id], I * σ)  # Likelihood
+    # Likelihood with hierarchical structure
+    y ~ MvNormal(μ .+ θ[participant_id], I * σ)
 end

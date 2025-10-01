@@ -1,18 +1,33 @@
+"""
+Plotting utilities for model diagnostics and parameter recovery analysis.
+"""
+
 using CairoMakie, AlgebraOfGraphics, DataFrames
 using AlgebraOfGraphics: density
 
+"""
+    plot_fixed_effects_recovery!(f, chain, ground_truth)
+
+Plot posterior densities, confidence intervals, and true values for fixed effects.
+
+# Arguments
+- `f`: Figure or GridPosition to plot into
+- `chain::Chains`: MCMC samples
+- `ground_truth::Dict`: True parameter values
+
+# Returns
+Modified figure with density plots and recovery diagnostics
+"""
 function plot_fixed_effects_recovery!(
     f::Union{Figure, GridPosition},
     chain::Chains,
     ground_truth::Dict
 )
-
-    # Exctract hyper-parameters from chain
+    # Extract hyperparameters from chain
     params = collect(keys(ground_truth))
-
     draws = DataFrame(chain[:, params, :])
 
-    # Wide to long
+    # Convert to long format
     draws = stack(
         draws,
         Not([:iteration, :chain]),;
@@ -20,45 +35,42 @@ function plot_fixed_effects_recovery!(
         value_name = :value
     )
 
-    # Comput confidence intervals
+    # Compute 95% confidence intervals
     ci = combine(
         groupby(draws, :parameter),
         :value => (x -> quantile(x, 0.025)) => :lb,
         :value => (x -> quantile(x, 0.975)) => :ub
     )
 
-    # Wide to long format for AoG
+    # Reshape for plotting
     ci = stack(
         ci,
         Not(:parameter); variable_name = :bound, value_name = :value
     )
-
     sort!(ci, [:parameter, :bound])
-
     ci.y .= 0.
 
-    # Get true values from priors
+    # Extract true parameter values
     true_values = DataFrame(
         parameter = string.(params),
         value = [mean(ground_truth[k]) for k in params]
     )
 
-    # Plot
-
-    # Posterior density
+    # Create plot layers
+    # Posterior density curves
     mp = data(draws) *
         mapping(
             :value,
             color = :chain => nonnumeric,
         ) * density(; datalimits=extrema) * visual(Lines)
 
-    # True values
+    # True values as vertical dashed lines
     mp += data(true_values) *
         mapping(
             :value,
         ) * visual(VLines, linestyle = :dash, color = :gray)
 
-    # Confidence intervals
+    # Confidence intervals as horizontal lines
     mp += data(ci) *
         mapping(
             :value,
@@ -71,18 +83,32 @@ function plot_fixed_effects_recovery!(
     axs = draw!(f[1,1], mp, facet = (; linkxaxes = :none, linkyaxes = :none);
         axis = (; xlabel = ""))
 
+    # Clean up axes
     hideydecorations!.(axs)
     hidespines!.([ax.axis for ax in axs], :l)
     f
 
 end
 
+"""
+    plot_random_effects_recovery!(f, chain, true_values)
+
+Plot recovery diagnostics for random effects with confidence intervals.
+
+# Arguments
+- `f`: Figure or GridPosition to plot into  
+- `chain::Chains`: MCMC samples
+- `true_values::AbstractDataFrame`: True random effect values
+
+# Returns
+Modified figure with caterpillar plot showing recovery performance
+"""
+
 function plot_random_effects_recovery!(
     f::Union{Figure, GridPosition},
     chain::Chains,
     true_values::AbstractDataFrame
 )
-
     # Extract fitted values from chain
     draws = DataFrame(chain[:, Symbol.(true_values.parameter), :])
     draws = stack(
@@ -90,7 +116,7 @@ function plot_random_effects_recovery!(
         Not([:iteration, :chain]); variable_name = :parameter
     )
 
-    # Summarize posterior
+    # Summarize posterior with quantiles
     ci = combine(
         groupby(
             draws,
@@ -107,6 +133,7 @@ function plot_random_effects_recovery!(
 
     leftjoin!(ci, true_values, on = :parameter)
 
+    # Color code based on coverage
     ci.color = ifelse.(
         ci.lb .<= ci.value .<= ci.ub,
         :blue,
@@ -114,10 +141,9 @@ function plot_random_effects_recovery!(
     )
 
     sort!(ci, :median)
-
     ci.y = 1:nrow(ci)
 
-    # Plot
+    # Create caterpillar plot layers
     mp = mapping(
         :median,
         :y,
@@ -146,10 +172,9 @@ function plot_random_effects_recovery!(
     mp *= data(ci)
 
     gl = f[1,1] = GridLayout()
-
     ax = draw!(gl[3,1], mp; axis = (; xlabel = "Random effect value"))
 
-    # Add manual legend
+    # Add legends
     Legend(gl[1, 1], 
         [MarkerElement(color = :gray, marker = :circle),
          LineElement(color = :gray, linewidth = 0.5*2),
@@ -175,11 +200,9 @@ function plot_random_effects_recovery!(
         padding = 0.
     )
 
+    # Clean up axes
     hideydecorations!.(ax)
     hidespines!(ax[1].axis, :l)
-
     rowgap!(gl, 1, 3)
-
     f
-
 end
