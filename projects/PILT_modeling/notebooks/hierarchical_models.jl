@@ -13,22 +13,12 @@ begin
 
     script_dir = dirname(@__FILE__)
     include(joinpath(script_dir, "..", "utils", "plotting.jl"))
+    include(joinpath(script_dir, "..", "utils", "modeling.jl"))
     include(joinpath(script_dir, "..", "config.jl"))
 
     include(joinpath(script_dir, "..", "models", "hierarchy_devel.jl"))
 end
 
-
-
-function extract_vector_parameter(
-    chain::Chains,
-    parameter::String
-)   
-    regex = Regex("^$(parameter)\\[\\d+\\]\$")
-    param_names = filter(name -> occursin(regex, name), string.(names(chain)))
-    df = DataFrame(chain[:, Symbol.(param_names), :])
-    return stack(df, Not([:iteration, :chain]); variable_name = :parameter)
-end
 
 chain, ground_truth, theta = 
     let N_participants = 50, N_obs = 200, ground_truth = Dict(
