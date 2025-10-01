@@ -20,71 +20,65 @@ begin
     include(joinpath(script_dir, "..", "models", "hierarchy_devel.jl"))
 end
 
-# Generate synthetic data and fit hierarchical model
-chain, ground_truth, theta = 
-    let N_participants = 50, N_obs = 200, ground_truth = Dict(
-            :μ => Dirac(0.3),
-            :σ_participant => Dirac(0.1),
-            :σ => Dirac(0.05)
-        )
-    # Create participant index vector (50 participants, 200 obs each)
-    participant_id = repeat(1:N_participants, inner=N_obs)
-
-    # Define model with missing y to sample from prior
-    missing_data_model = simple_hierarchical_normal(
-        ;
-        y = missing,
-        participant_id = participant_id,
-        N_participants = N_participants,
-        priors = ground_truth
+# Parameter recovery study: Normal hierarchical model
+fs_bernoulli_logit_normal = let normal_ground_truth_priors = Dict(
+        :μ => Dirac(1.),
+        :σ_participant => Dirac(0.6),
+        :σ => Dirac(0.5)
     )
 
-    # Sample synthetic data from prior
-    prior_draw = sample(
-        Xoshiro(1),
-        missing_data_model,
-        Prior(),
-        1
+    # Simulate data and fit normal hierarchical model
+    chain, theta = simulate_fit_hierarchical(
+        simple_hierarchical_normal;
+        ground_truth_priors = normal_ground_truth_priors
     )
 
-    # Extract observed data and true random effects
-    y = extract_vector_parameter(prior_draw, "y")
-    theta = extract_vector_parameter(prior_draw, "θ")
-
-    # Fit model to synthetic data
-    data_model = simple_hierarchical_normal(
-        ;
-        y = y.value,
-        participant_id = participant_id,
-        N_participants = N_participants
-    )
-
-    # Sample posterior with NUTS (4 chains, 1000 samples each)
-    chain = sample(Xoshiro(0), data_model, NUTS(), MCMCThreads(), 1000, 4)
-
-    chain, ground_truth, theta
-end
-
-# Plot fixed effects recovery
-let
-    f = Figure()
-
+    # Plot fixed effects recovery
+    f1 = Figure()
     plot_fixed_effects_recovery!(
-        f,
+        f1,
         chain,
-        ground_truth
+        normal_ground_truth_priors
     )
-end
 
-# Plot random effects recovery
-let 
-    f = Figure()
-
+    # Plot random effects recovery
+    f2 = Figure()
     plot_random_effects_recovery!(
-        f,
+        f2,
         chain,
         theta
     )
+
+    f1, f2
 end
 
+# Parameter recovery study: Bernoulli logit hierarchical model
+fs_bernoulli_logit = let bernoulli_ground_truth_priors = Dict(
+        :μ => Dirac(1.),
+        :σ_participant => Dirac(0.6)
+    )
 
+    # Simulate data and fit Bernoulli logit hierarchical model
+    chain, theta = simulate_fit_hierarchical(
+        simple_hierarchical_bernoulli_logit;
+        ground_truth_priors = bernoulli_ground_truth_priors
+    )
+
+    # Plot fixed effects recovery
+    f1 = Figure()
+    plot_fixed_effects_recovery!(
+        f1,
+        chain,
+        bernoulli_ground_truth_priors
+    )
+
+    # Plot random effects recovery
+    f2 = Figure()
+    plot_random_effects_recovery!(
+        f2,
+        chain,
+        theta
+    )
+
+    f1, f2
+end
