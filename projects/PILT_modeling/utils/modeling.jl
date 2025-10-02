@@ -6,33 +6,73 @@ Auxillary functions for working with Turing.jl models and MCMC chains.
 using Turing, DataFrames
 
 """
-    extract_vector_parameter(chain::Chains, parameter::String) -> DataFrame
+    extract_array_parameter(chain::Chains, parameter::String) -> DataFrame
 
-Extract all elements of a vector parameter from a Turing.jl MCMC chain into long format.
+Extract all elements of a vector or matrix parameter from a Turing.jl MCMC chain into long format.
 
 # Arguments
 - `chain::Chains`: MCMC chain containing samples
-- `parameter::String`: Base parameter name (e.g., "beta" for β[1], β[2], ...)
+- `parameter::String`: Base parameter name (e.g., "beta" for β[1], β[2], ... or "theta" for θ[1,1], θ[1,2], ...)
 
 # Returns
 Long-format DataFrame with columns: iteration, chain, parameter, value
+For matrices, parameter names will be in format "param[row,col]"
 """
-function extract_vector_parameter(
+function extract_array_parameter(
     chain::Chains,
     parameter::String
 )   
-    # Create regex pattern to match vector parameter names like "parameter[1]", "parameter[2]", etc.
-    regex = Regex("^$(parameter)\\[\\d+\\]\$")
+    # Create regex patterns to match both vector and matrix parameter names
+    vector_regex = Regex("^$(parameter)\\[\\d+\\]\$")  # Matches parameter[1], parameter[2], etc.
+    matrix_regex = Regex("^$(parameter)\\[\\d+, \\d+\\]\$")  # Matches parameter[1, 1], parameter[1, 2], etc.
     
-    # Filter chain parameter names to find all elements of the specified vector parameter
-    param_names = filter(name -> occursin(regex, name), string.(names(chain)))
+    # Get all parameter names from the chain
+    all_names = string.(names(chain))
+    
+    # Filter to find vector or matrix elements
+    vector_names = filter(name -> occursin(vector_regex, name), all_names)
+    matrix_names = filter(name -> occursin(matrix_regex, name), all_names)
+    
+    # Determine which type we have and use appropriate names
+    if !isempty(vector_names) && isempty(matrix_names)
+        param_names = vector_names
+    elseif isempty(vector_names) && !isempty(matrix_names)
+        param_names = matrix_names
+    elseif !isempty(vector_names) && !isempty(matrix_names)
+        # If both exist, prefer matrix (more specific)
+        param_names = matrix_names
+    else
+        # No matching parameters found
+        return DataFrame(iteration=Int[], chain=Int[], parameter=String[], value=Float64[])
+    end
     
     # Extract the relevant columns from the chain and convert to DataFrame
     df = DataFrame(chain[:, Symbol.(param_names), :])
     
     # Reshape from wide to long format for easier analysis
-    # This transforms columns like β[1], β[2], β[3] into rows with a 'parameter' column
+    # This transforms columns like β[1], β[2], β[3] or θ[1,1], θ[1,2] into rows with a 'parameter' column
     return stack(df, Not([:iteration, :chain]); variable_name = :parameter)
+end
+
+"""
+    load_or_run(filename::String, func::Function; force_run::Bool = false)
+
+Load cached results from JLD2 file or run function and cache output.
+"""
+function load_or_run(
+    filename::String,
+    func::Function;
+    force_run::Bool = false
+)
+    if isfile(filename  * ".jld2") && !force_run
+        println("Loading from $filename")
+        return JLD2.load(filename * ".jld2", "result")
+    else
+        println("Running function and saving to $filename")
+        result = func()
+        JLD2.save(filename * ".jld2", "result", result)
+        return result
+    end
 end
 
 """
@@ -78,8 +118,8 @@ function simulate_fit_hierarchical(
     )
 
     # Extract simulated data and true random effects
-    y = extract_vector_parameter(prior_draw, "y")
-    theta = extract_vector_parameter(prior_draw, "θ")
+    y = extract_array_parameter(prior_draw, "y")
+    theta = extract_array_parameter(prior_draw, "θ")
 
     # Fit model to simulated data
     data_model = model(
