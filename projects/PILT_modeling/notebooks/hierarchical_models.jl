@@ -26,13 +26,41 @@ fs_bernoulli_logit_normal = let normal_ground_truth_priors = Dict(
         :μ => Dirac(1.),
         :τ => Dirac(0.6),
         :σ => Dirac(0.5)
+    ), N_participants = 50, N_obs = 200, rng = Xoshiro(0)
+
+    # Create participant index vector
+    participant_id = repeat(1:N_participants, inner=N_obs)
+
+    # Sample synthetic data from prior predictive distribution
+    missing_data_model = simple_hierarchical_normal(
+        ;
+        y = missing,
+        participant_id = participant_id,
+        N_participants = N_participants,
+        priors = normal_ground_truth_priors
     )
 
-    # Simulate data and fit normal hierarchical model
-    chain, theta = simulate_fit_hierarchical(
-        simple_hierarchical_normal;
-        ground_truth_priors = normal_ground_truth_priors
+    prior_draw = sample(
+        rng,
+        missing_data_model,
+        Prior(),
+        1
     )
+
+    # Extract simulated data and true random effects
+    y = extract_array_parameter(prior_draw, "y")
+    theta = extract_array_parameter(prior_draw, "θ")
+
+    # Fit model to simulated data
+    data_model = simple_hierarchical_normal(
+        ;
+        y = y.value,
+        participant_id = participant_id,
+        N_participants = N_participants
+    )
+
+    # Run MCMC sampling
+    chain = sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4)
 
     # Plot fixed effects recovery
     f1 = Figure()
@@ -57,13 +85,41 @@ end
 fs_bernoulli_logit = let bernoulli_ground_truth_priors = Dict(
         :μ => Dirac(1.),
         :τ => Dirac(0.6)
+    ), N_participants = 50, N_obs = 200, rng = Xoshiro(0)
+
+    # Create participant index vector
+    participant_id = repeat(1:N_participants, inner=N_obs)
+
+    # Sample synthetic data from prior predictive distribution
+    missing_data_model = simple_hierarchical_bernoulli_logit(
+        ;
+        y = missing,
+        participant_id = participant_id,
+        N_participants = N_participants,
+        priors = bernoulli_ground_truth_priors
     )
 
-    # Simulate data and fit Bernoulli logit hierarchical model
-    chain, theta = simulate_fit_hierarchical(
-        simple_hierarchical_bernoulli_logit;
-        ground_truth_priors = bernoulli_ground_truth_priors
+    prior_draw = sample(
+        rng,
+        missing_data_model,
+        Prior(),
+        1
     )
+
+    # Extract simulated data and true random effects
+    y = extract_array_parameter(prior_draw, "y")
+    theta = extract_array_parameter(prior_draw, "θ")
+
+    # Fit model to simulated data
+    data_model = simple_hierarchical_bernoulli_logit(
+        ;
+        y = y.value,
+        participant_id = participant_id,
+        N_participants = N_participants
+    )
+
+    # Run MCMC sampling
+    chain = sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4)
 
     # Plot fixed effects recovery
     f1 = Figure()
