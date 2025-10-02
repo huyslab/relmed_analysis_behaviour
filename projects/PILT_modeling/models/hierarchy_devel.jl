@@ -2,7 +2,7 @@
 Hierarchical Bayesian models for PILT project development.
 """
 
-using Turing, Distributions, DynamicPPL
+using Turing, Distributions, DynamicPPL, LinearAlgebra
 using StatsFuns: logistic
 
 """
@@ -58,20 +58,20 @@ end
     # Participant-level random intercepts
     θ ~ filldist(Normal(0, τ), N_participants)
 
-    ϕ = logistic.(μ .+ θ)
-
     # Likelihood with hierarchical structure
-    y ~ arraydist(Bernoulli.(ϕ)[participant_id])
+    y ~ arraydist(BernoulliLogit.(μ .+ θ)[participant_id])
 end
 
-@model function one_way_hierarchical_logistic_regression(;
+@model function hierarchical_logistic_regression_one_grouping(;
     y,
     X::Matrix{Float64}, # Model matrix, including intercept
+    N_predictors::Int,
     participant_id::Vector{Int},
     N_participants::Int,
     priors::Dict = Dict(
-            :β => filldist(Normal(0, 1), size(X, 2)),  # Coefficients for intercept and slope
-            :τ => filldist(truncated(Normal(0, 1), 0, Inf), size(X, 2))
+            :β => filldist(Normal(0, 1), N_predictors),  # Coefficients for intercept and slope
+            :τ => filldist(truncated(Normal(0, 1), 0, Inf), N_predictors),
+            :η => 2.0  # LKJ correlation prior concentration
     )
 )
     
@@ -79,13 +79,17 @@ end
     β ~ priors[:β]  # Group mean
     τ ~ priors[:τ]  # Between-participant variability
 
-    # Participant-level random coefficients (participants in rows, coefficients in columns)
-    b ~ filldist(Normal(0, τ), N_participants, size(X, 2))
+    # Correlation structure for random effects
+    Ω ~ LKJCholesky(N_predictors, priors[:η])  # Cholesky factor of correlation matrix
+
+    # Participant-level random coefficients 
+    z ~ filldist(MvNormal(zeros(N_predictors), I), N_participants)
+    w = (Diagonal(τ) * Ω.L * z)'
 
     # Vectorized participant-specific predictions
-    participant_effects = sum(X .* b[participant_id, :], dims=2)[:] # n_trials x n_predictors .* n_trials x n_predictors, summed over columns to give n_trials x 1
-    ϕ = logistic.(X * β .+ participant_effects) # n_trials x n_predictors * n_predictors x 1 + n_trials x 1
+    participant_effects = sum(X .* w[participant_id, :], dims=2)[:] # n_trials x n_predictors .* n_trials x n_predictors, summed over columns to give n_trials x 1
+    m = X * β .+ participant_effects # n_trials x n_predictors * n_predictors x 1 + n_trials x 1
 
     # Likelihood with hierarchical structure
-    y ~ arraydist(Bernoulli.(ϕ))
+    y ~ arraydist(BernoulliLogit.(m))
 end
