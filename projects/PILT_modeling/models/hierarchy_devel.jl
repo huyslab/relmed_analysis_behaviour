@@ -21,7 +21,7 @@ Simple hierarchical normal model with participant-level random intercepts.
 - Hierarchical variance components for participants and observations
 """
 @model function simple_hierarchical_normal(;
-    y,
+    y::Union{Missing, Vector{Float64}},
     participant_id::Vector{Int},
     N_participants::Int,
     priors::Dict = Dict(
@@ -43,7 +43,7 @@ Simple hierarchical normal model with participant-level random intercepts.
 end
 
 @model function simple_hierarchical_bernoulli_logit(;
-    y,
+    y::Union{Missing, Vector{Float64}},
     participant_id::Vector{Int},
     N_participants::Int,
     priors::Dict = Dict(
@@ -63,7 +63,7 @@ end
 end
 
 @model function hierarchical_logistic_regression_one_grouping(;
-    y,
+    y::Union{Missing, Vector{Float64}},
     X::Matrix{Float64}, # Model matrix, including intercept
     N_predictors::Int,
     participant_id::Vector{Int},
