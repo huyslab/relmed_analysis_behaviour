@@ -25,7 +25,44 @@ function plot_fixed_effects_recovery!(
 )
     # Extract hyperparameters from chain
     params = collect(keys(ground_truth))
-    draws = DataFrame(chain[:, params, :])
+
+    # Extract true parameter values, handling array distributions
+    parameter_names = String[]
+    parameter_values = Float64[]
+    
+    for param in params
+        mean_val = mean(ground_truth[param])
+        if mean_val isa AbstractVector
+            # Handle array distributions - append [i] to parameter names
+            for (i, val) in enumerate(mean_val)
+                push!(parameter_names, "$(param)[$(i)]")
+                push!(parameter_values, val)
+            end
+        else
+            # Handle scalar distributions
+            push!(parameter_names, string(param))
+            push!(parameter_values, mean_val)
+        end
+    end
+    
+    true_values = DataFrame(
+        parameter = parameter_names,
+        value = parameter_values
+    )
+
+    # Check which parameters exist in the chain
+    chain_params = names(chain)
+    missing_params = setdiff(Symbol.(parameter_names), chain_params)
+    available_params = intersect(Symbol.(parameter_names), chain_params)
+    
+    if !isempty(missing_params)
+        @warn "The following parameters are missing from the chain and will be excluded from plotting: $(missing_params)"
+    end
+    
+    # Filter true_values to only include available parameters
+    true_values = filter(row -> row.parameter in string.(available_params), true_values)
+
+    draws = DataFrame(chain[:, available_params, :])
 
     # Convert to long format
     draws = stack(
@@ -49,12 +86,6 @@ function plot_fixed_effects_recovery!(
     )
     sort!(ci, [:parameter, :bound])
     ci.y .= 0.
-
-    # Extract true parameter values
-    true_values = DataFrame(
-        parameter = string.(params),
-        value = [mean(ground_truth[k]) for k in params]
-    )
 
     # Create plot layers
     # Posterior density curves
