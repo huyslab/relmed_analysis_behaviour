@@ -8,39 +8,41 @@ using Turing, DataFrames
 """
     extract_array_parameter(chain::Chains, parameter::String) -> DataFrame
 
-Extract all elements of a vector or matrix parameter from a Turing.jl MCMC chain into long format.
+Extract all elements of a vector, matrix, or vector of vectors parameter from a Turing.jl MCMC chain into long format.
 
 # Arguments
 - `chain::Chains`: MCMC chain containing samples
-- `parameter::String`: Base parameter name (e.g., "beta" for β[1], β[2], ... or "theta" for θ[1,1], θ[1,2], ...)
+- `parameter::String`: Base parameter name (e.g., "beta" for β[1], β[2], ... or "theta" for θ[1,1], θ[1,2], ... or "gamma" for γ[1][1], γ[2][3], ...)
 
 # Returns
 Long-format DataFrame with columns: iteration, chain, parameter, value
 For matrices, parameter names will be in format "param[row,col]"
+For vector of vectors, parameter names will be in format "param[i][j]"
 """
 function extract_array_parameter(
     chain::Chains,
     parameter::String
 )   
-    # Create regex patterns to match both vector and matrix parameter names
+    # Create regex patterns to match vector, matrix, and vector of vectors parameter names
     vector_regex = Regex("^$(parameter)\\[\\d+\\]\$")  # Matches parameter[1], parameter[2], etc.
     matrix_regex = Regex("^$(parameter)\\[\\d+, \\d+\\]\$")  # Matches parameter[1, 1], parameter[1, 2], etc.
+    vector_of_vectors_regex = Regex("^$(parameter)\\[\\d+\\]\\[\\d+\\]\$")  # Matches parameter[1][1], parameter[2][3], etc.
     
     # Get all parameter names from the chain
     all_names = string.(names(chain))
     
-    # Filter to find vector or matrix elements
+    # Filter to find vector, matrix, or vector of vectors elements
     vector_names = filter(name -> occursin(vector_regex, name), all_names)
     matrix_names = filter(name -> occursin(matrix_regex, name), all_names)
+    vector_of_vectors_names = filter(name -> occursin(vector_of_vectors_regex, name), all_names)
     
-    # Determine which type we have and use appropriate names
-    if !isempty(vector_names) && isempty(matrix_names)
+    # Determine which type we have and use appropriate names (prefer most specific format)
+    if !isempty(vector_of_vectors_names)
+        param_names = vector_of_vectors_names
+    elseif !isempty(matrix_names)
+        param_names = matrix_names
+    elseif !isempty(vector_names)
         param_names = vector_names
-    elseif isempty(vector_names) && !isempty(matrix_names)
-        param_names = matrix_names
-    elseif !isempty(vector_names) && !isempty(matrix_names)
-        # If both exist, prefer matrix (more specific)
-        param_names = matrix_names
     else
         # No matching parameters found
         return DataFrame(iteration=Int[], chain=Int[], parameter=String[], value=Float64[])
