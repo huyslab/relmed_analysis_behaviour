@@ -31,7 +31,7 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          docker pull yanivabir/relmed:v1.12
+          docker pull yanivabir/relmed:v1.21
 
       - name: Run dashboard generation script
         env:
@@ -43,7 +43,7 @@ jobs:
             -e JULIA_NUM_THREADS=4 \
             -e REDCAP_URL="${REDCAP_URL}" \
             -e REDCAP_TOKEN_trial1="${REDCAP_TOKEN_TRIAL1}" \
-            yanivabir/relmed:v1.12 \
+            yanivabir/relmed:v1.21 \
             julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl
 
       - name: Check for changes
