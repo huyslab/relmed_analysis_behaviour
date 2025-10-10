@@ -33,6 +33,17 @@ jobs:
         run: |
           docker pull yanivabir/relmed:v1.21
 
+      - name: Fix permissions for Docker
+        run: |
+          # Get jovyan user ID from the Docker image
+          JOVYAN_UID=$(docker run --rm yanivabir/relmed:v1.21 id -u jovyan)
+          JOVYAN_GID=$(docker run --rm yanivabir/relmed:v1.21 id -g jovyan)
+
+          # Change ownership to match container user
+          sudo chown -R $JOVYAN_UID:$JOVYAN_GID .
+
+          echo "Set ownership to $JOVYAN_UID:$JOVYAN_GID"
+
       - name: Run dashboard generation script
         env:
           REDCAP_URL: ${{ secrets.REDCAP_URL }}
@@ -45,6 +56,12 @@ jobs:
             -e REDCAP_TOKEN_trial1="${REDCAP_TOKEN_TRIAL1}" \
             yanivabir/relmed:v1.21 \
             julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl
+
+      - name: Fix permissions back for Git
+        if: always()
+        run: |
+          # Change ownership back to runner user for git operations
+          sudo chown -R $(id -u):$(id -g) .
 
       - name: Check for changes
         id: check_changes
