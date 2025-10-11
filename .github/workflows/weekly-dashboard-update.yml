@@ -36,9 +36,10 @@ jobs:
       - name: Create required directories
         run: |
           mkdir -p data
+          mkdir -p tmp
           mkdir -p projects/behaviour-dashboard/results
           mkdir -p .cache/fontconfig
-          chmod -R 777 data projects/behaviour-dashboard/results .cache
+          chmod -R 777 data tmp projects/behaviour-dashboard/results .cache
 
       - name: Run dashboard generation script
         env:
