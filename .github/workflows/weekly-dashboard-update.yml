@@ -55,7 +55,7 @@ jobs:
             -e REDCAP_TOKEN_TRIAL1="${REDCAP_TOKEN_TRIAL1}" \
             -e FONTCONFIG_PATH=/home/jovyan/.cache/fontconfig \
             yanivabir/relmed:v1.21 \
-            bash -c "julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl && chown -R $(id -u):$(id -g) /home/jovyan"
+            bash -c "chmod -R 777 /opt/cmdstan && julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl && chown -R $(id -u):$(id -g) /home/jovyan"
 
       - name: Check for changes
         id: check_changes
