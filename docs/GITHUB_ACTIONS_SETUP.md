@@ -6,18 +6,19 @@ This guide explains how to set up automated weekly dashboard updates using GitHu
 
 ### Step 1: Add GitHub Secrets
 
-The workflow needs REDCap credentials to pull data. Add these as GitHub secrets:
+The workflow needs REDCap credentials to pull data and optionally a Slack webhook for notifications. Add these as GitHub secrets:
 
 1. Go to your repository on GitHub
 2. Navigate to: **Settings** → **Secrets and variables** → **Actions**
 3. Click **"New repository secret"**
 
-Add these two secrets:
+Add these secrets:
 
-| Secret Name | Value |
-|------------|-------|
-| `REDCAP_URL` | `https://redcap.slms.ucl.ac.uk/api/` |
-| `REDCAP_TOKEN_TRIAL1` | Your REDCap API token from the trial1 project |
+| Secret Name | Value | Required? |
+|------------|-------|-----------|
+| `REDCAP_URL` | `https://redcap.slms.ucl.ac.uk/api/` | ✅ Required |
+| `REDCAP_TOKEN_TRIAL1` | Your REDCap API token from the trial1 project | ✅ Required |
+| `SLACK_WEBHOOK_URL` | Your Slack incoming webhook URL | Optional (for notifications) |
 
 **Where to find your REDCap API token:**
 - Log into REDCap
@@ -25,6 +26,19 @@ Add these two secrets:
 - Go to "API" in the left menu
 - Click "Generate API Token" if you don't have one
 - Copy the token string
+
+**How to create a Slack webhook URL (Optional):**
+
+1. Go to <https://api.slack.com/apps>
+2. Click **"Create New App"** → **"From scratch"**
+3. Give it a name (e.g., "Dashboard Updates") and select your workspace
+4. In the app settings, go to **"Incoming Webhooks"**
+5. Toggle **"Activate Incoming Webhooks"** to On
+6. Click **"Add New Webhook to Workspace"**
+7. Select the channel where you want notifications (e.g., #data-updates)
+8. Click **"Allow"**
+9. Copy the webhook URL (looks like `https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXX`)
+10. Add it as the `SLACK_WEBHOOK_URL` secret in GitHub
 
 ### Step 2: Enable Workflow Permissions
 
@@ -55,6 +69,7 @@ Once set up, the workflow runs automatically:
 - **Every Friday at 8:00 AM UTC**
 - You'll see a new commit from `github-actions[bot]` if data changed
 - Check the Actions tab to see run history and logs
+- **If Slack webhook is configured**: You'll receive a notification in Slack with a direct link to the updated dashboard (only when changes are detected and running on schedule)
 
 ## Monitoring
 

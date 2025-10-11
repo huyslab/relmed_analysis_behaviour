@@ -105,3 +105,75 @@ jobs:
           else
             echo "ℹ️ No changes detected - dashboard is up to date" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Send Slack notification
+        if: github.event_name == 'true' && steps.check_changes.outputs.has_changes == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Get the repository URL
+          REPO_URL="https://github.com/${{ github.repository }}"
+          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/dashboard.md"
+          COMMIT_URL="${REPO_URL}/commit/${{ github.sha }}"
+
+          # Create Slack message payload
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📊 Behaviour Dashboard Updated",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "The weekly behaviour dashboard has been automatically updated with new data."
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Updated:*\n$(date -u +"%Y-%m-%d %H:%M UTC")"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "📈 View Dashboard",
+                      "emoji": true
+                    },
+                    "url": "${DASHBOARD_URL}",
+                    "style": "primary"
+                  },
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🔍 View Changes",
+                      "emoji": true
+                    },
+                    "url": "${COMMIT_URL}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF

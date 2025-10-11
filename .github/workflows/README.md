@@ -27,10 +27,11 @@ To enable this workflow, you need to configure the following secrets in your Git
 
 2. **Add these secrets**:
 
-   | Secret Name | Description | Example Value |
-   |------------|-------------|---------------|
-   | `REDCAP_URL` | REDCap API endpoint URL | `https://redcap.slms.ucl.ac.uk/api/` |
-   | `REDCAP_TOKEN_TRIAL1` | REDCap API token for trial1 project | `YOUR_REDCAP_TOKEN_HERE` |
+   | Secret Name | Description | Required? |
+   |------------|-------------|-----------|
+   | `REDCAP_URL` | REDCap API endpoint URL | ✅ Required |
+   | `REDCAP_TOKEN_TRIAL1` | REDCap API token for trial1 project | ✅ Required |
+   | `SLACK_WEBHOOK_URL` | Slack incoming webhook URL for notifications | Optional |
 
 ### Setting Up GitHub Secrets
 
@@ -50,6 +51,29 @@ Your Repository → Settings → Secrets and variables → Actions → Repositor
 2. Name: `REDCAP_TOKEN_TRIAL1`
 3. Secret: Your REDCap API token (found in REDCap under API settings)
 4. Click "Add secret"
+
+#### Step 4: Add SLACK_WEBHOOK_URL Secret (Optional)
+
+To receive Slack notifications when the dashboard updates:
+
+1. Create a Slack Incoming Webhook:
+   - Go to <https://api.slack.com/apps>
+   - Click "Create New App" → "From scratch"
+   - Name it (e.g., "Dashboard Updates") and select your workspace
+   - Go to "Incoming Webhooks" and toggle it on
+   - Click "Add New Webhook to Workspace"
+   - Select a channel (e.g., #data-updates) and click "Allow"
+   - Copy the webhook URL
+2. Add it as a GitHub secret:
+   - Name: `SLACK_WEBHOOK_URL`
+   - Secret: The webhook URL you just copied
+   - Click "Add secret"
+
+**Note**: The workflow will send Slack notifications only when:
+
+- It runs on schedule (not manual triggers)
+- Changes are detected in the dashboard
+- The `SLACK_WEBHOOK_URL` secret is configured
 
 ### Testing the Workflow
 
