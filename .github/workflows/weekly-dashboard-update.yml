@@ -107,7 +107,8 @@ jobs:
           fi
 
       - name: Send Slack notification
-        if: github.event_name == 'true' && steps.check_changes.outputs.has_changes == 'true'
+        # if: github.event_name == 'schedule' && steps.check_changes.outputs.has_changes == 'true'
+        if: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
