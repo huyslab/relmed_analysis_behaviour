@@ -13,10 +13,11 @@ The `weekly-dashboard-update.yml` workflow automatically generates and updates t
 
 ### How It Works
 
-1. **Pulls the Docker image**: Uses the same `yanivabir/relmed:v1.12` image used for local development
-2. **Connects to REDCap**: Uses stored secrets to access the REDCap database
-3. **Generates dashboard**: Runs `generate-figure-dashboard.jl` to create all visualizations
-4. **Commits changes**: Automatically commits and pushes any updated figures to the repository
+1. **Pulls the Docker image**: Uses the same `yanivabir/relmed:v1.21` image used for local development
+2. **Sets up directories**: Creates required directories (`data`, `tmp`, `.cache/fontconfig`) with proper permissions
+3. **Connects to REDCap**: Uses stored secrets to access the REDCap database
+4. **Generates dashboard**: Runs `generate-figure-dashboard.jl` to create all visualizations
+5. **Commits changes**: Automatically commits and pushes any updated figures to the repository
 
 ### Required GitHub Secrets
 
@@ -84,8 +85,15 @@ The workflow will automatically run every Friday at 8:00 AM UTC.
   - Save
 
 #### Docker image pull fails
-- The workflow uses the public Docker image `yanivabir/relmed:v1.12`
+- The workflow uses the public Docker image `yanivabir/relmed:v1.21`
 - If this image is updated, change the version in the workflow file
+
+#### Permission denied errors
+If you see errors like "mkdir: permission denied" or CmdStan compilation failures:
+- The workflow creates necessary directories (`data`, `tmp`, `.cache/fontconfig`) before running Docker
+- The Docker container runs with `--user root` and `--entrypoint bash` to ensure proper permissions
+- CmdStan directory is made writable for model compilation
+- These are handled automatically in the workflow configuration
 
 ### Customization
 

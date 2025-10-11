@@ -101,6 +101,16 @@ GitHub can email you when workflows fail:
 2. Check Docker Hub status: https://status.docker.com/
 3. GitHub Actions has good network connectivity, this should be rare
 
+### Permission denied errors
+**Problem:** Errors like "mkdir: permission denied" or CmdStan compilation errors
+
+**Solution:** The workflow has been configured to handle permissions by:
+1. Creating required directories (`data`, `tmp`, `.cache/fontconfig`) before running Docker
+2. Running Docker with `--user root` and `--entrypoint bash` to override default user switching
+3. Making CmdStan directory writable for model compilation
+
+If you see permission errors, verify the workflow includes these setup steps in the "Create required directories" step
+
 ## Customization
 
 ### Change Schedule
