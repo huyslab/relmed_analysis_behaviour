@@ -67,9 +67,11 @@ The workflow will run and you can watch the progress. It should:
 
 Once set up, the workflow runs automatically:
 - **Every Friday at 8:00 AM UTC**
-- You'll see a new commit from `github-actions[bot]` if data changed
+- You'll see a new commit from `github-actions[bot]` when the dashboard is regenerated
+  - If only the timestamp changed: commit message says "update dashboard timestamp"
+  - If figures changed: commit message says "update behaviour dashboard visualizations"
 - Check the Actions tab to see run history and logs
-- **If Slack webhook is configured**: You'll receive a notification in Slack with a direct link to the updated dashboard (only when changes are detected and running on schedule)
+- **If Slack webhook is configured**: You'll receive a notification in Slack with a direct link to the updated dashboard (only when new figures are generated and running on schedule)
 
 ## Monitoring
 

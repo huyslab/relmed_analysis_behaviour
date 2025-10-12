@@ -61,12 +61,27 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
+          # Check if there are any changes at all
           if git diff --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "has_meaningful_changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected in dashboard results"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected in dashboard results"
+
+            # Check if only README.md changed (timestamp-only update)
+            changed_files=$(git diff --name-only)
+            svg_changes=$(echo "$changed_files" | grep -c '\.svg$' || true)
+
+            if [ "$svg_changes" -gt 0 ]; then
+              echo "has_meaningful_changes=true" >> $GITHUB_OUTPUT
+              echo "Meaningful changes detected: $svg_changes SVG file(s) updated"
+              echo "$changed_files"
+            else
+              echo "has_meaningful_changes=false" >> $GITHUB_OUTPUT
+              echo "Only timestamp updated in README.md, no figure changes"
+            fi
+
             git status
           fi
 
@@ -77,18 +92,36 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Commit and push changes
+        id: commit_changes
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
           git add projects/behaviour-dashboard/results/
-          git commit -m "chore: update behaviour dashboard visualizations
+
+          # Create appropriate commit message based on type of changes
+          if [ "${{ steps.check_changes.outputs.has_meaningful_changes }}" == "true" ]; then
+            commit_msg="chore: update behaviour dashboard visualizations
 
           Automated weekly update of dashboard figures and report.
 
           Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
           🤖 Generated with GitHub Actions"
+          else
+            commit_msg="chore: update dashboard timestamp
 
+          No changes to figures - timestamp refresh only.
+
+          Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          🤖 Generated with GitHub Actions"
+          fi
+
+          git commit -m "$commit_msg"
           git push origin main
+
+          # Capture the new commit SHA for Slack notification
+          NEW_COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$NEW_COMMIT_SHA" >> $GITHUB_OUTPUT
 
       - name: Create summary
         run: |
@@ -98,24 +131,29 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
-            echo "✅ Dashboard updated successfully with new data" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Files Changed:" >> $GITHUB_STEP_SUMMARY
-            git diff --name-only HEAD~1 HEAD >> $GITHUB_STEP_SUMMARY || echo "Changes committed and pushed" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ steps.check_changes.outputs.has_meaningful_changes }}" == "true" ]; then
+              echo "✅ Dashboard updated successfully with new data" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Files Changed:" >> $GITHUB_STEP_SUMMARY
+              git diff --name-only HEAD~1 HEAD >> $GITHUB_STEP_SUMMARY || echo "Changes committed and pushed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "ℹ️ Timestamp updated - no new figure changes" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "The dashboard was regenerated but figures are identical to the previous run." >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "ℹ️ No changes detected - dashboard is up to date" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Send Slack notification
-        # if: github.event_name == 'schedule' && steps.check_changes.outputs.has_changes == 'true'
-        if: true
+        if: github.event_name == 'schedule' && steps.check_changes.outputs.has_meaningful_changes == 'true'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          # Get the repository URL
+          # Get the repository URL and the latest commit SHA
           REPO_URL="https://github.com/${{ github.repository }}"
-          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/dashboard.md"
-          COMMIT_URL="${REPO_URL}/commit/${{ github.sha }}"
+          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/README.md"
+          COMMIT_URL="${REPO_URL}/commit/${{ steps.commit_changes.outputs.commit_sha }}"
 
           # Create Slack message payload
           curl -X POST "$SLACK_WEBHOOK_URL" \

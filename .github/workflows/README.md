@@ -72,8 +72,13 @@ To receive Slack notifications when the dashboard updates:
 **Note**: The workflow will send Slack notifications only when:
 
 - It runs on schedule (not manual triggers)
-- Changes are detected in the dashboard
+- **New figures are generated** (not just timestamp updates)
 - The `SLACK_WEBHOOK_URL` secret is configured
+
+The workflow distinguishes between:
+
+- **Meaningful changes**: SVG figure files are updated → Sends notification
+- **Timestamp-only changes**: Only README.md timestamp updated → No notification
 
 ### Testing the Workflow
 
