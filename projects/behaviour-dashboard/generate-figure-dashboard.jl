@@ -51,7 +51,7 @@ end
 
 # Load and preprocess data
 begin 
-    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery, open_text) = preprocess_project(TRIAL1; force_download = false)
+    (; PILT, PILT_test, WM, WM_test, reversal, delay_discounting, vigour, PIT, max_press, control, questionnaire, pavlovian_lottery, open_text) = preprocess_project(TRIAL1; force_download = true)
 end
 
 # Generate PILT learning curve by session
@@ -118,7 +118,7 @@ let preproc_df = preprocess_delay_discounting_data(delay_discounting)
     model_names = ["delay_discounting_model_$(s)" for s in sessions]
 
     fit_and_process = post_process_dd_logistic_regression ∘ fit_dd_logistic_regression
-    fits = map((df, model_name) -> fit_and_process(df; model_name = model_name), dfs, model_names)
+    fits = map((df, model_name) -> fit_and_process(df; model_name = model_name, force = true), dfs, model_names)
 
     # Add session column to each draw DataFrame and concatenate
     coef_draws = vcat([insertcols(fit, 1, :session => sessions[i]) for (i, fit) in enumerate(fits)]...)
