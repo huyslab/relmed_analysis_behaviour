@@ -1,9 +1,9 @@
 name: Weekly Dashboard Update
 
 on:
-  # Run every Friday at 8:00 AM UTC
+  # Run every Friday at 8:45 AM UTC
   schedule:
-    - cron: '0 8 * * 5'
+    - cron: '45 8 * * 5'
   # Allow manual trigger
   workflow_dispatch:
   # Optionally trigger on push to main for testing
