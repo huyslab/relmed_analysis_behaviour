@@ -8,7 +8,7 @@ include("$(pwd())/core/experiment-registry.jl")
 # Remove rows where participant_id matches known test/demo patterns or is too short
 function remove_testing!(data::DataFrame; participant_id_column::Symbol = :participant_id)
     # Exclude participant IDs matching test/demo patterns
-    filter!(x -> !occursin(r"haoyang|yaniv|tore|demo|simulate|debug|REL-LON-000", x[participant_id_column]), data)
+    filter!(x -> !ismissing(x[participant_id_column]) && !occursin(r"haoyang|yaniv|tore|demo|simulate|debug|REL-LON-000", x[participant_id_column]), data)
     # Exclude participant IDs with length <= 10
     filter!(x -> length(x[participant_id_column]) > 10, data)
     return data
@@ -106,7 +106,7 @@ function prepare_max_press_data(
 
 
 	# Define required columns for max press data
-	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
+	required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :trial_number, :avgSpeed, :responseTime, :trialPresses]
 
 	# Check and add missing columns
 	for col in required_columns
@@ -120,7 +120,6 @@ function prepare_max_press_data(
 		x -> filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", x) |>
 		x -> select(x, 
 			participant_id_column,
-			:version,
 			:session,
             :module_start_time,
 			:trialphase,
@@ -150,7 +149,7 @@ function prepare_vigour_data(df::DataFrame;
 
 
     # Define required columns for vigour data
-	required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
+	required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
 	required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
 
 	# Check and add missing columns
@@ -186,7 +185,7 @@ function prepare_PIT_data(df::DataFrame;
     participant_id_column = experiment.participant_id_column
 
     # Define required columns for PIT data
-    required_columns = [participant_id_column, :version, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
+    required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
     required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
 
     # Check and add missing columns
@@ -221,6 +220,7 @@ function prepare_control_data(df::DataFrame;
     )
 
     participant_id_column = experiment.participant_id_column
+    module_column = experiment.module_column
 
     function extract_timeline_variables!(df::DataFrame)
         parsed = map(row -> begin
@@ -252,7 +252,7 @@ function prepare_control_data(df::DataFrame;
 	control_data = control_data[:, .!all.(ismissing, eachcol(control_data))]
 	
     # Filter out unnecessary columns: _n_warnings, and n_instruction_fail
-    select!(control_data, Not(Cols(endswith("_n_warnings"), "n_instruction_fail")))
+    select!(control_data, Not(Cols(intersect(names(control_data), [names(control_data, endswith("_n_warnings"))..., "n_instruction_fail"]))))
 
 	DataFrames.transform!(control_data,
 		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
@@ -260,7 +260,7 @@ function prepare_control_data(df::DataFrame;
 	DataFrames.transform!(groupby(control_data, [participant_id_column, :session]),
 		:trial_ptype => cumsum => :trial
 	)
-	select!(control_data, Not(Cols(:n_warnings, :plugin_version, :pre_kick_out_warned, :trial_type, :trial_ptype)))
+    select!(control_data, Not(Cols(intersect(names(control_data), ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_type", "trial_ptype"]))))
 
 	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
 	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
@@ -268,9 +268,9 @@ function prepare_control_data(df::DataFrame;
 	control_feedback_data = filter(row -> row.trialphase ∈ ["control_explore_feedback", "control_reward_feedback"], control_data)
 	control_feedback_data = control_feedback_data[:, .!all.(ismissing, eachcol(control_feedback_data))]
 
-	sort!(control_task_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
-	sort!(control_feedback_data, [:module_start_time, participant_id_column, :session, :task, :version, :trial])
-	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:module_start_time, participant_id_column, :session, :task, :version, :trial], source=:source, makeunique=true, order=:left)
+	sort!(control_task_data, [:module_start_time, participant_id_column, :session, module_column, :trial])
+	sort!(control_feedback_data, [:module_start_time, participant_id_column, :session, module_column, :trial])
+	merged_control = outerjoin(control_task_data, control_feedback_data, on=[:module_start_time, participant_id_column, :session, module_column, :trial], source=:source, makeunique=true, order=:left)
 	if "correct_1" in names(merged_control)
 		transform!(merged_control, [:correct, :correct_1] => ((x, y) -> coalesce.(x, y)) => :correct)
 	end
@@ -282,7 +282,7 @@ function prepare_control_data(df::DataFrame;
 	
 	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
 	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
-	select!(control_report_data, [:module_start_time, participant_id_column, :session, :version, :task, :time_elapsed, :trialphase, :trial, :rt, :response])
+	select!(control_report_data, [:module_start_time, participant_id_column, :session, module_column, :time_elapsed, :trialphase, :trial, :rt, :response])
 
 	return (; control_task = merged_control, control_report = control_report_data)
 end
@@ -433,7 +433,8 @@ function preprocess_project(
 	end
 
     # Remove testing data
-    jspsych_data = remove_testing!(jspsych_data)
+    filter!(x -> !ismissing(x[experiment.participant_id_column]) && !ismissing(x.module_start_time), jspsych_data)
+    # jspsych_data = remove_testing!(jspsych_data)
 
     # Split and preprocess data by task
     task_data = []
