@@ -61,10 +61,10 @@ Uses a hierarchical model with group-varying slopes for transformed ratio and de
 """
 function fit_dd_logistic_regression(
     df::DataFrame;
-    experiment::ExperimentInfo = TRIAL1,
+    experiment::ExperimentInfo,
     force::Bool = false,
     output_fld::String = "tmp",
-    model_name::String = "delay_discounting_model",
+    model_name::String,
 )   
 
     participant_id_column = experiment.participant_id_column
@@ -146,7 +146,7 @@ Extracts coefficients, computes discount factor k, and optionally summarizes res
 """
 function post_process_dd_logistic_regression(
     dfs::Tuple{DataFrame, DataFrame};
-    experiment::ExperimentInfo = TRIAL1,
+    experiment::ExperimentInfo,
     summarize::Bool = true
 )   
 
