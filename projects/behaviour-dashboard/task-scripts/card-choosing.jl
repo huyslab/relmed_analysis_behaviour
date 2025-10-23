@@ -128,7 +128,7 @@ function plot_learning_curves_by_color_facet!(
     sort!(acc_curve, [participant_id_column, facet, color, xcol])
 
     # Create unique group identifiers for individual trajectories
-    acc_curve.group = string.(acc_curve.participant_id) .* "_" .* string.(acc_curve[!, color])
+    acc_curve.group = string.(acc_curve[!, participant_id_column]) .* "_" .* string.(acc_curve[!, color])
 
     # Summarize by trial with standard error bounds
     acc_curve_sum = combine(
