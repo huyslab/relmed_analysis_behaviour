@@ -1,4 +1,5 @@
 # Script to generate all figures and combine into markdown file
+include("$(pwd())/core/experiment-registry.jl")
 
 # Which experiment to generate the dashboard for
 experiment_name = length(ARGS) > 0 ? ARGS[1] : "TRIAL1"
@@ -15,7 +16,6 @@ begin
     using DataFrames, CairoMakie, Dates, CategoricalArrays
 
     # Include data scripts
-    include("$(pwd())/core/experiment-registry.jl")
     include("$(pwd())/core/preprocess_data.jl")
 
     script_dir = dirname(@__FILE__)
