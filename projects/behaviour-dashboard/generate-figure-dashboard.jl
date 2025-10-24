@@ -295,3 +295,6 @@ quality =  quality_checks(
         experiment = experiment,
         sequences_dir = joinpath(data_quality_dir, "task-sequences")
     )
+
+append_wide_table_to_readme(quality; result_dir = result_dir, title = "Data Quality Overview")
+
