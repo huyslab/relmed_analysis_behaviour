@@ -169,7 +169,7 @@ end
 let PIT_processed = preprocess_PIT_data(dat.PIT)
 
     f1 = Figure(size = (800, 600))
-    plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session, config = plot_config)
+    plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session, config = plot_config, experiment = experiment)
 
     filename1 = "PIT_press_rate_by_pavlovian_stimuli"
     register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")

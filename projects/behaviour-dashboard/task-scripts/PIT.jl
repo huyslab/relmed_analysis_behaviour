@@ -23,11 +23,13 @@ function plot_PIT_press_rate_by_coin!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   pavlovian_column::Symbol=:coin_cat,
   press_rate_column::Symbol=:press_per_sec,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
 
   # Prepare the data - calculate individual participant averages per pavlovian stimuli and factor
   group_cols = [participant_id_column, factor, pavlovian_column]
