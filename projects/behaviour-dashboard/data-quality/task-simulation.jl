@@ -6,6 +6,8 @@ It includes simulations of random agents for the reversal learning task, probabi
 and working memory task. Critical accuracy thresholds under the null hypothesis are calculated based on the simulations.
 """
 
+using Random, DataFrames, Distributions
+
 # Simulate and summarize n_reversals
 """
     simulate_reversals(; n_trials=150, reversal_sequence, criteria, bias, rng=Xoshiro(0), statistic="accuracy")

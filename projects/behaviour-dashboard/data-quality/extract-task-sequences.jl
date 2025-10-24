@@ -1,3 +1,5 @@
+using DataFrames, JSON
+
 """
     extract_json_from_js_file(filepath::String)
 
