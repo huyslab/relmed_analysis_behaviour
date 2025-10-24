@@ -1,7 +1,6 @@
 using DataFrames
-script_dir = dirname(@__FILE__)
-include(joinpath(script_dir, "task-simulation.jl"))
-include(joinpath(script_dir, "extract-task-sequences.jl"))
+include(joinpath(dirname(@__FILE__), "task-simulation.jl"))
+include(joinpath(dirname(@__FILE__), "extract-task-sequences.jl"))
 
 """
     calculate_completion_times(jspsych_data)
