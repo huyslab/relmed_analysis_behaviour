@@ -177,41 +177,44 @@ end
 
 # Generate control plots
 let 
-    task_with_groups, complete_confidence, controllability_data = preprocess_control_data(dat.control.control_task, dat.control.control_report)
+    task_with_groups, complete_confidence, controllability_data = preprocess_control_data(
+        dat.control.control_task, 
+        dat.control.control_report; 
+        experiment = experiment)
 
     # Exploration presses by current strength
     f1 = Figure(size = (800, 600))
-    plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config)
+    plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
     filename1 = "control_exploration_presses_by_current_strength"
     register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
 
     # Prediction accuracy over time (with screening)
     f2 = Figure(size = (800, 800))
-    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session, config = plot_config)
+    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
     filename2 = "control_prediction_accuracy_over_time"
     register_save_figure(filename2, f2, "Control: Prediction Accuracy Over Time")
 
     # Confidence ratings
     f3 = Figure(size = (800, 600))
-    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config)
+    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config, experiment = experiment)
     filename3 = "control_confidence_ratings"
     register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
 
     # Controllability ratings
     f4 = Figure(size = (800, 600))
-    plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config)
+    plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config, experiment = experiment)
     filename4 = "control_controllability_ratings"
     register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
 
     # Reward rate by current strength (default)
     f5 = Figure(size = (800, 600))
-    plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current, config = plot_config)
+    plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current, config = plot_config, experiment = experiment)
     filename5 = "control_reward_rate_by_current_strength"
     register_save_figure(filename5, f5, "Control: Reward Rate by Current Strength")
 
     # Reward rate by reward amount
     f6 = Figure(size = (800, 600))
-    plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount, config = plot_config)
+    plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount, config = plot_config, experiment = experiment)
     filename6 = "control_reward_rate_by_reward_amount"
     register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
 end

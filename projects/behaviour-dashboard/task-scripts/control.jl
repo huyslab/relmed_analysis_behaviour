@@ -4,8 +4,10 @@ using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase
 function preprocess_control_data(
   control_task_df::DataFrame,
   control_report_df::DataFrame;
-  participant_id_column::Symbol=:participant_id
+  experiment::ExperimentInfo=TRIAL1
 )
+
+  participant_id_column = experiment.participant_id_column
   # Create copies to avoid modifying originals
   task_df = copy(control_task_df)
   report_df = copy(control_report_df)
@@ -74,9 +76,11 @@ function plot_control_exploration_presses!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
   # Filter for exploration trials
   explore_data = filter(row -> row.trialphase == "control_explore", df)
 
@@ -156,10 +160,12 @@ function plot_control_prediction_accuracy!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   prediction_group_column::Symbol=:prediction_group,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
   # Filter for prediction trials and remove missing correct values
   pred_data = filter(row -> row.trialphase == "control_predict_homebase", df)
   dropmissing!(pred_data, :correct)
@@ -273,10 +279,13 @@ function plot_control_confidence_ratings!(
   f::Figure,
   confidence_df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   prediction_group_column::Symbol=:prediction_group,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Remove missing responses but keep track of them
   conf_data = dropmissing(confidence_df, :response)
 
@@ -351,9 +360,12 @@ function plot_control_controllability_ratings!(
   f::Figure,
   controllability_df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Remove missing responses but keep track of them
   ctrl_data = dropmissing(controllability_df, :response)
 
@@ -430,10 +442,13 @@ function plot_control_reward_rate_by_effort!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   x_variable::Symbol=:current,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Filter for reward trials and remove missing correct values
   reward_data = filter(row -> row.trialphase == "control_reward", df)
   dropmissing!(reward_data, :correct)
