@@ -103,7 +103,7 @@ or standard error bands based on the variability parameter.
 - `variability::Symbol`: Display variability as :se (standard error) or :individuals (default: :se)
 """
 function plot_learning_curves_by_color_facet!(
-    f::Figure,
+    f::Union{Figure, GridPosition},
     df::DataFrame;
     facet::Symbol = :session,
     xcol::Symbol = :trial,
@@ -417,4 +417,100 @@ function plot_learning_curve_by_delay_bins!(
 	legend!(f[0,1], plt, tellwidth = false, halign = 0.5, orientation = :horizontal, framevisible = false, titleposition = :left)
 
 	f
+end
+
+"""
+    plot_learning_curve_by_block!(f::Figure, df::DataFrame; experiment::ExperimentInfo, config::Dict = plot_config)
+
+Plot learning curves grouped by block, showing feedback contingencies for each block.
+Creates faceted plots by session with blocks labeled by their feedback structure.
+
+# Arguments
+- `f::Figure`: Makie figure to draw into
+- `df::DataFrame`: Data containing response, feedback, and stimulus information
+- `experiment::ExperimentInfo`: Experiment configuration containing participant ID column
+- `config::Dict`: Plot configuration settings (default: plot_config)
+
+# Returns
+- Modified figure with learning curves faceted by block feedback structure
+"""
+function plot_learning_curve_by_block!(
+    f::Figure,
+    df::DataFrame;
+    experiment::ExperimentInfo,
+    config::Dict = plot_config
+)
+    # Copy to prevent mutation
+    cdf = copy(df)
+
+    # Extract all stimulus-feedback pairs from left and right positions
+    stimuli_feedback = vcat(
+        unique(select(cdf, :session, :block, :trial, :feedback_right => :feedback, :stimulus_right => :stimulus)),
+        unique(select(cdf, :session, :block, :trial, :feedback_left => :feedback, :stimulus_left => :stimulus))
+    )
+
+    # Identify rare feedback events (those that differ from the mode)
+    transform!(
+        groupby(stimuli_feedback, [:session, :block, :stimulus]),
+        :feedback => (x -> x .!= mode(x)) => :is_rare
+    )
+
+    # Get unique stimulus-feedback combinations with rarity indicator
+    stimuli_feedback = unique(select(stimuli_feedback, :session, :block, :stimulus, :feedback, :is_rare))
+
+    sort!(stimuli_feedback, [:session, :block, :stimulus, :is_rare])
+
+    # Remove trials without feedback
+    dropmissing!(stimuli_feedback, :feedback)
+
+    # Aggregate feedbacks for each stimulus within blocks
+    stimuli_feedback = combine(
+        groupby(stimuli_feedback, [:session, :block, :stimulus]),
+        :feedback => (x -> [x]) => :feedbacks
+    )
+
+    # Determine the optimal common feedback value for each block
+    transform!(
+        groupby(stimuli_feedback, [:session, :block]),
+        :feedbacks => (x -> maximum([r[1] for r in x])) => :optimal_common_feedback
+    )
+
+    # Flag suboptimal stimuli (those whose common feedback differs from block optimal)
+    transform!(
+        groupby(stimuli_feedback, [:session, :block]),
+        [:feedbacks, :optimal_common_feedback] => ByRow((x, y) -> x[1] .!= y)  => :is_suboptimal
+    )
+
+    sort!(stimuli_feedback, [:session, :block, :is_suboptimal])
+
+    # Create block labels showing feedback contingencies
+    block_feedback = combine(
+        groupby(stimuli_feedback, [:session, :block]),
+        :feedbacks => (x -> join(string.(x), "\nv. ")) => :feedbacks
+    )
+
+    # Format labels as "Block # \n feedback1 v. feedback2"
+    block_feedback.label = string.(block_feedback.block) .* "\n" .* block_feedback.feedbacks
+
+    # Merge block labels into main dataframe
+    leftjoin!(cdf, select(block_feedback, Not(:feedbacks)), on=[:session, :block])
+
+    sort!(cdf, [experiment.participant_id_column, :session, :block, :trial])
+
+    # Plot learning curves for each session, faceted by block
+    for (i, sess) in enumerate(sort(unique(cdf.session)))
+        
+        plot_learning_curves_by_color_facet!(
+            f[1, i],
+            filter(x -> x.session == sess, cdf);
+            color = :valence,
+            facet = :label,
+            color_label = sess,
+            config = plot_config,
+            experiment = experiment
+        )
+    end
+
+    return f
+
 end
