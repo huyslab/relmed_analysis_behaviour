@@ -220,7 +220,7 @@ function prepare_PIT_data(df::DataFrame;
             :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
         ) |>
         x -> DataFrames.transform(x,
-			:response_time => ByRow(JSON.parse) => :response_times,
+			:response_time => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times,
 			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
 			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
 			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
