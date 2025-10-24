@@ -63,8 +63,8 @@ Extract JSON data from all JavaScript files in the specified directory and conve
 
 """
 function extract_all_sequences(directory::String = "task_sequences")
-    # Find all .js files in the directory
-    js_files = filter(f -> endswith(f, ".js"), readdir(directory))
+    # Find all .js files in the directory and subdirectories
+    js_files = [relpath(joinpath(root, f), directory) for (root, _, files) in walkdir(directory) for f in files if endswith(f, ".js")]
     
     # Initialize result dictionaries
     pilt_data = DataFrame()
@@ -73,7 +73,6 @@ function extract_all_sequences(directory::String = "task_sequences")
     println("Found $(length(js_files)) JavaScript files:")
     
     for filename in js_files
-        
         filepath = joinpath(directory, filename)
         println("\nProcessing: $filename")
 
