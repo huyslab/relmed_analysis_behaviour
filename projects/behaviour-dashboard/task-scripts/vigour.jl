@@ -13,11 +13,14 @@ function plot_vigour_press_rate_by_reward_rate!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   reward_column::Symbol=:reward_per_press,
   press_rate_column::Symbol=:press_per_sec,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
 
   # Prepare the data - calculate individual participant averages per reward rate and factor
   group_cols = [participant_id_column, factor, reward_column]

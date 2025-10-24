@@ -159,7 +159,7 @@ end
 let vigour_processed = preprocess_vigour_data(dat.vigour)
 
     f1 = Figure(size = (800, 600))
-    plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session, config = plot_config)
+    plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session, config = plot_config, experiment = experiment)
 
     filename1 = "vigour_press_rate_by_reward_rate"
     register_save_figure(filename1, f1, "Vigour: Press Rate by Reward Rate")
