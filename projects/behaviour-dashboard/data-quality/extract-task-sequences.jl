@@ -76,7 +76,7 @@ function extract_all_sequences(directory::String = "task_sequences")
         filepath = joinpath(directory, filename)
         println("\nProcessing: $filename")
 
-        session = split(filename, "_")[2] # Extract session name from filename
+        session = split(split(filename, "_")[2], ".")[1] # Extract session name from filename
 
         try
             data = extract_json_from_js_file(filepath)
