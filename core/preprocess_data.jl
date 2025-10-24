@@ -37,24 +37,41 @@ function prepare_card_choosing_data(
 	# Sort
 	sort!(task_data, [participant_id_column, :session, :block, :trial])
 
-    # Fix valence coding for PILT
     if task_name == "pilt"
-        transform!(
-            task_data,
-            [:feedback_right, :feedback_left] =>
-                ((x, y) -> ifelse.(
-                    (x .> 0) .&& (y .> 0),
-                    "Reward",
-                    ifelse.(
-                        (x .< 0) .&& (y .< 0),
-                        "Punishment",
-                        "Mixed"
-                    )
-                )) => :valence
+        stimuli_feedback = vcat(
+            unique(select(task_data, :session, :block, :trial, :feedback_right => :feedback, :stimulus_right => :stimulus)),
+            unique(select(task_data, :session, :block, :trial, :feedback_left => :feedback, :stimulus_left => :stimulus))
         )
-    end
 
-	return task_data
+        # Remove prefix from stimulus columns
+        transform!(
+            stimuli_feedback,
+            :stimulus => ByRow(x -> ismissing(x) ? x : replace(x, r"^\./assets/images/card-choosing/stimuli/" => "")) => :stimulus
+        )
+
+        sort!(stimuli_feedback, [:session, :block, :trial, :stimulus])
+
+        common_feedback = combine(
+            groupby(stimuli_feedback, [:session, :block, :stimulus]),
+            :feedback => mode => :common_feedback,
+            :feedback => (x -> begin
+                rare = unique(filter(y -> y .!= mode(x), x))
+                isempty(rare) ? "None" : only(rare)
+            end) => :rare_feedback,
+            :feedback => (x -> length(unique(x))) => :n_feedback_types
+        )
+
+        @assert all(common_feedback.n_feedback_types .<= 2) "Too many feedback values found for some stimuli."
+
+        valence_perblock = combine(
+            groupby(common_feedback, [:session, :block]),
+            :common_feedback => (x -> ifelse(all(x .> 0), "Reward", ifelse(all(x .< 0), "Punishment", "Mixed"))) => :valence
+        )
+        
+        leftjoin!(select!(task_data, Not(:valence)), valence_perblock, on=[:session, :block])
+    end
+	
+    return task_data
 
 end
 
