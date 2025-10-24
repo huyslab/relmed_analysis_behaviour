@@ -154,6 +154,92 @@ function process_control_tasks(
 end
 
 """
+    process_discounting_task(jspsych_data)
+
+Process temporal discounting task data if delay column exists.
+Returns tuple of (missing_data_df, rt_data_df).
+"""
+function process_discounting_task(
+    jspsych_data::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+    !("delay" in names(jspsych_data)) && return (DataFrame(), DataFrame())
+    
+    discounting = filter(x -> !ismissing(x.delay), jspsych_data)
+    # Valid responses are binary: 1 or 0
+    discounting.response_missing = (x -> x ∉ [1,0]).(discounting.response)
+    
+    missing_data = combine(
+        groupby(discounting, [experiment.participant_id_column, :session, experiment.module_column]),
+        :response_missing => sum => :n_missing_trials,
+        :response_missing => length => :n_trials,
+        :response_missing => mean => :prop_missing_trials
+    )
+    missing_data = insertcols(missing_data, :trialphase => "discounting")
+    
+    rt_data = combine(
+        groupby(filter(x -> !ismissing(x.rt) && !isnothing(x.rt), discounting), [experiment.participant_id_column, :session, experiment.module_column]),
+        :rt => (x -> "$(Int(round(mean(x)))) ($(Int(round(std(x)))))") => :rt
+    )
+    rt_data = insertcols(rt_data, :trialphase => "discounting")
+    
+    return (missing_data, rt_data)
+end
+
+"""
+    process_vigour_and_pit_tasks(jspsych_data)
+
+Process vigour and PIT (Pavlovian Instrumental Transfer) tasks.
+Only processes trials with ratio === 1 from timeline_variables.
+Returns DataFrame with missing trial information.
+"""
+function process_vigour_and_pit_tasks(
+    jspsych_data::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+    missing_trials = DataFrame()
+    
+    # Check if timeline_variables column exists
+    if !("timeline_variables" in names(jspsych_data))
+        return missing_trials
+    end
+    
+    unique_phases = filter(x -> !ismissing(x), unique(jspsych_data.trialphase))
+    
+    # Vigour task: missing if only 1 press (insufficient effort)
+    if "vigour_trial" in unique_phases
+        vigour = filter(x -> !ismissing(x.trialphase) && x.trialphase == "vigour_trial" && 
+                           JSON.parse(x.timeline_variables)["ratio"] === 1, jspsych_data)
+        vigour.response_missing = vigour.trial_presses .== 1
+        vigour_missing = combine(
+            groupby(vigour, [experiment.participant_id_column, :session, experiment.module_column]),
+            :response_missing => sum => :n_missing_trials,
+            :response_missing => length => :n_trials,
+            :response_missing => mean => :prop_missing_trials
+        )
+        vigour_missing = insertcols(vigour_missing, :trialphase => "vigour")
+        missing_trials = vcat(missing_trials, vigour_missing)
+    end
+    
+    # PIT task: missing if only 1 press (insufficient effort)
+    if "pit_trial" in unique_phases
+        pit = filter(x -> !ismissing(x.trialphase) && x.trialphase == "pit_trial" && 
+                       JSON.parse(x.timeline_variables)["ratio"] === 1, jspsych_data)
+        pit.response_missing = pit.trial_presses .== 1
+        pit_missing = combine(
+            groupby(pit, [experiment.participant_id_column, :session, experiment.module_column]),
+            :response_missing => sum => :n_missing_trials,
+            :response_missing => length => :n_trials,
+            :response_missing => mean => :prop_missing_trials
+        )
+        pit_missing = insertcols(pit_missing, :trialphase => "pit")
+        missing_trials = vcat(missing_trials, pit_missing)
+    end
+    
+    return missing_trials
+end
+
+"""
     consolidate_missing_trials_and_rts(all_missing_trials, all_rts)
 
 Transform missing trials and reaction time data into wide format.
