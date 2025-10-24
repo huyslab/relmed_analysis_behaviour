@@ -1,7 +1,7 @@
 # Script to generate all figures and combine into markdown file
 
 # Which experiment to generate the dashboard for
-experiment = NORMING
+experiment = TRIAL1
 
 # Setup
 begin
@@ -73,7 +73,19 @@ let PILT_main_sessions = filter(x -> x.session != "screening", dat.PILT)
     plot_learning_curves_by_color_facet!(f2, PILT_main_sessions; facet = :session, color = :valence, color_label = "Valence", config = plot_config, experiment = experiment)
     filename2 = "PILT_learning_curves_by_session_and_valence"
     register_save_figure(filename2, f2, "PILT Learning Curves by Session and Valence")
+
+
+    # Plot by block
+    f3 = Figure(size = (1600, 800))
+    plot_learning_curve_by_block!(
+        f3,
+        PILT_main_sessions;
+        experiment = experiment
+    )
+    filename3 = "PILT_learning_curves_by_block"
+    register_save_figure(filename3, f3, "PILT Learning Curves by Block")
 end
+
 
 # Generate WM learning curve by session
 let WM_main_sessions = filter(x -> x.session != "screening", dat.WM) |> x -> prepare_WM_data(x; experiment = experiment);
