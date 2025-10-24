@@ -148,8 +148,8 @@ function prepare_max_press_data(
 		x -> subset(x, 
 				[:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["max_press_rate"]) || (!ismissing(y)))
 		) |>
-		x -> DataFrames.transform(x,
-			:responseTime => ByRow(JSON.parse) => :response_times
+        x -> DataFrames.transform(x,
+            :responseTime => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times
 		) |>
 		x -> select(x, 
 			Not([:responseTime])
