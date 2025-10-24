@@ -95,7 +95,7 @@ jobs:
         id: commit_changes
         if: steps.check_changes.outputs.has_changes == 'true'
         run: |
-          git add projects/behaviour-dashboard/results/
+          git add projects/behaviour-dashboard/results/trial1/
 
           # Create appropriate commit message based on type of changes
           if [ "${{ steps.check_changes.outputs.has_meaningful_changes }}" == "true" ]; then
@@ -152,7 +152,7 @@ jobs:
         run: |
           # Get the repository URL and the latest commit SHA
           REPO_URL="https://github.com/${{ github.repository }}"
-          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/README.md"
+          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/trial1/README.md"
           COMMIT_URL="${REPO_URL}/commit/${{ steps.commit_changes.outputs.commit_sha }}"
 
           # Create Slack message payload
