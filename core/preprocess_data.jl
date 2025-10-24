@@ -299,7 +299,10 @@ function prepare_control_data(df::DataFrame;
 	
 	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
 	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
-	select!(control_report_data, [:module_start_time, participant_id_column, :session, module_column, :time_elapsed, :trialphase, :trial, :rt, :response])
+
+    if !isempty(control_report_data)
+	    select!(control_report_data, [:module_start_time, participant_id_column, :session, module_column, :time_elapsed, :trialphase, :trial, :rt, :response])
+    end
 
 	return (; control_task = merged_control, control_report = control_report_data)
 end
