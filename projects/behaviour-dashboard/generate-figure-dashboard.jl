@@ -55,7 +55,7 @@ end
 
 # Load and preprocess data
 begin 
-    dat = preprocess_project(experiment; force_download = false)
+    dat = preprocess_project(experiment; force_download = true)
 end
 
 # Generate PILT learning curve by session
