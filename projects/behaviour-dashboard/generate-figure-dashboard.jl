@@ -62,17 +62,6 @@ begin
     dat = preprocess_project(experiment; force_download = true)
 end
 
-
-# Check who finished each module
-let 
-    quality_checks(
-        dat.jspsych_data; 
-        experiment = experiment,
-        sequences_dir = joinpath(data_quality_dir, "task-sequences")
-    )
-
-end
-
 # Generate PILT learning curve by session
 let PILT_main_sessions = filter(x -> x.session != "screening", dat.PILT)
 
@@ -187,6 +176,20 @@ let PIT_processed = preprocess_PIT_data(dat.PIT)
     plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session, config = plot_config, experiment = experiment)
 
     filename1 = "PIT_press_rate_by_pavlovian_stimuli"
+    register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")
+end
+
+# Generate control plots
+let 
+    task_with_groups, complete_confidence, controllability_data = preprocess_control_data(
+        dat.control.control_task, 
+        dat.control.control_report; 
+        experiment = experiment)
+
+    # Exploration presses by current strength
+    f1 = Figure(size = (800, 600))
+    plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
+    filename1 = "control_exploration_presses_by_current_strength"
     register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
 
     # Prediction accuracy over time (with screening)
@@ -200,91 +203,78 @@ let PIT_processed = preprocess_PIT_data(dat.PIT)
     plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config, experiment = experiment)
     filename3 = "control_confidence_ratings"
     register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
-end
+
     # Controllability ratings
     f4 = Figure(size = (800, 600))
     plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config, experiment = experiment)
-    filename4 = "control_controllability_ratings"ity_data = preprocess_control_data(
+    filename4 = "control_controllability_ratings"
     register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
-        dat.control.control_report; 
-    # Reward rate by current strength (default)eriment)
+
+    # Reward rate by current strength (default)
     f5 = Figure(size = (800, 600))
     plot_control_reward_rate_by_effort!(f5, task_with_groups; factor=:session, x_variable=:current, config = plot_config, experiment = experiment)
     filename5 = "control_reward_rate_by_current_strength"
-    register_save_figure(filename5, f5, "Control: Reward Rate by Current Strength")fig = plot_config, experiment = experiment)
-    filename1 = "control_exploration_presses_by_current_strength"
-    # Reward rate by reward amountname1, f1, "Control: Exploration Presses by Current Strength")
+    register_save_figure(filename5, f5, "Control: Reward Rate by Current Strength")
+
+    # Reward rate by reward amount
     f6 = Figure(size = (800, 600))
     plot_control_reward_rate_by_effort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount, config = plot_config, experiment = experiment)
     filename6 = "control_reward_rate_by_reward_amount"
-    register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount") plot_config, experiment = experiment)
-end    filename2 = "control_prediction_accuracy_over_time"
-l: Prediction Accuracy Over Time")
+    register_save_figure(filename6, f6, "Control: Reward Rate by Reward Amount")
+end
+
 # Generate questionnaire histograms
 let 
     f = Figure(size = (1200, 800))
-    plot_questionnaire_histograms!(f, dat.questionnaire; experiment = experiment)ig = plot_config, experiment = experiment)
-    filename3 = "control_confidence_ratings"
-    filename = "questionnaire_histograms", f3, "Control: Confidence Ratings Over Time")
+    plot_questionnaire_histograms!(f, dat.questionnaire; experiment = experiment)
+
+    filename = "questionnaire_histograms"
     register_save_figure(filename, f, "Questionnaire Score Distributions")
 end
 
-# Generate max press rate histogramion, config = plot_config, experiment = experiment)
-let max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed) filename4 = "control_controllability_ratings"
-    f = Figure(size = (800, 600))    register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
+# Generate max press rate histogram
+let max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
+    f = Figure(size = (800, 600))
 
-    mp = data(max_press_clean) *# Reward rate by current strength (default)
+    mp = data(max_press_clean) *
     mapping(
-        :avg_speed => "Average Press Rate",variable=:current, config = plot_config, experiment = experiment)
-        layout = :session => "Session"    filename5 = "control_reward_rate_by_current_strength"
-    ) * histogram(bins=20)Control: Reward Rate by Current Strength")
+        :avg_speed => "Average Press Rate",
+        layout = :session => "Session"
+    ) * histogram(bins=20)
 
-    plt = draw!(f[1, 1], mp; axis = (; ylabel = "# participants")) # Reward rate by reward amount
-    f6 = Figure(size = (800, 600))
-    filename = "max_press_rate_histogram"ort!(f6, task_with_groups; factor=:session, x_variable=:reward_amount, config = plot_config, experiment = experiment)
+    plt = draw!(f[1, 1], mp; axis = (; ylabel = "# participants"))
+
+    filename = "max_press_rate_histogram"
     register_save_figure(filename, f, "Max Press Rate Distribution by Session")
-end6, f6, "Control: Reward Rate by Reward Amount")
 end
+
 # Plot pavlovian lottery reaction times
-letuestionnaire histograms
+let
     f = Figure(size = (800, 600))
     plot_pavlovian_lottery_rt!(f, dat.pavlovian_lottery; config = plot_config, experiment = experiment)
-    filename = "pavlovian_lottery_reaction_times"tograms!(f, dat.questionnaire; experiment = experiment)
+    filename = "pavlovian_lottery_reaction_times"
     register_save_figure(filename, f, "Pavlovian Lottery Reaction Times by Pavlovian Value and Session")
 end 
-    register_save_figure(filename, f, "Questionnaire Score Distributions")
+
 # Plot open text response lengths
 let df = copy(dat.open_text)
-enerate max press rate histogram
-    function count_words(str)let max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
+
+    function count_words(str)
         if ismissing(str) || isempty(str) || isnothing(str)
             return 0
         end
 
         words = split(str, r"\W+")   # split on any non-word characters
         filter!(!isempty, words)     # remove empty strings
-        return length(words)) * histogram(bins=20)
+        return length(words)
     end
- = (; ylabel = "# participants"))
+
     df.response_length = count_words.(df.response)
-    filename = "max_press_rate_histogram"
-    f = Figure(size = (800, 600))name, f, "Max Press Rate Distribution by Session")
+
+    f = Figure(size = (800, 600))
 
     mp = data(df) *
-    mapping(ovian lottery reaction times
-        :response_length,let
-        row = :session,
-        col = :question,nfig = plot_config, experiment = experiment)
-    ) * histogram(bins=20)ttery_reaction_times"
-ister_save_figure(filename, f, "Pavlovian Lottery Reaction Times by Pavlovian Value and Session")
-    plt = draw!(f[1, 1], mp; axis = (; xlabel = "Response Length (words)", ylabel = "# responses"))end 
-
-    filename = "open_text_response_lengths"# Plot open text response lengths
-    register_save_figure(filename, f, "Open Text Response Lengths by Session")
-end
-words(str)
-# Generate the dashboardsmissing(str) || isempty(str) || isnothing(str)
-generate_markdown_dashboard()    mapping(
+    mapping(
         :response_length,
         row = :session,
         col = :question,
@@ -298,3 +288,10 @@ end
 
 # Generate the dashboard
 generate_markdown_dashboard()
+
+# Check who finished each module
+quality =  quality_checks(
+        dat.jspsych_data; 
+        experiment = experiment,
+        sequences_dir = joinpath(data_quality_dir, "task-sequences")
+    )
