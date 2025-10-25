@@ -8,11 +8,7 @@ experiment = eval(Meta.parse(experiment_name))
 # Setup
 begin
     cd("/home/jovyan")
-    import Pkg
-    # activate the shared project environment
-    Pkg.activate("$(pwd())/environment")
-    # instantiate, i.e. make sure that all packages are downloaded
-    Pkg.instantiate()
+
     using DataFrames, CairoMakie, Dates, CategoricalArrays
 
     # Include data scripts
