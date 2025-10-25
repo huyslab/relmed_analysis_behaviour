@@ -63,7 +63,18 @@ begin
 end
 
 # Generate PILT learning curve by session
-let PILT_main_sessions = filter(x -> x.session != "screening", dat.PILT)
+let 
+    println("Generating PILT learning curves...")
+
+    if !haskey(dat, :pilt) || isempty(dat.pilt)
+        return
+    end
+
+    PILT_main_sessions = filter(x -> x.session != "screening", dat.PILT)
+
+    if isempty(PILT_main_sessions)
+        return
+    end
 
     # Plot by session
     f1 = Figure(size = (800, 600))
@@ -93,7 +104,14 @@ end
 
 
 # Generate WM learning curve by session
-let WM_main_sessions = filter(x -> x.session != "screening", dat.WM) |> x -> prepare_WM_data(x; experiment = experiment);
+let 
+    println("Generating Working Memory learning curves...")
+    
+    if !haskey(dat, :WM) || isempty(dat.WM)
+        return
+    end
+    
+    WM_main_sessions = filter(x -> x.session != "screening", dat.WM) |> x -> prepare_WM_data(x; experiment = experiment);
 
     f1 = Figure(size = (800, 600))
     plot_learning_curves_by_facet!(
@@ -122,7 +140,14 @@ let WM_main_sessions = filter(x -> x.session != "screening", dat.WM) |> x -> pre
 end
 
 # Generate reversal accuracy curve
-let preproc_df = preprocess_reversal_data(dat.reversal; experiment = experiment)
+let 
+    println("Generating Reversal Learning accuracy curves...")
+
+    if !haskey(dat, :reversal) || isempty(dat.reversal)
+        return
+    end
+    
+    preproc_df = preprocess_reversal_data(dat.reversal; experiment = experiment)
 
     f = Figure(size = (800, 600))
 
@@ -133,7 +158,14 @@ let preproc_df = preprocess_reversal_data(dat.reversal; experiment = experiment)
 end
 
 # Generate delay discounting curves
-let preproc_df = preprocess_delay_discounting_data(dat.delay_discounting; experiment = experiment)
+let 
+    println("Generating Delay Discounting curves...")
+
+    if !haskey(dat, :delay_discounting) || isempty(dat.delay_discounting)
+        return
+    end
+
+    preproc_df = preprocess_delay_discounting_data(dat.delay_discounting; experiment = experiment)
 
     sessions = sort(unique(preproc_df.session))
     dfs = [filter(x -> x.session == s, preproc_df) for s in sessions]
@@ -160,7 +192,14 @@ let preproc_df = preprocess_delay_discounting_data(dat.delay_discounting; experi
 end
 
 # Generate vigour plots
-let vigour_processed = preprocess_vigour_data(dat.vigour)
+let 
+    println("Generating Vigour plots...")
+
+    if !haskey(dat, :vigour) || isempty(dat.vigour)
+        return
+    end
+    
+    vigour_processed = preprocess_vigour_data(dat.vigour)
 
     f1 = Figure(size = (800, 600))
     plot_vigour_press_rate_by_reward_rate!(f1, vigour_processed; factor=:session, config = plot_config, experiment = experiment)
@@ -170,7 +209,14 @@ let vigour_processed = preprocess_vigour_data(dat.vigour)
 end
 
 # Generate PIT plots
-let PIT_processed = preprocess_PIT_data(dat.PIT)
+let 
+    println("Generating PIT plots...")
+
+    if !haskey(dat, :PIT) || isempty(dat.PIT)
+        return
+    end
+
+    PIT_processed = preprocess_PIT_data(dat.PIT)
 
     f1 = Figure(size = (800, 600))
     plot_PIT_press_rate_by_coin!(f1, PIT_processed; factor=:session, config = plot_config, experiment = experiment)
@@ -180,35 +226,51 @@ let PIT_processed = preprocess_PIT_data(dat.PIT)
 end
 
 # Generate control plots
-let 
+let
+    println("Generating Control task plots...")
+
+    if !haskey(dat, :control) || isempty(dat.control)
+        return
+    end
+
     task_with_groups, complete_confidence, controllability_data = preprocess_control_data(
         dat.control.control_task, 
         dat.control.control_report; 
         experiment = experiment)
 
     # Exploration presses by current strength
-    f1 = Figure(size = (800, 600))
-    plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
-    filename1 = "control_exploration_presses_by_current_strength"
-    register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
+    if !isempty(task_with_groups)
+        f1 = Figure(size = (800, 600))
+        plot_control_exploration_presses!(f1, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
+        filename1 = "control_exploration_presses_by_current_strength"
+        register_save_figure(filename1, f1, "Control: Exploration Presses by Current Strength")
 
-    # Prediction accuracy over time (with screening)
-    f2 = Figure(size = (800, 800))
-    plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
-    filename2 = "control_prediction_accuracy_over_time"
-    register_save_figure(filename2, f2, "Control: Prediction Accuracy Over Time")
+        # Prediction accuracy over time (with screening)
+        f2 = Figure(size = (800, 800))
+        plot_control_prediction_accuracy!(f2, task_with_groups; factor=:session, config = plot_config, experiment = experiment)
+        filename2 = "control_prediction_accuracy_over_time"
+        register_save_figure(filename2, f2, "Control: Prediction Accuracy Over Time")
+    end
 
     # Confidence ratings
-    f3 = Figure(size = (800, 600))
-    plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config, experiment = experiment)
-    filename3 = "control_confidence_ratings"
-    register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
+    if !isempty(complete_confidence)
+        f3 = Figure(size = (800, 600))
+        plot_control_confidence_ratings!(f3, complete_confidence; factor=:session, config = plot_config, experiment = experiment)
+        filename3 = "control_confidence_ratings"
+        register_save_figure(filename3, f3, "Control: Confidence Ratings Over Time")
+    end
 
     # Controllability ratings
-    f4 = Figure(size = (800, 600))
-    plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config, experiment = experiment)
-    filename4 = "control_controllability_ratings"
-    register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
+    if !isempty(controllability_data)
+        f4 = Figure(size = (800, 600))
+        plot_control_controllability_ratings!(f4, controllability_data; factor=:session, config = plot_config, experiment = experiment)
+        filename4 = "control_controllability_ratings"
+        register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
+    end
+
+    if isempty(task_with_groups)
+        return
+    end
 
     # Reward rate by current strength (default)
     f5 = Figure(size = (800, 600))
@@ -225,6 +287,12 @@ end
 
 # Generate questionnaire histograms
 let 
+    println("Generating Questionnaire histograms...")
+
+    if !haskey(dat, :questionnaire) || isempty(dat.questionnaire)
+        return
+    end
+
     f = Figure(size = (1200, 800))
     plot_questionnaire_histograms!(f, dat.questionnaire; experiment = experiment)
 
@@ -233,7 +301,15 @@ let
 end
 
 # Generate max press rate histogram
-let max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
+let 
+    println("Generating Max Press Rate histogram...")
+
+    if !haskey(dat, :max_press) || isempty(dat.max_press)
+        return
+    end
+
+    max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
+    
     f = Figure(size = (800, 600))
 
     mp = data(max_press_clean) *
@@ -250,6 +326,12 @@ end
 
 # Plot pavlovian lottery reaction times
 let
+    println("Generating Pavlovian Lottery reaction time plots...")
+
+    if !haskey(dat, :pavlovian_lottery) || isempty(dat.pavlovian_lottery)
+        return
+    end
+
     f = Figure(size = (800, 600))
     plot_pavlovian_lottery_rt!(f, dat.pavlovian_lottery; config = plot_config, experiment = experiment)
     filename = "pavlovian_lottery_reaction_times"
@@ -257,7 +339,14 @@ let
 end 
 
 # Plot open text response lengths
-let df = copy(dat.open_text)
+let 
+    println("Generating Open Text response length plots...")
+
+    if !haskey(dat, :open_text) || isempty(dat.open_text)
+        return
+    end
+    
+    df = copy(dat.open_text)
 
     function count_words(str)
         if ismissing(str) || isempty(str) || isnothing(str)
@@ -287,9 +376,11 @@ let df = copy(dat.open_text)
 end
 
 # Generate the dashboard
+println("Generating markdown dashboard...")
 generate_markdown_dashboard()
 
 # Check who finished each module
+println("Running data quality checks...")
 quality =  quality_checks(
         dat.jspsych_data; 
         experiment = experiment,
