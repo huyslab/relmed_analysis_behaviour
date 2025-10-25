@@ -60,7 +60,6 @@ end
 
 # Generate PILT learning curve by session
 let 
-    println("Generating PILT learning curves...")
 
     if !haskey(dat, :pilt) || isempty(dat.pilt)
         return
@@ -71,6 +70,8 @@ let
     if isempty(PILT_main_sessions)
         return
     end
+
+    println("Generating PILT learning curves...")
 
     # Plot by session
     f1 = Figure(size = (800, 600))
@@ -101,11 +102,12 @@ end
 
 # Generate WM learning curve by session
 let 
-    println("Generating Working Memory learning curves...")
     
     if !haskey(dat, :WM) || isempty(dat.WM)
         return
     end
+    
+    println("Generating Working Memory learning curves...")
     
     WM_main_sessions = filter(x -> x.session != "screening", dat.WM) |> x -> prepare_WM_data(x; experiment = experiment);
 
@@ -137,12 +139,13 @@ end
 
 # Generate reversal accuracy curve
 let 
-    println("Generating Reversal Learning accuracy curves...")
 
     if !haskey(dat, :reversal) || isempty(dat.reversal)
         return
     end
     
+    println("Generating Reversal Learning accuracy curves...")
+
     preproc_df = preprocess_reversal_data(dat.reversal; experiment = experiment)
 
     f = Figure(size = (800, 600))
@@ -155,11 +158,12 @@ end
 
 # Generate delay discounting curves
 let 
-    println("Generating Delay Discounting curves...")
 
     if !haskey(dat, :delay_discounting) || isempty(dat.delay_discounting)
         return
     end
+
+    println("Generating Delay Discounting curves...")
 
     preproc_df = preprocess_delay_discounting_data(dat.delay_discounting; experiment = experiment)
 
@@ -189,11 +193,12 @@ end
 
 # Generate vigour plots
 let 
-    println("Generating Vigour plots...")
 
     if !haskey(dat, :vigour) || isempty(dat.vigour)
         return
     end
+    
+    println("Generating Vigour plots...")
     
     vigour_processed = preprocess_vigour_data(dat.vigour)
 
@@ -206,11 +211,12 @@ end
 
 # Generate PIT plots
 let 
-    println("Generating PIT plots...")
 
     if !haskey(dat, :PIT) || isempty(dat.PIT)
         return
     end
+
+    println("Generating PIT plots...")
 
     PIT_processed = preprocess_PIT_data(dat.PIT)
 
@@ -223,11 +229,11 @@ end
 
 # Generate control plots
 let
-    println("Generating Control task plots...")
-
     if !haskey(dat, :control) || isempty(dat.control)
         return
     end
+    
+    println("Generating Control task plots...")
 
     task_with_groups, complete_confidence, controllability_data = preprocess_control_data(
         dat.control.control_task, 
@@ -283,11 +289,12 @@ end
 
 # Generate questionnaire histograms
 let 
-    println("Generating Questionnaire histograms...")
 
     if !haskey(dat, :questionnaire) || isempty(dat.questionnaire)
         return
     end
+
+    println("Generating Questionnaire histograms...")
 
     f = Figure(size = (1200, 800))
     plot_questionnaire_histograms!(f, dat.questionnaire; experiment = experiment)
@@ -298,11 +305,12 @@ end
 
 # Generate max press rate histogram
 let 
-    println("Generating Max Press Rate histogram...")
 
     if !haskey(dat, :max_press) || isempty(dat.max_press)
         return
     end
+
+    println("Generating Max Press Rate histogram...")
 
     max_press_clean = combine(groupby(dat.max_press, [experiment.participant_id_column, :session]), :avg_speed => maximum => :avg_speed)
     
@@ -322,11 +330,12 @@ end
 
 # Plot pavlovian lottery reaction times
 let
-    println("Generating Pavlovian Lottery reaction time plots...")
 
     if !haskey(dat, :pavlovian_lottery) || isempty(dat.pavlovian_lottery)
         return
     end
+
+    println("Generating Pavlovian Lottery reaction time plots...")
 
     f = Figure(size = (800, 600))
     plot_pavlovian_lottery_rt!(f, dat.pavlovian_lottery; config = plot_config, experiment = experiment)
@@ -336,11 +345,12 @@ end
 
 # Plot open text response lengths
 let 
-    println("Generating Open Text response length plots...")
 
     if !haskey(dat, :open_text) || isempty(dat.open_text)
         return
     end
+
+    println("Generating Open Text response length plots...")
     
     df = copy(dat.open_text)
 
