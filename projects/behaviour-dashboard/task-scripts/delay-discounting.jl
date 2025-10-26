@@ -3,6 +3,7 @@
 # https://link.springer.com/content/pdf/10.3758/BF03195548.pdf
 
 using DataFrames, CairoMakie, AlgebraOfGraphics, CSV
+using AlgebraOfGraphics: scale
 
 """
     preprocess_delay_discounting_data(df; participant_id_column=:participant_id)
