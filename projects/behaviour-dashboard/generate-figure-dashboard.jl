@@ -270,7 +270,7 @@ let
         register_save_figure(filename4, f4, "Control: Controllability Ratings Over Time")
     end
 
-    if isempty(task_with_groups)
+    if isempty(task_with_groups) || unique(task_with_groups.session) == ["screening"]
         return
     end
 
