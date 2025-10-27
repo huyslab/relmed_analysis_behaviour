@@ -25,10 +25,17 @@ TRIAL1 = ExperimentInfo(
     :task,
     (data::DataFrame; experiment::ExperimentInfo) -> begin
         participant_id_column = experiment.participant_id_column
+        pre = length(unique(data[!, participant_id_column]))
+
         # Exclude participant IDs matching test/demo patterns
         filter!(x -> !ismissing(x[participant_id_column]) && !occursin(r"haoyang|yaniv|tore|demo|simulate|debug|REL-LON-000", x[participant_id_column]), data)
         # Exclude participant IDs with length <= 10
         filter!(x -> length(x[participant_id_column]) > 10, data)
+
+        post = length(unique(data[!, participant_id_column]))
+        @info "TRIAL1: Excluded $(pre - post) testing participants"
+
+        return data
     end,
     Date(2025, 6, 4),
     "First RELMED trial with participants.",
@@ -42,11 +49,18 @@ NORMING = ExperimentInfo(
     :module,
     (data::DataFrame; experiment::ExperimentInfo) -> begin
         participant_id_column = experiment.participant_id_column
+
+        pre = length(unique(data[!, participant_id_column]))
         
         # Exclude participant IDs matching test/demo patterns
         filter!(x -> !ismissing(x[participant_id_column]) && !occursin(r"simulate|debug", x[participant_id_column]), data)
         # Exclude participant IDs with length <= 10
         filter!(x -> length(x[participant_id_column]) > 10, data)
+
+        post = length(unique(data[!, participant_id_column]))
+        println("NORMING: Excluded $(pre - post) testing participants")
+
+        return data
     end,
     Date(2025, 10, 21),
     "General population norming sample of RELMED battery.",
