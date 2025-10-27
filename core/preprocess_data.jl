@@ -252,7 +252,10 @@ function prepare_control_data(df::DataFrame;
             end, eachrow(df))
         
         for key in unique(Iterators.flatten(keys.(parsed)))
-                df[!, key] = [get(p, key, missing) for p in parsed]
+            if (key in names(df))
+                @warn "Column $key already exists in DataFrame. Overwriting with parsed timeline variable."
+            end
+            df[!, key] = [get(p, key, missing) for p in parsed]
         end
 
         select!(df, Not(:timeline_variables))
@@ -271,13 +274,18 @@ function prepare_control_data(df::DataFrame;
     # Filter out unnecessary columns: _n_warnings, and n_instruction_fail
     select!(control_data, Not(Cols(intersect(names(control_data), [names(control_data, endswith("_n_warnings"))..., "n_instruction_fail"]))))
 
-	DataFrames.transform!(control_data,
-		:trialphase => ByRow(x -> ifelse(x ∈ ["control_explore", "control_predict_homebase", "control_reward"], 1, 0)) => :trial_ptype)
-	# sort!(control_data, [participant_id_column, :trial_index])
-	DataFrames.transform!(groupby(control_data, [participant_id_column, :session]),
-		:trial_ptype => cumsum => :trial
-	)
-    select!(control_data, Not(Cols(intersect(names(control_data), ["n_warnings", "plugin_version", "pre_kick_out_warned", "trial_type", "trial_ptype"]))))
+    select!(control_data, Not(Cols(intersect(names(control_data), ["n_warnings", "plugin_version", "pre_kick_out_warned"]))))
+
+    extract_timeline_variables!(control_data)
+	transform!(control_data, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
+	select!(control_data, Not(:responseTime))
+
+    # Forward fill trial numbers
+    ffill(v) = v[accumulate(max, [i*!ismissing(v[i]) for i in 1:length(v)], init=1)]
+
+    filter!(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward", "control_explore_feedback", "control_confidence", "control_controllability"], control_data)
+    sort!(control_data, [participant_id_column, :session, :module_start_time, :trial_index])
+    transform!(control_data, :trial => ffill => :trial)
 
 	control_task_data = filter(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward"], control_data)
 	control_task_data = control_task_data[:, .!all.(ismissing, eachcol(control_task_data))]
@@ -293,9 +301,14 @@ function prepare_control_data(df::DataFrame;
 	end
 	select!(merged_control, Not(Cols(r".*_1", :source)))
 
-	extract_timeline_variables!(merged_control)
-	transform!(merged_control, :responseTime => (x -> passmissing(JSON.parse).(x)) => :response_times)
-	select!(merged_control, Not(:responseTime))
+    # Warn if trials exceed expected number; maybe suggest double-takers
+    for group in groupby(merged_control, [participant_id_column, :session])
+        n_trials = length(group.trial)
+        expected_trials = group.session[1] == "screening" ? 28 : 120
+        if n_trials != expected_trials
+            @warn "$(group[1, participant_id_column]) in $(group[1, :session]) has control trials: $(n_trials) (expected $expected_trials)"
+        end
+    end
 	
 	control_report_data = filter(row -> row.trialphase ∈ ["control_confidence", "control_controllability"], control_data)
 	control_report_data = control_report_data[:, .!all.(ismissing, eachcol(control_report_data))]
