@@ -124,18 +124,18 @@ function plot_control_exploration_presses!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :current => nonnumeric => "Current strength",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :current => nonnumeric => "Current strength",
       :avg_trial_presses => "Trial presses",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Add reference lines for current strength thresholds
@@ -214,18 +214,18 @@ function plot_control_prediction_accuracy!(
                       individual_mapping *
                       visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-    # Group average with confidence bands
+    # Group average with error bars
     group_plot = data(group_avg_data) * (
       mapping(
         :prediction_group => "Prediction test group",
         :lower_bound, :upper_bound,
         layout=factor
-      ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+      ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
       mapping(
         :prediction_group => "Prediction test group",
         :avg_accuracy => "Prediction accuracy",
         layout=factor
-      ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+      ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
     )
 
     regular_plot = individual_plot + group_plot
@@ -327,18 +327,18 @@ function plot_control_confidence_ratings!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :prediction_group => "Prediction test group",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :prediction_group => "Prediction test group",
       :avg_confidence => "Confidence rating",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
@@ -407,18 +407,18 @@ function plot_control_controllability_ratings!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :trial => "Trial",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :trial => "Trial",
       :avg_controllability => "Controllability rating",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
@@ -501,18 +501,18 @@ function plot_control_reward_rate_by_effort!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       x_variable => nonnumeric => x_label,
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       x_variable => nonnumeric => x_label,
       :avg_reward_rate => "Reward rate",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
