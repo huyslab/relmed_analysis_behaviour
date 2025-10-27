@@ -5,15 +5,6 @@ using DataFrames, JLD2, JSON
 include("$(pwd())/core/fetch_redcap.jl")
 include("$(pwd())/core/experiment-registry.jl")
 
-# Remove rows where participant_id matches known test/demo patterns or is too short
-function remove_testing!(data::DataFrame; participant_id_column::Symbol = :participant_id)
-    # Exclude participant IDs matching test/demo patterns
-    filter!(x -> !ismissing(x[participant_id_column]) && !occursin(r"haoyang|yaniv|tore|demo|simulate|debug|REL-LON-000", x[participant_id_column]), data)
-    # Exclude participant IDs with length <= 10
-    filter!(x -> length(x[participant_id_column]) > 10, data)
-    return data
-end
-
 remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, col), eachcol(data)))]
 
 function prepare_card_choosing_data(
@@ -486,8 +477,7 @@ function preprocess_project(
 	end
 
     # Remove testing data
-    filter!(x -> !ismissing(x[experiment.participant_id_column]) && !ismissing(x.module_start_time), jspsych_data)
-    # jspsych_data = remove_testing!(jspsych_data)
+    jspsych_data = experiment.exclude_testing_participants(jspsych_data; experiment = experiment)
 
     # Split and preprocess data by task
     task_data = []
