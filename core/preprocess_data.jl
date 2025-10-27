@@ -330,6 +330,19 @@ function prepare_questionnaire_data(
 	raw_questionnaire_data = filter(x -> !ismissing(x.trialphase) && 
         x.trialphase in experiment.questionnaire_names, df)
 
+    function merge_keys!(dict, prefix)
+        keys_to_merge = filter(k -> startswith(k, prefix), keys(dict))
+        @info "Merging keys: $keys_to_merge"
+        values = [dict[k] for k in keys_to_merge if haskey(dict, k)]
+        non_empty_values = filter(x -> !ismissing(x) && x != "", values)
+        for k in keys_to_merge
+            delete!(dict, k)
+        end
+        @assert length(non_empty_values) <= 1 "Multiple non-empty values found for $prefix: $(non_empty_values)"
+        dict[prefix] = isempty(non_empty_values) ? "" : only(non_empty_values)
+        return dict
+    end
+
 	questionnaire_data = DataFrame()
 	for row in eachrow(raw_questionnaire_data)
 		response = nothing
