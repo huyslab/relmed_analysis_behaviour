@@ -12,6 +12,33 @@ function preprocess_control_data(
   task_df = copy(control_task_df)
   report_df = copy(control_report_df)
 
+  # Handle empty report_df early
+  if nrow(report_df) == 0
+    # Still process task data to add prediction groups
+    pred_trials = filter(row -> row.trialphase == "control_predict_homebase" && row.session != "screening", task_df)
+    
+    if !isempty(pred_trials)
+      transform!(groupby(pred_trials, [participant_id_column, :session]),
+        :n_control_trials => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 16)) => :prediction_group
+      )
+    
+      task_with_groups = leftjoin(task_df,
+        select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]),
+        on=[participant_id_column, :session, :n_control_trials])
+      sort!(task_with_groups, [participant_id_column, :session, :n_control_trials])
+
+    else
+      task_with_groups = task_df
+      sort!(task_with_groups, [participant_id_column, :session])
+    end
+    
+    # Return empty DataFrames for confidence and controllability
+    empty_confidence = DataFrame()
+    empty_controllability = DataFrame()
+    
+    return task_with_groups, empty_confidence, empty_controllability
+  end
+
   # Handle missing responses in control_report_data (convert nothing to missing)
   transform!(report_df, :response => (x -> ifelse.(.!(ismissing.(x)) .&& x .== nothing, missing, x)) => :response)
 

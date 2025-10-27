@@ -34,14 +34,18 @@ function plot_questionnaire_histograms!(
     scores = compute_questionnaire_scores(df; experiment = experiment)
 
     # Reshape data from wide to long format for plotting
-    long_scores = stack(scores, columns, [experiment.participant_id_column, :session]; 
+    keep_indices = findall(x -> x in names(scores), string.(columns))
+    measures = string.(columns)[keep_indices]
+    labels = labels[keep_indices]
+
+    long_scores = stack(scores, measures, [experiment.participant_id_column, :session]; 
                        variable_name = :questionnaire, value_name = :score)
 
     # Remove rows with missing scores (occurs when session doesn't include a questionnaire)
     filter!(row -> !ismissing(row.score), long_scores)
 
     # Map questionnaire column names to human-readable labels
-    question_map = Dict(string.(columns) .=> labels)
+    question_map = Dict(string.(measures) .=> labels)
     long_scores.questionnaire = map(x -> question_map[x], long_scores.questionnaire)
 
     # Set up color scheme for different sessions
@@ -50,7 +54,7 @@ function plot_questionnaire_histograms!(
     color_map = [all_sessions[i] => session_colors[i] for i in eachindex(all_sessions)]
 
     # Calculate grid layout dimensions (roughly square)
-    n_questionnaires = length(labels)
+    n_questionnaires = length(measures)
     n_cols = ceil(Int, sqrt(n_questionnaires))
 
     # Plot each questionnaire separately

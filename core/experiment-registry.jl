@@ -28,8 +28,8 @@ TRIAL1 = ExperimentInfo(
 
 NORMING = ExperimentInfo(
     "norming",
-    ["reversal", "max_press", "PILT", "vigour", "PIT", "vigour_test", "PILT_test", "control", "WM", "WM_test", "delay_discounting", "open_text", "questionnaire", "pavlovian_lottery"],
-    ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"],
+    ["reversal", "max_press", "PILT", "control", "questionnaire"],
+    ["demographics", "PHQ", "WSAS", "ICECAP", "BFI"],
     :PROLIFIC_PID,
     :module,
     Date(2025, 10, 21),
