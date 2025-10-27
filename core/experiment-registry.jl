@@ -12,7 +12,7 @@ struct ExperimentInfo
     questionnaire_names::Union{Vector{String}, Nothing}
     participant_id_column::Symbol
     module_column::Symbol
-    exclude_testing_participants::Function # Must accept the ExperimentInfo object as argument
+    exclude_testing_participants::Function # Function(data::DataFrame; experiment::ExperimentInfo) -> DataFrame - filters out testing participants
     date_collected::Union{Date, Nothing}
     notes::Union{String, Nothing}
 end
@@ -58,7 +58,7 @@ NORMING = ExperimentInfo(
         filter!(x -> length(x[participant_id_column]) > 10, data)
 
         post = length(unique(data[!, participant_id_column]))
-        println("NORMING: Excluded $(pre - post) testing participants")
+        @info "NORMING: Excluded $(pre - post) testing participants"
 
         return data
     end,
