@@ -347,7 +347,14 @@ function prepare_questionnaire_data(
 	for row in eachrow(raw_questionnaire_data)
 		response = nothing
 		try
-			response = row.trial_type == "survey-template" ? JSON.parse(row.responses) : JSON.parse(row.response)
+			response = row.trial_type in ["survey-template", "survey-demo"] ? JSON.parse(row.responses) : JSON.parse(row.response)
+
+            # Special handling for demographics questionnaire to merge choice/text fields
+            if row.trialphase == "demographics"
+                for prefix in ["gender", "education", "employment", "menstrual-first-day", "menstrual-cycle-length"]
+                    merge_keys!(response, prefix)
+                end
+			end
 		catch e
 			@warn "Failed to parse JSON in questionnaire data" participant_id=row[participant_id_column] trialphase=row.trialphase error=e
 			continue
