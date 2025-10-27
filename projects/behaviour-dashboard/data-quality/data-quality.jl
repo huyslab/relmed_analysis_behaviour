@@ -511,6 +511,8 @@ function quality_checks(
             (!("wm_accuracy" in names(quality)) || ismissing.(quality.wm_critical_value) .|| quality.wm_accuracy .> quality.wm_critical_value)
         ) .&&
         quality.n_pilt_quiz_attempts .<= 3
+
+    sort!(quality, [:session, :include, experiment.participant_id_column])
     
     return quality
 end
