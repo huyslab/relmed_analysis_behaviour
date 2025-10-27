@@ -60,19 +60,8 @@ function append_wide_table_to_readme(df::AbstractDataFrame; result_dir::String, 
     open(md_file, "a") do io
         println(io, "\n\n### $(title)\n")
         println(io, "<details><summary>Click to expand</summary>\n")
-        println(io, "```text")
-        
-        # Define highlighters for the include column
-        h_true = Highlighter(
-            (data, i, j) -> (j == findfirst(==(:include), names(df))) && (data[i, j] == true),
-            foreground = :green
-        )
-        h_false = Highlighter(
-            (data, i, j) -> (j == findfirst(==(:include), names(df))) && (data[i, j] == false),
-            foreground = :red
-        )
-        
-        pretty_table(io, df; highlighters = (h_true, h_false))
+        println(io, "```text")        
+        pretty_table(io, df)
         println(io, "```")
         println(io, "\n</details>")
     end
