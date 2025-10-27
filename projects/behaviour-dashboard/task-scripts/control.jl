@@ -19,16 +19,16 @@ function preprocess_control_data(
   # Filter for prediction trials first
   pred_trials = filter(row -> row.trialphase == "control_predict_homebase" && row.session != "screening", task_df)
 
-  # Add prediction group variable (trials 7-10 = group 1, trials 23-26 = group 2, etc.; after every 16 trials for the column n_control_trials)
+  # Add prediction group variable (trials 7-10 = group 1, trials 24-27 = group 2, etc.; after every 17 trials for the column trial, which is the timeline variable)
   transform!(groupby(pred_trials, [participant_id_column, :session]),
-    :n_control_trials => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 16)) => :prediction_group
+    :trial => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 17)) => :prediction_group
   )
 
   # Merge prediction trials back with main task data
   task_with_groups = leftjoin(task_df,
-    select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]),
-    on=[participant_id_column, :session, :n_control_trials])
-  sort!(task_with_groups, [participant_id_column, :session, :n_control_trials])
+    select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]),
+    on=[participant_id_column, :session, :trial])
+  sort!(task_with_groups, [participant_id_column, :session, :trial])
 
   # Handle missing confidence ratings by matching with task trials
   confidence_df = filter(row -> row.trialphase == "control_confidence", report_df)
@@ -38,10 +38,10 @@ function preprocess_control_data(
   # Left join to preserve all prediction trials, including those completely missing from report_df
   # Missing trials will have missing values for all report_df columns
   complete_confidence = leftjoin(
-    select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]), 
+    select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]), 
     confidence_df,
-    on=[participant_id_column, :session, :n_control_trials => :trial])
-  sort!(complete_confidence, [participant_id_column, :session, :n_control_trials])
+    on=[participant_id_column, :session, :trial])
+  sort!(complete_confidence, [participant_id_column, :session, :trial])
 
   controllability_df = filter(row -> row.trialphase == "control_controllability", report_df)
 
@@ -61,7 +61,7 @@ function identify_missing_confidence_trials(
   if nrow(missing_trials) > 0
     missing_summary = combine(
       groupby(missing_trials, [participant_id_column, :session]),
-      :n_control_trials => (x -> sort(collect(x))) => :missing_trials,
+      :trial => (x -> sort(collect(x))) => :missing_trials,
       nrow => :n_missing
     )
     println("Found $(nrow(missing_trials)) missing confidence rating trials across $(nrow(missing_summary)) participant-session combinations")
