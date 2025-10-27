@@ -296,11 +296,17 @@ let
 
     println("Generating Questionnaire histograms...")
 
-    f = Figure(size = (1200, 800))
-    plot_questionnaire_histograms!(f, dat.questionnaire; experiment = experiment)
+    f1 = Figure(size = (1200, 800))
+    plot_questionnaire_histograms!(f1, dat.questionnaire; experiment = experiment)
 
-    filename = "questionnaire_histograms"
-    register_save_figure(filename, f, "Questionnaire Score Distributions")
+    filename1 = "questionnaire_histograms"
+    register_save_figure(filename1, f1, "Questionnaire Score Distributions")
+
+    f2 = Figure(size = (800, 600))
+    plot_questionnaire_histograms!(f2, dat.questionnaire; columns = [:pvss_valuation, :pvss_expectancy, :pvss_effort, :pvss_anticipation, :pvss_responsiveness, :pvss_satiation], labels = ["Reward valuation", "Reward expectancy", "Effort valuation", "Reward anticipation", "Initial responsiveness", "Reward satiation"], experiment = experiment)
+
+    filename2 = "pvss_domain_histograms"
+    register_save_figure(filename2, f2, "PVSS Domain Distributions")
 end
 
 # Generate max press rate histogram
