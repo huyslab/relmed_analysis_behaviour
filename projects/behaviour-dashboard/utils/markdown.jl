@@ -60,8 +60,8 @@ function append_wide_table_to_readme(df::AbstractDataFrame; result_dir::String, 
     open(md_file, "a") do io
         println(io, "\n\n### $(title)\n")
         println(io, "<details><summary>Click to expand</summary>\n")
-        println(io, "```text")
-        pretty_table(io, df)  # text backend -> renders in a scrollable code block
+        println(io, "```text")        
+        pretty_table(io, df)
         println(io, "```")
         println(io, "\n</details>")
     end
