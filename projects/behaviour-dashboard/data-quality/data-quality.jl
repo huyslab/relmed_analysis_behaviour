@@ -502,6 +502,15 @@ function quality_checks(
         on=[experiment.participant_id_column, :session],
         makeunique=true
     )
+
+    # Apply exclusion criteria
+    quality.include = quality.prop_missing_all .< 0.1 .&&
+        (
+            (ismissing.(quality.pilt_critical_value) .|| quality.pilt_accuracy .> quality.pilt_critical_value) .||
+            (ismissing.(quality.reversal_critical_value) .|| quality.reversal_accuracy .> quality.reversal_critical_value) .||
+            (!("wm_accuracy" in names(quality)) || ismissing.(quality.wm_critical_value) .|| quality.wm_accuracy .> quality.wm_critical_value)
+        ) .&&
+        quality.n_pilt_quiz_attempts .<= 3
     
     return quality
 end
