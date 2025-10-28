@@ -225,6 +225,12 @@ let
 
     filename1 = "PIT_press_rate_by_pavlovian_stimuli"
     register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")
+
+    f2 = Figure(size = (800, 600))
+    plot_PIT_test_acc_by_valence!(f2, dat.PIT_test; factor=:session, config = plot_config, experiment = experiment)
+
+    filename2 = "PIT_test_accuracy_by_valence"
+    register_save_figure(filename2, f2, "PIT: Test Accuracy by Valence")
 end
 
 # Generate control plots
