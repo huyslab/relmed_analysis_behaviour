@@ -22,8 +22,8 @@ function prepare_card_choosing_data(
 	# Select columns
 	task_data = remove_empty_columns(task_data)
 
-	# Filter practice
-	filter!(x -> isa(x.block, Int64), task_data)
+	# Filter practice but not PIT test data
+	task_name == "pit_test" ? task_data : filter!(x -> isa(x.block, Int64), task_data)
 
 	# Sort
 	sort!(task_data, [participant_id_column, :session, :block, :trial])
@@ -450,6 +450,7 @@ TASK_PREPROC_FUNCS = Dict(
     "vigour" => prepare_vigour_data,
     "vigour_test" => prepare_vigour_test_data,
     "PIT" => prepare_PIT_data,
+    "PIT_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pit_test", filter_func = (x -> !ismissing(x.trialphase) && x.trialphase == "pilt_test" && x.block == "pavlovian"), kwargs...),
     "max_press" => prepare_max_press_data,
     "control" => prepare_control_data,
     "questionnaire" => prepare_questionnaire_data,
