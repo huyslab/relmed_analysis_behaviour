@@ -504,13 +504,20 @@ function quality_checks(
     )
 
     # Apply exclusion criteria
-    quality.include = quality.prop_missing_all .< 0.1 .&&
-        (
-            (ismissing.(quality.pilt_critical_value) .|| quality.pilt_accuracy .> quality.pilt_critical_value) .||
-            (ismissing.(quality.reversal_critical_value) .|| quality.reversal_accuracy .> quality.reversal_critical_value) .||
-            (!("wm_accuracy" in names(quality)) || ismissing.(quality.wm_critical_value) .|| quality.wm_accuracy .> quality.wm_critical_value)
-        ) .&&
-        quality.n_pilt_quiz_attempts .<= 3
+    quality.include = (r -> begin
+        # Return missing if any required value is missing
+        if ismissing(r.prop_missing_all) || ismissing(r.n_pilt_quiz_attempts)
+            return missing
+        end
+        
+        # Check if any accuracy is above critical value on any task
+        pilt_above = !ismissing(r.pilt_accuracy) && !ismissing(r.pilt_critical_value) && r.pilt_accuracy > r.pilt_critical_value
+        reversal_above = !ismissing(r.reversal_accuracy) && !ismissing(r.reversal_critical_value) && r.reversal_accuracy > r.reversal_critical_value
+        wm_above = !("wm_accuracy" in names(quality)) || (!ismissing(r.wm_accuracy) && !ismissing(r.wm_critical_value) && r.wm_accuracy > r.wm_critical_value)
+        
+        # Include if: <10% missing, any task above chance, ≤3 quiz attempts
+        r.prop_missing_all < 0.1 && (pilt_above || reversal_above || wm_above) && r.n_pilt_quiz_attempts <= 3
+    end).(eachrow(quality))
 
     sort!(quality, [:session, :include, experiment.participant_id_column])
     
