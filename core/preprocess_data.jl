@@ -161,7 +161,7 @@ function prepare_piggybank_data(df::DataFrame;
     if task == "vigour"
         specific_columns = [:trial_number]
         renames = []
-        filter_condition = [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
+        filter_condition = [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) && (!ismissing(y)))
     elseif task == "PIT"
         specific_columns = [:pit_trial_number, :pit_coin]
         renames = [:pit_trial_number => :trial_number, :pit_coin => :coin]
@@ -181,9 +181,9 @@ function prepare_piggybank_data(df::DataFrame;
 
     # Process data
     result = df |>
-        x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
-        x -> isempty(renames) ? x : rename(x, renames...) |>
         x -> subset(x, filter_condition) |>
+        x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+        x -> ((df) -> isempty(renames) ? df : rename(df, renames...))(x) |>
         x -> DataFrames.transform(x,
             :response_time => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times,
             :timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
