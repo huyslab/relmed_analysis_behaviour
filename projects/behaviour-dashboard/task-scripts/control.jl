@@ -291,11 +291,11 @@ function plot_control_prediction_accuracy!(
     draw!(f[2, 1], regular_plot, scales(Color = (; palette = from_continuous(:roma)));
       axis=(xlabel="Prediction test group",
         ylabel="Prediction accuracy"))
+    # Set row heights: screening (30%) and regular sessions (70%)
+    rowsize!(f.layout, 1, Relative(0.3))
+    rowsize!(f.layout, 2, Relative(0.7))
   end
 
-  # Set row heights: screening (30%) and regular sessions (70%)
-  rowsize!(f.layout, 1, Relative(0.3))
-  rowsize!(f.layout, 2, Relative(0.7))
 
   Label(f[0, :], "Control: Home Base Prediction Accuracy", tellwidth=false)
 
