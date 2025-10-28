@@ -149,79 +149,58 @@ function prepare_max_press_data(
 	return max_press_data
 end
 
-function prepare_vigour_data(df::DataFrame;
-    experiment::ExperimentInfo = TRIAL1
+function prepare_piggybank_data(df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1,
+    task::String = "vigour"  # "vigour" or "PIT"
 )
-
     participant_id_column = experiment.participant_id_column
 
+    # Define base and type-specific columns
+    base_columns = [participant_id_column, :module_start_time, :session, :trialphase, :trial_duration, :response_time, :timeline_variables]
 
-    # Define required columns for vigour data
-	required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :trial_number, :trial_duration, :response_time, :timeline_variables]
-	required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
-
-	# Check and add missing columns
-	for col in required_columns
-        if !(string(col) in names(df))
-            insertcols!(df, col => missing)
-        end
+    if task == "vigour"
+        specific_columns = [:trial_number]
+        renames = []
+        filter_condition = [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
+    elseif task == "PIT"
+        specific_columns = [:pit_trial_number, :pit_coin]
+        renames = [:pit_trial_number => :trial_number, :pit_coin => :coin]
+        filter_condition = :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
+    else
+        @error "Unknown task type: $task"
     end
 
-	# Prepare vigour data
-	vigour_data = df |>
-		x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
-		x -> subset(x, 
-            [:trialphase, :trial_number] => ByRow((x, y) -> (!ismissing(x) && x in ["vigour_trial"]) || (!ismissing(y)))
-        ) |>
-        x -> DataFrames.transform(x,
-			:response_time => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
-		) |>
-		x -> select(x, 
-			Not([:response_time, :timeline_variables])
-		)
-		# vigour_data = exclude_double_takers(vigour_data)
-	return vigour_data
-end
+    required_columns = vcat(base_columns, specific_columns, names(df, r"(total|trial)_(reward|presses)$"))
 
-function prepare_PIT_data(df::DataFrame;
-    experiment::ExperimentInfo = TRIAL1
-)
-
-    participant_id_column = experiment.participant_id_column
-
-    # Define required columns for PIT data
-    required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :pit_trial_number, :trial_duration, :response_time, :pit_coin, :timeline_variables]
-    required_columns = vcat(required_columns, names(df, r"(total|trial)_(reward|presses)$"))
-
-    # Check and add missing columns
+    # Add missing columns
     for col in required_columns
         if !(string(col) in names(df))
             insertcols!(df, col => missing)
         end
     end
 
-    # Prepare PIT data
-    pit_data = df |>
+    # Process data
+    result = df |>
         x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
-        x -> rename(x, [:pit_trial_number => :trial_number, :pit_coin => :coin]) |>
-        x -> subset(x, 
-            :trialphase => ByRow(x -> !ismissing(x) && x in ["pit_trial"])
-        ) |>
+        x -> isempty(renames) ? x : rename(x, renames...) |>
+        x -> subset(x, filter_condition) |>
         x -> DataFrames.transform(x,
-			:response_time => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
-			:timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
-		) |>
-		x -> select(x, 
-			Not([:response_time, :timeline_variables])
-		)
-		# pit_data = exclude_double_takers(pit_data)
-    return pit_data
+            :response_time => ByRow(x -> ismissing(x) ? missing : JSON.parse(x)) => :response_times,
+            :timeline_variables => ByRow(x -> JSON.parse(x)["ratio"]) => :ratio,
+            :timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]) => :magnitude,
+            :timeline_variables => ByRow(x -> JSON.parse(x)["magnitude"]/JSON.parse(x)["ratio"]) => :reward_per_press
+        ) |>
+        x -> select(x, Not([:response_time, :timeline_variables]))
+
+    return result
 end
+
+# Wrapper functions for backward compatibility
+prepare_vigour_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
+    prepare_piggybank_data(df; experiment = experiment, task = "vigour")
+
+prepare_PIT_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
+    prepare_piggybank_data(df; experiment = experiment, task = "PIT")
 
 function prepare_control_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
@@ -442,6 +421,7 @@ TASK_PREPROC_FUNCS = Dict(
     "reversal" => prepare_reversal_data,
     "delay_discounting" => prepare_delay_discounting_data,
     "vigour" => prepare_vigour_data,
+    "vigour_test" => prepare_vigour_test_data,
     "PIT" => prepare_PIT_data,
     "max_press" => prepare_max_press_data,
     "control" => prepare_control_data,
