@@ -118,7 +118,7 @@ function plot_PIT_test_acc_by_valence!(
     )
 
     # Create plot
-    plt = data(acc_df) *
+    p = data(acc_df) *
       mapping(
         :acc => "Accuracy",
         color=:valence=>"Valence",
@@ -127,8 +127,13 @@ function plot_PIT_test_acc_by_valence!(
       histogram(Stairs; bins = 20)
 
     # Draw the plot
-    p = draw!(f[1, 1], plt, scales(Color = (; palette=[colorant"gray50", ColorSchemes.Set1_5[[1,2]]...])))
-    legend!(f[1, 2], p)
+    plt = draw!(f[1, 1], p, scales(Color = (; palette=[colorant"gray50", ColorSchemes.Set1_5[[1,2]]...])))
+    legend!(f[2, :], plt,
+      titleposition = :left,
+      tellwidth=false,
+      halign=0.5,
+      orientation=:horizontal,
+      framevisible=false)
 
     Label(f[0, :], "PIT: Test Accuracy by Valence", tellwidth=false)
 
