@@ -323,14 +323,12 @@ function prepare_questionnaire_data(
 
     function merge_keys!(dict, prefix)
         keys_to_merge = filter(k -> startswith(k, prefix), keys(dict))
-        @info "Merging keys: $keys_to_merge"
         values = [dict[k] for k in keys_to_merge if haskey(dict, k)]
         non_empty_values = filter(x -> !ismissing(x) && x != "", values)
         for k in keys_to_merge
             delete!(dict, k)
         end
-        @assert length(non_empty_values) <= 1 "Multiple non-empty values found for $prefix: $(non_empty_values)"
-        dict[prefix] = isempty(non_empty_values) ? "" : only(non_empty_values)
+        dict[prefix] = isempty(non_empty_values) ? "" : join(non_empty_values, "; ")
         return dict
     end
 
@@ -342,8 +340,11 @@ function prepare_questionnaire_data(
 
             # Special handling for demographics questionnaire to merge choice/text fields
             if row.trialphase == "demographics"
-                for prefix in ["gender", "education", "employment", "menstrual-first-day", "menstrual-cycle-length"]
+                for prefix in ["menstrual-first-day", "menstrual-cycle-length"]
                     merge_keys!(response, prefix)
+                end
+                if haskey(response, "gender-free-response")
+                    response["gender-other"] = pop!(response, "gender-free-response")
                 end
 			end
 		catch e
