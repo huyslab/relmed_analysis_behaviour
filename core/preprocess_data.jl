@@ -202,6 +202,33 @@ prepare_vigour_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
 prepare_PIT_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
     prepare_piggybank_data(df; experiment = experiment, task = "PIT")
 
+function prepare_vigour_test_data(
+    df::DataFrame;
+    experiment::ExperimentInfo = TRIAL1
+)
+
+    participant_id_column = experiment.participant_id_column
+
+    # Define required columns for vigour test data
+	required_columns = [participant_id_column, :module_start_time, :session, :trialphase, :response, :rt]
+    renames  = [:rt => :response_times]
+	required_columns = vcat(required_columns, names(df, r"(magnitude|ratio)$"))
+
+	# Check and add missing columns
+	for col in required_columns
+        if !(string(col) in names(df))
+            insertcols!(df, col => missing)
+        end
+    end
+
+	# Process post vigour test data
+	result = subset(df, :trialphase => ByRow(x -> !ismissing(x) && x in ["vigour_test"])) |>
+		x -> select(x, Cols(intersect(names(df), string.(required_columns)))) |>
+        x -> ((df) -> isempty(renames) ? df : rename(df, renames...))(x)
+
+    return result
+end
+
 function prepare_control_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
     )
