@@ -61,7 +61,7 @@ end
 # Generate PILT learning curve by session
 let 
 
-    if !haskey(dat, :pilt) || isempty(dat.pilt)
+    if !haskey(dat, :PILT) || isempty(dat.PILT)
         return
     end
 
