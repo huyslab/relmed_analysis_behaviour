@@ -436,19 +436,21 @@ function quality_checks(
     sequences_dir::String,
     questionnaire::AbstractDataFrame = DataFrame()
 )
+
+    df = remove_empty_columns(jspsych_data)
     
     # Calculate completion times for each task
-    completion_times = calculate_completion_times(jspsych_data; experiment = experiment)
+    completion_times = calculate_completion_times(df; experiment = experiment)
     
     # Calculate PILT instruction quiz attempts
-    pilt_quiz = calculate_pilt_quiz_attempts(jspsych_data; experiment = experiment)
+    pilt_quiz = calculate_pilt_quiz_attempts(df; experiment = experiment)
 
     # Process individual tasks for missing trials and reaction times
-    reversal_missing, reversal_rt = process_reversal_task(jspsych_data; experiment = experiment)
-    pilt_missing, pilt_rt = process_pilt_task(jspsych_data; experiment = experiment)
-    discounting_missing, discounting_rt = process_discounting_task(jspsych_data; experiment = experiment)
-    control_missing = process_control_tasks(jspsych_data; experiment = experiment)
-    vigour_pit_missing = process_vigour_and_pit_tasks(jspsych_data; experiment = experiment)
+    reversal_missing, reversal_rt = process_reversal_task(df; experiment = experiment)
+    pilt_missing, pilt_rt = process_pilt_task(df; experiment = experiment)
+    discounting_missing, discounting_rt = process_discounting_task(df; experiment = experiment)
+    control_missing = process_control_tasks(df; experiment = experiment)
+    vigour_pit_missing = process_vigour_and_pit_tasks(df; experiment = experiment)
 
     # Combine all missing trials and reaction times data
     all_missing_trials = vcat(reversal_missing, pilt_missing, discounting_missing, control_missing, vigour_pit_missing)
@@ -460,7 +462,7 @@ function quality_checks(
     # Calculate task performance accuracies
     pilt_sequence, reversal_sequence = extract_all_sequences(joinpath(sequences_dir, experiment.project))
 
-    reversal_acc, pilt_acc, wm_acc, have_wm = calculate_task_accuracies(jspsych_data; 
+    reversal_acc, pilt_acc, wm_acc, have_wm = calculate_task_accuracies(df; 
         experiment = experiment,
         pilt_sequence = pilt_sequence,
         reversal_sequence = reversal_sequence
@@ -468,7 +470,7 @@ function quality_checks(
     acc = combine_accuracies_and_exclusion(reversal_acc, pilt_acc, wm_acc, have_wm; experiment = experiment)
     
     # Calculate additional behavioral metrics
-    max_press, browser_interactions = calculate_additional_metrics(jspsych_data; experiment = experiment)
+    max_press, browser_interactions = calculate_additional_metrics(df; experiment = experiment)
     
     # Create exclusion criteria based on multiple factors
     exclusion_criteria = outerjoin(
@@ -521,8 +523,8 @@ function quality_checks(
     end).(eachrow(quality))
 
     # Add study-id and session-id from prolific
-    if "STUDY_ID" in names(jspsych_data) 
-        prolific_ids = unique(jspsych_data[:, [experiment.participant_id_column, :session, :module_start_time, :STUDY_ID, :SESSION_ID]])
+    if "STUDY_ID" in names(df) 
+        prolific_ids = unique(df[:, [experiment.participant_id_column, :session, :module_start_time, :STUDY_ID, :SESSION_ID]])
         leftjoin!(quality, prolific_ids, on=[experiment.participant_id_column, :session, :module_start_time])
     end
 
