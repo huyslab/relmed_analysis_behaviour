@@ -9,6 +9,19 @@ function preprocess_vigour_data(
   return out_df
 end
 
+function preprocess_vigour_test_data(
+  df::DataFrame;
+  participant_id_column::Symbol=:participant_id
+)
+  
+  post_vigour_test_df = transform(
+    df, 
+    [:left_magnitude, :left_ratio, :right_magnitude, :right_ratio] => ((lm, lr, rm, rr) -> lm ./ lr .- rm ./ rr) => :Δrpp,
+    :response => (x -> Int.(x .=== "ArrowLeft")) => :choice_left
+  )
+  return post_vigour_test_df
+end
+
 function plot_vigour_press_rate_by_reward_rate!(
   f::Figure,
   df::DataFrame;
