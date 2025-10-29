@@ -272,9 +272,10 @@ function plot_control_prediction_accuracy!(
     screening_individual[!, :session] .= "screening"
 
     # Create histogram
-    screening_plot = data(screening_individual) *
-                     mapping(:accuracy, layout=:session) *
-                     visual(Hist, bins=0:0.25:1, normalization=:none, color=:dodgerblue2)
+    screening_plot = data(
+      combine(groupby(screening_individual, [:session, :accuracy], sort=true), nrow)) *
+                     mapping(:accuracy => "Accuracy", :nrow => "Count", layout=:session) *
+                     visual(BarPlot, color=:dodgerblue2)
   else
     screening_plot = data([]) * mapping() * visual(Hist)  # Empty plot
   end
