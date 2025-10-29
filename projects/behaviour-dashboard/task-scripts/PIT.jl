@@ -1,5 +1,5 @@
 # Setup
-using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase, CategoricalArrays
+using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase, CategoricalArrays, ColorSchemes
 
 function preprocess_PIT_data(
   df::DataFrame;
@@ -95,6 +95,49 @@ function plot_PIT_press_rate_by_coin!(
   Label(f[0, :], "PIT: Press Rate by Pavlovian Stimuli", tellwidth=false)
 
   return f
+end
+
+function plot_PIT_test_acc_by_valence!(
+    f::Figure,
+    df::DataFrame;
+    factor::Symbol=:session,
+    experiment::ExperimentInfo=TRIAL1,
+    config::Dict = plot_config
+)
+    participant_id_column = experiment.participant_id_column
+
+    transform!(
+      df,
+      [:feedback_left, :feedback_right] => ByRow((ml, mr) ->
+        ml * mr < 0 ? "Different" : (ml > 0 ? "Positive" : "Negative")) => :valence
+    )
+    dropmissing!(df, :response_optimal)
+    acc_df = combine(
+      groupby(df, [participant_id_column, factor, :valence]),
+      :response_optimal => mean => :acc
+    )
+
+    # Create plot
+    p = data(acc_df) *
+      mapping(
+        :acc => "Accuracy",
+        color=:valence=>"Valence",
+        layout=factor
+      ) *
+      histogram(Stairs; bins = 20)
+
+    # Draw the plot
+    plt = draw!(f[1, 1], p, scales(Color = (; palette=[colorant"gray50", ColorSchemes.Set1_5[[1,2]]...])))
+    legend!(f[2, :], plt,
+      titleposition = :left,
+      tellwidth=false,
+      halign=0.5,
+      orientation=:horizontal,
+      framevisible=false)
+
+    Label(f[0, :], "PIT: Test Accuracy by Valence", tellwidth=false)
+
+    return f
 end
 
 function plot_PIT_press_rate_by_coin(

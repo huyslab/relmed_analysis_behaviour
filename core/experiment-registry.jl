@@ -19,7 +19,7 @@ end
 
 TRIAL1 = ExperimentInfo(
     "trial1",
-    ["reversal", "max_press", "PILT", "vigour", "PIT", "vigour_test", "PILT_test", "control", "WM", "WM_test", "delay_discounting", "open_text", "questionnaire", "pavlovian_lottery"],
+    ["reversal", "max_press", "PILT", "vigour", "PIT", "vigour_test", "PIT_test", "PILT_test", "control", "WM", "WM_test", "delay_discounting", "open_text", "questionnaire", "pavlovian_lottery"],
     ["PHQ", "GAD", "WSAS", "ICECAP", "BFI", "PVSS", "BADS", "Hopelessness", "RRS_brooding", "PERS_negAct"],
     :participant_id,
     :task,

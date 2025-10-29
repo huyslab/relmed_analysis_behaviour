@@ -207,6 +207,16 @@ let
 
     filename1 = "vigour_press_rate_by_reward_rate"
     register_save_figure(filename1, f1, "Vigour: Press Rate by Reward Rate")
+
+    if !haskey(dat, :vigour_test) || isempty(dat.vigour_test)
+        return
+    end
+    vigour_test_processed = preprocess_vigour_test_data(dat.vigour_test)
+    f2 = Figure(size = (800, 600))
+    plot_vigour_test_curve_by_rpp!(f2, vigour_test_processed; factor=:session, config = plot_config, experiment = experiment)
+
+    filename2 = "vigour_test_curve_by_rpp"
+    register_save_figure(filename2, f2, "Vigour: Test Curve by ΔRPP")
 end
 
 # Generate PIT plots
@@ -225,6 +235,17 @@ let
 
     filename1 = "PIT_press_rate_by_pavlovian_stimuli"
     register_save_figure(filename1, f1, "PIT: Press Rate by Pavlovian Stimuli")
+
+    # Check for PIT_test data before plotting
+    if !haskey(dat, :PIT_test) || isempty(dat.PIT_test)
+        println("Skipping PIT test accuracy plot: no data.")
+    else
+        f2 = Figure(size = (800, 600))
+        plot_PIT_test_acc_by_valence!(f2, dat.PIT_test; factor=:session, config = plot_config, experiment = experiment)
+
+        filename2 = "PIT_test_accuracy_by_valence"
+        register_save_figure(filename2, f2, "PIT: Test Accuracy by Valence")
+    end
 end
 
 # Generate control plots
