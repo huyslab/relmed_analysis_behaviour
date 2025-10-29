@@ -13,7 +13,7 @@ function calculate_completion_times(
     experiment::ExperimentInfo = TRIAL1
 )
     completion_times = combine(
-        groupby(jspsych_data, [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(jspsych_data, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
         :time_elapsed => (x -> begin
             total_seconds = (maximum(x) - minimum(x)) / 1000
             minutes = floor(Int, total_seconds / 60)
@@ -22,7 +22,7 @@ function calculate_completion_times(
         end) => :completion_time,
     )
 
-    return unstack(completion_times, [experiment.participant_id_column, :session], experiment.module_column, :completion_time;
+    return unstack(completion_times, [experiment.participant_id_column, :session, :module_start_time], experiment.module_column, :completion_time;
                   renamecols = x -> Symbol("completion_time_$(x)"))
 end
 
@@ -37,7 +37,7 @@ function calculate_pilt_quiz_attempts(
     )
     pilt_quiz = filter(x -> !ismissing(x.trialphase) && x.trialphase == "instruction_quiz", jspsych_data)
     return combine(
-        groupby(pilt_quiz, [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(pilt_quiz, [experiment.participant_id_column, :module_start_time, :session, experiment.module_column]),
         :trial_index => length => :n_pilt_quiz_attempts
     )
 end
@@ -58,7 +58,7 @@ function process_reversal_task(
     # Calculate missing responses (valid responses are "left" or "right")
     reversal.response_missing = (x -> x ∉ ["left", "right"]).(reversal.response)
     missing_data = combine(
-        groupby(reversal, [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(reversal, [experiment.participant_id_column, :module_start_time, :session, experiment.module_column]),
         :response_missing => sum => :n_missing_trials,
         :response_missing => length => :n_trials,
         :response_missing => mean => :prop_missing_trials
@@ -68,7 +68,7 @@ function process_reversal_task(
     # Calculate reaction times
     # Note: Missing RT is `nothing` instead of `missing` in the data
     rt_data = combine(
-        groupby(filter(x -> !(ismissing(x.rt) || isnothing(x.rt)), reversal), [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(filter(x -> !(ismissing(x.rt) || isnothing(x.rt)), reversal), [experiment.participant_id_column, :module_start_time, :session, experiment.module_column]),
         :rt => (x -> "$(Int(round(mean(x)))) ($(Int(round(std(x)))))") => :rt
     )
     rt_data = insertcols(rt_data, :trialphase => "reversal")
@@ -92,7 +92,7 @@ function process_pilt_task(
     # Calculate missing responses (valid responses are "left", "middle", "right")
     pilt.response_missing = (x -> x ∉ ["left", "middle", "right"]).(pilt.response)
     missing_data = combine(
-        groupby(pilt, [experiment.participant_id_column, :session, experiment.module_column, :trialphase]),
+        groupby(pilt, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column, :trialphase]),
         :response_missing => sum => :n_missing_trials,
         :response_missing => length => :n_trials,
         :response_missing => mean => :prop_missing_trials
@@ -100,7 +100,7 @@ function process_pilt_task(
     
     # Calculate reaction times
     rt_data = combine(
-        groupby(filter(x -> !ismissing(x.rt), pilt), [experiment.participant_id_column, :session, experiment.module_column, :trialphase]),
+        groupby(filter(x -> !ismissing(x.rt), pilt), [experiment.participant_id_column, :session, :module_start_time, experiment.module_column, :trialphase]),
         :rt => (x -> "$(Int(round(mean(x)))) ($(Int(round(std(x)))))") => :rt
     )
     
@@ -125,7 +125,7 @@ function process_control_tasks(
         # Missing if < 1 press OR invalid response
         control_presses.response_missing = (control_presses.trial_presses .< 1) .|| (x -> x ∉ ["left", "right"]).(control_presses.response)
         control_presses_missing = combine(
-            groupby(control_presses, [experiment.participant_id_column, :session, experiment.module_column]),
+            groupby(control_presses, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
             :response_missing => sum => :n_missing_trials,
             :response_missing => length => :n_trials,
             :response_missing => mean => :prop_missing_trials
@@ -140,7 +140,7 @@ function process_control_tasks(
         # Missing if button response is missing
         control_choice.response_missing = ismissing.(control_choice.button)
         control_choice_missing = combine(
-            groupby(control_choice, [experiment.participant_id_column, :session, experiment.module_column]),
+            groupby(control_choice, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
             :response_missing => sum => :n_missing_trials,
             :response_missing => length => :n_trials,
             :response_missing => mean => :prop_missing_trials
@@ -169,7 +169,7 @@ function process_discounting_task(
     discounting.response_missing = (x -> x ∉ [1,0]).(discounting.response)
     
     missing_data = combine(
-        groupby(discounting, [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(discounting, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
         :response_missing => sum => :n_missing_trials,
         :response_missing => length => :n_trials,
         :response_missing => mean => :prop_missing_trials
@@ -177,7 +177,7 @@ function process_discounting_task(
     missing_data = insertcols(missing_data, :trialphase => "discounting")
     
     rt_data = combine(
-        groupby(filter(x -> !ismissing(x.rt) && !isnothing(x.rt), discounting), [experiment.participant_id_column, :session, experiment.module_column]),
+        groupby(filter(x -> !ismissing(x.rt) && !isnothing(x.rt), discounting), [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
         :rt => (x -> "$(Int(round(mean(x)))) ($(Int(round(std(x)))))") => :rt
     )
     rt_data = insertcols(rt_data, :trialphase => "discounting")
@@ -211,7 +211,7 @@ function process_vigour_and_pit_tasks(
                            JSON.parse(x.timeline_variables)["ratio"] === 1, jspsych_data)
         vigour.response_missing = vigour.trial_presses .== 1
         vigour_missing = combine(
-            groupby(vigour, [experiment.participant_id_column, :session, experiment.module_column]),
+            groupby(vigour, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
             :response_missing => sum => :n_missing_trials,
             :response_missing => length => :n_trials,
             :response_missing => mean => :prop_missing_trials
@@ -226,7 +226,7 @@ function process_vigour_and_pit_tasks(
                        JSON.parse(x.timeline_variables)["ratio"] === 1, jspsych_data)
         pit.response_missing = pit.trial_presses .== 1
         pit_missing = combine(
-            groupby(pit, [experiment.participant_id_column, :session, experiment.module_column]),
+            groupby(pit, [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
             :response_missing => sum => :n_missing_trials,
             :response_missing => length => :n_trials,
             :response_missing => mean => :prop_missing_trials
@@ -252,7 +252,7 @@ function consolidate_missing_trials_and_rts(
 )
     # Process reaction times into wide format
     rename!(all_rts, experiment.module_column => :module, :trialphase => :task)
-    rts = unstack(all_rts, [experiment.participant_id_column, :session], :task, :rt; 
+    rts = unstack(all_rts, [experiment.participant_id_column, :session, :module_start_time], :task, :rt; 
                  renamecols = x -> Symbol("rt_$(x)"))
     
     # Process missing trials into wide format
@@ -260,14 +260,14 @@ function consolidate_missing_trials_and_rts(
     
     # Calculate overall proportion of missing trials across all tasks
     missing_trials_sum = combine(
-        groupby(all_missing_trials, [experiment.participant_id_column, :session]),
+        groupby(all_missing_trials, [experiment.participant_id_column, :session, :module_start_time]),
         [:n_missing_trials, :n_trials] => ((x,t) -> sum(x) / sum(t)) => :prop_missing_all
     )
     
     # Unstack to wide format with task-specific missing proportions
-    missing_trials = unstack(all_missing_trials, [experiment.participant_id_column, :session], :task, :prop_missing_trials; 
+    missing_trials = unstack(all_missing_trials, [experiment.participant_id_column, :session, :module_start_time], :task, :prop_missing_trials; 
                            renamecols = x -> Symbol("prop_missing_$(x)"))
-    leftjoin!(missing_trials, missing_trials_sum, on=[experiment.participant_id_column, :session])
+    leftjoin!(missing_trials, missing_trials_sum, on=[experiment.participant_id_column, :session, :module_start_time])
     
     return (missing_trials, rts)
 end
@@ -291,7 +291,7 @@ function calculate_task_accuracies(
     # Reversal accuracy: only include valid responses
     reversal_acc = filter(x -> x.response in ["left", "right"], reversal)
     reversal_acc = combine(
-        groupby(reversal_acc, [experiment.participant_id_column, :session]),
+        groupby(reversal_acc, [experiment.participant_id_column, :session, :module_start_time]),
         :response_optimal => mean => :reversal_accuracy,
         [:response, :session] => ((r, s) -> reversal_critical_under_null(r; reversal_sequence = reversal_sequence, session = only(unique(s)))) => :reversal_critical_value
     )
@@ -299,7 +299,7 @@ function calculate_task_accuracies(
     # PILT accuracy: only include valid responses and numeric blocks during main task
     pilt_acc = filter(x -> x.response in ["left", "right"] && isa(tryparse(Int64, string(x.block)), Number), pilt)
     pilt_acc = combine(
-        groupby(pilt_acc, [experiment.participant_id_column, :session]),
+        groupby(pilt_acc, [experiment.participant_id_column, :session, :module_start_time]),
         :response_optimal => (x -> round(mean(x), digits = 2)) => :pilt_accuracy,
         [:response, :session] => ((r, s) -> PILT_critical_under_null(r; pilt_sequence = pilt_sequence, session = only(unique(s)))) => :pilt_critical_value,
     )
@@ -312,7 +312,7 @@ function calculate_task_accuracies(
         wm = filter(x -> !ismissing(x.response) && (x.response in ["left", "middle", "right"]) && 
                       !ismissing(x.trialphase) && x.trialphase == "wm", jspsych_data)
         wm_acc = combine(
-            groupby(wm, [experiment.participant_id_column, :session]),
+            groupby(wm, [experiment.participant_id_column, :session, :module_start_time]),
             :response_optimal => (x -> round(mean(x), digits = 2)) => :wm_accuracy,
             [:optimal_side, :response] => ((o,r) -> WM_critical_under_null(o, r)) => :wm_critical_value,
         )
@@ -341,7 +341,7 @@ function combine_accuracies_and_exclusion(
                     ismissing(r.pilt_critical_value) || ismissing(r.reversal_critical_value) || ismissing(r.wm_critical_value) ? missing :
                     r.pilt_accuracy > r.pilt_critical_value || r.reversal_accuracy > r.reversal_critical_value || r.wm_accuracy > r.wm_critical_value).(eachrow(acc))
     else
-        acc = outerjoin(reversal_acc, pilt_acc, on=[experiment.participant_id_column, :session])
+        acc = outerjoin(reversal_acc, pilt_acc, on=[experiment.participant_id_column, :session, :module_start_time])
     end
     
     return acc
@@ -360,16 +360,16 @@ function calculate_additional_metrics(
     # Max press rate from dedicated measurement task
     max_press = filter(x -> !ismissing(x.trialphase) && x.trialphase == "max_press_rate", jspsych_data)
     max_press = combine(
-        groupby(max_press, [experiment.participant_id_column, :session]),
+        groupby(max_press, [experiment.participant_id_column, :session, :module_start_time]),
         :avgSpeed => maximum => :max_press_rate
     )
     
     # Browser interactions: focus loss and fullscreen exit events
-    participant_sessions = unique(jspsych_data[:, [experiment.participant_id_column, :session]])
+    participant_sessions = unique(jspsych_data[:, [experiment.participant_id_column, :session, :module_start_time]])
     
     # Parse browser interactions from various formats (JSON strings, arrays, etc.)
     browser_interactions = combine(
-        groupby(jspsych_data, [experiment.participant_id_column, :session]),
+        groupby(jspsych_data, [experiment.participant_id_column, :session, :module_start_time]),
         :browser_interactions => (x -> begin
             all_interactions = String[]
             for val in x
@@ -397,13 +397,13 @@ function calculate_additional_metrics(
     
     # Count specific interaction types
     browser_interactions = combine(
-        groupby(browser_interactions, [experiment.participant_id_column, :session]),
+        groupby(browser_interactions, [experiment.participant_id_column, :session, :module_start_time]),
         :browser_interactions => (x -> sum(x .== "blur")) => :focus_loss_events,
         :browser_interactions => (x -> sum(x .== "fullscreenexit")) => :fullscreen_exit_events
     )
     
     # Ensure all participant/session combinations are included with 0 default
-    browser_interactions = leftjoin(participant_sessions, browser_interactions, on=[experiment.participant_id_column, :session])
+    browser_interactions = leftjoin(participant_sessions, browser_interactions, on=[experiment.participant_id_column, :session, :module_start_time])
     browser_interactions.focus_loss_events = coalesce.(browser_interactions.focus_loss_events, 0)
     browser_interactions.fullscreen_exit_events = coalesce.(browser_interactions.fullscreen_exit_events, 0)
     
@@ -433,21 +433,24 @@ Calculates multiple quality metrics including:
 function quality_checks(
     jspsych_data::DataFrame; 
     experiment::ExperimentInfo = TRIAL1,
-    sequences_dir::String
+    sequences_dir::String,
+    questionnaire::AbstractDataFrame = DataFrame()
 )
+
+    df = remove_empty_columns(jspsych_data)
     
     # Calculate completion times for each task
-    completion_times = calculate_completion_times(jspsych_data; experiment = experiment)
+    completion_times = calculate_completion_times(df; experiment = experiment)
     
     # Calculate PILT instruction quiz attempts
-    pilt_quiz = calculate_pilt_quiz_attempts(jspsych_data; experiment = experiment)
+    pilt_quiz = calculate_pilt_quiz_attempts(df; experiment = experiment)
 
     # Process individual tasks for missing trials and reaction times
-    reversal_missing, reversal_rt = process_reversal_task(jspsych_data; experiment = experiment)
-    pilt_missing, pilt_rt = process_pilt_task(jspsych_data; experiment = experiment)
-    discounting_missing, discounting_rt = process_discounting_task(jspsych_data; experiment = experiment)
-    control_missing = process_control_tasks(jspsych_data; experiment = experiment)
-    vigour_pit_missing = process_vigour_and_pit_tasks(jspsych_data; experiment = experiment)
+    reversal_missing, reversal_rt = process_reversal_task(df; experiment = experiment)
+    pilt_missing, pilt_rt = process_pilt_task(df; experiment = experiment)
+    discounting_missing, discounting_rt = process_discounting_task(df; experiment = experiment)
+    control_missing = process_control_tasks(df; experiment = experiment)
+    vigour_pit_missing = process_vigour_and_pit_tasks(df; experiment = experiment)
 
     # Combine all missing trials and reaction times data
     all_missing_trials = vcat(reversal_missing, pilt_missing, discounting_missing, control_missing, vigour_pit_missing)
@@ -459,7 +462,7 @@ function quality_checks(
     # Calculate task performance accuracies
     pilt_sequence, reversal_sequence = extract_all_sequences(joinpath(sequences_dir, experiment.project))
 
-    reversal_acc, pilt_acc, wm_acc, have_wm = calculate_task_accuracies(jspsych_data; 
+    reversal_acc, pilt_acc, wm_acc, have_wm = calculate_task_accuracies(df; 
         experiment = experiment,
         pilt_sequence = pilt_sequence,
         reversal_sequence = reversal_sequence
@@ -467,14 +470,14 @@ function quality_checks(
     acc = combine_accuracies_and_exclusion(reversal_acc, pilt_acc, wm_acc, have_wm; experiment = experiment)
     
     # Calculate additional behavioral metrics
-    max_press, browser_interactions = calculate_additional_metrics(jspsych_data; experiment = experiment)
+    max_press, browser_interactions = calculate_additional_metrics(df; experiment = experiment)
     
     # Create exclusion criteria based on multiple factors
     exclusion_criteria = outerjoin(
         missing_trials,
         acc,
-        select(pilt_quiz, experiment.participant_id_column, :session, :n_pilt_quiz_attempts),
-        on=[experiment.participant_id_column, :session]
+        select(pilt_quiz, experiment.participant_id_column, :session, :module_start_time, :n_pilt_quiz_attempts),
+        on=[experiment.participant_id_column, :session, :module_start_time],
     )
     
     # Add inclusion criteria for wk0 sessions (baseline assessment)
@@ -499,7 +502,7 @@ function quality_checks(
         completion_times,
         rts,
         browser_interactions,
-        on=[experiment.participant_id_column, :session],
+        on=[experiment.participant_id_column, :session, :module_start_time],
         makeunique=true
     )
 
@@ -519,7 +522,28 @@ function quality_checks(
         r.prop_missing_all < 0.1 && (pilt_above || reversal_above || wm_above) && r.n_pilt_quiz_attempts <= 3
     end).(eachrow(quality))
 
-    sort!(quality, [:session, :include, experiment.participant_id_column])
+    # Add study-id and session-id from prolific
+    if "STUDY_ID" in names(df) 
+        prolific_ids = unique(df[:, [experiment.participant_id_column, :session, :module_start_time, :STUDY_ID, :SESSION_ID]])
+        leftjoin!(quality, prolific_ids, on=[experiment.participant_id_column, :session, :module_start_time])
+    end
+
+    if !isempty(questionnaire)
+        demogs = unstack(
+            filter(x -> x.question in ["age", "sex"], questionnaire),
+            [experiment.participant_id_column, :session, :module_start_time],
+            :question, :response;
+        )
+
+        # Merge questionnaire data if provided
+        leftjoin!( 
+            quality, 
+            demogs, 
+            on=[experiment.participant_id_column, :session, :module_start_time]
+        )
+    end
+
+    sort!(quality, [:session, :include, experiment.participant_id_column, :module_start_time])
     
     return quality
 end

@@ -414,10 +414,11 @@ generate_markdown_dashboard()
 
 # Check who finished each module
 println("Running data quality checks...")
-quality =  quality_checks(
+quality = quality_checks(
         dat.jspsych_data; 
         experiment = experiment,
-        sequences_dir = joinpath(data_quality_dir, "task-sequences")
+        sequences_dir = joinpath(data_quality_dir, "task-sequences"),
+        questionnaire = dat.questionnaire
     )
 
 append_wide_table_to_readme(quality; result_dir = result_dir, title = "Data Quality Overview")
