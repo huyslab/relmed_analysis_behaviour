@@ -1,6 +1,7 @@
 using DataFrames
 include(joinpath(dirname(@__FILE__), "task-simulation.jl"))
 include(joinpath(dirname(@__FILE__), "extract-task-sequences.jl"))
+include(joinpath(pwd(), "core/preprocess_data.jl"))
 
 """
     calculate_completion_times(jspsych_data)
