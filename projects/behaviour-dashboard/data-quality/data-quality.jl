@@ -177,7 +177,7 @@ function process_discounting_task(
     missing_data = insertcols(missing_data, :trialphase => "discounting")
     
     rt_data = combine(
-        groupby(filter(x -> !ismissing(x.rt) && !isnothing(x.rt), discounting), [experiment.participant_id_column, :session,:module_start_time, experiment.module_column]),
+        groupby(filter(x -> !ismissing(x.rt) && !isnothing(x.rt), discounting), [experiment.participant_id_column, :session, :module_start_time, experiment.module_column]),
         :rt => (x -> "$(Int(round(mean(x)))) ($(Int(round(std(x)))))") => :rt
     )
     rt_data = insertcols(rt_data, :trialphase => "discounting")
