@@ -323,6 +323,10 @@ let
     filename1 = "questionnaire_histograms"
     register_save_figure(filename1, f1, "Questionnaire Score Distributions")
 
+    if !any(dat.questionnaire.trialphase .== "PVSS")
+        return
+    end
+
     f2 = Figure(size = (800, 600))
     plot_questionnaire_histograms!(f2, dat.questionnaire; columns = [:pvss_valuation, :pvss_expectancy, :pvss_effort, :pvss_anticipation, :pvss_responsiveness, :pvss_satiation], labels = ["Reward valuation", "Reward expectancy", "Effort valuation", "Reward anticipation", "Initial responsiveness", "Reward satiation"], experiment = experiment)
 
