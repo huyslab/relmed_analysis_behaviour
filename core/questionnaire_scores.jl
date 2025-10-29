@@ -314,6 +314,16 @@ function compute_RRS_brooding_scores(questionnaire_data::AbstractDataFrame, part
     return RRS
 end
 
+function preprocess_demographics_data(questionnaire_data::AbstractDataFrame, participant_id_column::Symbol)
+    
+    demographics = 
+    filter(x -> (x.trialphase .== "demographics"), dat.questionnaire) |>
+        x -> filter(row -> !contains(row.question, "-other"), x) |>
+        x -> unstack(x, [participant_id_column, :module_start_time, :session], :question, :response)
+
+    return demographics
+end
+
 # Dictionary mapping questionnaire names to their corresponding functions
 const QUESTIONNAIRE_FUNCTIONS = Dict(
     "PHQ" => compute_PHQ_scores,
@@ -325,7 +335,8 @@ const QUESTIONNAIRE_FUNCTIONS = Dict(
     "BADS" => compute_BADS_scores,
     "Hopelessness" => compute_Hopelessness_scores,
     "PERS_negAct" => compute_PERS_negAct_scores,
-    "RRS_brooding" => compute_RRS_brooding_scores
+    "RRS_brooding" => compute_RRS_brooding_scores,
+    "demographics" => preprocess_demographics_data
 )
 
 """
