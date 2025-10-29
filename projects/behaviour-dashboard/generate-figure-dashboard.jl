@@ -207,6 +207,13 @@ let
 
     filename1 = "vigour_press_rate_by_reward_rate"
     register_save_figure(filename1, f1, "Vigour: Press Rate by Reward Rate")
+
+    vigour_test_processed = preprocess_vigour_test_data(dat.vigour_test)
+    f2 = Figure(size = (800, 600))
+    plot_vigour_test_curve_by_rpp!(f2, vigour_test_processed; factor=:session, config = plot_config, experiment = experiment)
+
+    filename2 = "vigour_test_curve_by_rpp"
+    register_save_figure(filename2, f2, "Vigour: Test Curve by ΔRPP")
 end
 
 # Generate PIT plots
