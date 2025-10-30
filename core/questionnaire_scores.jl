@@ -1,7 +1,7 @@
 # Questionnaire scoring functions for RELMED data
 # Version: 1.0.1
 # Last Modified: 2025-09-28
-using DataFrames
+using DataFrames, Dates
 
 """
     reindex_questions(question_string::String) -> String
@@ -314,6 +314,55 @@ function compute_RRS_brooding_scores(questionnaire_data::AbstractDataFrame, part
     return RRS
 end
 
+function preprocess_demographics_data(questionnaire_data::AbstractDataFrame, participant_id_column::Symbol)
+
+    demographics =
+    filter(x -> (x.trialphase .== "demographics"), questionnaire_data) |>
+        x -> filter(row -> !contains(row.question, "-other"), x) |>
+        x -> unstack(x, [participant_id_column, :module_start_time, :session], :question, :response) |>
+        x -> rename(x,
+        Symbol("menstrual-cycle-length") => :menstrual_cycle_length,
+        Symbol("menstrual-first-day") => :menstrual_first_day)
+
+    # Convert age to numeric if present
+    if "age" in names(demographics)
+        demographics.age = [tryparse(Int, string(x)) !== nothing ? parse(Int, string(x)) : missing for x in demographics.age]
+    end
+
+    # Create age group column
+    if "age" in names(demographics)
+        age_breaks = [18, 32, 46, 60, 86]
+        age_labels = ["18-31", "32-45", "46-59", "60-85"]
+        demographics.age_group = cut(demographics.age, age_breaks; labels = age_labels)
+    end
+
+    # Calculate days since menstrual first day
+    if "menstrual_first_day" in names(demographics) && "module_start_time" in names(demographics)
+        demographics.menstrual_since_first_day = map(eachrow(demographics)) do row
+            # Try to parse menstrual_first_day (format: "2025-10-09" or text like "Don't know")
+            menstrual_date = try
+                Date(string(row.menstrual_first_day), "yyyy-mm-dd")
+            catch
+                # If parsing fails, it's a categorical value - return original value
+                return row.menstrual_first_day
+            end
+
+            # Try to parse the module_start_time (format: "2025-10-29_09:19:31")
+            module_date = try
+                DateTime(split(string(row.module_start_time), "_")[1], "yyyy-mm-dd")
+            catch
+                # If module_start_time is invalid, return original value
+                return row.menstrual_first_day
+            end
+
+            # Calculate difference in days
+            return Dates.value(Date(module_date) - menstrual_date)
+        end
+    end
+
+    return demographics
+end
+
 # Dictionary mapping questionnaire names to their corresponding functions
 const QUESTIONNAIRE_FUNCTIONS = Dict(
     "PHQ" => compute_PHQ_scores,
@@ -325,7 +374,8 @@ const QUESTIONNAIRE_FUNCTIONS = Dict(
     "BADS" => compute_BADS_scores,
     "Hopelessness" => compute_Hopelessness_scores,
     "PERS_negAct" => compute_PERS_negAct_scores,
-    "RRS_brooding" => compute_RRS_brooding_scores
+    "RRS_brooding" => compute_RRS_brooding_scores,
+    "demographics" => preprocess_demographics_data
 )
 
 """

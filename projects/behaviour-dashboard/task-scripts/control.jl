@@ -4,11 +4,40 @@ using CairoMakie, AlgebraOfGraphics, DataFrames, StatsBase
 function preprocess_control_data(
   control_task_df::DataFrame,
   control_report_df::DataFrame;
-  participant_id_column::Symbol=:participant_id
+  experiment::ExperimentInfo=TRIAL1
 )
+
+  participant_id_column = experiment.participant_id_column
   # Create copies to avoid modifying originals
   task_df = copy(control_task_df)
   report_df = copy(control_report_df)
+
+  # Handle empty report_df early
+  if nrow(report_df) == 0
+    # Still process task data to add prediction groups
+    pred_trials = filter(row -> row.trialphase == "control_predict_homebase" && row.session != "screening", task_df)
+    
+    if !isempty(pred_trials)
+      transform!(groupby(pred_trials, [participant_id_column, :session]),
+        :trial => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 17)) => :prediction_group
+      )
+    
+      task_with_groups = leftjoin(task_df,
+        select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]),
+        on=[participant_id_column, :session, :trial])
+      sort!(task_with_groups, [participant_id_column, :session, :trial])
+
+    else
+      task_with_groups = task_df
+      sort!(task_with_groups, [participant_id_column, :session])
+    end
+    
+    # Return empty DataFrames for confidence and controllability
+    empty_confidence = DataFrame()
+    empty_controllability = DataFrame()
+    
+    return task_with_groups, empty_confidence, empty_controllability
+  end
 
   # Handle missing responses in control_report_data (convert nothing to missing)
   transform!(report_df, :response => (x -> ifelse.(.!(ismissing.(x)) .&& x .== nothing, missing, x)) => :response)
@@ -17,16 +46,16 @@ function preprocess_control_data(
   # Filter for prediction trials first
   pred_trials = filter(row -> row.trialphase == "control_predict_homebase" && row.session != "screening", task_df)
 
-  # Add prediction group variable (trials 7-10 = group 1, trials 23-26 = group 2, etc.; after every 16 trials for the column n_control_trials)
+  # Add prediction group variable (trials 7-10 = group 1, trials 24-27 = group 2, etc.; after every 17 trials for the column trial, which is the timeline variable)
   transform!(groupby(pred_trials, [participant_id_column, :session]),
-    :n_control_trials => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 16)) => :prediction_group
+    :trial => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 17)) => :prediction_group
   )
 
   # Merge prediction trials back with main task data
   task_with_groups = leftjoin(task_df,
-    select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]),
-    on=[participant_id_column, :session, :n_control_trials])
-  sort!(task_with_groups, [participant_id_column, :session, :n_control_trials])
+    select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]),
+    on=[participant_id_column, :session, :trial])
+  sort!(task_with_groups, [participant_id_column, :session, :trial])
 
   # Handle missing confidence ratings by matching with task trials
   confidence_df = filter(row -> row.trialphase == "control_confidence", report_df)
@@ -36,10 +65,10 @@ function preprocess_control_data(
   # Left join to preserve all prediction trials, including those completely missing from report_df
   # Missing trials will have missing values for all report_df columns
   complete_confidence = leftjoin(
-    select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]), 
+    select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]), 
     confidence_df,
-    on=[participant_id_column, :session, :n_control_trials => :trial])
-  sort!(complete_confidence, [participant_id_column, :session, :n_control_trials])
+    on=[participant_id_column, :session, :trial])
+  sort!(complete_confidence, [participant_id_column, :session, :trial])
 
   controllability_df = filter(row -> row.trialphase == "control_controllability", report_df)
 
@@ -59,7 +88,7 @@ function identify_missing_confidence_trials(
   if nrow(missing_trials) > 0
     missing_summary = combine(
       groupby(missing_trials, [participant_id_column, :session]),
-      :n_control_trials => (x -> sort(collect(x))) => :missing_trials,
+      :trial => (x -> sort(collect(x))) => :missing_trials,
       nrow => :n_missing
     )
     println("Found $(nrow(missing_trials)) missing confidence rating trials across $(nrow(missing_summary)) participant-session combinations")
@@ -74,9 +103,11 @@ function plot_control_exploration_presses!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
   # Filter for exploration trials
   explore_data = filter(row -> row.trialphase == "control_explore", df)
 
@@ -120,18 +151,18 @@ function plot_control_exploration_presses!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :current => nonnumeric => "Current strength",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :current => nonnumeric => "Current strength",
       :avg_trial_presses => "Trial presses",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Add reference lines for current strength thresholds
@@ -156,10 +187,12 @@ function plot_control_prediction_accuracy!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   prediction_group_column::Symbol=:prediction_group,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
   # Filter for prediction trials and remove missing correct values
   pred_data = filter(row -> row.trialphase == "control_predict_homebase", df)
   dropmissing!(pred_data, :correct)
@@ -208,18 +241,18 @@ function plot_control_prediction_accuracy!(
                       individual_mapping *
                       visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-    # Group average with confidence bands
+    # Group average with error bars
     group_plot = data(group_avg_data) * (
       mapping(
         :prediction_group => "Prediction test group",
         :lower_bound, :upper_bound,
         layout=factor
-      ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+      ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
       mapping(
         :prediction_group => "Prediction test group",
         :avg_accuracy => "Prediction accuracy",
         layout=factor
-      ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+      ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
     )
 
     regular_plot = individual_plot + group_plot
@@ -239,9 +272,10 @@ function plot_control_prediction_accuracy!(
     screening_individual[!, :session] .= "screening"
 
     # Create histogram
-    screening_plot = data(screening_individual) *
-                     mapping(:accuracy, layout=:session) *
-                     visual(Hist, bins=0:0.25:1, normalization=:none, color=:dodgerblue2)
+    screening_plot = data(
+      combine(groupby(screening_individual, [:session, :accuracy], sort=true), nrow)) *
+                     mapping(:accuracy => "Accuracy", :nrow => "Count", layout=:session) *
+                     visual(BarPlot, color=:dodgerblue2)
   else
     screening_plot = data([]) * mapping() * visual(Hist)  # Empty plot
   end
@@ -258,11 +292,11 @@ function plot_control_prediction_accuracy!(
     draw!(f[2, 1], regular_plot, scales(Color = (; palette = from_continuous(:roma)));
       axis=(xlabel="Prediction test group",
         ylabel="Prediction accuracy"))
+    # Set row heights: screening (30%) and regular sessions (70%)
+    rowsize!(f.layout, 1, Relative(0.3))
+    rowsize!(f.layout, 2, Relative(0.7))
   end
 
-  # Set row heights: screening (30%) and regular sessions (70%)
-  rowsize!(f.layout, 1, Relative(0.3))
-  rowsize!(f.layout, 2, Relative(0.7))
 
   Label(f[0, :], "Control: Home Base Prediction Accuracy", tellwidth=false)
 
@@ -273,10 +307,13 @@ function plot_control_confidence_ratings!(
   f::Figure,
   confidence_df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   prediction_group_column::Symbol=:prediction_group,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Remove missing responses but keep track of them
   conf_data = dropmissing(confidence_df, :response)
 
@@ -318,18 +355,18 @@ function plot_control_confidence_ratings!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :prediction_group => "Prediction test group",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :prediction_group => "Prediction test group",
       :avg_confidence => "Confidence rating",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
@@ -351,9 +388,12 @@ function plot_control_controllability_ratings!(
   f::Figure,
   controllability_df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Remove missing responses but keep track of them
   ctrl_data = dropmissing(controllability_df, :response)
 
@@ -395,18 +435,18 @@ function plot_control_controllability_ratings!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       :trial => "Trial",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       :trial => "Trial",
       :avg_controllability => "Controllability rating",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
@@ -430,10 +470,13 @@ function plot_control_reward_rate_by_effort!(
   f::Figure,
   df::DataFrame;
   factor::Symbol=:session,
-  participant_id_column::Symbol=:participant_id,
+  experiment::ExperimentInfo=TRIAL1,
   x_variable::Symbol=:current,
   config::Dict = plot_config
 )
+
+  participant_id_column = experiment.participant_id_column
+
   # Filter for reward trials and remove missing correct values
   reward_data = filter(row -> row.trialphase == "control_reward", df)
   dropmissing!(reward_data, :correct)
@@ -486,18 +529,18 @@ function plot_control_reward_rate_by_effort!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:thin_alpha])
 
-  # Group average with confidence bands
+  # Group average with error bars
   group_plot = data(group_avg_data) * (
     mapping(
       x_variable => nonnumeric => x_label,
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       x_variable => nonnumeric => x_label,
       :avg_reward_rate => "Reward rate",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=12) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
