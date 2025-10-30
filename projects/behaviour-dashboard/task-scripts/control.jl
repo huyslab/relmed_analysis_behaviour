@@ -19,13 +19,13 @@ function preprocess_control_data(
     
     if !isempty(pred_trials)
       transform!(groupby(pred_trials, [participant_id_column, :session]),
-        :n_control_trials => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 16)) => :prediction_group
+        :trial => (x -> ceil.(Int, (x .- minimum(x) .+ 1) ./ 17)) => :prediction_group
       )
     
       task_with_groups = leftjoin(task_df,
-        select(pred_trials, [participant_id_column, :session, :n_control_trials, :prediction_group]),
-        on=[participant_id_column, :session, :n_control_trials])
-      sort!(task_with_groups, [participant_id_column, :session, :n_control_trials])
+        select(pred_trials, [participant_id_column, :session, :trial, :prediction_group]),
+        on=[participant_id_column, :session, :trial])
+      sort!(task_with_groups, [participant_id_column, :session, :trial])
 
     else
       task_with_groups = task_df
