@@ -1,8 +1,11 @@
+using Pkg;
+Pkg.activate("$(pwd())/environment")
 # Script to generate all figures and combine into markdown file
 include("$(pwd())/core/experiment-registry.jl")
 
 # Which experiment to generate the dashboard for
 experiment_name = length(ARGS) > 0 ? ARGS[1] : "TRIAL1"
+experiment_name = "NORMING"
 experiment = eval(Meta.parse(experiment_name))
 
 # Setup
@@ -332,16 +335,21 @@ let
 
     filename2 = "pvss_domain_histograms"
     register_save_figure(filename2, f2, "PVSS Domain Distributions")
+end
 
+# Generate demographics barplots and histograms for norming samples
+let 
     if !any(dat.questionnaire.trialphase .== "demographics")
         return
     end
 
-    f3 = Figure(size = (1600, 800))
-    plot_demographics!(f3, dat.questionnaire; experiment = experiment, factor=:sex)
+    println("Generating Demographics overview...")
 
-    filename3 = "demographics"
-    register_save_figure(filename3, f3, "Demographics Overview")
+    f = Figure(size = (1600, 800))
+    plot_demographics!(f, dat.questionnaire; experiment = experiment, factor=:sex)
+
+    filename = "demographics"
+    register_save_figure(filename, f, "Demographics Overview")
 end
 
 # Generate max press rate histogram
