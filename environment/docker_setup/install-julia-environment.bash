@@ -1,41 +1,23 @@
 #!/bin/bash
 set -exuo pipefail
-# Requirements:
-# - Run as non-root user
-# - The JULIA_PKGDIR environment variable is set
-# - Julia is already set up, with the setup-julia.bash command
+# Must run as non-root (jovyan). Assumes:
+#   JULIA_DEPOT_PATH=/opt/julia
+#   JULIA_PROJECT=/home/jovyan/environment
+#   Julia is installed and on PATH
 
-# Install base Julia packages - to allow Pluto.jl to open from Jupyter
-julia -e '
-import Pkg;
-Pkg.update();
-Pkg.add([
-    "HDF5",
-    "IJulia",
-    "Pluto"
-]);
-Pkg.precompile();
+# Install tools INTO THE SAME PROJECT (avoid a separate/global env)
+
+# Instantiate + precompile your pinned environment
+
+# Ensure the IJulia kernel launches with this project
+julia --project="${JULIA_PROJECT}" -e '
+using IJulia;
+installkernel("Julia", env=Dict("JULIA_PROJECT"=>ENV["JULIA_PROJECT"]))
 '
 
-# Instantiate Julia environment - this is the full environment
-julia -e '
-using Pkg
-Pkg.activate("/home/jovyan")
-Pkg.instantiate()
-Pkg.precompile();
-'
-
-# Move the kernelspec out of ${HOME} to the system share location.
-# Avoids problems with runtime UID change not taking effect properly
-# on the .local folder in the jovyan home dir.
+# Move the kernelspec out of $HOME so it survives uid changes
 mv "${HOME}/.local/share/jupyter/kernels/julia"* "${CONDA_DIR}/share/jupyter/kernels/"
 chmod -R go+rx "${CONDA_DIR}/share/jupyter"
 rm -rf "${HOME}/.local"
-fix-permissions "${JULIA_PKGDIR}" "${CONDA_DIR}/share/jupyter"
 
-# Install jupyter-pluto-proxy to get Pluto to work on JupyterHub
-mamba install --yes \
-    'jupyter-pluto-proxy' && \
-    mamba clean --all -f -y && \
-    fix-permissions "${CONDA_DIR}" && \
-    fix-permissions "/home/${NB_USER}"
+
