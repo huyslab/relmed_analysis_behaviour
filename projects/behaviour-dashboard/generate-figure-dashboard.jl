@@ -1,11 +1,8 @@
-using Pkg;
-Pkg.activate("$(pwd())/environment")
 # Script to generate all figures and combine into markdown file
 include("$(pwd())/core/experiment-registry.jl")
 
 # Which experiment to generate the dashboard for
 experiment_name = length(ARGS) > 0 ? ARGS[1] : "TRIAL1"
-experiment_name = "NORMING"
 experiment = eval(Meta.parse(experiment_name))
 
 # Setup
