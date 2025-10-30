@@ -332,6 +332,16 @@ let
 
     filename2 = "pvss_domain_histograms"
     register_save_figure(filename2, f2, "PVSS Domain Distributions")
+
+    if !any(dat.questionnaire.trialphase .== "demographics")
+        return
+    end
+
+    f3 = Figure(size = (1600, 800))
+    plot_demographics!(f3, dat.questionnaire; experiment = experiment, factor=:sex)
+
+    filename3 = "demographics"
+    register_save_figure(filename3, f3, "Demographics Overview")
 end
 
 # Generate max press rate histogram
