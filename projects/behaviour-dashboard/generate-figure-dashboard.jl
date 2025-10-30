@@ -61,7 +61,7 @@ end
 # Generate PILT learning curve by session
 let 
 
-    if !haskey(dat, :pilt) || isempty(dat.pilt)
+    if !haskey(dat, :PILT) || isempty(dat.PILT)
         return
     end
 
@@ -323,11 +323,30 @@ let
     filename1 = "questionnaire_histograms"
     register_save_figure(filename1, f1, "Questionnaire Score Distributions")
 
+    if !any(dat.questionnaire.trialphase .== "PVSS")
+        return
+    end
+
     f2 = Figure(size = (800, 600))
     plot_questionnaire_histograms!(f2, dat.questionnaire; columns = [:pvss_valuation, :pvss_expectancy, :pvss_effort, :pvss_anticipation, :pvss_responsiveness, :pvss_satiation], labels = ["Reward valuation", "Reward expectancy", "Effort valuation", "Reward anticipation", "Initial responsiveness", "Reward satiation"], experiment = experiment)
 
     filename2 = "pvss_domain_histograms"
     register_save_figure(filename2, f2, "PVSS Domain Distributions")
+end
+
+# Generate demographics barplots and histograms for norming samples
+let 
+    if !any(dat.questionnaire.trialphase .== "demographics")
+        return
+    end
+
+    println("Generating Demographics overview...")
+
+    f = Figure(size = (1600, 800))
+    plot_demographics!(f, dat.questionnaire; experiment = experiment, factor=:sex)
+
+    filename = "demographics"
+    register_save_figure(filename, f, "Demographics Overview")
 end
 
 # Generate max press rate histogram

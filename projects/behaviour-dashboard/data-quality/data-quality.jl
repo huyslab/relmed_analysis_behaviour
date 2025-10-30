@@ -163,7 +163,7 @@ function process_discounting_task(
     jspsych_data::DataFrame;
     experiment::ExperimentInfo = TRIAL1
 )
-    !("delay" in names(jspsych_data)) && return (DataFrame(), DataFrame())
+    !("delay" in names(jspsych_data)) || all(ismissing.(jspsych_data.delay)) && return (DataFrame(), DataFrame())
     
     discounting = filter(x -> !ismissing(x.delay), jspsych_data)
     # Valid responses are binary: 1 or 0

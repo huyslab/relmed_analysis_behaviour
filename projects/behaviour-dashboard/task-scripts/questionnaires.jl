@@ -95,3 +95,137 @@ function plot_questionnaire_histograms!(
 
     return f
 end
+
+function plot_demographics!(
+    f::Figure,
+    df::DataFrame;
+    columns::Vector{Symbol} = [:age_group, :sex, :gender, :education, :employment, :income, :financial, :menstrual_since_first_day, :menstrual_cycle_length],
+    labels::Vector{String} = ["Age Group", "Sex", "Gender", "Education", "Employment", "Income", "Financial", "Menstrual Since First Day", "Menstrual Cycle Length"],
+    complex_columns::Vector{Symbol} = [:menstrual_since_first_day, :menstrual_cycle_length],
+    experiment::ExperimentInfo = TRIAL1,
+    factor::Symbol = :sex
+)
+
+    df = compute_questionnaire_scores(df; experiment = experiment)
+    
+    # Helper: Create horizontal barplot with consistent styling
+    function create_horizontal_barplot(count_df, has_factor, factor_name)
+        flip_threshold = maximum(count_df.count) * 0.85
+        bar_style = (bar_labels = :y, direction = :x, color_over_background = :black, dodge_gap = 0,
+                     color_over_bar = :white, flip_labels_at = flip_threshold, label_size = 11,
+                     label_formatter = x -> string(Int(round(x))))
+
+        if has_factor
+            return data(count_df) *
+                   mapping(:category => nonnumeric => "", :count => "",
+                          dodge = :factor, color = :factor => factor_name) *
+                   visual(BarPlot; bar_style...)
+        else
+            return data(count_df) *
+                   mapping(:category => nonnumeric => "", :count => "") *
+                   visual(BarPlot, color = :dodgerblue2; bar_style...)
+        end
+    end
+
+    # Helper: Prepare categorical data with optional factor grouping
+    function prepare_count_data(values, source_df, has_factor)
+        plot_df = DataFrame(category = categorical(values, ordered = false))
+        if has_factor
+            plot_df.factor = categorical(source_df[!, factor], ordered = false)
+            return combine(groupby(plot_df, [:category, :factor], sort = false), nrow => :count)
+        else
+            return combine(groupby(plot_df, :category, sort = false), nrow => :count)
+        end
+    end
+
+    # Calculate grid layout
+    n_simple = count(col -> !(col in complex_columns), columns)
+    n_complex = count(col -> col in complex_columns, columns)
+    total_plots = n_simple + 2 * n_complex
+    n_cols = min(4, total_plots)
+
+    # Helper to get grid position
+    get_position(idx) = (div(idx - 1, n_cols) + 1, mod(idx - 1, n_cols) + 1)
+
+    # Axis configuration for barplots
+    barplot_axis = (titlealign = :left, xticksvisible = false, xticklabelsvisible = false,
+                   xlabelvisible = false, bottomspinevisible = false)
+
+    plot_idx = 0
+    started_complex = false  # Track if we've started plotting complex columns
+
+    for (i, col) in enumerate(columns)
+        label = labels[i]
+
+        # Skip if column doesn't exist
+        !(String(col) in names(df)) && continue
+
+        # Filter valid data
+        valid_rows = .!ismissing.(df[!, col])
+        has_factor = String(factor) in names(df)
+        has_factor && (valid_rows = valid_rows .& .!ismissing.(df[!, factor]))
+
+        valid_df = df[valid_rows, :]
+        nrow(valid_df) == 0 && continue
+
+        if col in complex_columns
+            # Start a new row before first complex column
+            if !started_complex && mod(plot_idx, n_cols) != 0
+                plot_idx = ceil(Int, plot_idx / n_cols) * n_cols
+            end
+            started_complex = true
+
+            # Complex column: separate numeric and categorical
+            raw_values = valid_df[!, col]
+            numeric_mask = [tryparse(Float64, string(v)) !== nothing for v in raw_values]
+
+            # Plot 1: Barplot showing all response types (numeric + categorical)
+            plot_idx += 1
+            row, col_idx = get_position(plot_idx)
+
+            # Prepare count data including both numeric and categorical responses
+            if has_factor
+                # Create dataframe with category labels
+                response_type = [numeric_mask[i] ? "Numeric response" : string(raw_values[i]) for i in 1:length(raw_values)]
+                count_df = DataFrame(category = categorical(response_type, ordered = false),
+                                   factor = categorical(valid_df[!, factor], ordered = false))
+                count_df = combine(groupby(count_df, [:category, :factor], sort = false), nrow => :count)
+            else
+                response_type = [numeric_mask[i] ? "Numeric response" : string(raw_values[i]) for i in 1:length(raw_values)]
+                count_df = DataFrame(category = categorical(response_type, ordered = false))
+                count_df = combine(groupby(count_df, :category, sort = false), nrow => :count)
+            end
+
+            mp = create_horizontal_barplot(count_df, has_factor, string(factor))
+            draw!(f[row, col_idx], mp; axis = (; title = "$label (response type)", barplot_axis...))
+
+            # Plot 2: Histogram for numeric values
+            if any(numeric_mask)
+                plot_idx += 1
+                row, col_idx = get_position(plot_idx)
+
+                numeric_df = DataFrame(value = [parse(Float64, string(v)) for v in raw_values[numeric_mask]])
+
+                if has_factor
+                    numeric_df.factor = categorical(valid_df[numeric_mask, factor], ordered = false)
+                    mp = data(numeric_df) * mapping(:value => label, color = :factor => string(factor)) * histogram(bins = 15)
+                else
+                    mp = data(numeric_df) * mapping(:value => label) * histogram(bins = 15)
+                end
+
+                draw!(f[row, col_idx], mp; axis = (; xlabel = label, ylabel = "Count"))
+            end
+        else
+            # Simple categorical column: horizontal barplot
+            plot_idx += 1
+            row, col_idx = get_position(plot_idx)
+
+            count_df = prepare_count_data(valid_df[!, col], valid_df, has_factor)
+            mp = create_horizontal_barplot(count_df, has_factor, string(factor))
+
+            draw!(f[row, col_idx], mp; axis = (; title = label, barplot_axis...))
+        end
+    end
+
+    return f
+end
