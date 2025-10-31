@@ -32,7 +32,7 @@ RUN apt-get update --yes && \
 
 # Install R
 RUN mamba install --yes \
-     'r-base' 'r-essentials' && \
+     'r-base=4.4.3' 'r-essentials' && \
      mamba clean --all -f -y && \
      fix-permissions "${CONDA_DIR}" && \
      fix-permissions "/home/${NB_USER}"
@@ -59,7 +59,12 @@ USER ${NB_UID}
 # Setup packages
 RUN mkdir -p environment
 COPY --chown=jovyan Manifest.toml Project.toml "/home/${NB_USER}/environment"
-RUN julia --project="${JULIA_PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile();'
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+        export JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)"; \
+    elif [ "$(uname -m)" = "aarch64" ]; then \
+        export JULIA_CPU_TARGET="generic;cortex-a57;thunderx2t99;carmel,clone_all;apple-m1,base(3);neoverse-512tvb,base(3)"; \
+    fi && \
+    julia --project="${JULIA_PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile();'
 
 # Setup IJulia kernel
 USER root
