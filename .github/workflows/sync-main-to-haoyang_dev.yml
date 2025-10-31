@@ -1,4 +1,4 @@
-name: Sync Main to haoyang_dev
+name: Sync Main to haoyang-dev-new
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  sync-main-to-haoyang_dev:
+  sync-main-to-haoyang-dev-new:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,29 +27,29 @@ jobs:
           LATEST_COMMIT=$(git rev-parse HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B)
           
-          # Check if commit message contains "from huyslab/haoyang_dev"
-          if echo "$COMMIT_MSG" | grep -q "from huyslab/haoyang_dev"; then
-            echo "Commit message indicates changes from haoyang_dev branch, skipping sync"
+          # Check if commit message contains "from huyslab/haoyang-dev-new"
+          if echo "$COMMIT_MSG" | grep -q "from huyslab/haoyang-dev-new"; then
+            echo "Commit message indicates changes from haoyang-dev-new branch, skipping sync"
             echo "skip_sync=true" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          # Check if this commit exists in haoyang_dev branch
-          git fetch origin haoyang_dev
-          if git merge-base --is-ancestor $LATEST_COMMIT $(git rev-parse origin/haoyang_dev); then
-            echo "Changes originated from haoyang_dev branch, skipping sync"
+          # Check if this commit exists in haoyang-dev-new branch
+          git fetch origin haoyang-dev-new
+          if git merge-base --is-ancestor $LATEST_COMMIT $(git rev-parse origin/haoyang-dev-new); then
+            echo "Changes originated from haoyang-dev-new branch, skipping sync"
             echo "skip_sync=true" >> $GITHUB_OUTPUT
           else
-            echo "Changes did not originate from haoyang_dev, proceeding with sync"
+            echo "Changes did not originate from haoyang-dev-new, proceeding with sync"
             echo "skip_sync=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Push changes to haoyang_dev
+      - name: Push changes to haoyang-dev-new
         if: |
           github.ref == 'refs/heads/main' && 
           steps.check-origin.outputs.skip_sync == 'false'
         run: |
           git fetch origin 
-          git checkout haoyang_dev
+          git checkout haoyang-dev-new
           git merge main --no-edit
-          git push origin haoyang_dev
+          git push origin haoyang-dev-new
