@@ -336,7 +336,7 @@ function combine_accuracies_and_exclusion(
     experiment::ExperimentInfo = TRIAL1
 )
     if have_wm
-        acc = outerjoin(reversal_acc, pilt_acc, wm_acc, on=[experiment.participant_id_column, :session])
+        acc = outerjoin(reversal_acc, pilt_acc, wm_acc, on=[experiment.participant_id_column, :module_start_time, :session])
         # Check if participant performed above critical value on any task
         acc.any_accuracy = (r -> ismissing(r.pilt_accuracy) || ismissing(r.reversal_accuracy) || ismissing(r.wm_accuracy) ||
                     ismissing(r.pilt_critical_value) || ismissing(r.reversal_critical_value) || ismissing(r.wm_critical_value) ? missing :

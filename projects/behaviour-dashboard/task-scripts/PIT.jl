@@ -69,18 +69,18 @@ function plot_PIT_press_rate_by_coin!(
                     individual_mapping *
                     visual(Lines, linewidth=config[:thin_linewidth], alpha=config[:scatter_alpha])
 
-  # Create group average lines (thick) with confidence bands
+  # Create group average lines (thick) with pointranges
   group_plot = data(group_avg_data) * (
     mapping(
       pavlovian_column => "Pavlovian stimuli (coin value)",
       :lower_bound, :upper_bound,
       layout=factor
-    ) * visual(Band, alpha=config[:band_alpha], color=:dodgerblue2) +
+    ) * visual(Rangebars, color=:dodgerblue2, linewidth=config[:thick_linewidth]) +
     mapping(
       pavlovian_column => "Pavlovian stimuli (coin value)",
       :avg_press_rate => "Press rate (press/sec)",
       layout=factor
-    ) * visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2)
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=config[:large_markersize]) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
