@@ -427,7 +427,7 @@ function compute_questionnaire_scores(
                 if isempty(questionnaire_score_data)
                     questionnaire_score_data = questionnaire_result
                 else
-                    leftjoin!(questionnaire_score_data, questionnaire_result, on=[participant_id_column, :module_start_time, :session])
+                    questionnaire_score_data = outerjoin(questionnaire_score_data, questionnaire_result, on=[participant_id_column, :module_start_time, :session])
                 end
             end
         else
