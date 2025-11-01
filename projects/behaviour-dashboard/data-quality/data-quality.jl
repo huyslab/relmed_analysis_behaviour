@@ -543,6 +543,15 @@ function quality_checks(
     )
     leftjoin!(quality, module_start_times, on=[experiment.participant_id_column, :session])
 
+    # Add bonus
+    if "bonus" in names(df)
+        bonuses = combine(
+            groupby(df, [experiment.participant_id_column, :session]),
+            :bonus => (x -> all(ismissing.(x)) ? missing : sum(parse.(Float64, filter(x -> !ismissing(x), x)))) => :total_bonus
+        )
+        leftjoin!(quality, bonuses, on=[experiment.participant_id_column, :session])
+    end
+
     if !isempty(questionnaire)
         demogs = unstack(
             filter(x -> x.question in ["age", "sex"], questionnaire),
