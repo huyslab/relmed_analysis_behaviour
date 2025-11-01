@@ -442,3 +442,4 @@ quality = quality_checks(
 
 append_wide_table_to_readme(quality; result_dir = result_dir, title = "Data Quality Overview")
 
+filter(x -> x.session == "wk0", quality)
