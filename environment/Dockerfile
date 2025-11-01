@@ -40,23 +40,40 @@ RUN mamba install --yes \
 # Verify Rscript is installed
 RUN which Rscript && Rscript --version
 
-# install Julia packages in /opt/julia instead of ${HOME}
+# Single shared depot + your project path
 ENV JULIA_DEPOT_PATH=/opt/julia \
-    JULIA_PKGDIR=/opt/julia
+    JULIA_PKGDIR=/opt/julia \
+    JULIA_PROJECT=/home/${NB_USER}/environment
 
 # Setup Julia
 COPY docker_setup/install-julia.bash /opt/setup-scripts/install-julia.bash
 RUN chmod +x /opt/setup-scripts/install-julia.bash
 RUN /opt/setup-scripts/install-julia.bash
 
-# USER ${NB_UID}
+# Create depot and give it to jovyan
+RUN mkdir -p /opt/julia && chown -R ${NB_USER}:${NB_GID} /opt/julia
+
+# Switch to runtime user for all Julia package work
+USER ${NB_UID}
 
 # Setup packages
-COPY --chown=jovyan Manifest.toml Project.toml "/home/${NB_USER}" 
-COPY docker_setup/install-julia-environment.bash /opt/setup-scripts/install-julia-environment.bash
-RUN chmod +x /opt/setup-scripts/install-julia-environment.bash
-RUN /opt/setup-scripts/install-julia-environment.bash && \
+RUN mkdir -p environment
+COPY --chown=jovyan Manifest.toml Project.toml "/home/${NB_USER}/environment"
+RUN julia --project="${JULIA_PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile();'
+
+# Setup IJulia kernel
+USER root
+RUN julia --project="${JULIA_PROJECT}" -e 'using IJulia; installkernel("Julia", env=Dict("JULIA_PROJECT"=>ENV["JULIA_PROJECT"]))'
+
+# Move the kernelspec out of $HOME so it survives uid changes
+RUN mv "${HOME}/.local/share/jupyter/kernels/julia"* "${CONDA_DIR}/share/jupyter/kernels/" && \
+    chmod -R go+rx "${CONDA_DIR}/share/jupyter" && \
+    rm -rf "${HOME}/.local"
+
+# Fix permissions
+RUN fix-permissions "${JULIA_PKGDIR}" "${CONDA_DIR}/share/jupyter" && \
     fix-permissions "/home/${NB_USER}"
+
 
 # Set CRAN date
 RUN echo 'options(repos = c(CRAN = "https://packagemanager.rstudio.com/cran/2024-09-16"), download.file.method = "libcurl")' >> $(Rscript -e 'cat(R.home())')/etc/Rprofile.site
@@ -84,3 +101,5 @@ RUN fix-permissions "/home/${NB_USER}"
 
 # Set CMDSTAN home
 ENV CMDSTAN=/opt/cmdstan/cmdstan-2.37.0
+
+USER ${NB_UID}
