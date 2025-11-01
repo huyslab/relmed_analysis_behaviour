@@ -547,7 +547,7 @@ function quality_checks(
     if "bonus" in names(df)
         bonuses = combine(
             groupby(df, [experiment.participant_id_column, :session]),
-            :bonus => (x -> all(ismissing.(x)) ? missing : sum(parse.(Float64, filter(x -> !ismissing(x), x)))) => :total_bonus
+            :bonus => (x -> all(ismissing.(x)) ? missing : sum(parse.(Float64, filter(y -> !ismissing(y), x)))) => :total_bonus
         )
         leftjoin!(quality, bonuses, on=[experiment.participant_id_column, :session])
     end
