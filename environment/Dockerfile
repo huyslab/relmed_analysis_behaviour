@@ -105,6 +105,7 @@ RUN apt-get update --yes && \
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
 RUN ["Rscript", "install_cmdstan.R"]
 RUN fix-permissions "/home/${NB_USER}"
+RUN fix-permissions "/opt/cmdstan"
 
 # Set CMDSTAN home
 ENV CMDSTAN=/opt/cmdstan/cmdstan-2.37.0
