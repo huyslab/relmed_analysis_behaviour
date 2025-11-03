@@ -163,7 +163,7 @@ Note: The environment variable name format should match your `env.list` file for
 If you update the Docker image version:
 
 1. Edit the workflow file
-2. Change `yanivabir/relmed:v1.12` to your new version
+2. Change `ghcr.io/huyslab/relmed:latest` to your new version
 3. Commit the change
 
 ## Architecture

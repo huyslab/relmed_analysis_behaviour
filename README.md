@@ -73,7 +73,7 @@ The `env.list` file should contain:
 1. **Launch Docker container**:
 
 ```bash
-docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:latest
+docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list  ghcr.io/huyslab/relmed:latest
 ```
 
 2. **Access Jupyter Lab**: Copy the URL from the Docker output and navigate to it in your browser. You can launch Pluto.jl notebooks from within Jupyter Lab for interactive analysis.
@@ -83,7 +83,7 @@ docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file
 1. **Launch container with bash**:
 
 ```bash
-docker run -it --rm --name relmed -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:latest /bin/bash
+docker run -it --rm --name relmed -v $(pwd):/home/jovyan --env-file env.list  ghcr.io/huyslab/relmed:latest /bin/bash
 ```
 
 2. **Attach VS Code to container**: 
