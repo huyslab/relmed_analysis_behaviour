@@ -2,7 +2,9 @@
 # Edited to fix Julia version to 1.10.3, fix Julia package versions
 # using Project.toml and Manifest.toml, and fix R package versions
 # by using a dated CRAN repo, and installing R packages only via R.
-# Additionally, CMDSTAN is installed
+# Additionally, CMDSTAN is installed.
+# JULIA_CPU_TARGET setup before precompile see 
+# https://github.com/jupyter/docker-stacks/blob/main/images/minimal-notebook/setup-scripts/setup-julia-packages.bash
 
 ARG REGISTRY=quay.io
 ARG OWNER=jupyter
@@ -32,7 +34,7 @@ RUN apt-get update --yes && \
 
 # Install R
 RUN mamba install --yes \
-     'r-base' 'r-essentials' && \
+     'r-base=4.4.3' 'r-essentials=4.4' && \
      mamba clean --all -f -y && \
      fix-permissions "${CONDA_DIR}" && \
      fix-permissions "/home/${NB_USER}"
@@ -58,8 +60,13 @@ USER ${NB_UID}
 
 # Setup packages
 RUN mkdir -p environment
-COPY --chown=jovyan Manifest.toml Project.toml "/home/${NB_USER}/environment"
-RUN julia --project="${JULIA_PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile();'
+COPY --chown=jovyan Manifest.toml Project.toml "/home/${NB_USER}/environment/"
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+        export JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1);x86-64-v4,-rdrnd,base(1)"; \
+    elif [ "$(uname -m)" = "aarch64" ]; then \
+        export JULIA_CPU_TARGET="generic;cortex-a57;thunderx2t99;carmel,clone_all;apple-m1,base(3);neoverse-512tvb,base(3)"; \
+    fi && \
+    julia --project="${JULIA_PROJECT}" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile();'
 
 # Setup IJulia kernel
 USER root
@@ -98,6 +105,7 @@ RUN apt-get update --yes && \
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
 RUN ["Rscript", "install_cmdstan.R"]
 RUN fix-permissions "/home/${NB_USER}"
+RUN fix-permissions "/opt/cmdstan"
 
 # Set CMDSTAN home
 ENV CMDSTAN=/opt/cmdstan/cmdstan-2.37.0
