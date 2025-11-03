@@ -31,7 +31,7 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          docker pull yanivabir/relmed:latest
+          docker pull ghcr.io/huyslab/relmed:latest
 
       - name: Create required directories
         run: |
@@ -55,7 +55,7 @@ jobs:
             -e REDCAP_URL="${REDCAP_URL}" \
             -e REDCAP_TOKEN_TRIAL1="${REDCAP_TOKEN_TRIAL1}" \
             -e FONTCONFIG_PATH=/home/jovyan/.cache/fontconfig \
-            yanivabir/relmed:latest \
+            ghcr.io/huyslab/relmed:latest \
             -c "chmod -R 777 /opt/cmdstan && cd /home/jovyan && julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl "TRIAL1" && chown -R $(id -u):$(id -g) /home/jovyan"
 
       - name: Check for changes
