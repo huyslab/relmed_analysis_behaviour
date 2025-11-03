@@ -68,6 +68,8 @@ The `env.list` file should contain:
 
 *Currently, only a Mac Silicone docker image is available. If you require an amd64 image, please let Yaniv or Haoyang know.*
 
+To access to the docker container registry, you need to first authenticate before pulling the container image: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
+
 ### Option 1: Using Jupyter Lab
 
 1. **Launch Docker container**:
