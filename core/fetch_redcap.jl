@@ -1,6 +1,6 @@
 # Function to fetch data from REDCap
-# Version: 1.0.1
-# Last Modified: 2025-09-28
+# Version: 1.0.2
+# Last Modified: 2025-11-05
 using HTTP, JSON, DataFrames
 
 """
