@@ -24,24 +24,33 @@ function simulate_reversals(;
     statistic::String = "accuracy"
 )
 
+    n_blocks = maximum(reversal_sequence.block) # Get number of blocks in reversal sequence
+
     choices = rand(rng, n_trials) .< bias # Generate random binary choices based on rightward bias
 
     acc_counter = 0          # Track correct responses in current block
     global_acc_counter = 0   # Track total correct responses across all blocks
     trial_counter = 1        # Track trial number within current block
+    global_trial_counter = 1 # Track overall trial number across all blocks
     block_counter = 1        # Track current block number
     block_data = reversal_sequence[reversal_sequence.block .== block_counter, :] # Get data for current block
     
     for (i, c) in enumerate(choices) # Iterate through each simulated choice
+
+        if block_counter > n_blocks
+            break # Exit loop if all blocks completed
+        end
+
         # Determine if choice was correct based on feedback for this trial
         acc = c ? block_data.feedback_right[trial_counter] == 1. : block_data.feedback_left[trial_counter] == 1.
         acc_counter += acc        # Increment block accuracy counter
         global_acc_counter += acc # Increment global accuracy counter
 
         trial_counter += 1 # Move to next trial within block
-        
+        global_trial_counter += 1 # Move to next overall trial
+
         # Check if block should end (criterion met or max trials reached)
-        if acc_counter >= criteria[block_counter] || trial_counter > 80
+        if acc_counter >= criteria[block_counter] || trial_counter > length(block_data.feedback_right)
             # Reset counters for next block
             acc_counter = 0
             block_counter += 1
@@ -57,7 +66,7 @@ function simulate_reversals(;
     end
 
     if statistic == "accuracy"
-        return global_acc_counter / n_trials # Calculate overall accuracy proportion
+        return global_acc_counter / global_trial_counter # Calculate overall accuracy proportion
     end
     error("Unknown statistic: $statistic") # Handle invalid statistic parameter
 end

@@ -460,22 +460,31 @@ TASK_PREPROC_FUNCS = Dict(
 
 function preprocess_project(
     experiment::ExperimentInfo;
-    force_download::Bool = false
+    force_download::Bool = false,
+    delay_ms::Int = 100,
+    use_manual_download::Bool = false
 )
 
     # Create data folder if doesn't exist
     isdir("data") || mkpath("data")
 
-	datafile = "data/$(experiment.project).jld2"
+	datafile = "data/$(experiment.project)/$(experiment.project).jld2"
 
 	# Load data or download from REDCap
 	if !isfile(datafile) || force_download
-        # Fetch data from REDCap
-        jspsych_data = fetch_project_data(project = experiment.project)
+        # Fetch data from REDCap or local files
+        if use_manual_download
+            local_data_dir = "data/$(experiment.project)/manual_download"
+            @info "Loading data from local files in: $local_data_dir"
+            jspsych_data = get_local_files(local_data_dir)
+        else
+            @info "Fetching data from REDCap API"
+            jspsych_data = fetch_project_data(project = experiment.project; delay_ms = delay_ms)
+        end
         
         if jspsych_data === nothing
             @warn "No data found for project: $(experiment.project)"
-            return nothing
+            return nothing 
         end
 
         # Save data locally
