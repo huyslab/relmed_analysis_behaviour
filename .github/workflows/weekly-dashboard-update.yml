@@ -55,6 +55,8 @@ jobs:
           mkdir -p data
           mkdir -p tmp
           mkdir -p projects/behaviour-dashboard/results
+          mkdir -p data/trial1
+          mkdir -p data/norming
           mkdir -p .cache/fontconfig
           chmod -R 777 data tmp projects/behaviour-dashboard/results .cache
 
