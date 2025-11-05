@@ -11,6 +11,9 @@ function plot_pavlovian_lottery_rt!(
     # Remove missing responses
     df_clean = filter(row -> !ismissing(row.rt) && !isnothing(row.rt), df)
 
+    # Remove outlier RTs due to missing responses
+    filter!(row -> row.rt <= 4000, df_clean)
+
     # Summarize RT by participant, pavlovian value, and facet
     rt_sum = combine(
         groupby(df_clean, [experiment.participant_id_column, :pavlovian_value, facet]),
