@@ -1,6 +1,6 @@
 # This file contains a registry of all RELMED pilot and trial experiments, with information needed to load and analyse data.
-# Version: 1.0.4
-# Last Modified: 2025-11-03
+# Version: 1.0.5
+# Last Modified: 2025-11-05
 using Dates, DataFrames
 
 """
