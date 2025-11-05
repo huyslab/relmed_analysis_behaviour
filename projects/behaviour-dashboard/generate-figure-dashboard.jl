@@ -55,8 +55,17 @@ end
 
 # Load and preprocess data
 begin 
-    dat = preprocess_project(experiment; force_download = true)
+    dat = preprocess_project(experiment; force_download = true, delay_ms = 100, use_manual_download = true)
 end
+
+# Run quality checks
+println("Running data quality checks...")
+quality = quality_checks(
+        dat.jspsych_data; 
+        experiment = experiment,
+        sequences_dir = joinpath(data_quality_dir, "task-sequences"),
+        questionnaire = dat.questionnaire
+    )
 
 # Generate PILT learning curve by session
 let 
@@ -431,14 +440,6 @@ end
 println("Generating markdown dashboard...")
 generate_markdown_dashboard()
 
-# Check who finished each module
-println("Running data quality checks...")
-quality = quality_checks(
-        dat.jspsych_data; 
-        experiment = experiment,
-        sequences_dir = joinpath(data_quality_dir, "task-sequences"),
-        questionnaire = dat.questionnaire
-    )
 
 append_wide_table_to_readme(quality; result_dir = result_dir, title = "Data Quality Overview")
 
