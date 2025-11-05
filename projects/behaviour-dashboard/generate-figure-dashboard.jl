@@ -3,6 +3,7 @@ include("$(pwd())/core/experiment-registry.jl")
 
 # Which experiment to generate the dashboard for
 experiment_name = length(ARGS) > 0 ? ARGS[1] : "TRIAL1"
+manual_download = length(ARGS) > 1 ? parse(Bool, ARGS[2]) : true
 experiment = eval(Meta.parse(experiment_name))
 
 # Setup
@@ -55,7 +56,7 @@ end
 
 # Load and preprocess data
 begin 
-    dat = preprocess_project(experiment; force_download = true, delay_ms = 100, use_manual_download = true)
+    dat = preprocess_project(experiment; force_download = true, delay_ms = 65, use_manual_download = manual_download)
 end
 
 # Run quality checks
