@@ -168,6 +168,25 @@ function redcap_data_to_df(file_data::AbstractDict)
 	return jspsych_data
 end
 
+"""
+    fetch_project_data(; project="trial1", filter_func=(x->true), delay_ms=500, batch_size=50) -> DataFrame
+
+Fetches and processes data from REDCap for multiple records with rate limiting.
+
+# Arguments
+- `project::String`: The project name (default: "trial1")
+- `filter_func::Function`: Function to filter records (default: accepts all records)
+- `delay_ms::Int`: Delay in milliseconds between API requests (default: 500)
+- `batch_size::Int`: Number of records between progress updates (default: 50)
+
+# Returns
+- `DataFrame`: Combined DataFrame with all jsPsych trial data, or `nothing` if no valid data found
+
+# Notes
+- Implements rate limiting to avoid overwhelming the REDCap API
+- Provides progress updates during batch processing
+- Filters out records with empty or invalid data
+"""
 function fetch_project_data(; 
 	project::String = "trial1",
 	filter_func::Function = (x -> true),
@@ -178,18 +197,17 @@ function fetch_project_data(;
 	# Fetch records
 	records = get_redcap_records(project = project)
 
-    # Select records
+    # Apply custom filter to select desired records
     filter!(filter_func, records)
 
-    # Get record_id
+    # Extract record IDs
     record_ids = [record["record_id"] for record in records]
 	
 	println("Fetching data for $(length(record_ids)) records with $(delay_ms)ms delay between requests...")
 
-    # Fetch the file for the given record_id with rate limiting
+    # Fetch files with rate limiting and progress tracking
 	file_data = Vector{Dict}()
 	for (i, record_id) in enumerate(record_ids)
-		# Fetch the file
 		file = get_redcap_file(record_id; project = project)
 		push!(file_data, file)
 		
@@ -262,6 +280,21 @@ function parse_redcap_file_content(content::String, source::String="")
 	end
 end
 
+"""
+    get_local_files(dir::String) -> DataFrame
+
+Reads and parses jsPsych data files from a local directory.
+
+# Arguments
+- `dir::String`: Path to directory containing .txt files with jsPsych data
+
+# Returns
+- `DataFrame`: Combined DataFrame with all parsed jsPsych trial data, or `nothing` if no valid data found
+
+# Notes
+- Only processes files with .txt extension
+- Files must contain valid JSON data with "jspsych_data" and "interaction_data" keys
+"""
 function get_local_files(
 	dir::String
 )
@@ -280,12 +313,10 @@ function get_local_files(
 
     println("Processing $(length(txt_files)) txt files from $dir...")
 
-    # Read and parse each file
+    # Parse each file and collect valid data
     file_data = Vector{Dict}()
     for (i, filepath) in enumerate(txt_files)
-        # Read file content
         content = read(filepath, String)
-        # Parse using the helper function
         parsed = parse_redcap_file_content(content, filepath)
         if !isempty(parsed)
             push!(file_data, parsed)
