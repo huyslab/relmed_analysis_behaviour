@@ -68,14 +68,6 @@ quality = quality_checks(
         questionnaire = dat.questionnaire
     )
 
-screening = filter(x -> x.session == "screening" && !ismissing(x.include) && x.include && Date(x.session_start_time) == Date(2025,10,28), quality)
-
-wk0 = filter(x -> x.session == "wk0" && !ismissing(x.completion_time_quests) && x.PROLIFIC_PID in unique(screening.PROLIFIC_PID), quality)
-
-for a in eachrow(wk0)
-    println(a.PROLIFIC_PID, ",", round(a.total_bonus, digits=2))
-end
-
 # Generate PILT learning curve by session
 let 
 
