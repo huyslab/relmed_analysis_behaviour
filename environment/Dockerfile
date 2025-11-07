@@ -103,9 +103,22 @@ RUN apt-get update --yes && \
 
 # Run script installing cmdstan
 COPY docker_setup/install_cmdstan.R install_cmdstan.R
-RUN ["Rscript", "install_cmdstan.R"]
+# Add build-time argument for architecture
+ARG TARGETARCH
+
+# Conditionally run CmdStan install only for ARM64
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+      echo "Building for ARM64 – installing CmdStan..."; \
+      Rscript install_cmdstan.R; \
+    else \
+      echo "Skipping CmdStan install for $TARGETARCH build."; \
+    fi
+
+# Fix permissions if the folder exists
+RUN if [ -d "/opt/cmdstan" ]; then \
+      fix-permissions "/opt/cmdstan"; \
+    fi
 RUN fix-permissions "/home/${NB_USER}"
-RUN fix-permissions "/opt/cmdstan"
 
 # Set CMDSTAN home
 ENV CMDSTAN=/opt/cmdstan/cmdstan-2.37.0
