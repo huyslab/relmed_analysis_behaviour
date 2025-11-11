@@ -523,6 +523,11 @@ function preprocess_project(
     # Remove testing data
     jspsych_data = experiment.exclude_testing_participants(jspsych_data; experiment = experiment)
 
+    # Remove retakes if specified
+    if experiment.exclude_retakes
+        jspsych_data = exclude_retakes(jspsych_data; experiment = experiment)
+    end
+
     # Split and preprocess data by task
     task_data = []
     task_names = Symbol[]
