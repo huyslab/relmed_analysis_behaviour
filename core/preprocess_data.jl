@@ -7,6 +7,32 @@ include("$(pwd())/core/experiment-registry.jl")
 
 remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, col), eachcol(data)))]
 
+function exclude_retakes(
+    df_original::AbstractDataFrame;
+    experiment::ExperimentInfo = NORMING,
+)   
+
+    df = copy(df_original)
+
+    df.module_start_time = DateTime.(df.module_start_time, "yyyy-mm-dd_HH:MM:SS")
+
+    participant_id_column = experiment.participant_id_column
+    module_column = experiment.module_column
+
+    sittings = unique(df[!, [participant_id_column, :session, module_column, :module_start_time]])
+
+    transform!(
+        groupby(sittings, [participant_id_column, :session, module_column]),
+        :module_start_time => minimum => :first_start_time
+    )
+
+    filter!(x -> x.module_start_time == x.first_start_time, sittings)
+
+    df = innerjoin(df, select(sittings, Not(:first_start_time)), on=[participant_id_column, :session, module_column, :module_start_time])
+
+    return df
+end
+
 function prepare_card_choosing_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
