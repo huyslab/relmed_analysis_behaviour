@@ -5,22 +5,31 @@ using DataFrames, JLD2, JSON
 include("$(pwd())/core/fetch_redcap.jl")
 include("$(pwd())/core/experiment-registry.jl")
 
+"""
+Remove columns that contain only missing values.
+"""
 remove_empty_columns(data::DataFrame) = data[:, Not(map(col -> all(ismissing, col), eachcol(data)))]
 
+"""
+Exclude repeated module attempts (retakes) per participant/session/module.
+Keeps only the first module_start_time within each (participant, session, module) group.
+"""
 function exclude_retakes(
     df_original::AbstractDataFrame;
     experiment::ExperimentInfo = NORMING,
 )   
-
     df = copy(df_original)
 
+    # Normalize start times to DateTime for correct min/compare operations
     df.module_start_time = DateTime.(df.module_start_time, "yyyy-mm-dd_HH:MM:SS")
 
     participant_id_column = experiment.participant_id_column
     module_column = experiment.module_column
 
+    # Identify unique sittings per participant/session/module/start
     sittings = unique(df[!, [participant_id_column, :session, module_column, :module_start_time]])
 
+    # Compute first start time (earliest) per group
     transform!(
         groupby(sittings, [participant_id_column, :session, module_column]),
         :module_start_time => minimum => :first_start_time
@@ -28,15 +37,24 @@ function exclude_retakes(
 
     pre = nrow(sittings)
 
+    # Keep only first attempt rows
     filter!(x -> x.module_start_time == x.first_start_time, sittings)
 
     @info "Excluded $(pre - nrow(sittings)) retake module attempts (kept the first attempt)"
 
+    # Inner-join back to the full dataset to discard retake rows
     df = innerjoin(df, select(sittings, Not(:first_start_time)), on=[participant_id_column, :session, module_column, :module_start_time])
 
     return df
 end
 
+"""
+Prepare card-choosing task data (PILT/WM/PIT_test).
+- Filters rows with `filter_func`
+- Removes empty columns
+- Sorts trials
+- For PILT, derives per-block valence (Reward/Punishment/Mixed) from feedback distributions.
+"""
 function prepare_card_choosing_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
@@ -97,6 +115,10 @@ function prepare_card_choosing_data(
 end
 
 
+"""
+Prepare reversal task trials (trial_type == "reversal").
+Removes empty columns and sorts by participant/session/block/trial.
+"""
 function prepare_reversal_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
@@ -116,6 +138,10 @@ function prepare_reversal_data(
 	return reversal_data
 end
 
+"""
+Prepare delay discounting task trials (trialphase == "dd_task").
+Removes empty columns and sorts by participant/session/trial_index.
+"""
 function prepare_delay_discounting_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
@@ -135,6 +161,12 @@ function prepare_delay_discounting_data(
     return delay_discounting_data
 end
 
+"""
+Prepare max-press task trials.
+- Ensures required columns exist
+- Parses responseTime JSON into `response_times`
+- Renames/normalizes column names
+"""
 function prepare_max_press_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
@@ -179,6 +211,12 @@ function prepare_max_press_data(
 	return max_press_data
 end
 
+"""
+Prepare Piggybank data for either:
+- task = "vigour": press-for-reward trials
+- task = "PIT": Pavlovian-to-Instrumental Transfer trials
+Parses timeline_variables to ratio/magnitude, computes reward_per_press, parses response_time JSON.
+"""
 function prepare_piggybank_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
     task::String = "vigour"  # "vigour" or "PIT"
@@ -226,12 +264,24 @@ function prepare_piggybank_data(df::DataFrame;
 end
 
 # Wrapper functions for backward compatibility
+"""
+Wrapper for vigour trials of piggybank.
+See `prepare_piggybank_data` with task="vigour".
+"""
 prepare_vigour_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
     prepare_piggybank_data(df; experiment = experiment, task = "vigour")
 
+"""
+Wrapper for PIT trials of piggybank.
+See `prepare_piggybank_data` with task="PIT".
+"""
 prepare_PIT_data(df::DataFrame; experiment::ExperimentInfo = TRIAL1) =
     prepare_piggybank_data(df; experiment = experiment, task = "PIT")
 
+"""
+Prepare post-vigour test data (trialphase == "vigour_test").
+Renames `rt` to `response_times` for consistency.
+"""
 function prepare_vigour_test_data(
     df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
@@ -259,6 +309,14 @@ function prepare_vigour_test_data(
     return result
 end
 
+"""
+Prepare control task data.
+- Extracts/expands timeline_variables into columns
+- Parses responseTime JSON into `response_times`
+- Forward-fills trial numbers within module
+- Merges task and feedback streams
+Returns NamedTuple: (control_task, control_report)
+"""
 function prepare_control_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1,
     )
@@ -267,6 +325,7 @@ function prepare_control_data(df::DataFrame;
     module_column = experiment.module_column
 
     function extract_timeline_variables!(df::DataFrame)
+        # Parse timeline_variables JSON per row; tolerate malformed input
         parsed = map(row -> begin
                 ismissing(row.timeline_variables) && return Dict()
                 str = startswith(row.timeline_variables, "{") ? row.timeline_variables : "{" * row.timeline_variables
@@ -308,6 +367,7 @@ function prepare_control_data(df::DataFrame;
 	select!(control_data, Not(:responseTime))
 
     # Forward fill trial numbers
+    # ffill returns last seen non-missing value per position
     ffill(v) = v[accumulate(max, [i*!ismissing(v[i]) for i in 1:length(v)], init=1)]
 
     filter!(row -> row.trialphase ∈ ["control_explore", "control_predict_homebase", "control_reward", "control_explore_feedback", "control_confidence", "control_controllability"], control_data)
@@ -347,6 +407,12 @@ function prepare_control_data(df::DataFrame;
 	return (; control_task = merged_control, control_report = control_report_data)
 end
 
+"""
+Prepare questionnaire data for all configured questionnaires in the experiment.
+- Parses JSON responses from survey trials
+- For demographics, merges multi-part fields and renames 'gender-free-response' to 'gender-other'
+- Returns long format with columns: question_id, question, response (plus identifiers)
+"""
 function prepare_questionnaire_data(
     df::AbstractDataFrame;
     experiment::ExperimentInfo = TRIAL1
@@ -421,6 +487,10 @@ function prepare_questionnaire_data(
 	return questionnaire_data
 end
 
+"""
+Prepare Pavlovian lottery (pre-PILT conditioning) trials.
+Parses timeline_variables into pavlovian_value and trial, removes raw JSON.
+"""
 function prepare_pavlovian_lottery_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
 ) 
@@ -447,6 +517,10 @@ function prepare_pavlovian_lottery_data(df::DataFrame;
 
 end
 
+"""
+Prepare open-text responses.
+Extracts the single (question => response) pair from the response JSON into columns.
+"""
 function prepare_open_text_data(df::DataFrame;
     experiment::ExperimentInfo = TRIAL1
 )
@@ -472,6 +546,7 @@ function prepare_open_text_data(df::DataFrame;
 end
 
 
+# Registry of per-task preprocessing functions used by preprocess_project
 TASK_PREPROC_FUNCS = Dict(
     "PILT" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt", kwargs...),
     "PILT_test" => (x; kwargs...) -> prepare_card_choosing_data(x; task_name = "pilt_test", kwargs...),
@@ -490,6 +565,13 @@ TASK_PREPROC_FUNCS = Dict(
     "open_text" => prepare_open_text_data
 )
 
+"""
+End-to-end preprocessing entrypoint for a REDCap project.
+- Loads from cache or fetches from API/manual files
+- Excludes testing participants and optional retakes
+- Splits and processes data per task using TASK_PREPROC_FUNCS
+Returns a NamedTuple of task DataFrames plus the raw `jspsych_data`.
+"""
 function preprocess_project(
     experiment::ExperimentInfo;
     force_download::Bool = false,
