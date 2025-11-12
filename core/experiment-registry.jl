@@ -13,6 +13,7 @@ struct ExperimentInfo
     participant_id_column::Symbol
     module_column::Symbol
     exclude_testing_participants::Function # Function(data::DataFrame; experiment::ExperimentInfo) -> DataFrame - filters out testing participants
+    exclude_retakes::Bool # Whether to exclude retakes of modules 
     date_collected::Union{Date, Nothing}
     notes::Union{String, Nothing}
 end
@@ -37,6 +38,7 @@ TRIAL1 = ExperimentInfo(
 
         return data
     end,
+    false,
     Date(2025, 6, 4),
     "First RELMED trial with participants.",
 )
@@ -62,6 +64,7 @@ NORMING = ExperimentInfo(
 
         return data
     end,
+    true,
     Date(2025, 10, 21),
     "General population norming sample of RELMED battery.",
 )
