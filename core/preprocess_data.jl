@@ -393,7 +393,7 @@ function prepare_questionnaire_data(
 					participant_id_column,
 					:module_start_time,
 					:session,
-                    experiment.module_column,
+					experiment.module_column,
 					:trialphase,
                     :trial_type,
 					:question,
