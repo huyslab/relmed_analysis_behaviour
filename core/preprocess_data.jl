@@ -402,7 +402,7 @@ function prepare_questionnaire_data(
 					row[participant_id_column],
 					row.module_start_time,
 					row.session,
-                    row[experiment.module_column],
+					row[experiment.module_column],
 					row.trialphase,
                     row.trial_type,
 					key,
