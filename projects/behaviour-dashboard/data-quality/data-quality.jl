@@ -535,7 +535,9 @@ function quality_checks(
     end
 
     # Add module start time
-    df.module_start_time = DateTime.(df.module_start_time, "yyyy-mm-dd_HH:MM:SS")
+    if !(dat.jspsych_data.module_start_time isa Vector{DateTime})
+        df.module_start_time = DateTime.(df.module_start_time, "yyyy-mm-dd_HH:MM:SS")
+    end
     module_start_times = combine(
         groupby(df, [experiment.participant_id_column, :session]),
         :module_start_time => minimum => :session_start_time,
