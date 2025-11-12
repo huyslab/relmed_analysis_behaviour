@@ -26,7 +26,11 @@ function exclude_retakes(
         :module_start_time => minimum => :first_start_time
     )
 
+    pre = nrow(sittings)
+
     filter!(x -> x.module_start_time == x.first_start_time, sittings)
+
+    @info "Excluded $(pre - nrow(sittings)) retake module attempts (kept the first attempt)"
 
     df = innerjoin(df, select(sittings, Not(:first_start_time)), on=[participant_id_column, :session, module_column, :module_start_time])
 
