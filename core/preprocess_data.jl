@@ -1,6 +1,6 @@
 # Preprocess data from REDCap, dividing into tasks and preparing various variables
-# Version: 1.0.3
-# Last Modified: 2025-11-05
+# Version: 1.0.4
+# Last Modified: 2025-11-12
 using DataFrames, JLD2, JSON
 include("$(pwd())/core/fetch_redcap.jl")
 include("$(pwd())/core/experiment-registry.jl")
