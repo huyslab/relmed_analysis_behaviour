@@ -68,12 +68,14 @@ The `env.list` file should contain:
 
 *Currently, only a Mac Silicone docker image is available. If you require an amd64 image, please let Yaniv or Haoyang know.*
 
+To access to the docker container registry, you need to first authenticate before pulling the container image: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic
+
 ### Option 1: Using Jupyter Lab
 
 1. **Launch Docker container**:
 
 ```bash
-docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12
+docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file env.list ghcr.io/huyslab/relmed:latest
 ```
 
 2. **Access Jupyter Lab**: Copy the URL from the Docker output and navigate to it in your browser. You can launch Pluto.jl notebooks from within Jupyter Lab for interactive analysis.
@@ -83,7 +85,7 @@ docker run -it --rm --name relmed -p 8888:8888 -v $(pwd):/home/jovyan --env-file
 1. **Launch container with bash**:
 
 ```bash
-docker run -it --rm --name relmed -v $(pwd):/home/jovyan --env-file env.list yanivabir/relmed:v1.12 /bin/bash
+docker run -it --rm --name relmed -v $(pwd):/home/jovyan --env-file env.list ghcr.io/huyslab/relmed:latest /bin/bash
 ```
 
 2. **Attach VS Code to container**: 

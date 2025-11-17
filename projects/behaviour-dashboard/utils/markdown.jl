@@ -1,4 +1,6 @@
 # Generate markdown dashboard
+using PrettyTables
+
 """
     Generates a markdown dashboard file (`dashboard.md`) containing all registered figures.
 
@@ -50,4 +52,17 @@ This dashboard contains all the generated figures from the behaviour analysis.
     println("📊 Included $(length(figure_registry)) figures")
     
     return markdown_file
+end
+
+# Helper to append a wide table to README.md
+function append_wide_table_to_readme(df::AbstractDataFrame; result_dir::String, title::String)
+    md_file = joinpath(result_dir, "README.md")
+    open(md_file, "a") do io
+        println(io, "\n\n### $(title)\n")
+        println(io, "<details><summary>Click to expand</summary>\n")
+        println(io, "```text")        
+        pretty_table(io, df)
+        println(io, "```")
+        println(io, "\n</details>")
+    end
 end

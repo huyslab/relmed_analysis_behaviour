@@ -1,0 +1,237 @@
+name: Weekly Dashboard Update
+
+on:
+  # Run every Friday at 8:45 AM UTC
+  schedule:
+    - cron: '45 8 * * 5'
+  # Allow manual trigger
+  workflow_dispatch:
+  # Optionally trigger on push to main for testing
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'projects/behaviour-dashboard/**'
+  #     - '.github/workflows/weekly-dashboard-update.yml'
+
+jobs:
+  generate-dashboard:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a token with write permissions to push changes
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Docker image (with caching)
+        run: |
+          # Check if image exists locally
+          if docker image inspect ghcr.io/huyslab/relmed:latest >/dev/null 2>&1; then
+            echo "Image found locally, checking for updates..."
+            # Pull to get latest version (Docker will use cache if unchanged)
+            docker pull ghcr.io/huyslab/relmed:latest
+            echo "Image verified and updated if necessary"
+          else
+            echo "Image not found locally, pulling..."
+            docker pull ghcr.io/huyslab/relmed:latest
+            echo "Image pulled successfully"
+          fi
+
+      - name: Create required directories
+        run: |
+          mkdir -p data
+          mkdir -p tmp
+          mkdir -p projects/behaviour-dashboard/results
+          mkdir -p data/trial1
+          mkdir -p data/norming
+          mkdir -p .cache/fontconfig
+          chmod -R 777 data tmp projects/behaviour-dashboard/results .cache
+
+      - name: Run dashboard generation script
+        env:
+          REDCAP_URL: ${{ secrets.REDCAP_URL }}
+          REDCAP_TOKEN_TRIAL1: ${{ secrets.REDCAP_TOKEN_TRIAL1 }}
+        run: |
+          # Run container with proper permissions
+          docker run --rm \
+            --user root \
+            --entrypoint bash \
+            -v $(pwd):/home/jovyan \
+            -e JULIA_NUM_THREADS=4 \
+            -e REDCAP_URL="${REDCAP_URL}" \
+            -e REDCAP_TOKEN_TRIAL1="${REDCAP_TOKEN_TRIAL1}" \
+            -e FONTCONFIG_PATH=/home/jovyan/.cache/fontconfig \
+            ghcr.io/huyslab/relmed:latest \
+            -c "chmod -R 777 /opt/cmdstan && cd /home/jovyan && julia /home/jovyan/projects/behaviour-dashboard/generate-figure-dashboard.jl "TRIAL1" false && chown -R $(id -u):$(id -g) /home/jovyan"
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          # Check if there are any changes at all
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "has_meaningful_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in dashboard results"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+
+            # Check if only README.md changed (timestamp-only update)
+            changed_files=$(git diff --name-only)
+            svg_changes=$(echo "$changed_files" | grep -c '\.svg$' || true)
+
+            if [ "$svg_changes" -gt 0 ]; then
+              echo "has_meaningful_changes=true" >> $GITHUB_OUTPUT
+              echo "Meaningful changes detected: $svg_changes SVG file(s) updated"
+              echo "$changed_files"
+            else
+              echo "has_meaningful_changes=false" >> $GITHUB_OUTPUT
+              echo "Only timestamp updated in README.md, no figure changes"
+            fi
+
+            git status
+          fi
+
+      - name: Configure Git
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Commit and push changes
+        id: commit_changes
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git add projects/behaviour-dashboard/results/trial1/
+
+          # Create appropriate commit message based on type of changes
+          if [ "${{ steps.check_changes.outputs.has_meaningful_changes }}" == "true" ]; then
+            commit_msg="chore: update behaviour dashboard visualizations
+
+          Automated weekly update of dashboard figures and report.
+
+          Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          🤖 Generated with GitHub Actions"
+          else
+            commit_msg="chore: update dashboard timestamp
+
+          No changes to figures - timestamp refresh only.
+
+          Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          🤖 Generated with GitHub Actions"
+          fi
+
+          git commit -m "$commit_msg"
+          git push origin main
+
+          # Capture the new commit SHA for Slack notification
+          NEW_COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$NEW_COMMIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Create summary
+        run: |
+          echo "## Dashboard Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow Run:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check_changes.outputs.has_changes }}" == "true" ]; then
+            if [ "${{ steps.check_changes.outputs.has_meaningful_changes }}" == "true" ]; then
+              echo "✅ Dashboard updated successfully with new data" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Files Changed:" >> $GITHUB_STEP_SUMMARY
+              git diff --name-only HEAD~1 HEAD >> $GITHUB_STEP_SUMMARY || echo "Changes committed and pushed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "ℹ️ Timestamp updated - no new figure changes" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "The dashboard was regenerated but figures are identical to the previous run." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "ℹ️ No changes detected - dashboard is up to date" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Send Slack notification
+        if: github.event_name == 'schedule' && steps.check_changes.outputs.has_meaningful_changes == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Get the repository URL and the latest commit SHA
+          REPO_URL="https://github.com/${{ github.repository }}"
+          DASHBOARD_URL="${REPO_URL}/blob/main/projects/behaviour-dashboard/results/trial1/README.md"
+          COMMIT_URL="${REPO_URL}/commit/${{ steps.commit_changes.outputs.commit_sha }}"
+
+          # Create Slack message payload
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📊 Behaviour Dashboard Updated",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "The weekly behaviour dashboard has been automatically updated with new data."
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Updated:*\n$(date -u +"%Y-%m-%d %H:%M UTC")"
+                  }
+                ]
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "📈 View Dashboard",
+                      "emoji": true
+                    },
+                    "url": "${DASHBOARD_URL}",
+                    "style": "primary"
+                  },
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "🔍 View Changes",
+                      "emoji": true
+                    },
+                    "url": "${COMMIT_URL}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
