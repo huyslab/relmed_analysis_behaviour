@@ -1,7 +1,7 @@
 begin
     cd("/home/jovyan")
 
-    using Turing, DynamicPPL, Distributions, Random, DataFrames, JLD2, Pathfinder
+    using Turing, DynamicPPL, Distributions, Random, DataFrames, JLD2
     include("$(pwd())/core/model_utils.jl")
 
     script_dir = dirname(@__FILE__)
