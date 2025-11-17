@@ -1,10 +1,5 @@
 begin
     cd("/home/jovyan")
-    import Pkg
-    # Activate the shared project environment
-    Pkg.activate("$(pwd())/environment")
-    # Instantiate, i.e. make sure that all packages are downloaded
-    Pkg.instantiate()
 
     using Turing, DynamicPPL, Distributions, Random, DataFrames, JLD2, Pathfinder
     include("$(pwd())/core/model_utils.jl")
