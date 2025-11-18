@@ -77,3 +77,31 @@ function load_or_run(
     end
 end
 
+# Precompute contiguous block ranges (block/participant boundaries or trial==1 start a new range)
+function _block_ranges(block::Vector{Int}, trial::Vector{Int}, participant::Vector{Int})
+    n = length(block)
+    @assert n == length(trial) == length(participant)
+    starts = Int[]
+    ends   = Int[]
+    participant_per_block = Int[]
+    
+    push!(starts, 1)
+    for i in 2:n
+        if (block[i] != block[i-1]) || (participant[i] != participant[i-1]) || (trial[i] == 1)
+            push!(ends, i - 1)
+            push!(participant_per_block, participant[i-1])
+            push!(starts, i)
+        end
+    end
+    push!(ends, n)
+    push!(participant_per_block, participant[n])
+    
+    # Build blocks_per_participant
+    N_participants = maximum(participant)
+    blocks_per_participant = [Int[] for _ in 1:N_participants]
+    for (bi, pid) in enumerate(participant_per_block)
+        push!(blocks_per_participant[pid], bi)
+    end
+    
+    return starts, ends, participant_per_block, blocks_per_participant
+end
