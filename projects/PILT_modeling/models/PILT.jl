@@ -1,6 +1,7 @@
 using LogExpFunctions: softmax
 using Distributions, Turing, DynamicPPL, LinearAlgebra
 using Distributions: Categorical
+using OhMyThreads
 
 """
 Hierarchical running average model for PILT task.
@@ -208,6 +209,84 @@ Processes data block-by-block rather than trial-by-trial.
             @addlogprob! (; loglikelihood = ll)
             
         end
+    else
+        # Prediction mode: some choices missing, need trial-by-trial sampling
+        for bi in eachindex(block_starts)
+
+            # Use local Q values to avoid cross-block contamination
+            let Q = copy(Q)
+                block_idx = block_starts[bi]:block_ends[bi]
+                ρ = ρs[participant_per_block[bi]]
+
+                # Process each trial in block sequentially
+                for idx in block_idx
+                    # Sample or condition on choice given current Q values
+                    choice[idx] ~ Categorical(softmax(Q))
+
+                    # Update Q values based on chosen action and outcome
+                    a = choice[idx]  # Action taken
+                    r = outcomes[idx, a]  # Reward received
+                    Q[a] += running_average_update(
+                        trial[idx],
+                        r,
+                        ρ,
+                        Q[a]
+                    )
+                end
+            end
+        end
+
+    end
+end
+
+@model function hierarchical_running_average_parallel(;
+    block_starts::Vector{Int},
+    block_ends::Vector{Int},
+    trial::Vector{Int64},
+    outcomes::Matrix{Float64},
+    N_actions::Int = 2,
+    choice::Union{Vector{Missing}, Vector{Int}},
+    participant_per_block::Vector{Int},
+    N_participants::Int,
+    initial_value::Float64 = 0.0,
+    priors::Dict = Dict(
+        :logρ => Normal(0, 1.5),
+        :τ    => truncated(Normal(0, 0.5), 0, 100),
+    ),
+)
+    # Group-level hyperpriors
+    logρ ~ priors[:logρ]  # Group mean of log reward sensitivity
+    τ    ~ priors[:τ]     # Between-participant variability
+
+    # Participant-level random effects
+    θ  ~ filldist(Normal(0, 1), N_participants)
+    # Individual reward sensitivities (non-centered parameterization with clamping)
+    ρs = exp.(clamp.(logρ .+ τ .* θ, -10, 10))
+
+    # Initialize Q values (type matches ρs for stability)
+    Q = fill(initial_value * ρs[1], N_actions)
+
+    # Branch based on whether we're fitting (no missing) or predicting (has missing)
+    if !any(ismissing.(choice))
+        # Fitting mode: all choices observed, use efficient block likelihood
+        let ρs = ρs, Q = Q, choice = choice, trial = trial, outcomes = outcomes  # Capture variables in local scope for thread safety
+            total_ll = tmapreduce(+, eachindex(block_starts)) do bi
+                # Get indices for current block
+                block_idx = block_starts[bi]:block_ends[bi]
+
+                # Compute log-likelihood for entire block
+                running_average_block_ll(
+                    ρ = ρs[participant_per_block[bi]],
+                    N_trials = length(block_idx),
+                    choice = choice[block_idx],
+                    trial = trial[block_idx],
+                    outcomes = outcomes[block_idx, :],
+                    Q = copy(Q)  # Use fresh Q values for each block
+                )
+            end
+            
+            @addlogprob! total_ll
+        end    
     else
         # Prediction mode: some choices missing, need trial-by-trial sampling
         for bi in eachindex(block_starts)
