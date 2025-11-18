@@ -53,4 +53,112 @@ using Distributions: Categorical
 
 end
 
+function running_average_update(
+    trial::Int,
+    outcome::Float64,
+    ρ::Real,
+    Q::Real
+)
+    α = 1 / trial
+    PE = outcome * ρ - Q
+    return α * PE
+end
+
+
+function running_average_block_ll(;
+    ρ::Real,
+    N_trials::Int,
+    choice::Vector{Int},
+    trial::Vector{Int64}, # Trial number in block
+    outcomes::Matrix{Float64},
+    Q::Vector{<:Real}
+)
+
+    ll = 0.0
+    for i in 1:N_trials
+        # Likelihood at current Q
+        ll += logpdf(Categorical(softmax(Q)), choice[i])
+
+        # Update Q values
+        Q[choice[i]] += running_average_update(
+            trial[i],
+            outcomes[i, choice[i]],
+            ρ,
+            Q[choice[i]]
+        )
+    end
+
+    return ll
+end
+
+@model function hierarchical_running_average_blockloop(;
+    block_starts::Vector{Int},
+    block_ends::Vector{Int},
+    trial::Vector{Int64}, # Trial number in block
+    outcomes::Matrix{Float64},            # Outcomes for options (rows align with rows of block/trial/participant)
+    N_actions::Int = 2,                   # Number of actions
+    choice::Union{Vector{Missing}, Vector{Int}},
+    participant_per_block::Vector{Int},
+    N_participants::Int,
+    initial_value::Float64 = 0.0,         # Initial Q values
+    priors::Dict = Dict(
+        :logρ => Normal(0, 1.5),
+        :τ    => truncated(Normal(0, 0.5), 0, 100),
+    ),
+)
+    # Group-level hyperpriors
+    logρ ~ priors[:logρ]
+    τ    ~ priors[:τ]
+
+    # Participant-level random coefficients
+    θ  ~ filldist(Normal(0, 1), N_participants)
+    ρs = exp.(clamp.(logρ .+ τ .* θ, -10, 10))  # Individual reward sensitivities
+
+    # Initialize Q outside the loop
+    Q = fill(initial_value * ρs[1], N_actions)
+
+    # Loop by block; sequential updates within a block
+    if !any(ismissing.(choice))
+        for bi in eachindex(block_starts)
+
+            block_idx = block_starts[bi]:block_ends[bi]
+
+            ll = running_average_block_ll(
+                ρ = ρs[participant_per_block[bi]],
+                N_trials = length(block_idx),
+                choice = choice[block_idx],
+                trial = trial[block_idx],
+                outcomes = outcomes[block_idx, :],
+                Q = copy(Q)  # Pass a copy to avoid mutating across blocks
+            )
+
+            @addlogprob! (; loglikelihood = ll)
+            
+        end
+    else
+        for bi in eachindex(block_starts)
+
+            let Q = copy(Q)  # Local Q for this block
+                block_idx = block_starts[bi]:block_ends[bi]
+                ρ = ρs[participant_per_block[bi]]
+
+                for idx in block_idx
+                    # Draw/condition choice at current Q
+                    choice[idx] ~ Categorical(softmax(Q))
+
+                    # Update Q values
+                    a = choice[idx]
+                    r = outcomes[idx, a]
+                    Q[a] += running_average_update(
+                        trial[idx],
+                        r,
+                        ρ,
+                        Q[a]
+                    )
+                end
+            end
+        end
+
+    end
+end
 

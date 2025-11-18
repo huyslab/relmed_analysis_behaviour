@@ -97,11 +97,11 @@ fs_running_average = let running_average_ground_truth_priors = Dict(
 
 end
 
-fs_running_average2 = let running_average_ground_truth_priors = Dict(
+fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
         :logρ => Dirac(1.3),
         :τ => Dirac(0.5)
     ), N_participants = 10, rng = Xoshiro(0),
-    model_name = "running_average2"
+    model_name = "running_average_blockloop"
 
     n_trials = nrow(task_sequence)
 
@@ -110,16 +110,17 @@ fs_running_average2 = let running_average_ground_truth_priors = Dict(
         task_sequence
     )
 
-    # Extract common data structures
-    outcomes = [hcat(gdf.feedback_left, gdf.feedback_right) for gdf in groupby(task_sequences, [:participant, :block])]
-    participant_per_block = unique(task_sequences[!, [:participant, :block]]).participant
+    block_starts, block_ends, participant_per_block = _block_ranges(task_sequences.block, task_sequences.trial, task_sequences.participant)
 
-    missing_data_model = hierarchical_running_average2(;
+    missing_data_model = hierarchical_running_average_blockloop(;
+        block_starts = block_starts,
+        block_ends = block_ends,
+        trial = task_sequences.trial,
+        outcomes = hcat(task_sequences.feedback_left, task_sequences.feedback_right),
         N_actions = 2,
-        outcomes = outcomes,
-        choice = [fill(missing, nrow(gdf)) for gdf in groupby(task_sequences, [:participant, :block])],
-        N_participants = N_participants,
+        choice = fill(missing, nrow(task_sequences)),
         participant_per_block = participant_per_block,
+        N_participants = N_participants,
         initial_value = 0.0, # Initial Q values,
         priors = running_average_ground_truth_priors
     )
@@ -131,36 +132,25 @@ fs_running_average2 = let running_average_ground_truth_priors = Dict(
         1
     )
 
-    # Extract simulated data and true random effects
-    choice = extract_array_parameter(prior_draw, "choice")
-
-    function extract_first_index(param_string::String)
-        # Match the first index in brackets
-        m = match(r"\[(\d+)\]", param_string)
-        return m !== nothing ? parse(Int, m.captures[1]) : nothing
-    end
-
-    transform!(choice, :parameter => ByRow(extract_first_index) => :cblock)
-
-
+    # Extract true random effects
     θ = extract_array_parameter(prior_draw, "θ")
+    choice = extract_array_parameter(prior_draw, "choice")
 
 
     # Fit model to simulated data
-    data_model = hierarchical_running_average2(
+    data_model = hierarchical_running_average_blockloop(
+        block_starts = block_starts,
+        block_ends = block_ends,
+        trial = task_sequences.trial,
+        outcomes = hcat(task_sequences.feedback_left, task_sequences.feedback_right),
         N_actions = 2,
-        outcomes = outcomes,
-        choice = [Int.(gdf.value) for gdf in groupby(choice, :cblock)],
-        N_participants = N_participants,
+        choice = Int.(choice.value),
         participant_per_block = participant_per_block,
-        initial_value = 0.0, # Initial Q values,
-        priors = running_average_ground_truth_priors
+        N_participants = N_participants,
+        initial_value = 0.0
     )
 
-    # Run MCMC sampling
-    init_values = [Dict(:logρ => 1.0, :τ => 0.1, :θ => zeros(N_participants))]
-    chain = sample(rng, data_model, NUTS(), 1000; init_params = init_values)
-    # chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4))
+    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4))
 
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
@@ -183,3 +173,4 @@ fs_running_average2 = let running_average_ground_truth_priors = Dict(
     f1, f2
 
 end
+
