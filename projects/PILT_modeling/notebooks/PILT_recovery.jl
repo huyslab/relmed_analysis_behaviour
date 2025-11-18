@@ -100,10 +100,8 @@ end
 fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
         :logρ => Dirac(1.3),
         :τ => Dirac(0.5)
-    ), N_participants = 10, rng = Xoshiro(0),
+    ), N_participants = 20, rng = Xoshiro(0),
     model_name = "running_average_blockloop"
-
-    n_trials = nrow(task_sequence)
 
     task_sequences = crossjoin(
         DataFrame(participant = 1:N_participants),
@@ -150,7 +148,11 @@ fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
         initial_value = 0.0
     )
 
-    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4))
+    init_params = [
+        rand(rng, data_model) for _ in 1:4
+    ]
+    
+    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4; initial_params=init_params))
 
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
@@ -173,4 +175,85 @@ fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
     f1, f2
 
 end
+
+fs_running_average_parallel = let running_average_ground_truth_priors = Dict(
+        :logρ => Dirac(1.3),
+        :τ => Dirac(0.5)
+    ), N_participants = 20, rng = Xoshiro(0),
+    model_name = "running_average_parallel"
+
+    task_sequences = crossjoin(
+        DataFrame(participant = 1:N_participants),
+        task_sequence
+    )
+
+    block_starts, block_ends, participant_per_block = _block_ranges(task_sequences.block, task_sequences.trial, task_sequences.participant)
+
+    missing_data_model = hierarchical_running_average_parallel(;
+        block_starts = block_starts,
+        block_ends = block_ends,
+        trial = task_sequences.trial,
+        outcomes = hcat(task_sequences.feedback_left, task_sequences.feedback_right),
+        N_actions = 2,
+        choice = fill(missing, nrow(task_sequences)),
+        participant_per_block = participant_per_block,
+        N_participants = N_participants,
+        initial_value = 0.0, # Initial Q values,
+        priors = running_average_ground_truth_priors
+    )
+
+    prior_draw = sample(
+        rng,
+        missing_data_model,
+        Prior(),
+        1
+    )
+
+    # Extract true random effects
+    θ = extract_array_parameter(prior_draw, "θ")
+    choice = extract_array_parameter(prior_draw, "choice")
+
+
+    # Fit model to simulated data
+    data_model = hierarchical_running_average_parallel(
+        block_starts = block_starts,
+        block_ends = block_ends,
+        trial = task_sequences.trial,
+        outcomes = hcat(task_sequences.feedback_left, task_sequences.feedback_right),
+        N_actions = 2,
+        choice = Int.(choice.value),
+        participant_per_block = participant_per_block,
+        N_participants = N_participants,
+        initial_value = 0.0
+    )
+
+    init_params = [
+        rand(rng, data_model) for _ in 1:4
+    ]
+
+
+    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCSerial(), 1000, 4; initial_params=init_params))
+
+    @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
+
+    # Plot fixed effects recovery
+    f1 = Figure()
+    plot_fixed_effects_recovery!(
+        f1,
+        chain,
+        running_average_ground_truth_priors
+    )
+
+    # Plot random effects recovery
+    f2 = Figure()
+    plot_random_effects_recovery!(
+        f2,
+        chain,
+        θ
+    )
+    
+    f1, f2
+
+end
+
 
