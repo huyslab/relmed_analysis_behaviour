@@ -232,7 +232,7 @@ fs_running_average_parallel = let running_average_ground_truth_priors = Dict(
     ]
 
 
-    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCSerial(), 1000, 4; initial_params=init_params))
+    chain = load_or_run(joinpath(saved_models_dir, model_name), () -> sample(rng, data_model, NUTS(), MCMCThreads(), 1000, 4; initial_params=init_params); force_run = true)
 
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
