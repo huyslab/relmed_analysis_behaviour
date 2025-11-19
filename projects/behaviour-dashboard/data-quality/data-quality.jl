@@ -298,7 +298,7 @@ function calculate_task_accuracies(
     )
     
     # PILT accuracy: only include valid responses and numeric blocks during main task
-    pilt_acc = filter(x -> x.response in ["left", "right"] && isa(tryparse(Int64, string(x.block)), Number), pilt)
+    pilt_acc = filter(x -> !ismissing(x.response) && x.response in ["left", "right"] && isa(tryparse(Int64, string(x.block)), Number), pilt)
     pilt_acc = combine(
         groupby(pilt_acc, [experiment.participant_id_column, :session]),
         :response_optimal => (x -> round(mean(x), digits = 2)) => :pilt_accuracy,
