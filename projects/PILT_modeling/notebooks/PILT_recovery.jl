@@ -23,18 +23,26 @@ task_sequence = load_PILT_sequence(
     )
 )
 
+function prepare_task_sequences(task_sequence, N_participants)
+    task_sequences = crossjoin(
+        DataFrame(participant = 1:N_participants),
+        task_sequence
+    )
+    block_starts, block_ends, participant_per_block = _block_ranges(
+        task_sequences.block, 
+        task_sequences.trial, 
+        task_sequences.participant
+    )
+    return task_sequences, block_starts, block_ends, participant_per_block
+end
+
 fs_running_average = let running_average_ground_truth_priors = Dict(
         :logρ => Dirac(1.3),
         :τ => Dirac(0.5)
     ), N_participants = 10, rng = Xoshiro(0),
     model_name = "running_average"
 
-    n_trials = nrow(task_sequence)
-
-    task_sequences = crossjoin(
-        DataFrame(participant = 1:N_participants),
-        task_sequence
-    )
+    task_sequences, _, _, _ = prepare_task_sequences(task_sequence, N_participants)
 
     missing_data_model = hierarchical_running_average(;
         block = task_sequences.block,
@@ -100,15 +108,10 @@ end
 fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
         :logρ => Dirac(1.3),
         :τ => Dirac(0.5)
-    ), N_participants = 20, rng = Xoshiro(0),
+    ), N_participants = 200, rng = Xoshiro(0),
     model_name = "running_average_blockloop"
 
-    task_sequences = crossjoin(
-        DataFrame(participant = 1:N_participants),
-        task_sequence
-    )
-
-    block_starts, block_ends, participant_per_block = _block_ranges(task_sequences.block, task_sequences.trial, task_sequences.participant)
+    task_sequences, block_starts, block_ends, participant_per_block = prepare_task_sequences(task_sequence, N_participants)
 
     missing_data_model = hierarchical_running_average_blockloop(;
         block_starts = block_starts,
@@ -179,15 +182,10 @@ end
 fs_running_average_parallel = let running_average_ground_truth_priors = Dict(
         :logρ => Dirac(1.3),
         :τ => Dirac(0.5)
-    ), N_participants = 20, rng = Xoshiro(0),
+    ), N_participants = 200, rng = Xoshiro(0),
     model_name = "running_average_parallel"
 
-    task_sequences = crossjoin(
-        DataFrame(participant = 1:N_participants),
-        task_sequence
-    )
-
-    block_starts, block_ends, participant_per_block = _block_ranges(task_sequences.block, task_sequences.trial, task_sequences.participant)
+    task_sequences, block_starts, block_ends, participant_per_block = prepare_task_sequences(task_sequence, N_participants)
 
     missing_data_model = hierarchical_running_average_parallel(;
         block_starts = block_starts,
