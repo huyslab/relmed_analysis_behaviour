@@ -88,14 +88,12 @@ Compute the Q-value update for a single trial using running average rule.
 # Returns
 - Q-value update (Δ Q)
 """
-function running_average_update(
-    trial::Int,
+function compute_update(;
+    α::Real,
     outcome::Float64,
     ρ::Real,
     Q::Real
 )
-    # Learning rate decreases over trials (running average)
-    α = 1 / trial
     # Prediction error: scaled reward minus current expectation
     PE = outcome * ρ - Q
     # Return the update increment
@@ -133,11 +131,11 @@ function running_average_block_ll(;
         ll += logpdf(Categorical(softmax(Q)), choice[i])
 
         # Update Q values for next trial
-        Q[choice[i]] += running_average_update(
-            trial[i],
-            outcomes[i, choice[i]],
-            ρ,
-            Q[choice[i]]
+        Q[choice[i]] += compute_update(
+            α = 1 / trial[i],
+            outcome = outcomes[i, choice[i]],
+            ρ = ρ,
+            Q = Q[choice[i]]
         )
     end
 
@@ -226,11 +224,11 @@ Processes data block-by-block rather than trial-by-trial.
                     # Update Q values based on chosen action and outcome
                     a = choice[idx]  # Action taken
                     r = outcomes[idx, a]  # Reward received
-                    Q[a] += running_average_update(
-                        trial[idx],
-                        r,
-                        ρ,
-                        Q[a]
+                    Q[a] += compute_update(
+                        α = 1 / trial[idx],
+                        outcome = r,
+                        ρ = ρ,
+                        Q = Q[a]
                     )
                 end
             end
@@ -304,11 +302,11 @@ end
                     # Update Q values based on chosen action and outcome
                     a = choice[idx]  # Action taken
                     r = outcomes[idx, a]  # Reward received
-                    Q[a] += running_average_update(
-                        trial[idx],
-                        r,
-                        ρ,
-                        Q[a]
+                    Q[a] += compute_update(
+                        α = 1 / trial[idx],
+                        outcome = r,
+                        ρ = ρ,
+                        Q = Q[a]
                     )
                 end
             end
