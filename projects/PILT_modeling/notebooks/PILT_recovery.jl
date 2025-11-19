@@ -67,7 +67,6 @@ fs_running_average = let running_average_ground_truth_priors = Dict(
     choice = extract_array_parameter(prior_draw, "choice")
     θ = extract_array_parameter(prior_draw, "θ")
 
-
     # Fit model to simulated data
     data_model = hierarchical_running_average(
         block = task_sequences.block,
@@ -86,22 +85,21 @@ fs_running_average = let running_average_ground_truth_priors = Dict(
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
     # Plot fixed effects recovery
-    f1 = Figure()
+    f = Figure(size = (1200, 600))
     plot_fixed_effects_recovery!(
-        f1,
+        f[1,1],
         chain,
         running_average_ground_truth_priors
     )
 
     # Plot random effects recovery
-    f2 = Figure()
     plot_random_effects_recovery!(
-        f2,
+        f[1,2],
         chain,
         θ
     )
     
-    f1, f2
+    f
 
 end
 
@@ -160,22 +158,22 @@ fs_running_average_blockloop = let running_average_ground_truth_priors = Dict(
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
     # Plot fixed effects recovery
-    f1 = Figure()
+    # Plot fixed effects recovery
+    f = Figure(size = (1200, 600))
     plot_fixed_effects_recovery!(
-        f1,
+        f[1,1],
         chain,
         running_average_ground_truth_priors
     )
 
     # Plot random effects recovery
-    f2 = Figure()
     plot_random_effects_recovery!(
-        f2,
+        f[1,2],
         chain,
         θ
     )
     
-    f1, f2
+    f
 
 end
 
@@ -235,22 +233,22 @@ fs_running_average_parallel = let running_average_ground_truth_priors = Dict(
     @info "Model fit in: $(MCMCChains.wall_duration(chain)) seconds"
 
     # Plot fixed effects recovery
-    f1 = Figure()
+    # Plot fixed effects recovery
+    f = Figure(size = (1200, 600))
     plot_fixed_effects_recovery!(
-        f1,
+        f[1,1],
         chain,
         running_average_ground_truth_priors
     )
 
     # Plot random effects recovery
-    f2 = Figure()
     plot_random_effects_recovery!(
-        f2,
+        f[1,2],
         chain,
         θ
     )
     
-    f1, f2
+    f
 
 end
 
