@@ -400,3 +400,39 @@ function plot_choice_pred_curves(
   Label(fig[end+1, :], caption, halign=:right, tellwidth=false)
   fig
 end
+
+# Function to plot interaction effects of intervals by effort level
+function plot_effort_interaction(model, data_df, predictor_var::String;
+  xlabel::String=predictor_var,
+  ylabel::String="P[Left]",
+  color_palette=["lightskyblue1", "deepskyblue3", "midnightblue"])
+
+  predictor_sym = Symbol(predictor_var)
+
+  # Compute effects
+  eff = effects(
+    Dict(:current => unique(data_df.current),
+      predictor_sym => range(extrema(data_df[!, predictor_sym])..., length=50)),
+    model; level=0.95, eff_col = :response_left
+  )
+  transform!(eff, [:response_left, :err, :lower, :upper] .=> ByRow(logistic), renamecols=false)
+
+  # Create plot
+  data(eff) *
+  (
+    mapping(
+      predictor_sym => xlabel,
+      :lower,
+      :upper,
+      color=:current => nonnumeric => "Required effort level",
+      group=:current => nonnumeric => "Required effort level") *
+    visual(Band; alpha=plot_config[:band_alpha]) +
+    mapping(
+      predictor_sym => xlabel,
+      :response_left => ylabel,
+      color=:current => nonnumeric => "Required effort level",
+      group=:current => nonnumeric) *
+    visual(Lines)
+  ) |>
+  draw(scales(Color=(; palette=color_palette)); axis=(; ylabel=ylabel))
+end
