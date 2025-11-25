@@ -13,22 +13,34 @@
 # ## Initialization and loading data
 
 begin
-  cd("/home/jovyan")
-  include("$(pwd())/core/experiment-registry.jl")
+  cd("/home/jovyan") # Keep this if you need the root CWD
+  
+  # 1. Define where your script is and where the modules are
+  script_dir = dirname(@__FILE__) # Gets ".../projects/control-task-analysis/scripts"
+  module_dir = joinpath(script_dir, "common")
 
-  using DataFrames, TidierData, CairoMakie, AlgebraOfGraphics, Dates, CategoricalArrays, StatsBase, GLM, MixedModels, Random
+  # 2. Add the 'common' folder to Julia's search path
+  if !(module_dir in LOAD_PATH)
+      push!(LOAD_PATH, module_dir)
+  end
+
+  # 3. Load standard packages
+  using DataFrames, TidierData, CairoMakie, AlgebraOfGraphics
+  using Dates, CategoricalArrays, StatsBase, GLM, MixedModels, Random
   using LogExpFunctions: logistic, logit
   using StandardizedPredictors, Effects
+  using Revise
 
-  # Include data scripts
+  # 4. Now 'using' will find your files in 'common'
+  # Note: The file names must match the module names (e.g., ControlUtils.jl defines module ControlUtils)
+  using ControlUtils
+  using ControlPlots
+  using ControlAnalysis
+
+  # Include other legacy scripts if needed
+  include("$(pwd())/core/experiment-registry.jl")
   include("$(pwd())/core/preprocess_data.jl")
-
-  script_dir = dirname(@__FILE__)
-
-  # Load configurations and theme
-  include(joinpath(script_dir, "common", "config.jl"))
-  include(joinpath(script_dir, "common", "utils.jl"))
-  include(joinpath(pwd(), "projects", "control-task-analysis", "scripts", "common", "control_exploration_fn.jl"))
+  include(joinpath(script_dir, "common", "config.jl")) 
 
   experiment = NORMING
 end
@@ -37,7 +49,7 @@ end
 
 # Load and preprocess data
 begin
-  dat = preprocess_project(experiment; force_download=false, delay_ms=65, use_manual_download=false)
+  dat = preprocess_project(experiment; force_download=true, delay_ms=65, use_manual_download=false)
 end
 
 begin
@@ -58,89 +70,7 @@ Several features might be used to predict participants' choices during explorati
 =#
 
 begin
-  ## Preprocess control task data to choice data
-  explore_choice_df = @chain control_task_data begin
-    filter(x -> x.trialphase .== "control_explore", _)
-    select([:participant_id, :session, :trial, :left, :right, :response, :control_rule_used, :current, :trial_presses])
-    transform([:left, :right, :response] => ByRow((left, right, resp) -> ismissing(resp) ? missing : ifelse(resp == "left", left, right)) => :choice)
-    transform(:current => (x -> categorical(x; levels=[1, 2, 3], ordered=true)) => :current)
-    groupby([:participant_id, :session])
-    DataFrames.transform(
-      :trial => (x -> 1:length(x)) => :trial_number
-    )
-    add_ship_onehot(_)
-  end
-
-  ## 1. Interval from last seen
-  explore_by_interval = @chain explore_choice_df begin
-    groupby([:participant_id, :session])
-    transform(
-      [
-      ([:trial_number, color] =>
-        ((t, occ) -> calc_choice_interval(t, occ, occ .== occ)) => color)
-      for color in (:blue, :green, :yellow, :red)
-    ]
-    )
-    add_explorative_measure(_, metric="interval")
-    rename(:explorative_val => :diff_interval)
-    select(Not([:blue, :green, :yellow, :red]))
-  end
-
-  ## 2. Interval from last (controlled) choice
-  explore_by_choice_interval = @chain explore_choice_df begin
-    groupby([:participant_id, :session])
-    transform(
-      [
-      ([:trial_number, Symbol(color), :choice, :control_rule_used] =>
-        ((t, occ, choice, r) -> calc_choice_interval(t, occ, .!ismissing.(r) .&& choice .== color .&& r .== "control")) => Symbol(color))
-      for color in ("blue", "green", "yellow", "red")
-    ]
-    )
-    add_explorative_measure(_, metric="interval")
-    rename(:explorative_val => :diff_choice_interval)
-    select(Not([:blue, :green, :yellow, :red]))
-  end
-
-  ## 3. Number of occurrence
-  explore_by_occur = @chain explore_choice_df begin
-    groupby([:participant_id, :session])
-    transform(
-      [:blue, :green, :yellow, :red] .=> cumsum, renamecols=false
-    )
-    add_explorative_measure(_, metric="occurrence")
-    rename(:explorative_val => :diff_occurrence)
-    select(Not([:blue, :green, :yellow, :red]))
-  end
-
-  ## 4. Number of (controlled) choice
-  explore_by_choice_occur = @chain explore_choice_df begin
-    transform(
-      [
-      ([:choice, :control_rule_used, Symbol(color)] =>
-        ByRow((choice, rule, val) -> (!ismissing(choice) && rule == "control" && choice == color) ? val : 0) => Symbol(color))
-      for color in ("blue", "green", "yellow", "red")
-    ]
-    )
-    groupby([:participant_id, :session])
-    transform([:blue, :green, :yellow, :red] .=> x -> lag(x; default=0), renamecols=false)
-    groupby([:participant_id, :session])
-    transform(
-      [:blue, :green, :yellow, :red] .=> cumsum, renamecols=false
-    )
-    add_explorative_measure(_, metric="occurrence")
-    rename(:explorative_val => :diff_choice_occurrence)
-    select(Not([:blue, :green, :yellow, :red]))
-  end
-
-  ## Merge all features
-  feature_keys = [:participant_id, :session, :trial_number]
-  explore_features_df = reduce((left, right) -> leftjoin(left, right, on=feature_keys), [
-    explore_choice_df,
-    select(explore_by_interval, feature_keys..., :diff_interval),
-    select(explore_by_choice_interval, feature_keys..., :diff_choice_interval),
-    select(explore_by_occur, feature_keys..., :diff_occurrence),
-    select(explore_by_choice_occur, feature_keys..., :diff_choice_occurrence)
-  ])
+  explore_features_df = build_exploration_features(control_task_data)
 end
 
 #+
@@ -155,111 +85,34 @@ begin
   non_blue_df = filter(row -> !(row.left == "blue" || row.right == "blue"), explore_features_df)
 
   ## Standardize features
-  transform!(non_blue_df, [:diff_interval, :diff_choice_interval, :diff_occurrence, :diff_choice_occurrence, :trial_number] .=> (x -> (x .- mean(x)) ./ std(x)) .=> (n -> Symbol(string(n), "_scaled")), renamecols=false)
+  transform!(non_blue_df, [:diff_interval, :diff_choice_interval, :diff_occurrence, :diff_choice_occurrence, :trial_number] .=> zscore_with_missing .=> (n -> Symbol(string(n), "_z")), renamecols=false)
 end
 
 begin
   ## GLMM for exploration choices (excluding blue ship trials), full model
-  m0 = glmm(@formula(response_left ~ diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled + (diff_interval_scaled + diff_choice_interval_scaled + diff_occurrence_scaled + diff_choice_occurrence_scaled | participant_id)), non_blue_df, Bernoulli(), fast=false, progress=false)
+  m0 = glmm(@formula(response_left ~ diff_interval_z + diff_choice_interval_z + diff_occurrence_z + diff_choice_occurrence_z + (diff_interval_z + diff_choice_interval_z + diff_occurrence_z + diff_choice_occurrence_z | participant_id)), non_blue_df, Bernoulli(), fast=false, progress=false)
 end
 
 let
-  ## Visualize fixed-effect estimates and marginal predictions using Effects.jl
-  coef_tbl = DataFrame(coeftable(m0))
-  rename!(coef_tbl, Symbol("Coef.") => :coef, Symbol("Std. Error") => :se)
-  coef_tbl.term = string.(coefnames(m0))
-  coef_tbl.lower = coef_tbl.coef .- 1.96 .* coef_tbl.se
-  coef_tbl.upper = coef_tbl.coef .+ 1.96 .* coef_tbl.se
-
-  term_order = reverse(coef_tbl.term)
-  order_idx = reverse(1:nrow(coef_tbl))
+  predictor_vars = ["diff_interval_z", "diff_choice_interval_z",
+    "diff_occurrence_z", "diff_choice_occurrence_z"]
 
   predictor_labels = Dict(
-    "diff_interval_scaled" => "Last seen interval (z)",
-    "diff_choice_interval_scaled" => "Last controlled interval (z)",
-    "diff_occurrence_scaled" => "Cumulative seen (z)",
-    "diff_choice_occurrence_scaled" => "Cumulative controlled (z)",
+    "diff_interval_z" => "Last seen interval (z)",
+    "diff_choice_interval_z" => "Last controlled interval (z)",
+    "diff_occurrence_z" => "Cumulative seen (z)",
+    "diff_choice_occurrence_z" => "Cumulative controlled (z)",
     "(Intercept)" => "Intercept"
   )
 
-  coef_ax_ticks = (1:length(term_order), [predictor_labels[i] for i in term_order])
-
-  # Generate effects for all predictors using Effects.jl
-  x_range = range(-2.5, 2.5; length=200)
-  predictor_vars = ["diff_interval_scaled", "diff_choice_interval_scaled",
-    "diff_occurrence_scaled", "diff_choice_occurrence_scaled"]
-
-  # Compute effects for each predictor
-  predictor_effects = Dict(
-    var => effects(Dict(Symbol(var) => x_range), m0; invlink=logistic, level=0.95)
-    for var in predictor_vars
+  predictor_colors = Dict(
+    "diff_interval_z" => :royalblue3,
+    "diff_choice_interval_z" => :darkorange2,
+    "diff_occurrence_z" => :seagreen3,
+    "diff_choice_occurrence_z" => :mediumpurple3,
   )
 
-  # Extract coefficients for labels
-  coef_names = string.(coefnames(m0))
-  fixefs = collect(fixef(m0))
-  predictor_coefs = Dict(
-    var => fixefs[findfirst(==(var), coef_names)]
-    for var in predictor_vars
-  )
-
-  line_colors = Dict(
-    "diff_interval_scaled" => :royalblue3,
-    "diff_choice_interval_scaled" => :darkorange2,
-    "diff_occurrence_scaled" => :seagreen3,
-    "diff_choice_occurrence_scaled" => :mediumpurple3,
-  )
-
-  # Helper function to plot marginal effects
-  function plot_marginal_effects!(ax, var_names)
-    for var_name in var_names
-      eff = predictor_effects[var_name]
-      color = line_colors[var_name]
-      β = predictor_coefs[var_name]
-
-      band!(ax, eff[!, Symbol(var_name)], eff.lower, eff.upper; color=(color, 0.2))
-      lines!(ax, eff[!, Symbol(var_name)], eff.response_left;
-        color=color, linewidth=3,
-        label="$(predictor_labels[var_name]) (β=$(round(β, digits=3)))")
-    end
-  end
-
-  m0_effect_fig = Figure(size=(1200, 300))
-
-  # Fixed-effects coefficient plot
-  ax_coef = Axis(m0_effect_fig[1, 1];
-    title="Fixed-effects (log-odds)",
-    xlabel="Estimate",
-    yticks=coef_ax_ticks,
-    yreversed=true)
-
-  vlines!(ax_coef, [0]; color=:black, linestyle=:dash)
-  xerr_lower = coef_tbl.coef[order_idx] .- coef_tbl.lower[order_idx]
-  xerr_upper = coef_tbl.upper[order_idx] .- coef_tbl.coef[order_idx]
-  errorbars!(ax_coef, coef_tbl.coef[order_idx], 1:length(term_order), xerr_lower, xerr_upper; direction=:x, color=:black)
-  scatter!(ax_coef, coef_tbl.coef[order_idx], 1:length(term_order); color=:black)
-
-  # Interval predictors plot
-  ax_interval = Axis(m0_effect_fig[1, 3]; ylabelvisible=false)
-  vlines!(ax_interval, [0]; color=(:black, 0.4), linestyle=:dash)
-  ylims!(ax_interval, 0, 1)
-  ax_interval.xlabel = "Predictor (z)"
-  ax_interval.title = "Interval predictors"
-
-  plot_marginal_effects!(ax_interval, ["diff_interval_scaled", "diff_choice_interval_scaled"])
-  axislegend(ax_interval, position=:rb)
-
-  # Occurrence predictors plot
-  ax_occurrence = Axis(m0_effect_fig[1, 2]; ylabelvisible=false)
-  vlines!(ax_occurrence, [0]; color=(:black, 0.4), linestyle=:dash)
-  ylims!(ax_occurrence, 0, 1)
-  ax_occurrence.xlabel = "Predictor"
-  ax_occurrence.title = "Occurrence predictors"
-
-  plot_marginal_effects!(ax_occurrence, ["diff_occurrence_scaled", "diff_choice_occurrence_scaled"])
-  axislegend(ax_occurrence, position=:rb)
-
-  m0_effect_fig
+  plot_glmm_effects(m0, predictor_vars; predictor_labels, predictor_colors)
 end
 
 # ### What's the relationship between the last seen and last controlled intervals?
@@ -299,7 +152,7 @@ let
     library(afex)
     library(emmeans)
     set_sum_contrasts()
-    m0_1_r <- glmer(response_left ~ diff_interval_scaled * diff_choice_interval_scaled + (diff_interval_scaled * diff_choice_interval_scaled | participant_id),
+    m0_1_r <- glmer(response_left ~ diff_interval_z * diff_choice_interval_z + (diff_interval_z * diff_choice_interval_z | participant_id),
       data=non_blue_df,
       family=binomial, control=glmerControl(optimizer="bobyqa"))
     joint_tests(m0_1_r)
@@ -308,10 +161,10 @@ let
   p_intervals = R"""
     theme_set(theme_light())
     theme_update(legend.position = "bottom", legend.direction = "horizontal")
-    emmip(m0_1_r, diff_choice_interval_scaled ~ diff_interval_scaled, CIs = T, plotit = F, type = 'response', at = list(diff_choice_interval_scaled = c(-1, 0, 1), diff_interval_scaled = seq(-3, 3, by = 0.05))) |>
+    emmip(m0_1_r, diff_choice_interval_z ~ diff_interval_z, CIs = T, plotit = F, type = 'response', at = list(diff_choice_interval_z = c(-1, 0, 1), diff_interval_z = seq(-3, 3, by = 0.05))) |>
     ggplot() +
-    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_scaled, fill = factor(diff_choice_interval_scaled, ordered = T)), alpha = 0.1) +
-    geom_line(aes(x = diff_interval_scaled, y = yvar, color = factor(diff_choice_interval_scaled, ordered = T)), size = 1) +
+    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_z, fill = factor(diff_choice_interval_z, ordered = T)), alpha = 0.1) +
+    geom_line(aes(x = diff_interval_z, y = yvar, color = factor(diff_choice_interval_z, ordered = T)), size = 1) +
     labs(x = "Last seen interval (z)", y = "Predicted P[Left]", color = "Last controlled interval (z)", fill = "Last controlled interval (z)") +
     scale_color_brewer(palette = "Oranges", aesthetics = c("color", "fill"))
   """
@@ -325,15 +178,15 @@ end
 
 let
   R"""
-  m1_r <- glmer(response_left ~ trial_number_scaled * (diff_interval_scaled * diff_choice_interval_scaled) + (trial_number_scaled * (diff_interval_scaled * diff_choice_interval_scaled) | participant_id), non_blue_df, family = binomial, control=glmerControl(optimizer="nloptwrap", optCtrl = list(algorithm = "NLOPT_LN_BOBYQA"), calc.derivs = FALSE))
+  m1_r <- glmer(response_left ~ trial_number_z * (diff_interval_z * diff_choice_interval_z) + (trial_number_z * (diff_interval_z * diff_choice_interval_z) | participant_id), non_blue_df, family = binomial, control=glmerControl(optimizer="nloptwrap", optCtrl = list(algorithm = "NLOPT_LN_BOBYQA"), calc.derivs = FALSE))
   joint_tests(m1_r)
   """
 
   p_time_interval_interact = R"""
-  emmip(m1_r, trial_number_scaled ~ diff_interval_scaled, CIs = T, plotit = F, type = 'response', at = list(trial_number_scaled = c(-1, 0, 1), diff_interval_scaled = seq(-3, 3, by = 0.05))) |>
+  emmip(m1_r, trial_number_z ~ diff_interval_z, CIs = T, plotit = F, type = 'response', at = list(trial_number_z = c(-1, 0, 1), diff_interval_z = seq(-3, 3, by = 0.05))) |>
     ggplot() +
-    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_scaled, fill = factor(trial_number_scaled, ordered = T)), alpha = 0.1) +
-    geom_line(aes(x = diff_interval_scaled, y = yvar, color = factor(trial_number_scaled, ordered = T)), size = 1) +
+    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_z, fill = factor(trial_number_z, ordered = T)), alpha = 0.1) +
+    geom_line(aes(x = diff_interval_z, y = yvar, color = factor(trial_number_z, ordered = T)), size = 1) +
     labs(x = "Last seen interval (z)", y = "Predicted P[Left]", color = "Trial number (z)", fill = "Trial number (z)") +
     scale_color_brewer(palette = "Oranges", aesthetics = c("color", "fill"))
   """
@@ -346,34 +199,34 @@ end
 let
   @time m2 = glmm(@formula(response_left ~ current * (diff_interval * diff_choice_interval) + (current * (diff_interval * diff_choice_interval) | participant_id)), non_blue_df, Bernoulli(), contrasts=Dict(:current => EffectsCoding(), :diff_interval => ZScore(), :diff_choice_interval => ZScore()), fast=false, progress=false)
 
-  plot_effort_interaction(m2, non_blue_df, "diff_interval_scaled";
+  plot_effort_interaction(m2, non_blue_df, "diff_interval_z";
     xlabel="zSeen Interval[Left] - zSeen Interval[Right]")
   
-  plot_effort_interaction(m2, non_blue_df, "diff_choice_interval_scaled";
+  plot_effort_interaction(m2, non_blue_df, "diff_choice_interval_z";
     xlabel="zControlled Interval[Left] - zControlled Interval[Right]")
 end
 
 let
   @time R"""
-  m2_r <- glmer(response_left ~ current * (diff_interval_scaled * diff_choice_interval_scaled) + (current * (diff_interval_scaled * diff_choice_interval_scaled) | participant_id), non_blue_df, family = binomial, control=glmerControl(optimizer="nloptwrap", optCtrl = list(algorithm = "NLOPT_LN_BOBYQA"), calc.derivs = FALSE))
+  m2_r <- glmer(response_left ~ current * (diff_interval_z * diff_choice_interval_z) + (current * (diff_interval_z * diff_choice_interval_z) | participant_id), non_blue_df, family = binomial, control=glmerControl(optimizer="nloptwrap", optCtrl = list(algorithm = "NLOPT_LN_BOBYQA"), calc.derivs = FALSE))
   joint_tests(m2_r)
   """
 
   p_effort_seen_interval_interact = R"""
-  emmip(m2_r, current ~ diff_interval_scaled, CIs = T, plotit = F, type = 'response', at = list(diff_interval_scaled = seq(-3, 3, by = 0.05))) |>
+  emmip(m2_r, current ~ diff_interval_z, CIs = T, plotit = F, type = 'response', at = list(diff_interval_z = seq(-3, 3, by = 0.05))) |>
     ggplot() +
-    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_scaled, fill = factor(current, ordered = T)), alpha = 0.1) +
-    geom_line(aes(x = diff_interval_scaled, y = yvar, color = factor(current, ordered = T)), size = 1) +
+    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_interval_z, fill = factor(current, ordered = T)), alpha = 0.1) +
+    geom_line(aes(x = diff_interval_z, y = yvar, color = factor(current, ordered = T)), size = 1) +
     labs(x = "Last seen interval (z)", y = "Predicted P[Left]", color = "Required effort level", fill = "Required effort level") +
     scale_color_brewer(palette = "Oranges", aesthetics = c("color", "fill"))
   """
   gg_show_save(p_effort_seen_interval_interact, "p_effort_seen_interval_interact.pdf", width=4, height=3)
 
   p_effort_choice_interval_interact = R"""
-  emmip(m2_r, current ~ diff_choice_interval_scaled, CIs = T, plotit = F, type = 'response', at = list(diff_choice_interval_scaled = seq(-3, 3, by = 0.05))) |>
+  emmip(m2_r, current ~ diff_choice_interval_z, CIs = T, plotit = F, type = 'response', at = list(diff_choice_interval_z = seq(-3, 3, by = 0.05))) |>
     ggplot() +
-    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_choice_interval_scaled, fill = factor(current, ordered = T)), alpha = 0.1) +
-    geom_line(aes(x = diff_choice_interval_scaled, y = yvar, color = factor(current, ordered = T)), size = 1) +
+    geom_ribbon(aes(ymin = LCL, ymax = UCL, x = diff_choice_interval_z, fill = factor(current, ordered = T)), alpha = 0.1) +
+    geom_line(aes(x = diff_choice_interval_z, y = yvar, color = factor(current, ordered = T)), size = 1) +
     labs(x = "Last controlled interval (z)", y = "Predicted P[Left]", color = "Required effort level", fill = "Required effort level") +
     scale_color_brewer(palette = "Oranges", aesthetics = c("color", "fill"))
   """
@@ -382,7 +235,7 @@ end
 
 # ### Does trial number also modulate the required effort and interval interaction effects?
 @time begin
-  m3 = glmm(@formula(response_left ~ trial_number * current * (diff_interval * diff_choice_interval) + (trial_number * current * (diff_interval * diff_choice_interval) | participant_id)), non_blue_df, Bernoulli(), fast=false, progress=false; contrasts=Dict(:trial_number => ZScore(), :current => EffectsCoding(), :diff_interval => ZScore(), :diff_choice_interval => ZScore()))
+  m3 = glmm(@formula(response_left ~ trial_number * current * diff_interval + (trial_number * current * diff_interval | participant_id)), non_blue_df, Bernoulli(), fast=true, progress=false; contrasts=Dict(:trial_number => ZScore(), :current => EffectsCoding(), :diff_interval => ZScore(), :diff_choice_interval => ZScore()))
 end
 
 # ### Color preference during exploration, over time
@@ -536,60 +389,7 @@ end
 begin
   colors = ["blue", "green", "red", "yellow"]
 
-  function compute_prediction_features(task_df)
-    feature_rows = NamedTuple{(:participant_id, :session, :trial_index, :ship, :seen_count, :controlled_count, :prediction_idx),
-      Tuple{String,String,Int64,String,Int64,Int64,Int64}}[]
-
-    for group_df in groupby(task_df, [:participant_id, :session])
-      sdf = sort(group_df, :trial_index)
-      pid = String(sdf.participant_id[1])
-      sess = String(sdf.session[1])
-
-      seen_counts = Dict{String,Int}(color => 0 for color in colors)
-      control_counts = Dict{String,Int}(color => 0 for color in colors)
-      prediction_counter = 0
-
-      for row in eachrow(sdf)
-        trial_idx = row.trial_index
-        if ismissing(trial_idx)
-          continue
-        end
-        trial_idx = Int(trial_idx)
-        phase = row.trialphase
-
-        if phase == "control_predict_homebase"
-          ship_color = row.ship
-          if !ismissing(ship_color)
-            ship_str = String(ship_color)
-            prediction_counter += 1
-            push!(feature_rows, (participant_id=pid, session=sess, trial_index=trial_idx, ship=ship_str,
-              seen_count=seen_counts[ship_str], controlled_count=control_counts[ship_str], prediction_idx=prediction_counter))
-          end
-        elseif phase == "control_explore"
-          left_color = row.left
-          right_color = row.right
-          if !ismissing(left_color)
-            seen_counts[String(left_color)] += 1
-          end
-          if !ismissing(right_color)
-            seen_counts[String(right_color)] += 1
-          end
-          resp = row.response
-          if resp isa String && (resp == "left" || resp == "right")
-            chosen_color = row[Symbol(resp)]
-            if !ismissing(chosen_color)
-              chosen_str = String(chosen_color)
-              if row.control_rule_used == "control"
-                control_counts[chosen_str] += 1
-              end
-            end
-          end
-        end
-      end
-    end
-
-    return DataFrame(feature_rows)
-  end
+  
 
   prediction_trials = @chain control_task_data begin
     filter(row -> row.trialphase == "control_predict_homebase", _)
@@ -610,19 +410,6 @@ begin
   end
 
   prediction_trials = leftjoin(prediction_trials, confidence_df, on=[:participant_id, :session, :trial])
-
-  function zscore_with_missing(vec)
-    values = collect(skipmissing(vec))
-    if isempty(values)
-      return fill(missing, length(vec))
-    end
-    μ = mean(values)
-    σ = std(values)
-    if σ == 0
-      return map(v -> ismissing(v) ? missing : 0.0, vec)
-    end
-    return map(v -> ismissing(v) ? missing : (v - μ) / σ, vec)
-  end
 
   transform!(prediction_trials,
     [:seen_count, :controlled_count, :prediction_idx] .=> zscore_with_missing .=>
