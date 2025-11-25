@@ -3,7 +3,7 @@ module ControlUtils
 using RCall, DataFrames, JSON
 
 export gg_show_save, summarize_participation, extract_debrief_responses,
-       spearman_brown
+       spearman_brown, zscore_with_missing
 
 """
     gg_show_save(plot_obj; width=6, height=4, dpi=150)
@@ -108,5 +108,18 @@ spearman_brown(
     r;
     n=2 # Number of splits
 ) = (n * r) / (1 + (n - 1) * r)
+
+function zscore_with_missing(vec)
+  values = collect(skipmissing(vec))
+  if isempty(values)
+    return fill(missing, length(vec))
+  end
+  μ = mean(values)
+  σ = std(values)
+  if σ == 0
+    return map(v -> ismissing(v) ? missing : 0.0, vec)
+  end
+  return map(v -> ismissing(v) ? missing : (v - μ) / σ, vec)
+end
 
 end # module

@@ -3,7 +3,7 @@ module ControlAnalysis
 using DataFrames, TidierData, CategoricalArrays, Statistics
 
 # Export the main function so your script can use it
-export build_exploration_features, compute_prediction_features, zscore_with_missing
+export build_exploration_features, compute_prediction_features
 
 """
     build_exploration_features(control_task_data)
@@ -295,19 +295,6 @@ function compute_prediction_features(task_df)
   end
 
   return DataFrame(feature_rows)
-end
-
-function zscore_with_missing(vec)
-  values = collect(skipmissing(vec))
-  if isempty(values)
-    return fill(missing, length(vec))
-  end
-  μ = mean(values)
-  σ = std(values)
-  if σ == 0
-    return map(v -> ismissing(v) ? missing : 0.0, vec)
-  end
-  return map(v -> ismissing(v) ? missing : (v - μ) / σ, vec)
 end
 
 end # module
