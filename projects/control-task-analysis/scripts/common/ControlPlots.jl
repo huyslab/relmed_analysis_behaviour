@@ -4,7 +4,7 @@ using DataFrames, CairoMakie, AlgebraOfGraphics, Statistics, GLM, TidierData, Ef
 using LogExpFunctions: logistic, logit
 
 export plot_explore_trend, plot_explore_trend_reliability, 
-       plot_bias_and_sensitivity_reliability, plot_glmm_effects, plot_choice_pred_curves, plot_effort_interaction
+       plot_bias_and_sensitivity_reliability, plot_glmm_effects, plot_choice_pred_curves, plot_effort_interaction, plot_effort_to_cutoff
 
 function plot_explore_trend(
   df::DataFrame;
@@ -322,6 +322,37 @@ function plot_effort_interaction(model, data_df, predictor_var::String;
     visual(Lines)
   ) |>
   draw(scales(Color=(; palette=color_palette)); axis=(; ylabel=ylabel))
+end
+
+function plot_effort_to_cutoff(explore_choice_df; factor::Symbol=:session, figure_size=(800, 600))
+  effort_to_cutfoff_df = @chain explore_choice_df begin
+    transform(:current => ByRow(function case_match(x)
+      x == 1 && return 6
+      x == 2 && return 12
+      x == 3 && return 18
+    end) => :control_cutoff)
+    transform([:trial_presses, :control_cutoff] => ((x, y) -> x .- y) => :effort_to_cutoff)
+  end
+
+  p_effort_to_cutoff = Figure(size=figure_size)
+
+  p_ind = data(effort_to_cutfoff_df) *
+          mapping(:trial_number, :effort_to_cutoff, group=:participant_id, col=factor, row=:current) *
+          visual(Lines; alpha=0.05)
+
+  p_avg = @chain effort_to_cutfoff_df begin
+    groupby([factor, :current, :trial_number])
+    combine(:effort_to_cutoff => mean => :mean_effort_to_cutoff)
+    data(_) *
+    mapping(:trial_number, :mean_effort_to_cutoff, col=factor, row=:current) *
+    (visual(Lines; color=:darkorange, linewidth=2, linestyle=:dash))
+  end
+
+  reflines = mapping([0]) * visual(HLines; color=:purple, linestyle=:dot, linewidth=2)
+
+  draw!(p_effort_to_cutoff, p_ind + p_avg + reflines; axis=(; ylabel="Actual effort - Required", xlabel="Trial number"))
+
+  return p_effort_to_cutoff
 end
 
 end # module
