@@ -264,7 +264,7 @@ function prepare_WM_data(
     DataFrames.transform!(
         groupby(
             data_clean,
-            participant_id_column
+            [participant_id_column, :session]
         ),
         :stimulus_group => compute_delays => :delay,
     ) 
@@ -355,7 +355,7 @@ function plot_learning_curve_by_delay_bins!(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
-                col = facet
+                layout = facet
         ) * visual(Lines; linewidth = config[:thick_linewidth]))) + (
             data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
             (mapping(
@@ -363,13 +363,13 @@ function plot_learning_curve_by_delay_bins!(
                 :acc,
                 :se,
                 color = :delay_bin => "Delay",
-                col = facet
+                layout = facet
             ) * visual(Errorbars, linewidth = config[:thick_linewidth]) +
             mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
-                col = facet
+                layout = facet
             ) * visual(Scatter, markersize = config[:large_markersize]))
         )
     elseif variability == :individuals
@@ -380,28 +380,28 @@ function plot_learning_curve_by_delay_bins!(
                 :acc,
                 color = :delay_bin  => "Delay",
                 group = participant_id_column,
-                col = facet
+                layout = facet
         ) * visual(Lines; linewidth = config[:thin_linewidth], linestyle = :dash) +
         data(filter(x -> x.delay_bin == "0", app_curve)) *
         mapping(
                 :appearance,
                 :acc,
                 color = :delay_bin  => "Delay",
-                col = facet
+                layout = facet
             ) * visual(Scatter, markersize = config[:small_markersize]) +
         data(filter(x -> x.delay_bin != "0", app_curve_sum)) *
         mapping(
                 :appearance,
                 :acc => "Prop. optimal choice",
                 color = :delay_bin  => "Delay",
-                col = facet
+                layout = facet
         ) * visual(Lines; linewidth = config[:thick_linewidth]) +
         data(filter(x -> x.delay_bin == "0", app_curve_sum)) *
         mapping(
                 :appearance ,
                 :acc,
                 color = :delay_bin  => "Delay",
-                col = facet
+                layout = facet
             ) * visual(Scatter, markersize = config[:large_markersize])
     end
 
