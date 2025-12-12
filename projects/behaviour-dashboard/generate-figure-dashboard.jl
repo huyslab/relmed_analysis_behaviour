@@ -56,7 +56,7 @@ end
 
 # Load and preprocess data
 begin 
-    dat = preprocess_project(experiment; force_download = false, delay_ms = 65, use_manual_download = false)
+    dat = preprocess_project(experiment; force_download = true, delay_ms = 65, use_manual_download = manual_download)
 end
 
 # Run quality checks
