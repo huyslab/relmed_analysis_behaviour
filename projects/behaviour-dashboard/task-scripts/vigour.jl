@@ -84,7 +84,7 @@ function plot_vigour_press_rate_by_reward_rate!(
       reward_column => "Reward per press",
       :avg_press_rate => "Press rate (press/sec)",
       layout=factor
-    ) * (visual(Scatter, color=:dodgerblue2, markersize=config[:large_markersize]) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
+    ) * (visual(Scatter, color=:dodgerblue2, markersize=config[:medium_markersize]) + visual(Lines, linewidth=config[:thick_linewidth], color=:dodgerblue2))
   )
 
   # Combine plots
