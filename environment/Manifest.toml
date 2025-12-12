@@ -2,7 +2,7 @@
 
 julia_version = "1.10.10"
 manifest_format = "2.0"
-project_hash = "5d344ea0d03c5f950ca020a738071ecd95dadcc8"
+project_hash = "e758c30fc06d8e30397c0620d45942071cde173b"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "27cecae79e5cc9935255f90c53bb831cc3c870d7"
@@ -1008,6 +1008,17 @@ git-tree-sha1 = "e3290f2d49e661fbd94046d7e3726ffcb2d41053"
 uuid = "5ae413db-bbd1-5e63-b57d-d24a61df00f5"
 version = "2.2.4+0"
 
+[[deps.Effects]]
+deps = ["Combinatorics", "DataFrames", "Distributions", "ForwardDiff", "LinearAlgebra", "Statistics", "StatsAPI", "StatsBase", "StatsModels", "Tables"]
+git-tree-sha1 = "6988b6464ebdc79750e8cbec511dd6802dcca93f"
+uuid = "8f03c58b-bd97-4933-a826-f71b64d2cca2"
+version = "1.6.0"
+weakdeps = ["GLM", "MixedModels"]
+
+    [deps.Effects.extensions]
+    EffectsGLMExt = "GLM"
+    EffectsMixedModelsExt = ["GLM", "MixedModels"]
+
 [[deps.EllipticalSliceSampling]]
 deps = ["AbstractMCMC", "ArrayInterface", "Distributions", "Random", "Statistics"]
 git-tree-sha1 = "e611b7fdfbfb5b18d5e98776c30daede41b44542"
@@ -1747,6 +1758,12 @@ weakdeps = ["ArrowTypes"]
 
     [deps.JSON3.extensions]
     JSON3ArrowExt = ["ArrowTypes"]
+
+[[deps.JellyMe4]]
+deps = ["CategoricalArrays", "DataFrames", "Distributions", "GLM", "LinearAlgebra", "MixedModels", "RCall", "RegressionFormulae", "StatsBase", "StatsModels", "Tables"]
+git-tree-sha1 = "c3b310936cfc93d378844128a99da7ed62ff531a"
+uuid = "19ac8677-9a15-4623-9afd-84acc6165ce7"
+version = "2.0.0"
 
 [[deps.Jieko]]
 deps = ["ExproniconLite"]
@@ -3299,6 +3316,12 @@ version = "7.10.2"
     InferenceObjects = "b5cf5a8d-e756-4ee3-b014-01d49d192c00"
     MCMCChains = "c7f686f2-ff18-58e9-bc7b-31028e88f75d"
     MonteCarloMeasurements = "0987c9cc-fe09-11e8-30f0-b96dd679fdca"
+
+[[deps.StandardizedPredictors]]
+deps = ["Statistics", "StatsBase", "StatsModels"]
+git-tree-sha1 = "f3063c966d3285158aeb4cf2a9bfe786b838482b"
+uuid = "5064a6a7-f8c2-40e2-8bdc-797ec6f1ae18"
+version = "1.0.1"
 
 [[deps.Static]]
 deps = ["CommonWorldInvalidations", "IfElse", "PrecompileTools"]
