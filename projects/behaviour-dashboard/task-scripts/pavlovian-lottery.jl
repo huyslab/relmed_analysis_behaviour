@@ -49,7 +49,7 @@ function plot_pavlovian_lottery_rt!(
     mapping(
         :pavlovian_value => nonnumeric,
         :rt,
-    ) * visual(ScatterLines, linewidth = config[:thick_linewidth], markersize = config[:large_markersize], color = :black))
+    ) * visual(ScatterLines, linewidth = config[:thick_linewidth], markersize = config[:medium_markersize], color = :black))
 
 
     mp *= mapping(layout = facet)
