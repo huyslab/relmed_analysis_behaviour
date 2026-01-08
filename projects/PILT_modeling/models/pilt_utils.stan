@@ -28,7 +28,7 @@ functions {
     return ll;
   }
 
-  real blocks_partial_sum(array[] int block_ids_slice,
+  real running_average_partial_sum(array[] int block_ids_slice,
                           int start, int end,
                           int N_actions,
                           array[] int choice,

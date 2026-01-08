@@ -13,7 +13,7 @@ model {
     if (prior_only == 0) {
         vector[N_actions] Q0 = rep_vector(initial_value * rhos[1], N_actions);
         int grainsize = 1; // tune if desired
-        target += reduce_sum(blocks_partial_sum,
+        target += reduce_sum(running_average_partial_sum,
             block_ids, grainsize,
             N_actions,
             choice,
