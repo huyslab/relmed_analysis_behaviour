@@ -54,4 +54,56 @@ functions {
     }
     return lp;
   }
+
+  real Q_learning_block_ll(
+      int start_idx,
+      int end_idx,
+      int K,
+      array[] int choice,
+      matrix outcomes,
+      vector Q_init,
+      real rho,
+      real alpha
+  ) {
+    vector[K] q = Q_init;
+    real ll = 0;
+    for (i in start_idx:end_idx) {
+      ll += categorical_logit_lpmf(choice[i] | q);
+      int a;
+      real o;
+      a = choice[i];
+      o = outcomes[i, a];
+      q[a] += compute_update(alpha, o, rho, q[a]);
+    }
+    return ll;
+  }
+
+    real Q_learning_partial_sum(array[] int block_ids_slice,
+                          int start, int end,
+                          int N_actions,
+                          array[] int choice,
+                          matrix outcomes,
+                          vector rhos,
+                          vector alphas,
+                          array[] int block_starts,
+                          array[] int block_ends,
+                          array[] int participant_per_block,
+                          vector Q0) {
+    real lp = 0;
+    for (n in block_ids_slice) {
+      lp += Q_learning_block_ll(
+        block_starts[n],
+        block_ends[n],
+        N_actions,
+        choice,
+        outcomes,
+        Q0,
+        rhos[participant_per_block[n]],
+        alphas[participant_per_block[n]]
+      );
+    }
+    return lp;
+  }
+
+
 }
