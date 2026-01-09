@@ -58,8 +58,8 @@ hyperprarameter_recovery <- function(
 
   p <- ggplot(draws, aes(x = value)) + geom_density() + facet_wrap(~variable, scales = "free", ncol = 1) +
     geom_vline(data = true_values, aes(xintercept = value), color = "red", linetype = "dashed") +
-    geom_segment(data = draws_sum, aes(x = llb, xend = uub, y = 0, yend = 0), color = "lightblue", size = 2) +
-    geom_segment(data = draws_sum, aes(x = lb, xend = ub, y = 0, yend = 0), color = "blue", size = 4) +
+    geom_segment(data = draws_sum, aes(x = llb, xend = uub, y = 0, yend = 0), color = "lightblue", linewidth = 2) +
+    geom_segment(data = draws_sum, aes(x = lb, xend = ub, y = 0, yend = 0), color = "blue", linewidth = 4) +
     theme(
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
