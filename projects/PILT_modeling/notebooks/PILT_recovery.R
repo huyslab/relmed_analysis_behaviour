@@ -17,7 +17,7 @@ options(mc.cores = parallel::detectCores())
 # Read task sequence and run recovery for selected models
 task_sequence <- read.csv("tmp/PILT_sequence.csv")
 res <- run_recovery(
-  model_ids = c("running_average_pr_rs"),
+  model_ids = c("running_average_rs", "running_average_pr_rs", "q_learning_rs"),
   task_sequence = task_sequence,
   N_participants = 100,
   per_model_opts = list(
