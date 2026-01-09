@@ -76,7 +76,7 @@ model_registry <- local({
     q_learning_rs = list(
       fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_Q_learning_rs.stan",
       predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_Q_learning_predict.stan",
-      participant_regex = "a\\[",
+      participant_regex = c("a\\[", "r\\["),
       hyperparams = c("logrho_mu", "logrho_tau", "logitalpha_mu", "logitalpha_tau"),
       sampling_defaults = list(
         iter_warmup = 1000,
