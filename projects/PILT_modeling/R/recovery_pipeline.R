@@ -43,6 +43,8 @@ simulate_prior <- function(model_id,
   all_draws <- prior$draws()
   chosen_draw <- mdl$prior_selector(all_draws)
 
+  stopifnot('Expecting exactly one draw from prior_selector' = nrow(chosen_draw) == 1)
+
   # Compile predictive model and generate choices
   predict_model <- compile_model(mdl$predict_stan)
   prior_pred <- predict_model$generate_quantities(
@@ -98,7 +100,13 @@ run_recovery <- function(model_ids,
     participant_regex <- registry[[mid]]$participant_regex
     hyperparams <- registry[[mid]]$hyperparams
 
-    participant_plot <- caterpillar_recovery(fit$draws(), participant_regex, prior_res$prior_draws)
+    if (is.character(participant_regex) && length(participant_regex) > 1) {
+      participant_plot <- lapply(participant_regex, function(pr) {
+        caterpillar_recovery(fit$draws(), pr, prior_res$prior_draws)
+      })
+    } else {
+      participant_plot <- caterpillar_recovery(fit$draws(), participant_regex, prior_res$prior_draws)
+    }
     hyper_plot <- hyperprarameter_recovery(fit$draws(), hyperparams, prior_res$prior_draws)
 
     results[[mid]] <- list(
