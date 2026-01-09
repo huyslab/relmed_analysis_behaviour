@@ -48,6 +48,31 @@ model_registry <- local({
         draws[idx, ,]
       }
     ),
+    running_average_pr_rs = list(
+      fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_pr_rs.stan",
+      predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_pr_predict.stan",
+      participant_regex = c("rhos_p\\[", "rhos_r\\["),
+      hyperparams = c("logrho_int", "logrho_int_tau", "logrho_beta", "logrho_beta_tau"),
+      sampling_defaults = list(
+        iter_warmup = 1000,
+        iter_sampling = 1000,
+        chains = 4,
+        threads_per_chain = 4,
+        seed = 1234,
+        prior_iter_warmup = 500,
+        prior_iter_sampling = 1000,
+        prior_chains = 1,
+        prior_seed = 1,
+        prior_predictive_seed = 123
+      ),
+      prior_selector = function(draws) {
+        idx <- which.min(abs(draws[, , "logrho_int"] - 1.5) / 1.5 + 
+            abs(draws[, , "logrho_int_tau"] - 0.6) / 0.6 +
+            abs(draws[, , "logrho_beta"] - 0.5) / 0.5 +
+            abs(draws[, , "logrho_beta_tau"] - 0.2) / 0.2)
+        draws[idx, ,]
+      }
+    ),
     q_learning_rs = list(
       fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_Q_learning_rs.stan",
       predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_Q_learning_predict.stan",

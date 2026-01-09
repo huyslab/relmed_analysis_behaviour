@@ -1,0 +1,27 @@
+// Shared utility functions
+#include "pilt_utils.stan"
+
+#include "pilt_hierarchical_running_average_pr_data_params.stan"
+
+generated quantities {
+  array[N_trials] int<lower=1, upper=N_actions> sim_choice;
+
+  {
+    vector[N_actions] Q0 = rep_vector(0, N_actions);
+    vector[N_actions] q;
+    for (bi in 1:N_blocks) {
+      int start_idx = block_starts[bi];
+      int end_idx = block_ends[bi];
+      q = Q0;
+
+      for (i in start_idx:end_idx) {
+        sim_choice[i] = categorical_logit_rng(q);
+        int a = sim_choice[i];
+        real alpha = 1.0 / trial[i];
+        real o = outcomes[i, a];
+        real rho = o < 0 ? rhos_p[participant_per_block[bi]] : rhos_r[participant_per_block[bi]];
+        q[a] += compute_update(alpha, o, rho, q[a]);
+      }
+    }
+  }
+}
