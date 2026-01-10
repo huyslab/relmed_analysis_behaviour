@@ -4,7 +4,7 @@
 model_registry <- local({
   list(
     running_average = list(
-      fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_blockloop.stan",
+      fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average.stan",
       predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_predict.stan",
       participant_regex = "r\\[",
       hyperparams = c("logrho", "tau"),
