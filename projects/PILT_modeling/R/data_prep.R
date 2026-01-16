@@ -1,3 +1,81 @@
+# Read a JS file containing a JSON string assignment and return as data.table
+# Example expected format:
+#   const PILT_json = '...JSON...';
+# Supports single ('), double ("), or backtick (`) quoted strings.
+read_task_sequence_js_to_dt <- function(path) {
+  # Dependencies
+  if (!requireNamespace("jsonlite", quietly = TRUE)) stop("jsonlite package is required")
+  if (!requireNamespace("data.table", quietly = TRUE)) stop("data.table package is required")
+
+  # Read entire file as a single string
+  lines <- base::readLines(path, warn = FALSE, encoding = "UTF-8")
+  content <- paste(lines, collapse = "\n")
+
+  # Find first '=' then extract the quoted JSON string that follows
+  eq_pos <- base::regexpr("=", content)
+  if (eq_pos[1] == -1) stop("No assignment '=' found in file: ", path)
+  after <- base::substring(content, eq_pos[1] + 1)
+  after <- base::sub("^\\s+", "", after)
+
+  # Determine quote type
+  quote <- base::substr(after, 1, 1)
+  if (!quote %in% c("'", '"', "`")) stop("Expected a quoted JSON string after '=' in: ", path)
+
+  # Extract quoted segment accounting for simple escapes
+  i <- 2L
+  esc <- FALSE
+  n <- base::nchar(after, type = "bytes")
+  while (i <= n) {
+    ch <- base::substr(after, i, i)
+    if (!esc && ch == quote) break
+    if (!esc && ch == "\\") esc <- TRUE else esc <- FALSE
+    i <- i + 1L
+  }
+  if (i > n) stop("Closing quote not found in: ", path)
+  json_str <- base::substr(after, 2L, i - 1L)
+
+  # Parse JSON
+  parsed <- jsonlite::fromJSON(json_str)
+
+  # If nested list of data.frames, rbind into one data.table
+  if (is.list(parsed) && !is.data.frame(parsed)) {
+    # Attempt to coerce each element to data.frame and row-bind
+    dfs <- lapply(parsed, function(x) {
+      if (is.data.frame(x)) return(x)
+      # If x is itself a list of rows, convert
+      tryCatch(as.data.frame(x), error = function(e) {
+        # Fallback to fromJSON again for nested structures
+        jsonlite::fromJSON(jsonlite::toJSON(x))
+      })
+    })
+    dt <- data.table::rbindlist(dfs, use.names = TRUE, fill = TRUE)
+  } else {
+    # Already a data.frame
+    dt <- data.table::as.data.table(parsed)
+  }
+
+  dt
+}
+
+# Parse all .js files in a folder and rbind into one data.table.
+# Adds/overwrites a `session` column derived from the filename:
+# the substring after the first '_' and before the '.js'. Also adds `source_file`.
+read_task_sequence_folder_to_dt <- function(folder, recursive = TRUE) {
+  if (!requireNamespace("data.table", quietly = TRUE)) stop("data.table package is required")
+
+  files <- base::list.files(folder, pattern = "\\.js$", full.names = TRUE, recursive = recursive)
+  if (length(files) == 0L) stop("No .js files found in folder: ", folder)
+
+  dts <- lapply(files, function(f) {
+    dt <- read_task_sequence_js_to_dt(f)
+    base <- base::basename(f)
+    dt$source_file <- base
+    dt
+  })
+
+  data.table::rbindlist(dts, use.names = TRUE, fill = TRUE)
+}
+
 # Data preparation helpers for PILT models
 # Relies on prepare_task_sequences() already provided in projects/PILT_modeling/utils/recovery.R
 
@@ -53,3 +131,4 @@ prepare_task_sequences <- function(task_sequence, N_participants, return_data_li
       participant_per_block = participant_per_block
     ))
 }
+
