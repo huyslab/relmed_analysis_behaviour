@@ -2,7 +2,7 @@ Refactor helpers to reduce duplication in PILT_recovery.R
 
 Files:
 - models_registry.R: R-only registry of models (Stan paths, parameter names, defaults, prior selector)
-- data_prep.R: `build_data_list()` and `inject_choices()` helpers
+- data_prep.R: `build_seq_data_list()` and `inject_choices()` helpers
 - recovery_pipeline.R: `simulate_prior()`, `fit_model()`, `run_recovery()` orchestrators
 - plotting.R: adapters to parameterize existing `caterpillar_recovery()` and `hyperprarameter_recovery()`
 
