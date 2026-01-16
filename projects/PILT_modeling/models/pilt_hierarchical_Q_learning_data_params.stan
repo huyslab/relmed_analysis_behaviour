@@ -23,10 +23,11 @@ transformed data {
 parameters {
   real logrho_mu;
   real<lower=0> logrho_tau;
-  vector[N_participants] r;
-
   real logitalpha_mu;
   real<lower=0> logitalpha_tau;
+
+  vector[N_participants] r;
+
   vector[N_participants] a;
 }
 
@@ -34,3 +35,4 @@ transformed parameters {
   vector[N_participants] rhos = exp(logrho_mu + logrho_tau * r);
   vector[N_participants] alphas = Phi_approx(logitalpha_mu + logitalpha_tau * a);
 }
+
