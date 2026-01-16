@@ -26,7 +26,7 @@ simulate_prior <- function(model_id,
   sopt <- merge_opts(sdef, prior_opts)
 
   # Build Stan data in prior-only mode
-  data_list <- build_data_list(prepared_sequences, N_participants, prior_only = TRUE)
+  data_list <- build_seq_data_list(prepared_sequences, N_participants, prior_only = TRUE)
 
   # Compile hierarchical fit model for prior sampling
   fit_model <- compile_model(mdl$fit_stan, threads_per_chain = sopt$threads_per_chain)
