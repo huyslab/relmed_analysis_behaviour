@@ -48,6 +48,28 @@ model_registry <- local({
         draws[idx, ,]
       }
     ),
+    pearcehall_rs = list(
+      fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_pearcehall_rs.stan",
+      predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_pearcehall_predict.stan",
+      participant_regex = "rhos\\[",
+      hyperparams = c("logrho", "tau"),
+      sampling_defaults = list(
+        iter_warmup = 1000,
+        iter_sampling = 1000,
+        chains = 4,
+        threads_per_chain = 4,
+        seed = 1234,
+        prior_iter_warmup = 500,
+        prior_iter_sampling = 100,
+        prior_chains = 1,
+        prior_seed = 1,
+        prior_predictive_seed = 123
+      ),
+      prior_selector = function(draws) {
+        idx <- which.min(abs(draws[, , "logrho"] - 2.5) + abs(draws[, , "tau"] - 0.6))
+        draws[idx, ,]
+      }
+    ),
     running_average_pr_rs = list(
       fit_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_pr_rs.stan",
       predict_stan = "projects/PILT_modeling/models/pilt_hierarchical_running_average_pr_predict.stan",
