@@ -1,7 +1,7 @@
 # Data preparation helpers for PILT models
 # Relies on prepare_task_sequences() already provided in projects/PILT_modeling/utils/recovery.R
 
-build_data_list <- function(prepared_sequences, N_participants, prior_only = TRUE) {
+build_seq_data_list <- function(prepared_sequences, N_participants, prior_only = TRUE) {
   list(
     N_trials = length(prepared_sequences$trial),
     N_actions = 2L,
@@ -26,10 +26,14 @@ inject_choices <- function(data_list, choices) {
 }
 
 # Task sequence preparation moved from projects/PILT_modeling/utils/recovery.R
-prepare_task_sequences <- function(task_sequence, N_participants) {
+prepare_task_sequences <- function(task_sequence, N_participants, return_data_list = TRUE) {
     # Cross-join participants with the task sequence
     participants_df <- data.frame(participant = seq_len(N_participants))
     task_sequences <- merge(participants_df, task_sequence, all = TRUE)
+
+    if (!return_data_list) {
+      return(task_sequences)
+    }
 
     # Sort by participant, block, trial
     task_sequences <- as.data.table(task_sequences)[order(participant, block, trial)]
